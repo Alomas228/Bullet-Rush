@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 579c3da4ad054a64e9338f72af3470a3, type: 3}
+  m_Name: Weapon_SMG_01
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  weaponName: Basic SMG
+  description: Extremely fast automatic weapon.
+  weaponType: 2
+  rarity: 0
+  weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
+  damage: 0.6
+  fireRate: 12
+  projectileSpeed: 14
+  projectileCount: 1
+  spreadAngle: 0
