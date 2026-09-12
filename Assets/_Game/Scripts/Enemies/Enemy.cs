@@ -28,6 +28,14 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float rayHeight = 0.5f;
     [Tooltip("Скорость поворота (градусов в секунду).")]
     [SerializeField] private float rotationSpeed = 360f;
+    [Tooltip("Как далеко смотрим по бокам, чтобы выбрать сторону обхода с большим зазором.")]
+    [SerializeField] private float clearanceProbeDistance = 4f;
+    [Tooltip("Насколько движение при обходе идёт вдоль стены (касательная), а не поперёк желаемого направления.")]
+    [SerializeField] private float dodgeSteer = 0.85f;
+    [Tooltip("Сколько секунд держим выбранную сторону обхода, чтобы не дёргаться от стены к стене.")]
+    [SerializeField] private float sideMemoryTime = 0.4f;
+    [Tooltip("Сколько кадров подряд путь должен быть свободен, чтобы выйти из обхода и довернуть за угол.")]
+    [SerializeField] private int clearFramesToExit = 3;
 
     private float currentHealth;
 
@@ -41,6 +49,14 @@ public class Enemy : MonoBehaviour
     private float summonTimer;
 
     private Coroutine burnCoroutine;
+
+    private Collider selfCollider;
+    private Rigidbody cachedRigidbody;
+
+    // Состояние обхода препятствий.
+    private int avoidSide;
+    private float avoidSideTimer;
+    private int clearFrames;
 
     public bool IsDead { get; private set; }
 
@@ -66,6 +82,9 @@ public class Enemy : MonoBehaviour
     {
         FindPlayer();
 
+        selfCollider = GetComponent<Collider>();
+        cachedRigidbody = GetComponent<Rigidbody>();
+
         scaledMaxHealth = GetBaseMaxHealth();
         currentHealth = scaledMaxHealth;
 
@@ -83,12 +102,10 @@ public class Enemy : MonoBehaviour
     // не выбивал моба в воздух.
     private void LockVerticalRigidbody()
     {
-        Rigidbody rb = GetComponent<Rigidbody>();
-
-        if (rb == null)
+        if (cachedRigidbody == null)
             return;
 
-        rb.constraints |=
+        cachedRigidbody.constraints |=
             RigidbodyConstraints.FreezePositionY;
     }
 
@@ -293,6 +310,8 @@ public class Enemy : MonoBehaviour
             speed *
             Time.deltaTime;
 
+        ResolveStructureOverlap();
+
         RotateTowards(moveDirection);
     }
 
@@ -332,69 +351,271 @@ public class Enemy : MonoBehaviour
             obstacleProbeDistance +
             obstaclePadding;
 
-        if (HasStructureBlocking(
+        if (avoidSideTimer > 0f)
+            avoidSideTimer -= Time.deltaTime;
+
+        if (TryGetProbeHit(
             origin,
             desired,
-            probeDistance))
+            probeDistance,
+            out RaycastHit forwardHit))
         {
-            Vector3 left =
-                Vector3.Cross(
-                    Vector3.up,
-                    desired
-                );
+            // Путь перекрыт: фиксируем сторону обхода и идём вдоль стены.
+            clearFrames = 0;
 
-            Vector3 right = -left;
-
-            bool leftFree =
-                !HasStructureBlocking(
-                    origin,
-                    left,
-                    probeDistance
-                );
-
-            bool rightFree =
-                !HasStructureBlocking(
-                    origin,
-                    right,
-                    probeDistance
-                );
-
-            if (leftFree && !rightFree)
-                return left;
-
-            if (rightFree && !leftFree)
-                return right;
-
-            if (leftFree)
-            {
-                return
-                    Vector3.Slerp(
+            if (avoidSideTimer <= 0f)
+                avoidSide =
+                    ChooseAvoidSide(
+                        origin,
                         desired,
-                        left,
-                        0.55f
-                    ).normalized;
-            }
+                        probeDistance
+                    );
 
-            if (rightFree)
-            {
-                return
-                    Vector3.Slerp(
-                        desired,
-                        right,
-                        0.55f
-                    ).normalized;
-            }
+            avoidSideTimer =
+                sideMemoryTime;
 
-            // Стены с обеих сторон — разворачиваемся назад
-            return
-                Vector3.Slerp(
+            if (avoidSide != 0)
+                return ComputeAvoidDirection(
                     desired,
-                    -desired,
-                    0.85f
+                    forwardHit,
+                    avoidSide
+                );
+
+            // Свободного места нет ни с одной стороны — отступаем.
+            return Vector3.Slerp(
+                desired,
+                -desired,
+                0.85f
+            ).normalized;
+        }
+
+        // Путь свободен. Не выходим из обхода мгновенно,
+        // чтобы моб плавно довернул за угол и не дёргался у кромки.
+        if (avoidSide != 0)
+        {
+            if (clearFrames < clearFramesToExit)
+            {
+                clearFrames++;
+
+                return Vector3.Slerp(
+                    desired,
+                    GetLateral(desired, avoidSide),
+                    0.35f
                 ).normalized;
+            }
+
+            clearFrames = 0;
+            avoidSide = 0;
+            avoidSideTimer = 0f;
         }
 
         return desired;
+    }
+
+    // Выбираем сторону обхода: по бокам меряем свободное
+    // расстояние и идём туда, где больше места.
+    private int ChooseAvoidSide(
+        Vector3 origin,
+        Vector3 desired,
+        float probeDistance)
+    {
+        Vector3 left =
+            GetLateral(desired, -1);
+
+        Vector3 right =
+            GetLateral(desired, 1);
+
+        float leftClearance =
+            GetClearance(origin, left);
+
+        float rightClearance =
+            GetClearance(origin, right);
+
+        bool leftOpen =
+            leftClearance >
+            obstaclePadding;
+
+        bool rightOpen =
+            rightClearance >
+            obstaclePadding;
+
+        if (!leftOpen && !rightOpen)
+            return 0;
+
+        if (leftOpen && !rightOpen)
+            return -1;
+
+        if (rightOpen && !leftOpen)
+            return 1;
+
+        return rightClearance > leftClearance
+            ? 1
+            : -1;
+    }
+
+    // Ведём моба вдоль стены (по касательной к грани), а не просто
+    // поперёк желаемого направления. Так он не врезается в кромку,
+    // плавно обходит угол и не скользит вдоль блока до бесконечности.
+    private Vector3 ComputeAvoidDirection(
+        Vector3 desired,
+        RaycastHit hit,
+        int side)
+    {
+        Vector3 wallNormal =
+            new Vector3(
+                hit.normal.x,
+                0f,
+                hit.normal.z
+            );
+
+        Vector3 tangent;
+
+        if (wallNormal.sqrMagnitude > 0.0001f)
+        {
+            tangent =
+                Vector3.Cross(
+                    wallNormal.normalized,
+                    Vector3.up
+                );
+        }
+        else
+        {
+            tangent =
+                GetLateral(desired, side);
+        }
+
+        Vector3 lateral =
+            GetLateral(desired, side);
+
+        if (Vector3.Dot(tangent, lateral) < 0f)
+            tangent = -tangent;
+
+        tangent.y = 0f;
+        tangent.Normalize();
+
+        // Доворачиваем к игроку, чтобы после прохода угла
+        // сразу вернуться на прямой курс.
+        return Vector3.Slerp(
+            tangent,
+            desired,
+            1f - dodgeSteer
+        ).normalized;
+    }
+
+    private Vector3 GetLateral(
+        Vector3 forward,
+        int side)
+    {
+        Vector3 lateral =
+            side < 0
+                ? Vector3.Cross(
+                    Vector3.up,
+                    forward
+                )
+                : -Vector3.Cross(
+                    Vector3.up,
+                    forward
+                );
+
+        lateral.y = 0f;
+
+        return lateral.normalized;
+    }
+
+    private float GetClearance(
+        Vector3 origin,
+        Vector3 direction)
+    {
+        if (Physics.Raycast(
+            origin,
+            direction.normalized,
+            out RaycastHit hit,
+            clearanceProbeDistance))
+        {
+            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+                return hit.distance;
+        }
+
+        return clearanceProbeDistance;
+    }
+
+    // Выталкиваем врага из стен, если движение всё же занесло
+    // его на кромку блока, чтобы он не «цеплялся» краем коллайдера.
+    private void ResolveStructureOverlap()
+    {
+        if (selfCollider == null)
+            return;
+
+        Vector3 position =
+            transform.position;
+
+        Vector3 size =
+            selfCollider.bounds.size;
+
+        float checkRadius =
+            Mathf.Max(
+                size.x,
+                Mathf.Max(size.y, size.z)
+            ) *
+            0.5f +
+            obstaclePadding;
+
+        Collider[] nearby =
+            Physics.OverlapSphere(
+                selfCollider.bounds.center,
+                checkRadius
+            );
+
+        foreach (Collider structure in nearby)
+        {
+            if (structure.GetComponentInParent<WorldStructure>() == null)
+                continue;
+
+            if (!Physics.ComputePenetration(
+                selfCollider,
+                position,
+                transform.rotation,
+                structure,
+                structure.transform.position,
+                structure.transform.rotation,
+                out Vector3 direction,
+                out float distance))
+            {
+                continue;
+            }
+
+            if (distance > 0.05f)
+                position += direction * (distance + 0.02f);
+        }
+
+        if ((position - transform.position).sqrMagnitude > 0.0001f)
+            transform.position = position;
+    }
+
+    private bool TryGetProbeHit(
+        Vector3 origin,
+        Vector3 direction,
+        float distance,
+        out RaycastHit hit)
+    {
+        if (direction.sqrMagnitude <= 0.0001f)
+        {
+            hit = default;
+            return false;
+        }
+
+        if (Physics.Raycast(
+            origin,
+            direction.normalized,
+            out hit,
+            distance))
+        {
+            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+                return true;
+        }
+
+        hit = default;
+        return false;
     }
 
     private bool HasStructureBlocking(
@@ -402,22 +623,12 @@ public class Enemy : MonoBehaviour
         Vector3 direction,
         float distance)
     {
-        if (direction.sqrMagnitude <= 0.0001f)
-            return false;
-
-        if (Physics.Raycast(
-                origin,
-                direction.normalized,
-                out RaycastHit hit,
-                distance))
-        {
-            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return TryGetProbeHit(
+            origin,
+            direction,
+            distance,
+            out _
+        );
     }
 
     private bool HasLineOfSightToPlayer()
@@ -690,6 +901,8 @@ public class Enemy : MonoBehaviour
             moveDirection *
             speed *
             Time.deltaTime;
+
+        ResolveStructureOverlap();
 
         RotateTowards(moveDirection);
     }

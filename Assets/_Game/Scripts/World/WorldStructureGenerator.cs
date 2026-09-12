@@ -65,6 +65,16 @@ public class WorldStructureGenerator : MonoBehaviour
     {
         if (baseSeed == 0)
             baseSeed = Random.Range(1, int.MaxValue);
+
+        EnsureOcclusionManager();
+    }
+
+    // Добавляет менеджер растворяющихся при заслонении блоков,
+    // если его ещё нет в сцене (не требует ручной настройки).
+    private void EnsureOcclusionManager()
+    {
+        if (FindAnyObjectByType<StructureOcclusionManager>() == null)
+            gameObject.AddComponent<StructureOcclusionManager>();
     }
 
     public void GenerateForWave(int wave)

@@ -34,10 +34,6 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private GameObject profilePanel;
     [SerializeField] private GameObject tipsPanel;
 
-    [Header("Menu Buttons Container")]
-    [Tooltip("Родитель кнопок меню. Скрывается, когда открыта какая-либо панель.")]
-    [SerializeField] private GameObject buttonsContainer;
-
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
 
@@ -237,9 +233,7 @@ public class MainMenuUI : MonoBehaviour
     public void OpenSubPanel(GameObject panelToShow)
     {
         CloseSubPanels();
-
-        if (buttonsContainer != null)
-            buttonsContainer.SetActive(false);
+        HideMenuButtons();
 
         if (panelToShow != null)
             panelToShow.SetActive(true);
@@ -247,20 +241,8 @@ public class MainMenuUI : MonoBehaviour
 
     public void CloseSubPanels()
     {
-        if (shopPanel != null)
-            shopPanel.SetActive(false);
-
-        if (upgradesPanel != null)
-            upgradesPanel.SetActive(false);
-
-        if (profilePanel != null)
-            profilePanel.SetActive(false);
-
-        if (tipsPanel != null)
-            tipsPanel.SetActive(false);
-
-        if (buttonsContainer != null)
-            buttonsContainer.SetActive(true);
+        CloseSubPanelsWhenHidden();
+        ShowMenuButtons();
     }
 
     private void CloseSubPanelsWhenHidden()
@@ -276,6 +258,34 @@ public class MainMenuUI : MonoBehaviour
 
         if (tipsPanel != null)
             tipsPanel.SetActive(false);
+    }
+
+    private void HideMenuButtons()
+    {
+        SetMenuButtonsActive(false);
+    }
+
+    private void ShowMenuButtons()
+    {
+        SetMenuButtonsActive(true);
+    }
+
+    private void SetMenuButtonsActive(bool active)
+    {
+        if (playButton != null)
+            playButton.gameObject.SetActive(active);
+
+        if (shopButton != null)
+            shopButton.gameObject.SetActive(active);
+
+        if (upgradesButton != null)
+            upgradesButton.gameObject.SetActive(active);
+
+        if (profileButton != null)
+            profileButton.gameObject.SetActive(active);
+
+        if (tipsButton != null)
+            tipsButton.gameObject.SetActive(active);
     }
 
     private void OnPlayClicked()
