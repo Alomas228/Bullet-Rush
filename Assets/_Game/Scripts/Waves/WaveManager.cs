@@ -19,6 +19,10 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float countdownStepTime = 1f;
     [SerializeField] private float timeBetweenWaves = 1f;
 
+    [Header("Structure Sync")]
+    [Tooltip("Пауза после завершения генерации структур перед спавном врагов. Даёт структурам секунду-другую до конца вырасти.")]
+    [SerializeField] private float structureSpawnBuffer = 1f;
+
     public int CurrentWave { get; private set; }
 
     private bool waveActive;
@@ -29,6 +33,9 @@ public class WaveManager : MonoBehaviour
     {
         if (waveUI != null)
             waveUI.Hide();
+
+        if (upgradeUI == null)
+            upgradeUI = FindAnyObjectByType<UpgradeUI>();
 
         if (GameStateManager.Instance != null)
         {
@@ -144,6 +151,18 @@ public class WaveManager : MonoBehaviour
         if (waveUI != null)
             waveUI.Hide();
 
+        yield return new WaitForSeconds(
+            structureSpawnBuffer
+        );
+
+        if (worldGenerator != null)
+        {
+            while (worldGenerator.IsGenerating)
+            {
+                yield return null;
+            }
+        }
+
         SpawnCurrentWave();
 
         waveActive = true;
@@ -245,6 +264,10 @@ public class WaveManager : MonoBehaviour
 
         StartCoroutine(StartNextWaveAfterDelay());
     }
+
+    // =========================================================
+    // SFX / MUSIC
+    // =========================================================
 
     private void PlayCountdownSound()
     {

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 public class Weapon : MonoBehaviour
@@ -13,6 +14,7 @@ public class Weapon : MonoBehaviour
 
     private PlayerStats playerStats;
     private PlayerController playerController;
+    private CameraFollow cachedCamera;
 
     private float fireTimer;
 
@@ -22,6 +24,43 @@ public class Weapon : MonoBehaviour
 
     private bool doubleShotActive;
     private float doubleShotTimer;
+
+    public float FireCooldownRemaining =>
+        Mathf.Max(fireTimer, 0f);
+
+    public float FireCooldownMax
+    {
+        get
+        {
+            if (weaponData == null)
+                return 1f;
+
+            float fireRate =
+                weaponData.FireRate *
+                GetFireRateMultiplier();
+
+            fireRate =
+                Mathf.Max(fireRate, 0.01f);
+
+            return 1f / fireRate;
+        }
+    }
+
+    public float FireCooldownProgress
+    {
+        get
+        {
+            float max = FireCooldownMax;
+
+            if (max <= 0f)
+                return 1f;
+
+            return
+                Mathf.Clamp01(
+                    1f - FireCooldownRemaining / max
+                );
+        }
+    }
 
     private void Awake()
     {
@@ -88,12 +127,41 @@ public class Weapon : MonoBehaviour
         UpdateBurst();
         UpdateDoubleShot();
 
-        if (canShoot &&
-            Mouse.current != null &&
-            Mouse.current.leftButton.isPressed)
-        {
-            TryShoot();
-        }
+        if (!CanShootNow())
+            return;
+
+        if (Mouse.current == null ||
+            !Mouse.current.leftButton.isPressed)
+            return;
+
+        TryShoot();
+    }
+
+    private bool CanShootNow()
+    {
+        if (!canShoot)
+            return false;
+
+        // Пауза, меню, экран улучшений
+        if (Time.timeScale <= 0f)
+            return false;
+
+        // Клик по кнопке UI не должен стрелять
+        if (IsPointerOverUi())
+            return false;
+
+        return true;
+    }
+
+    private bool IsPointerOverUi()
+    {
+        EventSystem eventSystem =
+            EventSystem.current;
+
+        if (eventSystem == null)
+            return false;
+
+        return eventSystem.IsPointerOverGameObject();
     }
 
     private void UpdateFireTimer()
@@ -249,6 +317,25 @@ public class Weapon : MonoBehaviour
         }
 
         ApplyRecoil(firePoint);
+
+        ApplyFireShake();
+    }
+
+    private void ApplyFireShake()
+    {
+        if (weaponData == null)
+            return;
+
+        float amount = weaponData.ShakeOnFire;
+
+        if (amount <= 0f)
+            return;
+
+        if (cachedCamera == null)
+            cachedCamera = FindAnyObjectByType<CameraFollow>();
+
+        if (cachedCamera != null)
+            cachedCamera.AddFireShake(amount);
     }
 
     private void FireProjectile(

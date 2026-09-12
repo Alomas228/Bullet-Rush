@@ -41,7 +41,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
     [Header("Spawn Animation")]
     [Tooltip("Пауза между появлением кубов — объекты вырастают цепочкой, как исчезали при возврате в меню.")]
-    [SerializeField] private float spawnStagger = 0.1f;
+    [SerializeField] private float spawnStagger = 0.05f;
     [Tooltip("Длительность «вырастания» одного куба.")]
     [SerializeField] private float scaleInDuration = 0.25f;
 
@@ -57,6 +57,9 @@ public class WorldStructureGenerator : MonoBehaviour
     private Coroutine generateCoroutine;
 
     private float groundY;
+
+    public bool IsGenerating =>
+        generateCoroutine != null;
 
     private void Awake()
     {
@@ -146,6 +149,12 @@ public class WorldStructureGenerator : MonoBehaviour
                 spawnStagger
             );
         }
+
+        // Ждём роста последнего куба, чтобы генерация
+        // считалась завершённой только когда всё выросло.
+        yield return new WaitForSecondsRealtime(
+            scaleInDuration
+        );
 
         generateCoroutine = null;
     }

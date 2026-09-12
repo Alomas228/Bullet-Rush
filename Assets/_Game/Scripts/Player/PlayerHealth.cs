@@ -5,6 +5,10 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private float maxHealth = 10f;
     [SerializeField] private float healTickInterval = 0.5f;
 
+    [Header("Screen Shake")]
+    [Tooltip("Сила тряски экрана при получении урона (0 = без тряски).")]
+    [SerializeField] private float hitShakeAmount = 0.35f;
+
     private float healthRegenPerSecond;
     private float healTimer;
 
@@ -65,6 +69,7 @@ public class PlayerHealth : MonoBehaviour
         CurrentHealth = Mathf.Max(CurrentHealth, 0f);
 
         PlayPlayerHitSound();
+        TriggerScreenShake();
 
         Debug.Log(
             $"Player HP: {CurrentHealth}/{maxHealth}"
@@ -72,6 +77,36 @@ public class PlayerHealth : MonoBehaviour
 
         if (CurrentHealth <= 0f)
             Die();
+    }
+
+    public void Kill()
+    {
+        if (CurrentHealth <= 0f)
+            return;
+
+        CurrentHealth = 0f;
+
+        Die();
+    }
+
+    public void Heal(float amount)
+    {
+        if (amount <= 0f)
+            return;
+
+        if (CurrentHealth <= 0f)
+            return;
+
+        CurrentHealth =
+            Mathf.Min(
+                CurrentHealth + amount,
+                maxHealth
+            );
+
+        Debug.Log(
+            $"Player healed +{amount:0.##} HP " +
+            $"(Now: {CurrentHealth}/{maxHealth})"
+        );
     }
 
     private void PlayPlayerHitSound()
@@ -83,6 +118,15 @@ public class PlayerHealth : MonoBehaviour
 
         if (sfx != null)
             AudioManager.Instance.PlaySFX(sfx.PlayerHit);
+    }
+
+    private void TriggerScreenShake()
+    {
+        CameraFollow camera =
+            FindAnyObjectByType<CameraFollow>();
+
+        if (camera != null)
+            camera.AddShake(hitShakeAmount);
     }
 
     public void AddMaxHealthPercent(float percent)

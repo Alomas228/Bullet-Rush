@@ -13,11 +13,30 @@ public class MainMenuUI : MonoBehaviour
     [Tooltip("Если true — пока идёт возврат в меню (камера ещё летит к меню), кнопка Play недоступна.")]
     public static bool MenuReloadPending;
 
+    public static MainMenuUI Instance { get; private set; }
+
     [Header("Panel")]
     [SerializeField] private GameObject menuPanel;
 
     [Header("Buttons")]
     [SerializeField] private Button playButton;
+
+    [Header("Submenu Buttons")]
+    [SerializeField] private Button shopButton;
+    [SerializeField] private Button upgradesButton;
+    [SerializeField] private Button profileButton;
+    [SerializeField] private Button tipsButton;
+
+    [Header("Submenu Panels")]
+    [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
+    [SerializeField] private GameObject shopPanel;
+    [SerializeField] private GameObject upgradesPanel;
+    [SerializeField] private GameObject profilePanel;
+    [SerializeField] private GameObject tipsPanel;
+
+    [Header("Menu Buttons Container")]
+    [Tooltip("Родитель кнопок меню. Скрывается, когда открыта какая-либо панель.")]
+    [SerializeField] private GameObject buttonsContainer;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -35,8 +54,22 @@ public class MainMenuUI : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
+
         if (playButton != null)
             playButton.onClick.AddListener(OnPlayClicked);
+
+        if (shopButton != null)
+            shopButton.onClick.AddListener(OnShopClicked);
+
+        if (upgradesButton != null)
+            upgradesButton.onClick.AddListener(OnUpgradesClicked);
+
+        if (profileButton != null)
+            profileButton.onClick.AddListener(OnProfileClicked);
+
+        if (tipsButton != null)
+            tipsButton.onClick.AddListener(OnTipsClicked);
     }
 
     private void OnEnable()
@@ -46,8 +79,23 @@ public class MainMenuUI : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this)
+            Instance = null;
+
         if (playButton != null)
             playButton.onClick.RemoveListener(OnPlayClicked);
+
+        if (shopButton != null)
+            shopButton.onClick.RemoveListener(OnShopClicked);
+
+        if (upgradesButton != null)
+            upgradesButton.onClick.RemoveListener(OnUpgradesClicked);
+
+        if (profileButton != null)
+            profileButton.onClick.RemoveListener(OnProfileClicked);
+
+        if (tipsButton != null)
+            tipsButton.onClick.RemoveListener(OnTipsClicked);
     }
 
     private void Start()
@@ -114,6 +162,8 @@ public class MainMenuUI : MonoBehaviour
     {
         slidingOut = false;
 
+        CloseSubPanels();
+
         if (menuPanel != null)
             menuPanel.SetActive(true);
 
@@ -156,10 +206,76 @@ public class MainMenuUI : MonoBehaviour
         if (menuPanel != null)
             menuPanel.SetActive(false);
 
+        CloseSubPanelsWhenHidden();
+
         Time.timeScale = 1f;
 
         if (slideCoroutine != null)
             StopCoroutine(slideCoroutine);
+    }
+
+    private void OnShopClicked()
+    {
+        OpenSubPanel(shopPanel);
+    }
+
+    private void OnUpgradesClicked()
+    {
+        OpenSubPanel(upgradesPanel);
+    }
+
+    private void OnProfileClicked()
+    {
+        OpenSubPanel(profilePanel);
+    }
+
+    private void OnTipsClicked()
+    {
+        OpenSubPanel(tipsPanel);
+    }
+
+    public void OpenSubPanel(GameObject panelToShow)
+    {
+        CloseSubPanels();
+
+        if (buttonsContainer != null)
+            buttonsContainer.SetActive(false);
+
+        if (panelToShow != null)
+            panelToShow.SetActive(true);
+    }
+
+    public void CloseSubPanels()
+    {
+        if (shopPanel != null)
+            shopPanel.SetActive(false);
+
+        if (upgradesPanel != null)
+            upgradesPanel.SetActive(false);
+
+        if (profilePanel != null)
+            profilePanel.SetActive(false);
+
+        if (tipsPanel != null)
+            tipsPanel.SetActive(false);
+
+        if (buttonsContainer != null)
+            buttonsContainer.SetActive(true);
+    }
+
+    private void CloseSubPanelsWhenHidden()
+    {
+        if (shopPanel != null)
+            shopPanel.SetActive(false);
+
+        if (upgradesPanel != null)
+            upgradesPanel.SetActive(false);
+
+        if (profilePanel != null)
+            profilePanel.SetActive(false);
+
+        if (tipsPanel != null)
+            tipsPanel.SetActive(false);
     }
 
     private void OnPlayClicked()

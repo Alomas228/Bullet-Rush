@@ -33,8 +33,9 @@ MonoBehaviour:
   burnDamagePerSecond: 3
   burnDuration: 2
   burnTickInterval: 0.5
+  recoilForce: 0.55
+  shakeOnFire: 1
   lightningChance: 0.25
   lightningDamage: 8
   lightningTargets: 2
   lightningRange: 4
-  recoilForce: 0.55

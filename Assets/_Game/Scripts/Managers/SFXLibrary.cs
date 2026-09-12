@@ -25,7 +25,12 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip bossAbility;
     [SerializeField] private AudioClip bossAoeExplode;
 
+    [Header("Pickup")]
+    [SerializeField] private AudioClip pickupSpawn;
+    [SerializeField] private AudioClip pickupCollect;
+
     [Header("UI")]
+    [SerializeField] private AudioClip uiClick;
     [SerializeField] private AudioClip countdownTick;
     [SerializeField] private AudioClip waveStart;
     [SerializeField] private AudioClip upgradePick;
@@ -52,4 +57,8 @@ public class SFXLibrary : ScriptableObject
     public AudioClip UpgradePick => upgradePick;
     public AudioClip MenuOpen => menuOpen;
     public AudioClip GameOver => gameOver;
+    public AudioClip UiClick => uiClick;
+
+    public AudioClip PickupSpawn => pickupSpawn;
+    public AudioClip PickupCollect => pickupCollect;
 }

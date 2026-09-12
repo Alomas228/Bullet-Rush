@@ -41,6 +41,12 @@ public class EnemyProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (other.GetComponentInParent<WorldStructure>() != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         if (!other.CompareTag("Player"))
             return;
 

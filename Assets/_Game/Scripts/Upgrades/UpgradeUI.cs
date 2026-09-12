@@ -20,6 +20,9 @@ public class UpgradeUI : MonoBehaviour
     [Header("References")]
     [SerializeField] private WaveManager waveManager;
 
+    public bool IsShowing =>
+        upgradePanel != null && upgradePanel.activeSelf;
+
     private void Start()
     {
         Hide();

@@ -50,6 +50,12 @@ public class WorldFadeOutManager : MonoBehaviour
     {
         List<GameObject> result = new List<GameObject>();
 
+        GameObject player =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (player != null && !result.Contains(player))
+            result.Add(player);
+
         CollectFrom(result, FindObjectsByType<Enemy>());
         CollectFrom(result, FindObjectsByType<EnemyProjectile>());
         CollectFrom(result, FindObjectsByType<Bullet>());

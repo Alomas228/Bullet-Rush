@@ -19,6 +19,16 @@ public class Enemy : MonoBehaviour
     [Header("Damage Numbers")]
     [SerializeField] private GameObject damageNumberPrefab;
 
+    [Header("Navigation")]
+    [Tooltip("Дальность проверки препятствия перед движением.")]
+    [SerializeField] private float obstacleProbeDistance = 1.2f;
+    [Tooltip("Минимальный запас до стены при обходе.")]
+    [SerializeField] private float obstaclePadding = 0.75f;
+    [Tooltip("Подъём точки, из которой пускаются лучи (чтобы не цеплять собственный коллайдер).")]
+    [SerializeField] private float rayHeight = 0.5f;
+    [Tooltip("Скорость поворота (градусов в секунду).")]
+    [SerializeField] private float rotationSpeed = 360f;
+
     private float currentHealth;
 
     private int currentWave = 1;
@@ -64,6 +74,22 @@ public class Enemy : MonoBehaviour
 
         if (enemySpawner == null)
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
+
+        LockVerticalRigidbody();
+    }
+
+    // Враги двигаются через transform, физика нужна только для
+    // контактного урона. Замораживаем вертикаль, чтобы рывок игрока
+    // не выбивал моба в воздух.
+    private void LockVerticalRigidbody()
+    {
+        Rigidbody rb = GetComponent<Rigidbody>();
+
+        if (rb == null)
+            return;
+
+        rb.constraints |=
+            RigidbodyConstraints.FreezePositionY;
     }
 
     public void Initialize(int wave)
@@ -244,28 +270,183 @@ public class Enemy : MonoBehaviour
         if (player == null)
             return;
 
-        Vector3 direction =
+        Vector3 desired =
             player.position - transform.position;
 
-        direction.y = 0f;
+        desired.y = 0f;
 
-        if (direction.sqrMagnitude <= 0.01f)
+        if (desired.sqrMagnitude <= 0.01f)
             return;
 
-        direction.Normalize();
+        desired.Normalize();
 
         float speed =
             enemyData != null
                 ? enemyData.MoveSpeed
                 : 2f;
 
+        Vector3 moveDirection =
+            AvoidObstacles(desired);
+
         transform.position +=
-            direction *
+            moveDirection *
             speed *
             Time.deltaTime;
 
-        transform.rotation =
+        RotateTowards(moveDirection);
+    }
+
+
+    // =========================================================
+    // SMOOTH ROTATION
+    // =========================================================
+
+    private void RotateTowards(Vector3 direction)
+    {
+        if (direction.sqrMagnitude <= 0.0001f)
+            return;
+
+        Quaternion targetRotation =
             Quaternion.LookRotation(direction);
+
+        transform.rotation =
+            Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                rotationSpeed * Time.deltaTime
+            );
+    }
+
+
+    // =========================================================
+    // OBSTACLE AVOIDANCE
+    // =========================================================
+
+    private Vector3 AvoidObstacles(Vector3 desired)
+    {
+        Vector3 origin =
+            transform.position +
+            Vector3.up * rayHeight;
+
+        float probeDistance =
+            obstacleProbeDistance +
+            obstaclePadding;
+
+        if (HasStructureBlocking(
+            origin,
+            desired,
+            probeDistance))
+        {
+            Vector3 left =
+                Vector3.Cross(
+                    Vector3.up,
+                    desired
+                );
+
+            Vector3 right = -left;
+
+            bool leftFree =
+                !HasStructureBlocking(
+                    origin,
+                    left,
+                    probeDistance
+                );
+
+            bool rightFree =
+                !HasStructureBlocking(
+                    origin,
+                    right,
+                    probeDistance
+                );
+
+            if (leftFree && !rightFree)
+                return left;
+
+            if (rightFree && !leftFree)
+                return right;
+
+            if (leftFree)
+            {
+                return
+                    Vector3.Slerp(
+                        desired,
+                        left,
+                        0.55f
+                    ).normalized;
+            }
+
+            if (rightFree)
+            {
+                return
+                    Vector3.Slerp(
+                        desired,
+                        right,
+                        0.55f
+                    ).normalized;
+            }
+
+            // Стены с обеих сторон — разворачиваемся назад
+            return
+                Vector3.Slerp(
+                    desired,
+                    -desired,
+                    0.85f
+                ).normalized;
+        }
+
+        return desired;
+    }
+
+    private bool HasStructureBlocking(
+        Vector3 origin,
+        Vector3 direction,
+        float distance)
+    {
+        if (direction.sqrMagnitude <= 0.0001f)
+            return false;
+
+        if (Physics.Raycast(
+                origin,
+                direction.normalized,
+                out RaycastHit hit,
+                distance))
+        {
+            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasLineOfSightToPlayer()
+    {
+        if (player == null)
+            return false;
+
+        Vector3 origin =
+            transform.position +
+            Vector3.up * rayHeight;
+
+        Vector3 target =
+            player.position +
+            Vector3.up * rayHeight;
+
+        Vector3 direction =
+            target - origin;
+
+        float distance =
+            direction.magnitude;
+
+        if (distance <= 0.01f)
+            return true;
+
+        return !HasStructureBlocking(
+            origin,
+            direction,
+            distance
+        );
     }
 
 
@@ -288,11 +469,17 @@ public class Enemy : MonoBehaviour
 
         direction.Normalize();
 
-        transform.rotation =
-            Quaternion.LookRotation(direction);
+        RotateTowards(direction);
 
         if (distance > enemyData.AttackRange)
         {
+            MoveTowardsPlayer();
+            return;
+        }
+
+        if (!HasLineOfSightToPlayer())
+        {
+            // Стена между врагом и игроком: подходим, пока не откроется линия огня
             MoveTowardsPlayer();
             return;
         }
@@ -430,7 +617,8 @@ public class Enemy : MonoBehaviour
         float distance =
             direction.magnitude;
 
-        if (distance > bossData.AttackRange)
+        if (distance > bossData.AttackRange ||
+            !HasLineOfSightToPlayer())
         {
             MoveBossTowardsPlayer();
         }
@@ -440,8 +628,7 @@ public class Enemy : MonoBehaviour
             {
                 direction.Normalize();
 
-                transform.rotation =
-                    Quaternion.LookRotation(direction);
+                RotateTowards(direction);
             }
 
             if (attackTimer <= 0f)
@@ -484,23 +671,27 @@ public class Enemy : MonoBehaviour
             bossData == null)
             return;
 
-        Vector3 direction =
+        Vector3 desired =
             player.position - transform.position;
 
-        direction.y = 0f;
+        desired.y = 0f;
 
-        if (direction.sqrMagnitude <= 0.01f)
+        if (desired.sqrMagnitude <= 0.01f)
             return;
 
-        direction.Normalize();
+        desired.Normalize();
+
+        float speed = GetBossMoveSpeed();
+
+        Vector3 moveDirection =
+            AvoidObstacles(desired);
 
         transform.position +=
-            direction *
-            GetBossMoveSpeed() *
+            moveDirection *
+            speed *
             Time.deltaTime;
 
-        transform.rotation =
-            Quaternion.LookRotation(direction);
+        RotateTowards(moveDirection);
     }
 
     private float GetBossMoveSpeed()
@@ -1091,6 +1282,11 @@ public class Enemy : MonoBehaviour
     // DEATH
     // =========================================================
 
+    public void Kill()
+    {
+        Die();
+    }
+
     private void Die()
     {
         if (IsDead)
@@ -1099,6 +1295,7 @@ public class Enemy : MonoBehaviour
         IsDead = true;
 
         SpawnBloodPool();
+        SpawnLoot();
 
         PlayEnemyDeathSound();
 
@@ -1165,6 +1362,86 @@ public class Enemy : MonoBehaviour
         else
         {
             AudioManager.Instance.PlaySFX(sfx.EnemyDie);
+        }
+    }
+
+
+    // =========================================================
+    // LOOT
+    // =========================================================
+
+    private void SpawnLoot()
+    {
+        if (enemyData == null)
+            return;
+
+        bool isBoss =
+            enemyData.EnemyType == EnemyType.Boss;
+
+        Vector3 position =
+            transform.position;
+
+        LootPickup.SpawnXP(
+            position,
+            GetXpValue()
+        );
+
+        if (isBoss)
+        {
+            LootPickup.SpawnHealth(position, 0.35f);
+            LootPickup.SpawnCoin(position, 3);
+
+            return;
+        }
+
+        if (Random.value < 0.08f)
+        {
+            LootPickup.SpawnHealth(
+                position,
+                0.20f
+            );
+        }
+
+        if (Random.value < 0.12f)
+        {
+            LootPickup.SpawnCoin(
+                position,
+                1
+            );
+        }
+    }
+
+    private int GetXpValue()
+    {
+        if (enemyData != null &&
+            enemyData.EnemyType == EnemyType.Boss &&
+            bossData != null)
+        {
+            return 100;
+        }
+
+        if (enemyData == null)
+            return 5;
+
+        switch (enemyData.EnemyType)
+        {
+            case EnemyType.Normal:
+                return 5;
+
+            case EnemyType.Fast:
+                return 7;
+
+            case EnemyType.Tank:
+                return 12;
+
+            case EnemyType.Ranged:
+                return 8;
+
+            case EnemyType.Elite:
+                return 25;
+
+            default:
+                return Mathf.Max(enemyData.ScoreValue / 2, 5);
         }
     }
 

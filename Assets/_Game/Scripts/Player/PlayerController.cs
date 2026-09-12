@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -14,6 +15,10 @@ public class PlayerController : MonoBehaviour
     [Header("Aiming")]
     [SerializeField] private Camera playerCamera;
 
+    [Header("Spawn Effect")]
+    [Tooltip("Длительность «вырастания» игрока в начале волны 1.")]
+    [SerializeField] private float spawnGrowDuration = 0.25f;
+
     private Rigidbody rb;
     private Collider playerCollider;
     private PlayerStats playerStats;
@@ -27,6 +32,62 @@ public class PlayerController : MonoBehaviour
     private float dashTimer;
     private float dashCooldownTimer;
     private Vector3 dashDirection;
+
+    private bool spawnGrowInProgress;
+
+    public void PlaySpawnIn()
+    {
+        if (spawnGrowInProgress)
+            return;
+
+        spawnGrowInProgress = true;
+
+        if (playerCollider != null)
+            playerCollider.enabled = false;
+
+        if (rb != null)
+            rb.useGravity = false;
+
+        StartCoroutine(SpawnGrowRoutine());
+    }
+
+    private IEnumerator SpawnGrowRoutine()
+    {
+        transform.localScale = Vector3.zero;
+
+        float timer = 0f;
+
+        while (timer < spawnGrowDuration)
+        {
+            timer += Time.unscaledDeltaTime;
+
+            float t =
+                Mathf.Clamp01(
+                    timer / spawnGrowDuration
+                );
+
+            t = Mathf.SmoothStep(0f, 1f, t);
+
+            transform.localScale =
+                Vector3.Lerp(
+                    Vector3.zero,
+                    Vector3.one,
+                    t
+                );
+
+            yield return null;
+        }
+
+        transform.localScale = Vector3.one;
+
+        if (rb != null)
+            rb.useGravity = true;
+
+        if (playerCollider != null)
+            playerCollider.enabled = true;
+
+        spawnGrowInProgress = false;
+    }
 
     private void Awake()
     {
@@ -55,6 +116,12 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         EnsureSubscribed();
+
+        if (GameStateManager.Instance != null &&
+            GameStateManager.Instance.CurrentState == GameState.Menu)
+        {
+            PlaySpawnIn();
+        }
     }
 
     private void EnsureSubscribed()

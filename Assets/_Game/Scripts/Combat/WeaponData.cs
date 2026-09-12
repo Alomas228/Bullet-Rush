@@ -59,6 +59,10 @@ public class WeaponData : ScriptableObject
     [Header("Recoil")]
     [SerializeField] private float recoilForce = 0f;
 
+    [Header("Screen Shake")]
+    [Tooltip("Тряска экрана при выстреле этой пушки.")]
+    [SerializeField] private float shakeOnFire = 0.06f;
+
     [Header("Lightning")]
     [Range(0f, 1f)]
     [SerializeField] private float lightningChance = 0.25f;
@@ -175,4 +179,10 @@ public class WeaponData : ScriptableObject
 
     public float RecoilForce =>
         recoilForce;
+
+    public float ShakeOnFire =>
+        Mathf.Max(
+            shakeOnFire,
+            0f
+        );
 }

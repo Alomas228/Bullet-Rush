@@ -16,6 +16,8 @@ public class AudioManager : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float sfxVolume = 1f;
     [Range(0f, 1f)]
+    [SerializeField] private float uiVolume = 0.8f;
+    [Range(0f, 1f)]
     [SerializeField] private float musicVolume = 0.5f;
 
     private AudioSource sfxSource;
@@ -46,8 +48,23 @@ public class AudioManager : MonoBehaviour
 
     private void Start()
     {
+        ApplyPersistedVolumes();
+
         if (mainMusic != null)
             PlayMusic(mainMusic);
+    }
+
+    private void ApplyPersistedVolumes()
+    {
+        if (SettingsManager.Instance == null)
+            return;
+
+        sfxVolume = SettingsManager.Instance.SfxVolume;
+        uiVolume = SettingsManager.Instance.UiVolume;
+        musicVolume = SettingsManager.Instance.MusicVolume;
+
+        if (musicSource != null)
+            musicSource.volume = musicVolume;
     }
 
     public void PlaySFX(AudioClip clip)
@@ -74,6 +91,14 @@ public class AudioManager : MonoBehaviour
         sfxSource.pitch = Random.Range(0.9f, 1.1f);
         sfxSource.PlayOneShot(clip, sfxVolume);
         sfxSource.pitch = 1f;
+    }
+
+    public void PlayUI(AudioClip clip, float volumeScale = 1f)
+    {
+        if (clip == null)
+            return;
+
+        sfxSource.PlayOneShot(clip, uiVolume * volumeScale);
     }
 
     public void PlayMusic(AudioClip clip)
@@ -154,6 +179,11 @@ public class AudioManager : MonoBehaviour
     public void SetSFXVolume(float volume)
     {
         sfxVolume = Mathf.Clamp01(volume);
+    }
+
+    public void SetUiVolume(float volume)
+    {
+        uiVolume = Mathf.Clamp01(volume);
     }
 
     public void SetMusicVolume(float volume)

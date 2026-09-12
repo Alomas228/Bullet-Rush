@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SFXLibrary
   playerHit: {fileID: 0}
   playerDie: {fileID: 0}
-  weaponFire: {fileID: 0}
+  weaponFire: {fileID: 8300000, guid: 6f238096a9d162f42834b86c5ec74ee4, type: 3}
   weaponSwitch: {fileID: 0}
   enemySpawn: {fileID: 0}
-  enemyHit: {fileID: 0}
+  enemyHit: {fileID: 8300000, guid: cd839b7da0f218149963478d238883d0, type: 3}
   enemyDie: {fileID: 0}
   bossSpawn: {fileID: 0}
   bossPhaseChange: {fileID: 0}

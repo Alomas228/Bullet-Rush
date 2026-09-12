@@ -28,9 +28,40 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private Vector3 menuLookAt = Vector3.zero;
     [SerializeField] private float transitionSpeed = 3.5f;
 
+    [Header("Screen Shake")]
+    [SerializeField] private float shakeAmplitude = 0.35f;
+    [SerializeField] private float shakeDecay = 3f;
+    [SerializeField] private float maxShakeRotation = 3f;
+
     private bool followTarget;
     private bool transitioning;
     private bool menuReported;
+
+    private float trauma;
+    private Vector3 basePosition;
+    private Quaternion baseRotation;
+    private bool baseInitialized;
+
+    public void AddShake(float amount)
+    {
+        if (SettingsManager.Instance != null &&
+            !SettingsManager.Instance.ScreenShakeEnabled)
+            return;
+
+        trauma = Mathf.Min(trauma + amount, 1f);
+    }
+
+    public void AddFireShake(float amount)
+    {
+        if (amount <= 0f)
+            return;
+
+        if (SettingsManager.Instance != null &&
+            !SettingsManager.Instance.FireShakeEnabled)
+            return;
+
+        trauma = Mathf.Min(trauma + amount, 1f);
+    }
 
     private void Start()
     {
@@ -97,21 +128,102 @@ public class CameraFollow : MonoBehaviour
         if (transitioning)
         {
             UpdateTransition();
+            ApplyShakeOverBase();
             return;
         }
 
         if (followTarget && target != null)
         {
-            Vector3 targetPos = target.position + offset;
-            transform.position = Vector3.Lerp(
-                transform.position,
-                targetPos,
-                followSpeed * Time.deltaTime
-            );
+            UpdateFollowBase();
+            ApplyShakeOverBase();
             return;
         }
 
         ReportMenuSettledIfNeeded();
+    }
+
+    private void EnsureBaseInitialized()
+    {
+        if (baseInitialized)
+            return;
+
+        basePosition = transform.position;
+        baseRotation = transform.rotation;
+        baseInitialized = true;
+    }
+
+    private void UpdateFollowBase()
+    {
+        EnsureBaseInitialized();
+
+        Vector3 targetPos =
+            target.position + offset;
+
+        basePosition = Vector3.Lerp(
+            basePosition,
+            targetPos,
+            followSpeed * Time.deltaTime
+        );
+
+        baseRotation = Quaternion.Slerp(
+            baseRotation,
+            GetGameplayLookRotation(),
+            followSpeed * Time.deltaTime
+        );
+
+        transform.position = basePosition;
+        transform.rotation = baseRotation;
+    }
+
+    private Quaternion GetGameplayLookRotation()
+    {
+        if (target == null)
+            return baseRotation;
+
+        Vector3 destination =
+            target.position + offset;
+
+        return Quaternion.LookRotation(
+            target.position - destination
+        );
+    }
+
+    private void ApplyShakeOverBase()
+    {
+        if (trauma <= 0f)
+            return;
+
+        trauma = Mathf.Max(
+            0f,
+            trauma - shakeDecay * Time.unscaledDeltaTime
+        );
+
+        float strength = trauma * trauma;
+
+        Vector3 offset =
+            new Vector3(
+                Random.Range(-1f, 1f),
+                Random.Range(-1f, 1f),
+                Random.Range(-1f, 1f)
+            ) *
+            shakeAmplitude *
+            strength;
+
+        float rotation =
+            Random.Range(-1f, 1f) *
+            maxShakeRotation *
+            strength;
+
+        transform.position =
+            basePosition + offset;
+
+        transform.rotation =
+            Quaternion.Euler(
+                rotation,
+                rotation * 0.5f,
+                0f
+            ) *
+            baseRotation;
     }
 
     private void ReportMenuSettledIfNeeded()
@@ -155,27 +267,34 @@ public class CameraFollow : MonoBehaviour
             targetRotation = Quaternion.LookRotation(lookDir);
         }
 
-        transform.position = Vector3.Lerp(
-            transform.position,
+        EnsureBaseInitialized();
+
+        basePosition = Vector3.Lerp(
+            basePosition,
             destination,
             transitionSpeed * Time.unscaledDeltaTime
         );
 
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
+        baseRotation = Quaternion.Slerp(
+            baseRotation,
             targetRotation,
             transitionSpeed * Time.unscaledDeltaTime
         );
 
+        transform.position = basePosition;
+        transform.rotation = baseRotation;
+
         float distance = Vector3.Distance(
-            transform.position,
+            basePosition,
             destination
         );
 
         if (distance < 0.1f)
         {
-            transform.position = destination;
-            transform.rotation = targetRotation;
+            basePosition = destination;
+            baseRotation = targetRotation;
+            transform.position = basePosition;
+            transform.rotation = baseRotation;
             transitioning = false;
 
             if (isMenu)
