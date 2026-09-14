@@ -37,6 +37,14 @@ public class MainMenuUI : MonoBehaviour
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
 
+    [Header("Player Progress (optional, shows persistent Player Level + XP)")]
+    [Tooltip("«LEVEL 5» в главном меню.")]
+    [SerializeField] private TMP_Text playerLevelText;
+    [Tooltip("«125 / 225 XP» в главном меню.")]
+    [SerializeField] private TMP_Text playerXpText;
+    [Tooltip("Полоса прогресса текущего уровня игрока (Image with fill).")]
+    [SerializeField] private Slider xpProgressBar;
+
     [Header("Slide Animation (optional)")]
     [Tooltip("Элементы (кнопки, текст), которые будут уезжать. Оставь пустым для мгновенного показа/скрытия.")]
     [SerializeField] private RectTransform[] menuElements;
@@ -100,6 +108,8 @@ public class MainMenuUI : MonoBehaviour
 
         CaptureRestPositions();
 
+        RefreshPlayerDisplay();
+
         if (GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Playing)
         {
@@ -152,6 +162,31 @@ public class MainMenuUI : MonoBehaviour
             ShowMenu();
         else if (!slidingOut)
             HideMenu();
+    }
+
+    /// <summary>
+    /// Обновляет блок «Уровень игрока / XP» в главном меню из
+    /// персистентных данных XpManager (тот же источник, что и GameOverUI).
+    /// </summary>
+    private void RefreshPlayerDisplay()
+    {
+        XpManager xp = XpManager.Instance;
+
+        if (xp == null)
+            return;
+
+        if (playerLevelText != null)
+            playerLevelText.text = $"LEVEL {xp.GetPlayerLevel()}";
+
+        if (playerXpText != null)
+        {
+            playerXpText.text =
+                $"{xp.GlobalXPInCurrentLevel} / " +
+                $"{xp.GlobalXPNeededForNextLevel} XP";
+        }
+
+        if (xpProgressBar != null)
+            xpProgressBar.value = xp.GlobalLevelProgress;
     }
 
     public void ShowMenu()

@@ -195,7 +195,7 @@ public class LootPickup : MonoBehaviour
             case LootType.XP:
 
                 if (XpManager.Instance != null)
-                    XpManager.Instance.AddXP(xpValue);
+                    XpManager.Instance.AddRunXP(xpValue);
 
                 break;
 

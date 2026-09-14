@@ -51,6 +51,11 @@ public class GameOverManager : MonoBehaviour
 
         IsGameOver = true;
 
+        Debug.Log("[GameOver] entered; XpManager.Instance present: " + (XpManager.Instance != null) + ", IsRunActive: " + (XpManager.Instance != null ? XpManager.Instance.IsRunActive.ToString() : "n/a"));
+
+        if (XpManager.Instance != null)
+            XpManager.Instance.ProcessRunEnd();
+
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.SetState(GameState.GameOver);
 

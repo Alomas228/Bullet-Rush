@@ -13,6 +13,15 @@ public class GameOverUI : MonoBehaviour
     [SerializeField] private Button restartButton;
     [SerializeField] private Button menuButton;
 
+    [Header("Player XP (run reward)")]
+    [SerializeField] private TMP_Text playerXpText;
+    [SerializeField] private TMP_Text levelText;
+    [Tooltip("Показывается при повышении уровня: «LEVEL 9 → LEVEL 10».")]
+    [SerializeField] private TMP_Text levelUpText;
+    [SerializeField] private TMP_Text xpProgressText;
+    [Tooltip("Заполненная полоса прогресса текущего уровня.")]
+    [SerializeField] private Slider xpProgressBar;
+
     private bool subscribed;
 
     private void Awake()
@@ -110,6 +119,53 @@ public class GameOverUI : MonoBehaviour
 
         if (coinsText != null && XpManager.Instance != null)
             coinsText.text = $"Coins Earned: {XpManager.Instance.RunCoins}";
+
+        ShowPlayerProgression();
+    }
+
+    private void ShowPlayerProgression()
+    {
+        XpManager xp = XpManager.Instance;
+
+        if (xp == null)
+            return;
+
+        if (playerXpText != null)
+            playerXpText.text = $"Player XP +{xp.LastRunReward}";
+
+        int level = xp.GetPlayerLevel();
+
+        if (levelText != null)
+        {
+            levelText.text =
+                xp.LevelsGainedLastRun > 0
+                    ? "LEVEL UP!"
+                    : $"LEVEL {level}";
+        }
+
+        if (levelUpText != null)
+        {
+            levelUpText.gameObject.SetActive(
+                xp.LevelsGainedLastRun > 0
+            );
+
+            if (xp.LevelsGainedLastRun > 0)
+            {
+                levelUpText.text =
+                    $"LEVEL {xp.LastLevelBeforeGrant} -> LEVEL {level}";
+            }
+        }
+
+        if (xpProgressText != null)
+        {
+            xpProgressText.text =
+                $"{xp.GlobalXPInCurrentLevel} / {xp.GlobalXPNeededForNextLevel} XP";
+        }
+
+        if (xpProgressBar != null)
+        {
+            xpProgressBar.value = xp.GlobalLevelProgress;
+        }
     }
 
     private void OnRestartClicked()
