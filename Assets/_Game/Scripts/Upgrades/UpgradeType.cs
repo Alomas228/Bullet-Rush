@@ -11,5 +11,7 @@ public enum UpgradeType
     CriticalDamage,
     HealthRegen,
     ProjectileCount,
-    Pierce
+    Pierce,
+    Bomb,
+    Shield
 }

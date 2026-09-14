@@ -45,9 +45,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 132a8a1c3c7364d4eabfa7b14d8acc39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Weapon
+  weaponData: {fileID: 0}
+  weaponVisualRoot: {fileID: 0}
   bulletPrefab: {fileID: 1602565924594960533, guid: d5a2092c5403fbb48af2f957247037d3, type: 3}
-  firePoint: {fileID: 5587601928645658811}
-  fireRate: 5
+  tracerPrefab: {fileID: 0}
 --- !u!1 &775125066868870425
 GameObject:
   m_ObjectHideFlags: 0
@@ -62,6 +63,9 @@ GameObject:
   - component: {fileID: 7949010748149700962}
   - component: {fileID: 7129417767329389613}
   - component: {fileID: 5712022739026201705}
+  - component: {fileID: 304408722265960465}
+  - component: {fileID: -8457274034777249548}
+  - component: {fileID: 4213202100366201386}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -203,7 +207,57 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
+  dashDistance: 4
+  dashDuration: 0.15
+  dashCooldown: 1.2
   playerCamera: {fileID: 0}
+  spawnGrowDuration: 0.25
+  recoilDamping: 10
+--- !u!114 &304408722265960465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 775125066868870425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5fdb69f368ca1264994eb76aea38e5a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityManager
+  bombAbility: {fileID: 0}
+  shieldAbility: {fileID: 0}
+--- !u!114 &-8457274034777249548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 775125066868870425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e90612e2045e8449a6f47899dbfbd9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BombAbility
+  baseDamage: 5
+  radius: 5
+  cooldown: 8
+  bombEffectPrefab: {fileID: 0}
+--- !u!114 &4213202100366201386
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 775125066868870425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6ea0023ff2184245a95bb3aee90d5ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShieldAbility
+  baseDuration: 2.5
+  cooldown: 12
+  shieldVisual: {fileID: 0}
 --- !u!1 &4504913539658407303
 GameObject:
   m_ObjectHideFlags: 0

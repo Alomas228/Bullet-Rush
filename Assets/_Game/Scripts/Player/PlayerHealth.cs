@@ -13,6 +13,7 @@ public class PlayerHealth : MonoBehaviour
     private float healTimer;
 
     private PlayerController playerController;
+    private ShieldAbility shieldAbility;
 
     public float CurrentHealth { get; private set; }
 
@@ -26,6 +27,9 @@ public class PlayerHealth : MonoBehaviour
 
         playerController =
             GetComponent<PlayerController>();
+
+        shieldAbility =
+            GetComponent<ShieldAbility>();
 
         Debug.Log(
             $"Player HP: {CurrentHealth}/{maxHealth}"
@@ -63,6 +67,13 @@ public class PlayerHealth : MonoBehaviour
 
         if (playerController != null &&
             playerController.IsDashing)
+            return;
+
+        if (shieldAbility == null)
+            shieldAbility = GetComponent<ShieldAbility>();
+
+        if (shieldAbility != null &&
+            shieldAbility.IsActive)
             return;
 
         CurrentHealth -= damage;

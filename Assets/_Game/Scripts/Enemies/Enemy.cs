@@ -1053,7 +1053,7 @@ public class Enemy : MonoBehaviour
         Vector3 zonePosition =
             player.position;
 
-        zonePosition.y = 0.05f;
+        zonePosition.y = 0.005f;
 
         GameObject zoneObject =
             Instantiate(

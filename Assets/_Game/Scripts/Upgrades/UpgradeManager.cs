@@ -9,6 +9,7 @@ public class UpgradeManager : MonoBehaviour
     [SerializeField] private PlayerStats playerStats;
     [SerializeField] private PlayerHealth playerHealth;
     [SerializeField] private Weapon weapon;
+    [SerializeField] private AbilityManager abilityManager;
 
     [Header("Normal Upgrades")]
     [SerializeField]
@@ -212,6 +213,8 @@ public class UpgradeManager : MonoBehaviour
         if (upgrade == null)
             return;
 
+        EnsureAbilityManager();
+
         switch (upgrade.Type)
         {
             case UpgradeType.Damage:
@@ -343,6 +346,66 @@ public class UpgradeManager : MonoBehaviour
                 );
 
                 break;
+
+            case UpgradeType.Bomb:
+
+                if (abilityManager != null)
+                {
+                    if (!abilityManager.HasBomb)
+                    {
+                        abilityManager.UnlockBomb();
+
+                        Debug.Log(
+                            "Bomb ability unlocked! Press E to blast nearby enemies."
+                        );
+                    }
+                    else
+                    {
+                        BombAbility bomb =
+                            abilityManager.Bomb;
+
+                        if (bomb != null)
+                        {
+                            bomb.UpgradeDamage(
+                                upgrade.PercentValue
+                            );
+
+                            bomb.UpgradeCooldown(0.10f);
+                        }
+                    }
+                }
+
+                break;
+
+            case UpgradeType.Shield:
+
+                if (abilityManager != null)
+                {
+                    if (!abilityManager.HasShield)
+                    {
+                        abilityManager.UnlockShield();
+
+                        Debug.Log(
+                            "Shield ability unlocked! Press Q to block damage."
+                        );
+                    }
+                    else
+                    {
+                        ShieldAbility shield =
+                            abilityManager.Shield;
+
+                        if (shield != null)
+                        {
+                            shield.UpgradeDuration(
+                                upgrade.PercentValue
+                            );
+
+                            shield.UpgradeCooldown(0.10f);
+                        }
+                    }
+                }
+
+                break;
         }
 
         Debug.Log(
@@ -350,6 +413,25 @@ public class UpgradeManager : MonoBehaviour
             $"{upgrade.UpgradeName} " +
             $"[{upgrade.Rarity}]"
         );
+    }
+
+    private void EnsureAbilityManager()
+    {
+        if (abilityManager != null)
+            return;
+
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObject != null)
+        {
+            abilityManager =
+                playerObject.GetComponent<AbilityManager>();
+
+            if (abilityManager == null)
+                abilityManager =
+                    playerObject.AddComponent<AbilityManager>();
+        }
     }
 
     private void ClearPreviousChoices()
