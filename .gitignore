@@ -60,3 +60,5 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 .utmp/
+
+.vscode

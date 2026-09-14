@@ -1,4 +1,30 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem;
 
 public class CameraFollow : MonoBehaviour
 {
@@ -32,6 +58,10 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private float shakeAmplitude = 0.35f;
     [SerializeField] private float shakeDecay = 3f;
     [SerializeField] private float maxShakeRotation = 3f;
+
+    [Header("Mouse Parallax")]
+    [Tooltip("Сила смещения камеры в сторону курсора.")]
+    [SerializeField] private float mouseParallaxStrength = 1.2f;
 
     private bool followTarget;
     private bool transitioning;
@@ -159,6 +189,8 @@ public class CameraFollow : MonoBehaviour
         Vector3 targetPos =
             target.position + offset;
 
+        targetPos += GetMouseParallaxOffset();
+
         basePosition = Vector3.Lerp(
             basePosition,
             targetPos,
@@ -186,6 +218,27 @@ public class CameraFollow : MonoBehaviour
         return Quaternion.LookRotation(
             target.position - destination
         );
+    }
+
+    private Vector3 GetMouseParallaxOffset()
+    {
+        if (Mouse.current == null)
+            return Vector3.zero;
+
+        Vector2 mousePos =
+            Mouse.current.position.ReadValue();
+
+        float normalizedX =
+            (mousePos.x / Screen.width) * 2f - 1f;
+
+        float normalizedY =
+            (mousePos.y / Screen.height) * 2f - 1f;
+
+        return new Vector3(
+            normalizedX,
+            normalizedY * 0.5f,
+            0f
+        ) * mouseParallaxStrength;
     }
 
     private void ApplyShakeOverBase()
