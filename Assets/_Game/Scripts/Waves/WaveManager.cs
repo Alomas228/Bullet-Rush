@@ -12,12 +12,17 @@ public class WaveManager : MonoBehaviour
     [Header("Wave Settings")]
     [SerializeField] private int startingEnemies = 5;
     [SerializeField] private int enemiesAddedPerWave = 3;
+    [Tooltip("Каждая N-я волна заменяется боссом.")]
+    [SerializeField] private int bossWaveInterval = 10;
 
     [Header("Timing")]
     [SerializeField] private float waveDisplayTime = 1.5f;
     [SerializeField] private float prepareTime = 1.5f;
     [SerializeField] private float countdownStepTime = 1f;
-    [SerializeField] private float timeBetweenWaves = 1f;
+    [Tooltip("Пауза между «WAVE COMPLETE» и окном выбора улучшения.")]
+    [SerializeField] private float waveCompleteDisplayTime = 1.2f;
+    [Tooltip("Пауза после выбора улучшения перед началом следующей волны.")]
+    [SerializeField] private float postUpgradeDelay = 0.8f;
 
     [Header("Structure Sync")]
     [Tooltip("Пауза после завершения генерации структур перед спавном врагов. Даёт структурам секунду-другую до конца вырасти.")]
@@ -28,6 +33,7 @@ public class WaveManager : MonoBehaviour
     private bool waveActive;
     private bool waitingForNextWave;
     private bool gameStarted;
+    private bool waveCompleteShown;
 
     private void Start()
     {
@@ -62,6 +68,10 @@ public class WaveManager : MonoBehaviour
         {
             gameStarted = true;
             CurrentWave = 0;
+
+            if (ScoreManager.Instance != null)
+                ScoreManager.Instance.ResetRunStats();
+
             StartCoroutine(StartWaveSequence());
         }
         else if (state == GameState.Menu)
@@ -69,6 +79,7 @@ public class WaveManager : MonoBehaviour
             gameStarted = false;
             waveActive = false;
             waitingForNextWave = false;
+            waveCompleteShown = false;
             StopAllCoroutines();
 
             if (waveUI != null)
@@ -93,7 +104,18 @@ public class WaveManager : MonoBehaviour
             waitingForNextWave = true;
             waveActive = false;
 
-            if (upgradeUI != null)
+            if (waveCompleteShown)
+                return;
+
+            waveCompleteShown = true;
+
+            if (waveUI != null)
+            {
+                waveUI.ShowWaveComplete();
+
+                StartCoroutine(ShowUpgradeAfterWaveComplete());
+            }
+            else if (upgradeUI != null)
             {
                 upgradeUI.Show();
             }
@@ -108,11 +130,32 @@ public class WaveManager : MonoBehaviour
         }
     }
 
+    private IEnumerator ShowUpgradeAfterWaveComplete()
+    {
+        yield return new WaitForSeconds(waveCompleteDisplayTime);
+
+        if (upgradeUI != null)
+        {
+            upgradeUI.Show();
+        }
+        else
+        {
+            Debug.LogWarning(
+                "WaveManager: UpgradeUI is not assigned."
+            );
+
+            ContinueAfterUpgrade();
+        }
+    }
+
     private IEnumerator StartWaveSequence()
     {
         CurrentWave++;
         waveActive = false;
         waitingForNextWave = false;
+        waveCompleteShown = false;
+
+        SwitchToMainMusic();
 
         if (worldGenerator != null)
             worldGenerator.GenerateForWave(CurrentWave);
@@ -170,7 +213,7 @@ public class WaveManager : MonoBehaviour
 
     private IEnumerator StartNextWaveAfterDelay()
     {
-        yield return new WaitForSeconds(timeBetweenWaves);
+        yield return new WaitForSeconds(postUpgradeDelay);
 
         StartCoroutine(StartWaveSequence());
     }
@@ -193,7 +236,7 @@ public class WaveManager : MonoBehaviour
 
         enemySpawner.CurrentWave = CurrentWave;
 
-        if (CurrentWave % 5 == 0)
+        if (CurrentWave % bossWaveInterval == 0)
         {
             SpawnBossWave();
             return;
@@ -261,6 +304,7 @@ public class WaveManager : MonoBehaviour
             upgradeUI.Hide();
 
         waitingForNextWave = false;
+        waveCompleteShown = false;
 
         StartCoroutine(StartNextWaveAfterDelay());
     }

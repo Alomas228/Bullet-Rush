@@ -226,17 +226,6 @@ public class EnemySpawner : MonoBehaviour
             );
         }
 
-        // BOSS - Wave 10+
-        if (wave >= 10 &&
-            bossPrefab != null)
-        {
-            AddMultiple(
-                pool,
-                bossPrefab,
-                1
-            );
-        }
-
         if (pool.Count == 0)
             return null;
 

@@ -13,7 +13,6 @@ public class GameplayUI : MonoBehaviour
     [SerializeField] private Slider healthSlider;
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text waveText;
-    [SerializeField] private TMP_Text xpText;
     [SerializeField] private TMP_Text coinsText;
 
     [Header("Visibility")]
@@ -110,13 +109,6 @@ public class GameplayUI : MonoBehaviour
         if (waveManager != null && waveText != null)
         {
             waveText.text = $"WAVE: {waveManager.CurrentWave}";
-        }
-
-        if (XpManager.Instance != null && xpText != null)
-        {
-            xpText.text =
-                $"LVL {XpManager.Instance.RunLevel} | " +
-                $"XP {XpManager.Instance.RunXP}/{XpManager.Instance.RunXPToNextLevel}";
         }
 
         if (XpManager.Instance != null && coinsText != null)

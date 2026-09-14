@@ -8,6 +8,7 @@ public class WaveUI : MonoBehaviour
     [SerializeField] private TMP_Text waveText;
     [SerializeField] private TMP_Text prepareText;
     [SerializeField] private TMP_Text countdownText;
+    [SerializeField] private TMP_Text waveCompleteText;
 
     private void Start()
     {
@@ -19,11 +20,20 @@ public class WaveUI : MonoBehaviour
         if (wavePanel != null)
             wavePanel.SetActive(true);
 
-        waveText.gameObject.SetActive(true);
-        prepareText.gameObject.SetActive(false);
-        countdownText.gameObject.SetActive(false);
+        if (waveText != null)
+            waveText.gameObject.SetActive(true);
 
-        waveText.text = $"WAVE {wave}";
+        if (prepareText != null)
+            prepareText.gameObject.SetActive(false);
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+            waveCompleteText.gameObject.SetActive(false);
+
+        if (waveText != null)
+            waveText.text = $"WAVE {wave}";
     }
 
     public void ShowPrepare()
@@ -31,11 +41,20 @@ public class WaveUI : MonoBehaviour
         if (wavePanel != null)
             wavePanel.SetActive(true);
 
-        waveText.gameObject.SetActive(false);
-        prepareText.gameObject.SetActive(true);
-        countdownText.gameObject.SetActive(false);
+        if (waveText != null)
+            waveText.gameObject.SetActive(false);
 
-        prepareText.text = "GET READY!";
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+            waveCompleteText.gameObject.SetActive(false);
+
+        if (prepareText != null)
+        {
+            prepareText.gameObject.SetActive(true);
+            prepareText.text = "GET READY!";
+        }
     }
 
     public void ShowCountdown(int number)
@@ -43,11 +62,41 @@ public class WaveUI : MonoBehaviour
         if (wavePanel != null)
             wavePanel.SetActive(true);
 
-        waveText.gameObject.SetActive(false);
-        prepareText.gameObject.SetActive(false);
-        countdownText.gameObject.SetActive(true);
+        if (waveText != null)
+            waveText.gameObject.SetActive(false);
 
-        countdownText.text = number.ToString();
+        if (prepareText != null)
+            prepareText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+            waveCompleteText.gameObject.SetActive(false);
+
+        if (countdownText != null)
+        {
+            countdownText.gameObject.SetActive(true);
+            countdownText.text = number.ToString();
+        }
+    }
+
+    public void ShowWaveComplete()
+    {
+        if (wavePanel != null)
+            wavePanel.SetActive(true);
+
+        if (waveText != null)
+            waveText.gameObject.SetActive(false);
+
+        if (prepareText != null)
+            prepareText.gameObject.SetActive(false);
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+        {
+            waveCompleteText.gameObject.SetActive(true);
+            waveCompleteText.text = "WAVE COMPLETE";
+        }
     }
 
     public void Hide()
@@ -63,5 +112,8 @@ public class WaveUI : MonoBehaviour
 
         if (countdownText != null)
             countdownText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+            waveCompleteText.gameObject.SetActive(false);
     }
 }

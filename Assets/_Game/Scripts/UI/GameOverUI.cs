@@ -8,6 +8,8 @@ public class GameOverUI : MonoBehaviour
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text waveText;
+    [SerializeField] private TMP_Text killsText;
+    [SerializeField] private TMP_Text coinsText;
     [SerializeField] private Button restartButton;
     [SerializeField] private Button menuButton;
 
@@ -100,8 +102,14 @@ public class GameOverUI : MonoBehaviour
                 FindAnyObjectByType<WaveManager>();
 
             if (waveManager != null)
-                waveText.text = $"Wave: {waveManager.CurrentWave}";
+                waveText.text = $"Wave Reached: {waveManager.CurrentWave}";
         }
+
+        if (killsText != null && ScoreManager.Instance != null)
+            killsText.text = $"Kills: {ScoreManager.Instance.Kills}";
+
+        if (coinsText != null && XpManager.Instance != null)
+            coinsText.text = $"Coins Earned: {XpManager.Instance.RunCoins}";
     }
 
     private void OnRestartClicked()

@@ -8,6 +8,7 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private PlayerStats playerStats;
 
     public int Score { get; private set; }
+    public int Kills { get; private set; }
 
     private void Awake()
     {
@@ -30,6 +31,12 @@ public class ScoreManager : MonoBehaviour
             playerStats =
                 FindAnyObjectByType<PlayerStats>();
         }
+    }
+
+    public void ResetRunStats()
+    {
+        Score = 0;
+        Kills = 0;
     }
 
     public void AddScore(int amount)
@@ -64,8 +71,18 @@ public class ScoreManager : MonoBehaviour
         );
     }
 
+    public void IncrementKills()
+    {
+        Kills++;
+
+        Debug.Log(
+            $"Kills: {Kills}"
+        );
+    }
+
     public void ResetScore()
     {
         Score = 0;
+        Kills = 0;
     }
 }

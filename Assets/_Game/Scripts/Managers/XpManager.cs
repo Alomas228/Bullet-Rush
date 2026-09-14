@@ -14,22 +14,18 @@ public class XpManager : MonoBehaviour
 
     private const string PrefsKey = "ArcadeSurvivor.Global";
 
-    [Header("Leveling")]
+    [Header("Global Leveling (out of run)")]
     [Tooltip("XP needed to reach level 2. Grows by this step each level.")]
     [SerializeField] private int baseLevelXP = 50;
     [Tooltip("XP added to the requirement per level.")]
     [SerializeField] private int xpGrowthPerLevel = 25;
 
-    public int RunXP { get; private set; }
-    public int RunLevel { get; private set; } = 1;
     public int RunCoins { get; private set; }
 
     public int GlobalXP { get; private set; }
     public int GlobalCoins { get; private set; }
 
     public bool IsRunActive { get; private set; }
-
-    public int RunXPToNextLevel => GetXPForLevel(RunLevel + 1);
 
     public int GlobalLevel
     {
@@ -65,27 +61,6 @@ public class XpManager : MonoBehaviour
         }
     }
 
-    public float RunLevelProgress
-    {
-        get
-        {
-            int currentLevelXP = GetXPForLevel(RunLevel);
-            int nextLevelXP = GetXPForLevel(RunLevel + 1);
-
-            float range = nextLevelXP - currentLevelXP;
-
-            if (range <= 0f)
-                return 1f;
-
-            return
-                Mathf.Clamp01(
-                    (RunXP - currentLevelXP) / range
-                );
-        }
-    }
-
-    public event Action<int> OnXPChanged;
-    public event Action<int> OnLevelUp;
     public event Action<int> OnCoinsChanged;
 
     private bool subscribed;
@@ -145,16 +120,13 @@ public class XpManager : MonoBehaviour
 
     private void ResetRunData()
     {
-        RunXP = 0;
-        RunLevel = 1;
         RunCoins = 0;
 
-        OnXPChanged?.Invoke(RunXP);
         OnCoinsChanged?.Invoke(RunCoins);
     }
 
     // =========================================================
-    // XP
+    // XP (global only, for future profile/progression)
     // =========================================================
 
     public void AddXP(int amount)
@@ -162,27 +134,9 @@ public class XpManager : MonoBehaviour
         if (amount <= 0)
             return;
 
-        RunXP += amount;
         GlobalXP += amount;
 
-        OnXPChanged?.Invoke(RunXP);
-
-        CheckLevelUps();
-
         SaveGlobal();
-    }
-
-    private void CheckLevelUps()
-    {
-        while (RunXP >= RunXPToNextLevel)
-        {
-            RunXP -= RunXPToNextLevel;
-            RunLevel++;
-
-            OnLevelUp?.Invoke(RunLevel);
-
-            Debug.Log($"LEVEL UP! Level {RunLevel}");
-        }
     }
 
     // =========================================================
@@ -205,7 +159,7 @@ public class XpManager : MonoBehaviour
     }
 
     // =========================================================
-    // LEVEL FORMULA
+    // LEVEL FORMULA (global only)
     // =========================================================
 
     public int GetXPForLevel(int level)

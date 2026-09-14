@@ -1523,6 +1523,8 @@ public class Enemy : MonoBehaviour
 
         if (ScoreManager.Instance != null)
         {
+            ScoreManager.Instance.IncrementKills();
+
             float scoreMultiplier =
                 1f + (currentWave - 1) * GetWaveScorePercent();
 
