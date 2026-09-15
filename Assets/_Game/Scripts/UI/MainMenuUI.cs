@@ -193,6 +193,8 @@ public class MainMenuUI : MonoBehaviour
     {
         slidingOut = false;
 
+        RefreshPlayerDisplay();
+
         CloseSubPanels();
 
         if (menuPanel != null)

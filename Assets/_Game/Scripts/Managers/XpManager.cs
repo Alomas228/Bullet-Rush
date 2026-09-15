@@ -15,10 +15,8 @@ public class XpManager : MonoBehaviour
     private const string PrefsKey = "ArcadeSurvivor.Global";
 
     [Header("Player Leveling (persistent, between runs)")]
-    [Tooltip("XP needed to reach level 2. Grows by this step each level.")]
-    [SerializeField] private int baseLevelXP = 50;
-    [Tooltip("XP added to the requirement per level.")]
-    [SerializeField] private int xpGrowthPerLevel = 25;
+    [Tooltip("Maximum player level.")]
+    [SerializeField] private int maxLevel = 50;
 
     [Header("Run End Reward (Player XP source)")]
     [Tooltip("Fixed Player XP granted when a run ends.")]
@@ -41,6 +39,8 @@ public class XpManager : MonoBehaviour
 
     public bool IsRunActive { get; private set; }
 
+    private bool runRewardGranted;
+
     /// <summary>XP granted by the most recent run end.</summary>
     public int LastRunReward { get; private set; }
 
@@ -50,17 +50,17 @@ public class XpManager : MonoBehaviour
     /// <summary>Number of levels gained from the most recent run-end grant.</summary>
     public int LevelsGainedLastRun { get; private set; }
 
-    public int GlobalLevel
+    public int GlobalLevel => GetLevelForXP(GlobalXP);
+
+    /// <summary>Level for any total XP value, capped at maxLevel.</summary>
+    public int GetLevelForXP(int totalXP)
     {
-        get
-        {
-            int level = 1;
+        int level = 1;
 
-            while (GlobalXP >= GetXPForLevel(level + 1))
-                level++;
+        while (level < maxLevel && totalXP >= GetXPForLevel(level + 1))
+            level++;
 
-            return level;
-        }
+        return level;
     }
 
     public int GlobalXPToNextLevel => GetXPForLevel(GlobalLevel + 1);
@@ -162,6 +162,7 @@ public class XpManager : MonoBehaviour
     {
         RunCoins = 0;
         RunXP = 0;
+        runRewardGranted = false;
 
         OnCoinsChanged?.Invoke(RunCoins);
         OnRunXPChanged?.Invoke(RunXP);
@@ -236,6 +237,9 @@ public class XpManager : MonoBehaviour
     /// </summary>
     public void ProcessRunEnd()
     {
+        if (runRewardGranted)
+            return;
+
         Debug.Log("[Xp.ProcessRunEnd] entered, IsRunActive=" + IsRunActive + ", RunXP=" + RunXP + ", RunCoins=" + RunCoins);
 
         if (!IsRunActive)
@@ -309,6 +313,11 @@ public class XpManager : MonoBehaviour
 
     private void GrantPlayerXP(int amount)
     {
+        if (runRewardGranted)
+            return;
+
+        runRewardGranted = true;
+
         LastLevelBeforeGrant = GlobalLevel;
 
         AddPlayerXP(amount);
@@ -345,17 +354,75 @@ public class XpManager : MonoBehaviour
     }
 
     // =========================================================
-    // LEVEL FORMULA (single source of truth for level requirements)
+    // LEVEL TABLE (single source of truth for level requirements)
     // =========================================================
+
+    /// <summary>Cumulative XP required to reach each level from level 1. Index = level - 1.</summary>
+    private static readonly int[] XpToLevel =
+    {
+        0,        // Lvl 1 (start)
+        500,      // Lvl 2
+        1035,     // Lvl 3
+        1607,     // Lvl 4
+        2219,     // Lvl 5
+        2874,     // Lvl 6
+        3574,     // Lvl 7
+        4323,     // Lvl 8
+        5124,     // Lvl 9
+        5981,     // Lvl 10
+        6898,     // Lvl 11
+        7879,     // Lvl 12
+        8929,     // Lvl 13
+        10052,    // Lvl 14
+        11254,    // Lvl 15
+        12540,    // Lvl 16
+        13916,    // Lvl 17
+        15388,    // Lvl 18
+        16963,    // Lvl 19
+        18648,    // Lvl 20
+        20451,    // Lvl 21
+        22380,    // Lvl 22
+        24444,    // Lvl 23
+        26653,    // Lvl 24
+        29017,    // Lvl 25
+        31546,    // Lvl 26
+        34252,    // Lvl 27
+        37147,    // Lvl 28
+        40245,    // Lvl 29
+        43560,    // Lvl 30
+        47107,    // Lvl 31
+        50902,    // Lvl 32
+        54962,    // Lvl 33
+        59306,    // Lvl 34
+        63954,    // Lvl 35
+        68927,    // Lvl 36
+        74248,    // Lvl 37
+        79942,    // Lvl 38
+        86035,    // Lvl 39
+        92555,    // Lvl 40
+        99531,    // Lvl 41
+        106995,   // Lvl 42
+        114981,   // Lvl 43
+        123526,   // Lvl 44
+        132669,   // Lvl 45
+        142452,   // Lvl 46
+        152920,   // Lvl 47
+        164121,   // Lvl 48
+        176106,   // Lvl 49
+        188930    // Lvl 50
+    };
 
     public int GetXPForLevel(int level)
     {
         if (level <= 1)
             return 0;
 
-        int xpToLevel2 = Mathf.Max(baseLevelXP, 1);
+        int index = level - 1;
 
-        return xpToLevel2 + (level - 2) * Mathf.Max(xpGrowthPerLevel, 1);
+        if (index >= XpToLevel.Length)
+            return XpToLevel[XpToLevel.Length - 1];
+
+        return XpToLevel[index];
     }
 
     // =========================================================

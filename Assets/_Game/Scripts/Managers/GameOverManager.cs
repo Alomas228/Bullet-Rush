@@ -82,6 +82,11 @@ public class GameOverManager : MonoBehaviour
     {
         IsGameOver = false;
 
+        // Если забег не был завершён через GameOver() (выход из паузы),
+        // начисляем награду сейчас. Повторная выдача заблокирована внутри XpManager.
+        if (XpManager.Instance != null)
+            XpManager.Instance.ProcessRunEnd();
+
         if (AudioManager.Instance != null)
             AudioManager.Instance.SwitchToMainMusic();
 
