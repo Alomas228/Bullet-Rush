@@ -1,30 +1,5 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem;
 
 public class CameraFollow : MonoBehaviour
 {
@@ -189,8 +164,6 @@ public class CameraFollow : MonoBehaviour
         Vector3 targetPos =
             target.position + offset;
 
-        targetPos += GetMouseParallaxOffset();
-
         basePosition = Vector3.Lerp(
             basePosition,
             targetPos,
@@ -204,6 +177,7 @@ public class CameraFollow : MonoBehaviour
         );
 
         transform.position = basePosition;
+        ApplyMouseParallaxToPosition();
         transform.rotation = baseRotation;
     }
 
@@ -239,6 +213,16 @@ public class CameraFollow : MonoBehaviour
             normalizedY * 0.5f,
             0f
         ) * mouseParallaxStrength;
+    }
+
+    private void ApplyMouseParallaxToPosition()
+    {
+        Vector3 parallax = GetMouseParallaxOffset();
+
+        if (parallax == Vector3.zero)
+            return;
+
+        transform.position += parallax;
     }
 
     private void ApplyShakeOverBase()
@@ -335,6 +319,7 @@ public class CameraFollow : MonoBehaviour
         );
 
         transform.position = basePosition;
+        ApplyMouseParallaxToPosition();
         transform.rotation = baseRotation;
 
         float distance = Vector3.Distance(
