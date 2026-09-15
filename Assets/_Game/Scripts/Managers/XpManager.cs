@@ -353,6 +353,37 @@ public class XpManager : MonoBehaviour
         Debug.Log($"Coins: +{amount} (Run: {RunCoins}, Global: {GlobalCoins})");
     }
 
+    /// <summary>
+    /// Списывает монеты из постоянного баланса. Возвращает false,
+    /// если монет недостаточно (ничего не списывается).
+    /// </summary>
+    public bool TrySpendCoins(int amount)
+    {
+        if (amount <= 0)
+            return false;
+
+        if (GlobalCoins < amount)
+        {
+            Debug.LogWarning(
+                $"Not enough coins: need {amount}, have {GlobalCoins}."
+            );
+
+            return false;
+        }
+
+        GlobalCoins -= amount;
+
+        SaveGlobal();
+
+        OnCoinsChanged?.Invoke(RunCoins);
+
+        Debug.Log(
+            $"Coins: -{amount} (Global: {GlobalCoins})"
+        );
+
+        return true;
+    }
+
     // =========================================================
     // LEVEL TABLE (single source of truth for level requirements)
     // =========================================================

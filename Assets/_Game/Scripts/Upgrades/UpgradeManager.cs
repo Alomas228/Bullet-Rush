@@ -37,6 +37,13 @@ public class UpgradeManager : MonoBehaviour
     public IReadOnlyList<UpgradeData> CurrentChoices =>
         currentChoices;
 
+    /// <summary>
+    /// Все оружия, доступные в забеге (используется панелью снаряжения
+    /// и применением выбранного стартового оружия).
+    /// </summary>
+    public IReadOnlyList<WeaponData> GetAvailableWeapons() =>
+        availableWeapons;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

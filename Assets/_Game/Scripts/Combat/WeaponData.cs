@@ -16,6 +16,12 @@ public class WeaponData : ScriptableObject
     [SerializeField] private WeaponType weaponType;
     [SerializeField] private Rarity rarity = Rarity.Common;
 
+    [Header("Meta (Shop / Equipment)")]
+    [Tooltip("Минимальный уровень игрока (XpManager), с которого оружие можно купить в магазине.")]
+    [SerializeField] private int unlockLevel = 1;
+    [Tooltip("Цена в монетах. 0 = бесплатно и всегда доступно после достижения уровня.")]
+    [SerializeField] private int price = 0;
+
     [Header("Visual")]
     [SerializeField] private GameObject weaponPrefab;
 
@@ -81,6 +87,12 @@ public class WeaponData : ScriptableObject
     public WeaponType WeaponType => weaponType;
 
     public Rarity Rarity => rarity;
+
+    public int UnlockLevel =>
+        Mathf.Max(unlockLevel, 1);
+
+    public int Price =>
+        Mathf.Max(price, 0);
 
     public GameObject WeaponPrefab => weaponPrefab;
 

@@ -88,6 +88,63 @@ public class Weapon : MonoBehaviour
     private void Start()
     {
         EnsureSubscribed();
+
+        LoadEquippedWeapon();
+    }
+
+    /// <summary>
+    /// Применяет оружие, выбранное в панели «Снаряжение». Если игрок
+    /// ничего не выбрал или выбор недоступен — остаётся дефолтное
+    /// оружие, зашитое в префабе.
+    /// </summary>
+    private void LoadEquippedWeapon()
+    {
+        string equippedName =
+            EquipmentManager.EquippedWeaponName;
+
+        if (string.IsNullOrEmpty(equippedName))
+            return;
+
+        if (weaponData != null &&
+            weaponData.WeaponName == equippedName)
+        {
+            return;
+        }
+
+        UpgradeManager upgradeManager =
+            UpgradeManager.Instance;
+
+        if (upgradeManager == null)
+            return;
+
+        foreach (WeaponData candidate in
+                 upgradeManager.GetAvailableWeapons())
+        {
+            if (candidate == null)
+                continue;
+
+            if (candidate.WeaponName != equippedName)
+                continue;
+
+            if (!EquipmentManager.IsOwned(candidate))
+            {
+                Debug.LogWarning(
+                    $"Weapon: снаряжённое оружие '{equippedName}' " +
+                    "не куплено, оставляю дефолтное."
+                );
+
+                return;
+            }
+
+            SetWeapon(candidate);
+
+            return;
+        }
+
+        Debug.LogWarning(
+            $"Weapon: снаряжённое оружие '{equippedName}' " +
+            "не найдено среди availableWeapons, оставляю дефолтное."
+        );
     }
 
     private void EnsureSubscribed()
@@ -116,6 +173,10 @@ public class Weapon : MonoBehaviour
     private void HandleStateChanged(GameState state)
     {
         canShoot = state == GameState.Playing;
+
+        // Выбор оружия в меню применяется именно в момент старта забега.
+        if (state == GameState.Playing)
+            LoadEquippedWeapon();
     }
 
     private void Update()

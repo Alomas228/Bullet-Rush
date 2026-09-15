@@ -26,6 +26,7 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private Button upgradesButton;
     [SerializeField] private Button profileButton;
     [SerializeField] private Button tipsButton;
+    [SerializeField] private Button equipmentButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -33,6 +34,7 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private GameObject upgradesPanel;
     [SerializeField] private GameObject profilePanel;
     [SerializeField] private GameObject tipsPanel;
+    [SerializeField] private GameObject equipmentPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -74,6 +76,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (tipsButton != null)
             tipsButton.onClick.AddListener(OnTipsClicked);
+
+        if (equipmentButton != null)
+            equipmentButton.onClick.AddListener(OnEquipmentClicked);
     }
 
     private void OnEnable()
@@ -100,6 +105,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (tipsButton != null)
             tipsButton.onClick.RemoveListener(OnTipsClicked);
+
+        if (equipmentButton != null)
+            equipmentButton.onClick.RemoveListener(OnEquipmentClicked);
     }
 
     private void Start()
@@ -267,6 +275,11 @@ public class MainMenuUI : MonoBehaviour
         OpenSubPanel(tipsPanel);
     }
 
+    private void OnEquipmentClicked()
+    {
+        OpenSubPanel(equipmentPanel);
+    }
+
     public void OpenSubPanel(GameObject panelToShow)
     {
         CloseSubPanels();
@@ -295,6 +308,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (tipsPanel != null)
             tipsPanel.SetActive(false);
+
+        if (equipmentPanel != null)
+            equipmentPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -323,6 +339,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (tipsButton != null)
             tipsButton.gameObject.SetActive(active);
+
+        if (equipmentButton != null)
+            equipmentButton.gameObject.SetActive(active);
     }
 
     private void OnPlayClicked()
