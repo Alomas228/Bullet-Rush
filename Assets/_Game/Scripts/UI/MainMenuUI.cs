@@ -10,13 +10,17 @@ public class MainMenuUI : MonoBehaviour
     [Tooltip("Если true — меню показывается мгновенно, без слайда (для чистого появления после перезагрузки сцены).")]
     public static bool ShowWithoutAnimation;
 
-    [Tooltip("Если true — пока идёт возврат в меню (камера ещё летит к меню), кнопка Play недоступна.")]
+    [Tooltip("Если true — пока идёт возврат в меню (камера ещё летит к меню), весь UI меню заблокирован.")]
     public static bool MenuReloadPending;
 
     public static MainMenuUI Instance { get; private set; }
 
     [Header("Panel")]
     [SerializeField] private GameObject menuPanel;
+
+    [Header("Input Blocking")]
+    [Tooltip("Блокирует клики по всему меню во время полёта камеры к меню (MenuReloadPending). Можно не назначать — CanvasGroup возьмётся/создастся на корне menuPanel автоматически.")]
+    [SerializeField] private CanvasGroup menuCanvasGroup;
 
     [Header("Buttons")]
     [SerializeField] private Button playButton;
@@ -213,6 +217,8 @@ public class MainMenuUI : MonoBehaviour
         if (playButton != null)
             playButton.interactable = !MenuReloadPending;
 
+        SetMenuInteractive(!MenuReloadPending);
+
         if (ShowWithoutAnimation)
         {
             ShowWithoutAnimation = false;
@@ -240,6 +246,23 @@ public class MainMenuUI : MonoBehaviour
         {
             OnMenuAppeared?.Invoke();
         }
+    }
+
+    private void SetMenuInteractive(bool interactive)
+    {
+        if (menuCanvasGroup == null && menuPanel != null)
+        {
+            menuCanvasGroup = menuPanel.GetComponent<CanvasGroup>();
+
+            if (menuCanvasGroup == null)
+                menuCanvasGroup = menuPanel.AddComponent<CanvasGroup>();
+        }
+
+        if (menuCanvasGroup == null)
+            return;
+
+        menuCanvasGroup.interactable = interactive;
+        menuCanvasGroup.blocksRaycasts = interactive;
     }
 
     public void HideMenu()
