@@ -33,6 +33,12 @@ public class StructureOcclusionManager : MonoBehaviour
     private readonly HashSet<WorldStructure> blockedSet =
         new HashSet<WorldStructure>();
 
+    // Переиспользуется каждый кадр вместо аллокации нового HashSet.
+    private readonly HashSet<WorldStructure> currentSet =
+        new HashSet<WorldStructure>();
+
+    private Collider targetCollider;
+
     private bool wasActive;
 
     private void LateUpdate()
@@ -133,11 +139,13 @@ public class StructureOcclusionManager : MonoBehaviour
 
     private HashSet<WorldStructure> CollectOccludingStructures()
     {
-        HashSet<WorldStructure> result =
-            new HashSet<WorldStructure>();
+        HashSet<WorldStructure> result = currentSet;
 
-        Collider targetCollider =
-            target.GetComponentInChildren<Collider>();
+        result.Clear();
+
+        if (targetCollider == null)
+            targetCollider =
+                target.GetComponentInChildren<Collider>();
 
         if (targetCollider == null)
             return result;
@@ -191,12 +199,12 @@ public class StructureOcclusionManager : MonoBehaviour
 
         for (int i = 0; i < hitCount; i++)
         {
-            WorldStructure structure =
-                probeHits[i].collider
-                    .GetComponentInParent<WorldStructure>();
-
-            if (structure == null)
+            if (!StructureQuery.TryGetWorldStructure(
+                probeHits[i].collider,
+                out WorldStructure structure))
+            {
                 continue;
+            }
 
             result.Add(structure);
         }

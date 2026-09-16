@@ -358,13 +358,16 @@ public class BossAttackZone : MonoBehaviour
         PlayAoeExplodeSound();
 
         Collider[] targets =
-            Physics.OverlapSphere(
+            StructureQuery.OverlapSphere(
                 transform.position,
-                radius
+                radius,
+                out int targetCount
             );
 
-        foreach (Collider target in targets)
+        for (int i = 0; i < targetCount; i++)
         {
+            Collider target = targets[i];
+
             if (!target.CompareTag("Player"))
                 continue;
 

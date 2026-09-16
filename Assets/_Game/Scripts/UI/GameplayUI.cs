@@ -22,6 +22,12 @@ public class GameplayUI : MonoBehaviour
     private bool subscribed;
     private bool warnedAboutRoot;
 
+    private float cachedHealthMax = float.NaN;
+    private float cachedHealth = float.NaN;
+    private int cachedScore = int.MinValue;
+    private int cachedWave = int.MinValue;
+    private int cachedCoins = int.MinValue;
+
     private void OnEnable()
     {
         EnsureSubscribed();
@@ -96,25 +102,60 @@ public class GameplayUI : MonoBehaviour
 
         if (playerHealth != null && healthSlider != null)
         {
-            healthSlider.minValue = 0f;
-            healthSlider.maxValue = playerHealth.MaxHealth;
-            healthSlider.value = playerHealth.CurrentHealth;
+            float maxHealth = playerHealth.MaxHealth;
+
+            if (!Mathf.Approximately(maxHealth, cachedHealthMax))
+            {
+                cachedHealthMax = maxHealth;
+
+                healthSlider.minValue = 0f;
+                healthSlider.maxValue = maxHealth;
+            }
+
+            float health = playerHealth.CurrentHealth;
+
+            if (!Mathf.Approximately(health, cachedHealth))
+            {
+                cachedHealth = health;
+
+                healthSlider.value = health;
+            }
         }
 
         if (scoreManager != null && scoreText != null)
         {
-            scoreText.text = $"SCORE: {scoreManager.Score}";
+            int score = scoreManager.Score;
+
+            if (score != cachedScore)
+            {
+                cachedScore = score;
+
+                scoreText.text = $"SCORE: {score}";
+            }
         }
 
         if (waveManager != null && waveText != null)
         {
-            waveText.text = $"WAVE: {waveManager.CurrentWave}";
+            int wave = waveManager.CurrentWave;
+
+            if (wave != cachedWave)
+            {
+                cachedWave = wave;
+
+                waveText.text = $"WAVE: {wave}";
+            }
         }
 
         if (XpManager.Instance != null && coinsText != null)
         {
-            coinsText.text =
-                $"{XpManager.Instance.RunCoins}";
+            int coins = XpManager.Instance.RunCoins;
+
+            if (coins != cachedCoins)
+            {
+                cachedCoins = coins;
+
+                coinsText.text = $"{coins}";
+            }
         }
     }
 }

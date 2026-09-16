@@ -15,6 +15,7 @@ public class Weapon : MonoBehaviour
     private PlayerStats playerStats;
     private PlayerController playerController;
     private CameraFollow cachedCamera;
+    private Transform cachedFirePoint;
 
     private RunUpgrades runUpgrades;
     private PlayerHealth playerHealth;
@@ -645,6 +646,8 @@ public class Weapon : MonoBehaviour
         if (weaponPrefab == null)
             return;
 
+        cachedFirePoint = null;
+
         GameObject visual =
             Instantiate(
                 weaponPrefab,
@@ -667,6 +670,9 @@ public class Weapon : MonoBehaviour
 
     private Transform FindFirePoint()
     {
+        if (cachedFirePoint != null)
+            return cachedFirePoint;
+
         if (weaponVisualRoot == null)
             return null;
 
@@ -679,7 +685,11 @@ public class Weapon : MonoBehaviour
         foreach (Transform child in children)
         {
             if (child.name == "FirePoint")
+            {
+                cachedFirePoint = child;
+
                 return child;
+            }
         }
 
         return null;

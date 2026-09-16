@@ -82,14 +82,18 @@ public class BombAbility : MonoBehaviour
         }
 
         Collider[] hits =
-            Physics.OverlapSphere(center, radius);
+            StructureQuery.OverlapSphere(
+                center,
+                radius,
+                out int hitCount
+            );
 
         float damage = CalculateDamage();
 
-        foreach (Collider hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
             Enemy enemy =
-                hit.GetComponentInParent<Enemy>();
+                hits[i].GetComponentInParent<Enemy>();
 
             if (enemy == null)
                 continue;

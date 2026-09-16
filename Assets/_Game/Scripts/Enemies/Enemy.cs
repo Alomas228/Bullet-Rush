@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Enemy : MonoBehaviour
@@ -76,15 +75,21 @@ public class Enemy : MonoBehaviour
     private float bleedTickInterval;
     private float bleedTickTimer;
 
-    // Общий буфер для неаллоцирующих проверок пересечения сфер.
-    private static Collider[] overlapBuffer = new Collider[16];
+    // Количество живых врагов в сцене. Позволяет волновому
+    // менеджеру обходиться без FindGameObjectsWithTag каждый кадр.
+    public static int AliveCount { get; private set; }
 
-    // Кэш соответствий коллайдер -> WorldStructure.
-    // Заменяет дорогой GetComponentInParent в горячих путях. Мир
-    // состоит из статичных структур, поэтому кэш живёт весь сеанс;
-    // если объект разрушен, ссылка становится null и кэш обновится.
-    private static readonly Dictionary<int, WorldStructure> structureCache =
-        new Dictionary<int, WorldStructure>(32);
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStaticState()
+    {
+        AliveCount = 0;
+    }
+
+    private void OnDestroy()
+    {
+        if (AliveCount > 0)
+            AliveCount--;
+    }
 
     public bool IsDead { get; private set; }
 
@@ -124,6 +129,8 @@ public class Enemy : MonoBehaviour
 
         if (enemySpawner == null)
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
+
+        AliveCount++;
 
         LockVerticalRigidbody();
     }
@@ -622,7 +629,7 @@ public class Enemy : MonoBehaviour
             out RaycastHit hit,
             clearanceProbeDistance))
         {
-            if (TryGetWorldStructure(hit.collider, out _))
+            if (StructureQuery.IsWorldStructure(hit.collider))
                 return hit.distance;
         }
 
@@ -650,17 +657,18 @@ public class Enemy : MonoBehaviour
             0.5f +
             obstaclePadding;
 
-        int nearbyCount =
-            OverlapSphereNonAllocGuaranteed(
+        Collider[] nearbyColliders =
+            StructureQuery.OverlapSphere(
                 selfCollider.bounds.center,
-                checkRadius
+                checkRadius,
+                out int nearbyCount
             );
 
         for (int i = 0; i < nearbyCount; i++)
         {
-            Collider structure = overlapBuffer[i];
+            Collider structure = nearbyColliders[i];
 
-            if (!TryGetWorldStructure(structure, out _))
+            if (!StructureQuery.IsWorldStructure(structure))
                 continue;
 
             if (!Physics.ComputePenetration(
@@ -702,7 +710,7 @@ public class Enemy : MonoBehaviour
             out hit,
             distance))
         {
-            if (TryGetWorldStructure(hit.collider, out _))
+            if (StructureQuery.IsWorldStructure(hit.collider))
                 return true;
         }
 
@@ -1438,10 +1446,11 @@ public class Enemy : MonoBehaviour
                 1
             );
 
-        int colliderCount =
-            OverlapSphereNonAllocGuaranteed(
+        Collider[] nearbyColliders =
+            StructureQuery.OverlapSphere(
                 transform.position,
-                range
+                range,
+                out int colliderCount
             );
 
         int targetsHit = 0;
@@ -1452,7 +1461,7 @@ public class Enemy : MonoBehaviour
                 break;
 
             Enemy target =
-                overlapBuffer[i].GetComponent<Enemy>();
+                nearbyColliders[i].GetComponent<Enemy>();
 
             if (target == null ||
                 target == this ||
@@ -1766,58 +1775,4 @@ public class Enemy : MonoBehaviour
     }
 
 
-    // =========================================================
-    // PHYSICS HELPERS (shared, non-allocating)
-    // =========================================================
-
-    // OverlapSphere без аллокаций: результат пишется в переиспользуемый
-    // буфер. Если буфер заполнился (не влезли все коллайдеры) —
-    // увеличиваем его до тех пор, пока не вернём полный набор.
-    private static int OverlapSphereNonAllocGuaranteed(
-        Vector3 position,
-        float radius)
-    {
-        int count =
-            Physics.OverlapSphereNonAlloc(
-                position,
-                radius,
-                overlapBuffer
-            );
-
-        while (count == overlapBuffer.Length)
-        {
-            overlapBuffer =
-                new Collider[overlapBuffer.Length * 2];
-
-            count =
-                Physics.OverlapSphereNonAlloc(
-                    position,
-                    radius,
-                    overlapBuffer
-                );
-        }
-
-        return count;
-    }
-
-    // Определение WorldStructure без GetComponentInParent каждый вызов.
-    // Если структура была разрушена, кэшированная ссылка станет null и
-    // запись обновится заново.
-    private static bool TryGetWorldStructure(
-        Collider collider,
-        out WorldStructure structure)
-    {
-        int id = collider.GetInstanceID();
-
-        if (structureCache.TryGetValue(id, out structure) &&
-            structure != null)
-        {
-            return true;
-        }
-
-        structure = collider.GetComponentInParent<WorldStructure>();
-        structureCache[id] = structure;
-
-        return structure != null;
-    }
 }

@@ -9,21 +9,34 @@ public class BossHealthBar : MonoBehaviour
     [SerializeField] private Slider healthSlider;
     [SerializeField] private TMP_Text bossNameText;
 
+    // Как часто искать босса, пока его нет в сцене. Снижает нагрузку
+    // в обычных волнах (поиск по сцене раз в кадр).
+    private const float BossSearchInterval = 0.5f;
+
     private Enemy currentBoss;
+    private float nextBossSearchTime;
+    private float cachedHealthPercent = -1f;
 
     private void Update()
     {
         if (currentBoss == null ||
             currentBoss.IsDead)
         {
-            FindBoss();
+            currentBoss = null;
 
-            if (currentBoss == null)
+            Hide();
+
+            if (Time.unscaledTime >= nextBossSearchTime)
             {
-                Hide();
-                return;
+                nextBossSearchTime =
+                    Time.unscaledTime + BossSearchInterval;
+
+                FindBoss();
             }
         }
+
+        if (currentBoss == null)
+            return;
 
         UpdateBar();
     }
@@ -68,14 +81,23 @@ public class BossHealthBar : MonoBehaviour
             return;
 
         float healthPercent =
-            currentBoss.CurrentHealth /
-            maxHealth;
+            Mathf.Clamp01(
+                currentBoss.CurrentHealth /
+                maxHealth
+            );
 
-        healthSlider.value =
-            Mathf.Clamp01(healthPercent);
+        if (!Mathf.Approximately(healthPercent, cachedHealthPercent))
+        {
+            cachedHealthPercent = healthPercent;
 
-        if (bossNameText != null)
+            healthSlider.value = healthPercent;
+        }
+
+        if (bossNameText != null &&
+            bossNameText.text != "BOSS")
+        {
             bossNameText.text = "BOSS";
+        }
     }
 
     private void Show()
@@ -90,5 +112,6 @@ public class BossHealthBar : MonoBehaviour
             bossPanel.SetActive(false);
 
         currentBoss = null;
+        cachedHealthPercent = -1f;
     }
 }

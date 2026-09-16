@@ -56,6 +56,11 @@ public class WorldStructureGenerator : MonoBehaviour
 
     private Coroutine generateCoroutine;
 
+    // Общие материалы для палитры: один материал на цвет вместо
+    // создания копии на каждый куб (иначе каждая волна плодит
+    // десятки экземпляров материалов).
+    private Material[] paletteMaterials;
+
     private float groundY;
 
     public bool IsGenerating =>
@@ -417,7 +422,8 @@ public class WorldStructureGenerator : MonoBehaviour
             if (materials != null &&
                 materials.Length > 0)
             {
-                renderer.material =
+                // sharedMaterial не создаёт копию материала на каждый куб.
+                renderer.sharedMaterial =
                     materials[
                         rng.Next(0, materials.Length)
                     ];
@@ -425,10 +431,17 @@ public class WorldStructureGenerator : MonoBehaviour
             else if (palette != null &&
                      palette.Length > 0)
             {
-                renderer.material.color =
-                    palette[
-                        rng.Next(0, palette.Length)
-                    ];
+                EnsurePaletteMaterials(
+                    renderer.sharedMaterial
+                );
+
+                if (paletteMaterials != null)
+                {
+                    renderer.sharedMaterial =
+                        paletteMaterials[
+                            rng.Next(0, paletteMaterials.Length)
+                        ];
+                }
             }
         }
 
@@ -440,6 +453,33 @@ public class WorldStructureGenerator : MonoBehaviour
                 cube.transform.localScale
             )
         );
+    }
+
+    private void EnsurePaletteMaterials(
+        Material baseMaterial)
+    {
+        if (paletteMaterials != null)
+            return;
+
+        if (palette == null ||
+            palette.Length == 0 ||
+            baseMaterial == null)
+        {
+            return;
+        }
+
+        paletteMaterials =
+            new Material[palette.Length];
+
+        for (int i = 0; i < palette.Length; i++)
+        {
+            Material material =
+                new Material(baseMaterial);
+
+            material.color = palette[i];
+
+            paletteMaterials[i] = material;
+        }
     }
 
     private static float NextFloat(

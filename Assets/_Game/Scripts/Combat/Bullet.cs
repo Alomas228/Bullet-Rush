@@ -103,7 +103,7 @@ public class Bullet : MonoBehaviour
             out RaycastHit hit,
             distance))
         {
-            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+            if (StructureQuery.IsWorldStructure(hit.collider))
             {
                 transform.position = hit.point;
                 return true;
@@ -286,7 +286,7 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponentInParent<WorldStructure>() != null)
+        if (StructureQuery.IsWorldStructure(other))
         {
             Destroy(gameObject);
             return;
@@ -486,15 +486,16 @@ public class Bullet : MonoBehaviour
         );
 
         Collider[] colliders =
-            Physics.OverlapSphere(
+            StructureQuery.OverlapSphere(
                 transform.position,
-                explosionRadius
+                explosionRadius,
+                out int colliderCount
             );
 
-        foreach (Collider collider in colliders)
+        for (int i = 0; i < colliderCount; i++)
         {
             Enemy target =
-                collider.GetComponent<Enemy>();
+                colliders[i].GetComponent<Enemy>();
 
             if (target == null ||
                 target == hitEnemy ||
@@ -541,20 +542,21 @@ public class Bullet : MonoBehaviour
             hitEnemy.transform.position;
 
         Collider[] colliders =
-            Physics.OverlapSphere(
+            StructureQuery.OverlapSphere(
                 transform.position,
-                chainLightningRadius
+                chainLightningRadius,
+                out int colliderCount
             );
 
         int targetsHit = 0;
 
-        foreach (Collider collider in colliders)
+        for (int i = 0; i < colliderCount; i++)
         {
             if (targetsHit >= chainLightningMaxTargets)
                 break;
 
             Enemy target =
-                collider.GetComponent<Enemy>();
+                colliders[i].GetComponent<Enemy>();
 
             if (target == null ||
                 target == hitEnemy ||
@@ -596,9 +598,10 @@ public class Bullet : MonoBehaviour
             return;
 
         Collider[] colliders =
-            Physics.OverlapSphere(
+            StructureQuery.OverlapSphere(
                 transform.position,
-                ricochetSearchRadius
+                ricochetSearchRadius,
+                out int colliderCount
             );
 
         Enemy closest =
@@ -607,10 +610,10 @@ public class Bullet : MonoBehaviour
         float closestDistance =
             float.MaxValue;
 
-        foreach (Collider collider in colliders)
+        for (int i = 0; i < colliderCount; i++)
         {
             Enemy target =
-                collider.GetComponent<Enemy>();
+                colliders[i].GetComponent<Enemy>();
 
             if (target == null ||
                 target == hitEnemy ||

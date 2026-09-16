@@ -149,17 +149,20 @@ public class EnemySpawner : MonoBehaviour
         Vector3 position)
     {
         Collider[] colliders =
-            Physics.OverlapSphere(
+            StructureQuery.OverlapSphere(
                 position,
-                minimumSpawnDistance
+                minimumSpawnDistance,
+                out int colliderCount
             );
 
-        foreach (Collider collider in colliders)
+        for (int i = 0; i < colliderCount; i++)
         {
+            Collider collider = colliders[i];
+
             if (collider.GetComponentInParent<Enemy>() != null)
                 return false;
 
-            if (collider.GetComponentInParent<WorldStructure>() != null)
+            if (StructureQuery.IsWorldStructure(collider))
                 return false;
         }
 

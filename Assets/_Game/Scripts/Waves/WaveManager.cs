@@ -96,10 +96,7 @@ public class WaveManager : MonoBehaviour
             && GameStateManager.Instance.CurrentState != GameState.Playing)
             return;
 
-        GameObject[] enemies =
-            GameObject.FindGameObjectsWithTag("Enemy");
-
-        if (enemies.Length == 0)
+        if (Enemy.AliveCount <= 0)
         {
             waitingForNextWave = true;
             waveActive = false;

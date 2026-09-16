@@ -139,7 +139,7 @@ public class EnemyProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponentInParent<WorldStructure>() != null)
+        if (StructureQuery.IsWorldStructure(other))
         {
             Destroy(gameObject);
             return;

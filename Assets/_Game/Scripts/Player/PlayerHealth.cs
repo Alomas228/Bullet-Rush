@@ -14,6 +14,7 @@ public class PlayerHealth : MonoBehaviour
 
     private PlayerController playerController;
     private ShieldAbility shieldAbility;
+    private CameraFollow cachedCamera;
 
     public float CurrentHealth { get; private set; }
 
@@ -30,6 +31,9 @@ public class PlayerHealth : MonoBehaviour
 
         shieldAbility =
             GetComponent<ShieldAbility>();
+
+        cachedCamera =
+            FindAnyObjectByType<CameraFollow>();
 
         Debug.Log(
             $"Player HP: {CurrentHealth}/{maxHealth}"
@@ -133,11 +137,12 @@ public class PlayerHealth : MonoBehaviour
 
     private void TriggerScreenShake()
     {
-        CameraFollow camera =
-            FindAnyObjectByType<CameraFollow>();
+        if (cachedCamera == null)
+            cachedCamera =
+                FindAnyObjectByType<CameraFollow>();
 
-        if (camera != null)
-            camera.AddShake(hitShakeAmount);
+        if (cachedCamera != null)
+            cachedCamera.AddShake(hitShakeAmount);
     }
 
     public void AddMaxHealthPercent(float percent)

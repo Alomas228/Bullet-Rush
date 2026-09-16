@@ -329,14 +329,17 @@ public class PlayerController : MonoBehaviour
             0.5f +
             1f;
 
-        Collider[] nearby = Physics.OverlapSphere(
+        Collider[] nearby = StructureQuery.OverlapSphere(
             playerCollider.bounds.center,
-            checkRadius
+            checkRadius,
+            out int nearbyCount
         );
 
-        foreach (Collider structure in nearby)
+        for (int i = 0; i < nearbyCount; i++)
         {
-            if (structure.GetComponentInParent<WorldStructure>() == null)
+            Collider structure = nearby[i];
+
+            if (!StructureQuery.IsWorldStructure(structure))
                 continue;
 
             if (!Physics.ComputePenetration(
