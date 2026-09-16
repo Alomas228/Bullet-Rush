@@ -231,9 +231,14 @@ public class Bullet : MonoBehaviour
             run.RicochetDamageMultiplier;
     }
 
+    /// <summary>
+    /// Переносит на рикошетную пулю только безвредные модификаторы:
+    /// DOT и лайфстил. Каскадные эффекты (взрыв, цепная молния,
+    /// повторные рикошеты) отключены, чтобы стак апгрейдов
+    /// не давал экспоненциального урона.
+    /// </summary>
     private void CopyRunEffectsFrom(
-        Bullet source,
-        bool isRicochet)
+        Bullet source)
     {
         lifestealPercent =
             source.lifestealPercent;
@@ -262,39 +267,15 @@ public class Bullet : MonoBehaviour
         bleedTickInterval =
             source.bleedTickInterval;
 
-        if (!isRicochet)
-        {
-            explosionRadius =
-                source.explosionRadius;
+        chainLightningChance = 0f;
+        chainLightningDamage = 0f;
+        chainLightningRadius = 0f;
+        chainLightningMaxTargets = 0;
 
-            explosionDamage =
-                source.explosionDamage;
-        }
-
-        chainLightningChance =
-            source.chainLightningChance;
-
-        chainLightningDamage =
-            source.chainLightningDamage;
-
-        chainLightningRadius =
-            source.chainLightningRadius;
-
-        chainLightningMaxTargets =
-            source.chainLightningMaxTargets;
-
-        ricochetChance =
-            source.ricochetChance;
-
-        ricochetBouncesRemaining = isRicochet
-            ? source.ricochetBouncesRemaining - 1
-            : source.ricochetBouncesRemaining;
-
-        ricochetSearchRadius =
-            source.ricochetSearchRadius;
-
-        ricochetDamageMultiplier =
-            source.ricochetDamageMultiplier;
+        ricochetChance = 0f;
+        ricochetBouncesRemaining = 0;
+        ricochetSearchRadius = 0f;
+        ricochetDamageMultiplier = 1f;
 
         cachedPlayerHealth =
             source.cachedPlayerHealth;
@@ -499,6 +480,11 @@ public class Bullet : MonoBehaviour
     private void TriggerExplosion(
         Enemy hitEnemy)
     {
+        VfxFactory.SpawnExplosion(
+            transform.position,
+            explosionRadius
+        );
+
         Collider[] colliders =
             Physics.OverlapSphere(
                 transform.position,
@@ -536,6 +522,24 @@ public class Bullet : MonoBehaviour
     private void TriggerChainLightning(
         Enemy hitEnemy)
     {
+        Vector3 fromPosition =
+            transform.position;
+
+        // Молния «сходит» на цель сверху, чтобы отрезок был виден
+        // даже при одиночном попадании (иначе пуля в коллизии
+        // почти совпадает с целью и сегмент нулевой длины).
+        fromPosition +=
+            Vector3.up * 0.4f;
+
+        // Первый «захват» визуально бьёт в цель попадания пули.
+        VfxFactory.SpawnLightning(
+            fromPosition,
+            hitEnemy.transform.position
+        );
+
+        fromPosition =
+            hitEnemy.transform.position;
+
         Collider[] colliders =
             Physics.OverlapSphere(
                 transform.position,
@@ -563,6 +567,14 @@ public class Bullet : MonoBehaviour
                 chainLightningDamage,
                 false
             );
+
+            VfxFactory.SpawnLightning(
+                fromPosition,
+                target.transform.position
+            );
+
+            fromPosition =
+                target.transform.position;
 
             ApplyAreaDotEffects(target);
             ApplyAreaLifesteal(
@@ -623,6 +635,11 @@ public class Bullet : MonoBehaviour
         if (closest == null)
             return;
 
+        VfxFactory.SpawnRicochet(
+            transform.position,
+            closest.transform.position
+        );
+
         Vector3 direction =
             closest.transform.position -
             transform.position;
@@ -670,8 +687,7 @@ public class Bullet : MonoBehaviour
         );
 
         bullet.CopyRunEffectsFrom(
-            this,
-            true
+            this
         );
 
         // Новая пуля стартует в точке удара, поэтому запрещаем

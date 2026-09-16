@@ -12,10 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: Upgrade_LifestealRounds
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: 
-  description: 
-  type: 0
-  rarity: 0
+  upgradeName: Lifesteal
+  description: "10% \u043D\u0430\u043D\u0435\u0441\u0451\u043D\u043D\u043E\u0433\u043E
+    \u0443\u0440\u043E\u043D\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442
+    \u0432\u0430\u0448\u0435 HP."
+  type: 17
+  rarity: 3
   percentValue: 0.1
   weaponData: {fileID: 0}
-  effectData: {fileID: 0}
+  effectData: {fileID: 11400000, guid: c95b962ca40fa4b4987c2ff237c47d39, type: 2}
