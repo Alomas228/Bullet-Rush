@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Enemy : MonoBehaviour
@@ -48,16 +48,43 @@ public class Enemy : MonoBehaviour
     private float abilityTimer;
     private float summonTimer;
 
-    private Coroutine burnCoroutine;
-    private Coroutine bleedCoroutine;
-
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
+
+    private EnemyType cachedEnemyType;
+    private bool isBoss;
+
+    // Поиск игрока (страховка) идёт не чаще раза в это время.
+    private float nextPlayerSearchTime;
 
     // Состояние обхода препятствий.
     private int avoidSide;
     private float avoidSideTimer;
     private int clearFrames;
+
+    // Состояние периодического урона (burn/bleed). Без корутин,
+    // чтобы не аллоцировать WaitForSeconds и машины состояний.
+    private bool burnActive;
+    private float burnDamagePerTick;
+    private float burnRemainingTime;
+    private float burnTickInterval;
+    private float burnTickTimer;
+
+    private bool bleedActive;
+    private float bleedDamagePerTick;
+    private float bleedRemainingTime;
+    private float bleedTickInterval;
+    private float bleedTickTimer;
+
+    // Общий буфер для неаллоцирующих проверок пересечения сфер.
+    private static Collider[] overlapBuffer = new Collider[16];
+
+    // Кэш соответствий коллайдер -> WorldStructure.
+    // Заменяет дорогой GetComponentInParent в горячих путях. Мир
+    // состоит из статичных структур, поэтому кэш живёт весь сеанс;
+    // если объект разрушен, ссылка становится null и кэш обновится.
+    private static readonly Dictionary<int, WorldStructure> structureCache =
+        new Dictionary<int, WorldStructure>(32);
 
     public bool IsDead { get; private set; }
 
@@ -85,6 +112,9 @@ public class Enemy : MonoBehaviour
 
         selfCollider = GetComponent<Collider>();
         cachedRigidbody = GetComponent<Rigidbody>();
+
+        cachedEnemyType = enemyData != null ? enemyData.EnemyType : EnemyType.Normal;
+        isBoss = enemyData != null && cachedEnemyType == EnemyType.Boss;
 
         scaledMaxHealth = GetBaseMaxHealth();
         currentHealth = scaledMaxHealth;
@@ -135,7 +165,7 @@ public class Enemy : MonoBehaviour
     private float GetBaseMaxHealth()
     {
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+            cachedEnemyType == EnemyType.Boss &&
             bossData != null)
         {
             return bossData.MaxHealth;
@@ -149,7 +179,7 @@ public class Enemy : MonoBehaviour
     private float GetWaveHealthPercent()
     {
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+            cachedEnemyType == EnemyType.Boss &&
             bossData != null)
         {
             return bossData.WaveHealthPercent;
@@ -163,7 +193,7 @@ public class Enemy : MonoBehaviour
     private float GetWaveDamagePercent()
     {
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+            cachedEnemyType == EnemyType.Boss &&
             bossData != null)
         {
             return bossData.WaveDamagePercent;
@@ -177,7 +207,7 @@ public class Enemy : MonoBehaviour
     private float GetWaveScorePercent()
     {
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+            cachedEnemyType == EnemyType.Boss &&
             bossData != null)
         {
             return bossData.WaveScorePercent;
@@ -200,7 +230,11 @@ public class Enemy : MonoBehaviour
 
         if (player == null)
         {
-            FindPlayer();
+            if (Time.time >= nextPlayerSearchTime)
+            {
+                nextPlayerSearchTime = Time.time + 0.25f;
+                FindPlayer();
+            }
 
             if (player == null)
                 return;
@@ -214,7 +248,7 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        switch (enemyData.EnemyType)
+        switch (cachedEnemyType)
         {
             case EnemyType.Ranged:
                 HandleRangedBehaviour();
@@ -251,17 +285,72 @@ public class Enemy : MonoBehaviour
 
     private void UpdateTimers()
     {
+        float deltaTime = Time.deltaTime;
+
         if (contactDamageTimer > 0f)
-            contactDamageTimer -= Time.deltaTime;
+            contactDamageTimer -= deltaTime;
 
         if (attackTimer > 0f)
-            attackTimer -= Time.deltaTime;
+            attackTimer -= deltaTime;
 
         if (abilityTimer > 0f)
-            abilityTimer -= Time.deltaTime;
+            abilityTimer -= deltaTime;
 
         if (summonTimer > 0f)
-            summonTimer -= Time.deltaTime;
+            summonTimer -= deltaTime;
+
+        UpdateDoT(deltaTime);
+    }
+
+    // Периодический урон без корутин: тик каждые burn/bleedTickInterval,
+    // пока не выйдет время действия.
+    private void UpdateDoT(float deltaTime)
+    {
+        if (burnActive)
+        {
+            burnRemainingTime -= deltaTime;
+
+            if (burnRemainingTime <= 0f)
+            {
+                burnActive = false;
+            }
+            else
+            {
+                burnTickTimer -= deltaTime;
+
+                while (burnTickTimer <= 0f)
+                {
+                    burnTickTimer += burnTickInterval;
+                    TakeDamage(burnDamagePerTick, false);
+
+                    if (IsDead)
+                        break;
+                }
+            }
+        }
+
+        if (bleedActive)
+        {
+            bleedRemainingTime -= deltaTime;
+
+            if (bleedRemainingTime <= 0f)
+            {
+                bleedActive = false;
+            }
+            else
+            {
+                bleedTickTimer -= deltaTime;
+
+                while (bleedTickTimer <= 0f)
+                {
+                    bleedTickTimer += bleedTickInterval;
+                    TakeDamage(bleedDamagePerTick, false);
+
+                    if (IsDead)
+                        break;
+                }
+            }
+        }
     }
 
 
@@ -533,7 +622,7 @@ public class Enemy : MonoBehaviour
             out RaycastHit hit,
             clearanceProbeDistance))
         {
-            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+            if (TryGetWorldStructure(hit.collider, out _))
                 return hit.distance;
         }
 
@@ -561,15 +650,17 @@ public class Enemy : MonoBehaviour
             0.5f +
             obstaclePadding;
 
-        Collider[] nearby =
-            Physics.OverlapSphere(
+        int nearbyCount =
+            OverlapSphereNonAllocGuaranteed(
                 selfCollider.bounds.center,
                 checkRadius
             );
 
-        foreach (Collider structure in nearby)
+        for (int i = 0; i < nearbyCount; i++)
         {
-            if (structure.GetComponentInParent<WorldStructure>() == null)
+            Collider structure = overlapBuffer[i];
+
+            if (!TryGetWorldStructure(structure, out _))
                 continue;
 
             if (!Physics.ComputePenetration(
@@ -611,7 +702,7 @@ public class Enemy : MonoBehaviour
             out hit,
             distance))
         {
-            if (hit.collider.GetComponentInParent<WorldStructure>() != null)
+            if (TryGetWorldStructure(hit.collider, out _))
                 return true;
         }
 
@@ -1185,9 +1276,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        if (attackPoint == null)
-            attackPoint = transform;
-
         Vector3 direction =
             player.position -
             attackPoint.position;
@@ -1241,8 +1329,7 @@ public class Enemy : MonoBehaviour
 
         PlayEnemyHitSound();
 
-        if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+        if (isBoss &&
             bossData != null)
         {
             UpdateBossPhase();
@@ -1289,54 +1376,12 @@ public class Enemy : MonoBehaviour
                 0.05f
             );
 
-        if (burnCoroutine != null)
-        {
-            StopCoroutine(
-                burnCoroutine
-            );
-        }
-
-        burnCoroutine =
-            StartCoroutine(
-                BurnRoutine(
-                    damagePerSecond,
-                    duration,
-                    tickInterval
-                )
-            );
-    }
-
-    private IEnumerator BurnRoutine(
-        float damagePerSecond,
-        float duration,
-        float tickInterval)
-    {
-        float elapsed = 0f;
-
-        while (
-            elapsed < duration &&
-            !IsDead)
-        {
-            yield return new WaitForSeconds(
-                tickInterval
-            );
-
-            if (IsDead)
-                yield break;
-
-            float burnDamage =
-                damagePerSecond *
-                tickInterval;
-
-            TakeDamage(
-                burnDamage,
-                false
-            );
-
-            elapsed += tickInterval;
-        }
-
-        burnCoroutine = null;
+        burnDamagePerTick =
+            damagePerSecond * tickInterval;
+        burnRemainingTime = duration;
+        burnTickInterval = tickInterval;
+        burnTickTimer = tickInterval;
+        burnActive = true;
     }
 
 
@@ -1362,54 +1407,12 @@ public class Enemy : MonoBehaviour
                 0.05f
             );
 
-        if (bleedCoroutine != null)
-        {
-            StopCoroutine(
-                bleedCoroutine
-            );
-        }
-
-        bleedCoroutine =
-            StartCoroutine(
-                BleedRoutine(
-                    damagePerSecond,
-                    duration,
-                    tickInterval
-                )
-            );
-    }
-
-    private IEnumerator BleedRoutine(
-        float damagePerSecond,
-        float duration,
-        float tickInterval)
-    {
-        float elapsed = 0f;
-
-        while (
-            elapsed < duration &&
-            !IsDead)
-        {
-            yield return new WaitForSeconds(
-                tickInterval
-            );
-
-            if (IsDead)
-                yield break;
-
-            float bleedDamage =
-                damagePerSecond *
-                tickInterval;
-
-            TakeDamage(
-                bleedDamage,
-                false
-            );
-
-            elapsed += tickInterval;
-        }
-
-        bleedCoroutine = null;
+        bleedDamagePerTick =
+            damagePerSecond * tickInterval;
+        bleedRemainingTime = duration;
+        bleedTickInterval = tickInterval;
+        bleedTickTimer = tickInterval;
+        bleedActive = true;
     }
 
 
@@ -1435,21 +1438,21 @@ public class Enemy : MonoBehaviour
                 1
             );
 
-        Collider[] colliders =
-            Physics.OverlapSphere(
+        int colliderCount =
+            OverlapSphereNonAllocGuaranteed(
                 transform.position,
                 range
             );
 
         int targetsHit = 0;
 
-        foreach (Collider collider in colliders)
+        for (int i = 0; i < colliderCount; i++)
         {
             if (targetsHit >= targetCount)
                 break;
 
             Enemy target =
-                collider.GetComponent<Enemy>();
+                overlapBuffer[i].GetComponent<Enemy>();
 
             if (target == null ||
                 target == this ||
@@ -1498,8 +1501,7 @@ public class Enemy : MonoBehaviour
                 enemyData.ContactDamage;
         }
 
-        if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+        if (isBoss &&
             bossData != null)
         {
             damage =
@@ -1586,23 +1588,8 @@ public class Enemy : MonoBehaviour
 
         PlayEnemyDeathSound();
 
-        if (burnCoroutine != null)
-        {
-            StopCoroutine(
-                burnCoroutine
-            );
-
-            burnCoroutine = null;
-        }
-
-        if (bleedCoroutine != null)
-        {
-            StopCoroutine(
-                bleedCoroutine
-            );
-
-            bleedCoroutine = null;
-        }
+        burnActive = false;
+        bleedActive = false;
 
         if (ScoreManager.Instance != null)
         {
@@ -1612,7 +1599,7 @@ public class Enemy : MonoBehaviour
                 1f + (currentWave - 1) * GetWaveScorePercent();
 
             if (enemyData != null &&
-                enemyData.EnemyType == EnemyType.Boss &&
+                isBoss &&
                 bossData != null)
             {
                 ScoreManager.Instance.AddScore(
@@ -1632,7 +1619,7 @@ public class Enemy : MonoBehaviour
         }
 
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss)
+            cachedEnemyType == EnemyType.Boss)
         {
             Debug.Log(
                 $"========== BOSS '{name}' DEFEATED =========="
@@ -1653,7 +1640,7 @@ public class Enemy : MonoBehaviour
             return;
 
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss)
+            cachedEnemyType == EnemyType.Boss)
         {
             AudioManager.Instance.PlaySFX(sfx.BossSpawn);
         }
@@ -1672,9 +1659,6 @@ public class Enemy : MonoBehaviour
     {
         if (enemyData == null)
             return;
-
-        bool isBoss =
-            enemyData.EnemyType == EnemyType.Boss;
 
         Vector3 position =
             transform.position;
@@ -1712,7 +1696,7 @@ public class Enemy : MonoBehaviour
     private int GetXpValue()
     {
         if (enemyData != null &&
-            enemyData.EnemyType == EnemyType.Boss &&
+            cachedEnemyType == EnemyType.Boss &&
             bossData != null)
         {
             return 100;
@@ -1721,7 +1705,7 @@ public class Enemy : MonoBehaviour
         if (enemyData == null)
             return 5;
 
-        switch (enemyData.EnemyType)
+        switch (cachedEnemyType)
         {
             case EnemyType.Normal:
                 return 5;
@@ -1756,7 +1740,7 @@ public class Enemy : MonoBehaviour
 
         if (enemyData != null)
         {
-            switch (enemyData.EnemyType)
+            switch (cachedEnemyType)
             {
                 case EnemyType.Tank:
                 case EnemyType.Elite:
@@ -1779,5 +1763,61 @@ public class Enemy : MonoBehaviour
             splatters,
             maxOffset
         );
+    }
+
+
+    // =========================================================
+    // PHYSICS HELPERS (shared, non-allocating)
+    // =========================================================
+
+    // OverlapSphere без аллокаций: результат пишется в переиспользуемый
+    // буфер. Если буфер заполнился (не влезли все коллайдеры) —
+    // увеличиваем его до тех пор, пока не вернём полный набор.
+    private static int OverlapSphereNonAllocGuaranteed(
+        Vector3 position,
+        float radius)
+    {
+        int count =
+            Physics.OverlapSphereNonAlloc(
+                position,
+                radius,
+                overlapBuffer
+            );
+
+        while (count == overlapBuffer.Length)
+        {
+            overlapBuffer =
+                new Collider[overlapBuffer.Length * 2];
+
+            count =
+                Physics.OverlapSphereNonAlloc(
+                    position,
+                    radius,
+                    overlapBuffer
+                );
+        }
+
+        return count;
+    }
+
+    // Определение WorldStructure без GetComponentInParent каждый вызов.
+    // Если структура была разрушена, кэшированная ссылка станет null и
+    // запись обновится заново.
+    private static bool TryGetWorldStructure(
+        Collider collider,
+        out WorldStructure structure)
+    {
+        int id = collider.GetInstanceID();
+
+        if (structureCache.TryGetValue(id, out structure) &&
+            structure != null)
+        {
+            return true;
+        }
+
+        structure = collider.GetComponentInParent<WorldStructure>();
+        structureCache[id] = structure;
+
+        return structure != null;
     }
 }
