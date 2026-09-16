@@ -13,5 +13,12 @@ public enum UpgradeType
     ProjectileCount,
     Pierce,
     Bomb,
-    Shield
+    Shield,
+
+    BurningRounds,
+    ExplosiveRounds,
+    Bleeding,
+    Lifesteal,
+    ChainLightning,
+    Ricochet
 }

@@ -49,6 +49,7 @@ public class Enemy : MonoBehaviour
     private float summonTimer;
 
     private Coroutine burnCoroutine;
+    private Coroutine bleedCoroutine;
 
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
@@ -1340,6 +1341,79 @@ public class Enemy : MonoBehaviour
 
 
     // =========================================================
+    // BLEEDING
+    // =========================================================
+
+    public void ApplyBleeding(
+        float damagePerSecond,
+        float duration,
+        float tickInterval)
+    {
+        if (IsDead)
+            return;
+
+        if (damagePerSecond <= 0f ||
+            duration <= 0f)
+            return;
+
+        tickInterval =
+            Mathf.Max(
+                tickInterval,
+                0.05f
+            );
+
+        if (bleedCoroutine != null)
+        {
+            StopCoroutine(
+                bleedCoroutine
+            );
+        }
+
+        bleedCoroutine =
+            StartCoroutine(
+                BleedRoutine(
+                    damagePerSecond,
+                    duration,
+                    tickInterval
+                )
+            );
+    }
+
+    private IEnumerator BleedRoutine(
+        float damagePerSecond,
+        float duration,
+        float tickInterval)
+    {
+        float elapsed = 0f;
+
+        while (
+            elapsed < duration &&
+            !IsDead)
+        {
+            yield return new WaitForSeconds(
+                tickInterval
+            );
+
+            if (IsDead)
+                yield break;
+
+            float bleedDamage =
+                damagePerSecond *
+                tickInterval;
+
+            TakeDamage(
+                bleedDamage,
+                false
+            );
+
+            elapsed += tickInterval;
+        }
+
+        bleedCoroutine = null;
+    }
+
+
+    // =========================================================
     // LIGHTNING
     // =========================================================
 
@@ -1519,6 +1593,15 @@ public class Enemy : MonoBehaviour
             );
 
             burnCoroutine = null;
+        }
+
+        if (bleedCoroutine != null)
+        {
+            StopCoroutine(
+                bleedCoroutine
+            );
+
+            bleedCoroutine = null;
         }
 
         if (ScoreManager.Instance != null)

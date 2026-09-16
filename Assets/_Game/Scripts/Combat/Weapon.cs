@@ -16,6 +16,9 @@ public class Weapon : MonoBehaviour
     private PlayerController playerController;
     private CameraFollow cachedCamera;
 
+    private RunUpgrades runUpgrades;
+    private PlayerHealth playerHealth;
+
     private float fireTimer;
 
     private bool burstActive;
@@ -73,6 +76,22 @@ public class Weapon : MonoBehaviour
 
         if (playerController == null)
             playerController = FindAnyObjectByType<PlayerController>();
+
+        runUpgrades =
+            GetComponentInParent<RunUpgrades>();
+
+        if (runUpgrades == null)
+        {
+            Transform root =
+                transform.root;
+
+            if (root != null)
+                runUpgrades =
+                    root.gameObject.AddComponent<RunUpgrades>();
+        }
+
+        playerHealth =
+            GetComponentInParent<PlayerHealth>();
 
         ApplyWeaponVisual();
     }
@@ -465,6 +484,12 @@ public class Weapon : MonoBehaviour
             weaponData.LightningDamage,
             weaponData.LightningTargets,
             weaponData.LightningRange
+        );
+
+        bullet.SetRunEffects(
+            runUpgrades,
+            playerHealth,
+            bulletPrefab
         );
 
         SpawnTracer(bullet.transform);

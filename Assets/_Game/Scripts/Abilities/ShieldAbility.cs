@@ -20,6 +20,21 @@ public class ShieldAbility : MonoBehaviour
     public bool IsReady => cooldownTimer <= 0f;
     public bool IsActive { get; private set; }
 
+    private Transform GetOwnerTransform()
+    {
+        Transform self = transform;
+
+        if (self.CompareTag("Player"))
+            return self;
+
+        GameObject player =
+            GameObject.FindGameObjectWithTag("Player");
+
+        return player != null
+            ? player.transform
+            : self;
+    }
+
     private void Update()
     {
         if (cooldownTimer > 0f)
@@ -47,21 +62,24 @@ public class ShieldAbility : MonoBehaviour
 
     private IEnumerator ShieldRoutine()
     {
+        Transform owner =
+            GetOwnerTransform();
+
         if (shieldInstance == null &&
             shieldVisual != null)
         {
             shieldInstance =
                 Instantiate(
                     shieldVisual,
-                    transform.position,
+                    owner.position,
                     Quaternion.identity,
-                    transform
+                    owner
                 );
         }
         else if (shieldInstance == null)
         {
             shieldInstance =
-                BuildProceduralShield();
+                BuildProceduralShield(owner);
         }
 
         IsActive = true;
@@ -88,7 +106,8 @@ public class ShieldAbility : MonoBehaviour
         baseDuration *= 1f + percent;
     }
 
-    private GameObject BuildProceduralShield()
+    private GameObject BuildProceduralShield(
+        Transform owner)
     {
         GameObject sphere =
             GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -96,7 +115,7 @@ public class ShieldAbility : MonoBehaviour
         sphere.name = "ShieldBubble";
 
         sphere.transform.SetParent(
-            transform,
+            owner,
             false
         );
 

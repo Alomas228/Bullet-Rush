@@ -46,9 +46,24 @@ public class BombAbility : MonoBehaviour
         return true;
     }
 
+    private Vector3 GetOwnerPosition()
+    {
+        Transform self = transform;
+
+        if (self.CompareTag("Player"))
+            return self.position;
+
+        GameObject player =
+            GameObject.FindGameObjectWithTag("Player");
+
+        return player != null
+            ? player.transform.position
+            : self.position;
+    }
+
     private void Explode()
     {
-        Vector3 center = transform.position;
+        Vector3 center = GetOwnerPosition();
 
         if (bombEffectPrefab != null)
         {

@@ -22,6 +22,9 @@ public class UpgradeData : ScriptableObject
     [Header("Weapon")]
     [SerializeField] private WeaponData weaponData;
 
+    [Header("Effect")]
+    [SerializeField] private UpgradeEffectData effectData;
+
     public string UpgradeName => upgradeName;
     public string Description => description;
 
@@ -31,6 +34,8 @@ public class UpgradeData : ScriptableObject
     public float PercentValue => percentValue;
 
     public WeaponData WeaponData => weaponData;
+
+    public UpgradeEffectData EffectData => effectData;
 
     public void InitializeWeapon(WeaponData data)
     {

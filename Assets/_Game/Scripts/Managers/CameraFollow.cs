@@ -47,6 +47,11 @@ public class CameraFollow : MonoBehaviour
     private Quaternion baseRotation;
     private bool baseInitialized;
 
+    // База тряски с учётом параллакса мыши.
+    // Без неё тряска возвращала камеру к центру, игнорируя сдвиг за курсором,
+    // и камера «дёргалась» между параллаксом и базой.
+    private Vector3 shakeBasePosition;
+
     public void AddShake(float amount)
     {
         if (SettingsManager.Instance != null &&
@@ -179,6 +184,8 @@ public class CameraFollow : MonoBehaviour
         transform.position = basePosition;
         ApplyMouseParallaxToPosition();
         transform.rotation = baseRotation;
+
+        shakeBasePosition = transform.position;
     }
 
     private Quaternion GetGameplayLookRotation()
@@ -252,7 +259,7 @@ public class CameraFollow : MonoBehaviour
             strength;
 
         transform.position =
-            basePosition + offset;
+            shakeBasePosition + offset;
 
         transform.rotation =
             Quaternion.Euler(
@@ -322,6 +329,8 @@ public class CameraFollow : MonoBehaviour
         ApplyMouseParallaxToPosition();
         transform.rotation = baseRotation;
 
+        shakeBasePosition = transform.position;
+
         float distance = Vector3.Distance(
             basePosition,
             destination
@@ -357,6 +366,8 @@ public class CameraFollow : MonoBehaviour
 
         followTarget = false;
         transitioning = false;
+
+        shakeBasePosition = transform.position;
     }
 
     public void MoveToGameplayPositionImmediate()
@@ -371,6 +382,8 @@ public class CameraFollow : MonoBehaviour
 
         followTarget = true;
         transitioning = false;
+
+        shakeBasePosition = transform.position;
     }
 
     public void SetTarget(Transform newTarget)

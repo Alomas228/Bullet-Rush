@@ -11,6 +11,9 @@ public class UpgradeManager : MonoBehaviour
     [SerializeField] private Weapon weapon;
     [SerializeField] private AbilityManager abilityManager;
 
+    [Header("Run Upgrades")]
+    [SerializeField] private RunUpgrades runUpgrades;
+
     [Header("Normal Upgrades")]
     [SerializeField]
     private List<UpgradeData> availableUpgrades =
@@ -413,6 +416,84 @@ public class UpgradeManager : MonoBehaviour
                 }
 
                 break;
+
+            case UpgradeType.BurningRounds:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddBurn(
+                        upgrade.EffectData as BurnEffectData
+                    );
+                }
+
+                break;
+
+            case UpgradeType.ExplosiveRounds:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddExplosion(
+                        upgrade.EffectData as ExplosionEffectData
+                    );
+                }
+
+                break;
+
+            case UpgradeType.Bleeding:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddBleed(
+                        upgrade.EffectData as BleedingEffectData
+                    );
+                }
+
+                break;
+
+            case UpgradeType.Lifesteal:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddLifesteal(
+                        upgrade.EffectData as LifestealEffectData
+                    );
+                }
+
+                break;
+
+            case UpgradeType.ChainLightning:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddChainLightning(
+                        upgrade.EffectData as ChainLightningEffectData
+                    );
+                }
+
+                break;
+
+            case UpgradeType.Ricochet:
+
+                EnsureRunUpgrades();
+
+                if (runUpgrades != null)
+                {
+                    runUpgrades.AddRicochet(
+                        upgrade.EffectData as RicochetEffectData
+                    );
+                }
+
+                break;
         }
 
         Debug.Log(
@@ -438,6 +519,25 @@ public class UpgradeManager : MonoBehaviour
             if (abilityManager == null)
                 abilityManager =
                     playerObject.AddComponent<AbilityManager>();
+        }
+    }
+
+    private void EnsureRunUpgrades()
+    {
+        if (runUpgrades != null)
+            return;
+
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObject != null)
+        {
+            runUpgrades =
+                playerObject.GetComponent<RunUpgrades>();
+
+            if (runUpgrades == null)
+                runUpgrades =
+                    playerObject.AddComponent<RunUpgrades>();
         }
     }
 
