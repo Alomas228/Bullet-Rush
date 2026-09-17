@@ -36,6 +36,14 @@ public class Enemy : MonoBehaviour
     [Tooltip("Сколько кадров подряд путь должен быть свободен, чтобы выйти из обхода и довернуть за угол.")]
     [SerializeField] private int clearFramesToExit = 3;
 
+    [Header("Performance")]
+    [Tooltip("Как часто обновлять дорогую проверку обхода препятствий.")]
+    [SerializeField] private float navigationUpdateInterval = 0.05f;
+    [Tooltip("Как часто проверять пересечение врага со структурами.")]
+    [SerializeField] private float structureResolveInterval = 0.10f;
+    [Tooltip("Как часто проверять линию огня у дальних врагов.")]
+    [SerializeField] private float lineOfSightCheckInterval = 0.10f;
+
     private float currentHealth;
 
     private int currentWave = 1;
@@ -60,6 +68,14 @@ public class Enemy : MonoBehaviour
     private int avoidSide;
     private float avoidSideTimer;
     private int clearFrames;
+
+    // Expensive physics checks are rate-limited; movement still runs every frame.
+    private float navigationTimer;
+    private float structureResolveTimer;
+    private float lineOfSightTimer;
+    private Vector3 cachedMoveDirection = Vector3.forward;
+    private bool hasCachedMoveDirection;
+    private bool cachedLineOfSight;
 
     // Состояние периодического урона (burn/bleed). Без корутин,
     // чтобы не аллоцировать WaitForSeconds и машины состояний.
@@ -306,6 +322,18 @@ public class Enemy : MonoBehaviour
         if (summonTimer > 0f)
             summonTimer -= deltaTime;
 
+        if (navigationTimer > 0f)
+            navigationTimer -= deltaTime;
+
+        if (structureResolveTimer > 0f)
+            structureResolveTimer -= deltaTime;
+
+        if (lineOfSightTimer > 0f)
+            lineOfSightTimer -= deltaTime;
+
+        if (avoidSideTimer > 0f)
+            avoidSideTimer -= deltaTime;
+
         UpdateDoT(deltaTime);
     }
 
@@ -399,15 +427,30 @@ public class Enemy : MonoBehaviour
                 ? enemyData.MoveSpeed
                 : 2f;
 
-        Vector3 moveDirection =
-            AvoidObstacles(desired);
+        Vector3 moveDirection;
+
+        if (!hasCachedMoveDirection || navigationTimer <= 0f)
+        {
+            moveDirection = AvoidObstacles(desired);
+            cachedMoveDirection = moveDirection;
+            hasCachedMoveDirection = true;
+            navigationTimer = Mathf.Max(navigationUpdateInterval, 0.01f);
+        }
+        else
+        {
+            moveDirection = cachedMoveDirection;
+        }
 
         transform.position +=
             moveDirection *
             speed *
             Time.deltaTime;
 
-        ResolveStructureOverlap();
+        if (structureResolveTimer <= 0f)
+        {
+            ResolveStructureOverlap();
+            structureResolveTimer = Mathf.Max(structureResolveInterval, 0.02f);
+        }
 
         RotateTowards(moveDirection);
     }
@@ -447,9 +490,6 @@ public class Enemy : MonoBehaviour
         float probeDistance =
             obstacleProbeDistance +
             obstaclePadding;
-
-        if (avoidSideTimer > 0f)
-            avoidSideTimer -= Time.deltaTime;
 
         if (TryGetProbeHit(
             origin,
@@ -788,7 +828,13 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        if (!HasLineOfSightToPlayer())
+        if (lineOfSightTimer <= 0f)
+        {
+            cachedLineOfSight = HasLineOfSightToPlayer();
+            lineOfSightTimer = Mathf.Max(lineOfSightCheckInterval, 0.05f);
+        }
+
+        if (!cachedLineOfSight)
         {
             // Стена между врагом и игроком: подходим, пока не откроется линия огня
             MoveTowardsPlayer();
@@ -928,8 +974,16 @@ public class Enemy : MonoBehaviour
         float distance =
             direction.magnitude;
 
+        if (lineOfSightTimer <= 0f)
+        {
+            cachedLineOfSight =
+                HasLineOfSightToPlayer();
+            lineOfSightTimer =
+                Mathf.Max(lineOfSightCheckInterval, 0.05f);
+        }
+
         if (distance > bossData.AttackRange ||
-            !HasLineOfSightToPlayer())
+            !cachedLineOfSight)
         {
             MoveBossTowardsPlayer();
         }
@@ -994,15 +1048,30 @@ public class Enemy : MonoBehaviour
 
         float speed = GetBossMoveSpeed();
 
-        Vector3 moveDirection =
-            AvoidObstacles(desired);
+        Vector3 moveDirection;
+
+        if (!hasCachedMoveDirection || navigationTimer <= 0f)
+        {
+            moveDirection = AvoidObstacles(desired);
+            cachedMoveDirection = moveDirection;
+            hasCachedMoveDirection = true;
+            navigationTimer = Mathf.Max(navigationUpdateInterval, 0.01f);
+        }
+        else
+        {
+            moveDirection = cachedMoveDirection;
+        }
 
         transform.position +=
             moveDirection *
             speed *
             Time.deltaTime;
 
-        ResolveStructureOverlap();
+        if (structureResolveTimer <= 0f)
+        {
+            ResolveStructureOverlap();
+            structureResolveTimer = Mathf.Max(structureResolveInterval, 0.02f);
+        }
 
         RotateTowards(moveDirection);
     }

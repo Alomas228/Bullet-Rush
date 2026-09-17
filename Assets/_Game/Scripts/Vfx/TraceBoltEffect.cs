@@ -1,11 +1,10 @@
-using System.Collections;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
-/// Процедурная «молния» / линия рикошета между двумя точками.
-/// Рисуется через LineRenderer с зигзагом и плавным затуханием,
-/// опционально добавляет сферу-искру в конечной точке.
-/// Не требует внешних ассетов и уничтожается после показа.
+/// Procedural lightning / ricochet line effect.
+/// Uses one shared material and a MaterialPropertyBlock so repeated effects
+/// do not create a new Material for every hit.
 /// </summary>
 public class TraceBoltEffect : MonoBehaviour
 {
@@ -16,12 +15,22 @@ public class TraceBoltEffect : MonoBehaviour
     [SerializeField] private int segments = 14;
     [SerializeField] private float sparkRadius = 0.22f;
 
+    private static Material sharedMaterial;
+    private static MaterialPropertyBlock propertyBlock;
+    private static bool materialHasBaseColor;
+    private static bool materialHasColor;
+    private static bool materialHasEmission;
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
     private LineRenderer lineRenderer;
-    private Material lineMaterial;
-    private Material sparkMaterial;
+    private Renderer sparkRenderer;
     private Transform sparkTransform;
     private Color boltColor;
     private float targetSparkScale = 1f;
+    private float elapsed;
+    private bool initialized;
 
     public void Initialize(
         Vector3 from,
@@ -31,55 +40,49 @@ public class TraceBoltEffect : MonoBehaviour
         bool endSpark)
     {
         boltColor = color;
+        elapsed = 0f;
+        initialized = true;
 
         BuildBolt(from, to, zigZag);
 
-        // Искра в конечной точке: она заметнее тонкого сегмента,
-        // особенно при коротких молниях между близкими целями.
         if (endSpark)
             BuildSpark(to);
 
-        StartCoroutine(AnimateRoutine());
+        ApplyAlpha(1f);
     }
 
-    private void BuildBolt(
-        Vector3 from,
-        Vector3 to,
-        bool zigZag)
+    private void Update()
     {
-        lineRenderer =
-            gameObject.AddComponent<LineRenderer>();
+        if (!initialized)
+            return;
 
+        elapsed += Time.deltaTime;
+
+        float progress = Mathf.Clamp01(
+            elapsed / Mathf.Max(lifetime, 0.01f)
+        );
+
+        float fade = 1f - progress;
+        ApplyAlpha(fade);
+        UpdateSpark(progress);
+
+        if (progress >= 1f)
+            Destroy(gameObject);
+    }
+
+    private void BuildBolt(Vector3 from, Vector3 to, bool zigZag)
+    {
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
         lineRenderer.useWorldSpace = true;
         lineRenderer.startWidth = startWidth;
         lineRenderer.endWidth = endWidth;
-        lineRenderer.numCapVertices = 4;
-        lineRenderer.positionCount = segments + 1;
+        lineRenderer.numCapVertices = 2;
+        lineRenderer.positionCount = Mathf.Max(1, segments) + 1;
+        lineRenderer.sharedMaterial = GetSharedMaterial();
 
-        lineRenderer.SetPositions(
-            GeneratePoints(from, to, zigZag)
-        );
-
-        lineMaterial =
-            CreateUnlitMaterial(boltColor);
-
-        lineRenderer.sharedMaterial =
-            lineMaterial;
-    }
-
-    private Vector3[] GeneratePoints(
-        Vector3 from,
-        Vector3 to,
-        bool zigZag)
-    {
-        Vector3[] points =
-            new Vector3[segments + 1];
-
-        Vector3 direction =
-            to - from;
-
-        float distance =
-            direction.magnitude;
+        int count = lineRenderer.positionCount;
+        Vector3 direction = to - from;
+        float distance = direction.magnitude;
 
         if (distance < 0.001f)
         {
@@ -87,245 +90,152 @@ public class TraceBoltEffect : MonoBehaviour
             distance = 1f;
         }
 
-        for (int i = 0; i < points.Length; i++)
+        Vector3 axis = direction / distance;
+        Vector3 perp = Vector3.Cross(axis, Vector3.up);
+
+        if (perp.sqrMagnitude < 0.0001f)
+            perp = Vector3.Cross(axis, Vector3.right);
+
+        perp.Normalize();
+
+        int innerCount = count - 1;
+        for (int i = 0; i < count; i++)
         {
-            float t =
-                i / (float)(points.Length - 1);
+            float t = innerCount > 0 ? i / (float)innerCount : 0f;
+            Vector3 point = Vector3.Lerp(from, to, t);
 
-            points[i] =
-                Vector3.Lerp(from, to, t);
-
-            if (!zigZag ||
-                i == 0 ||
-                i == points.Length - 1)
+            if (zigZag && i != 0 && i != count - 1)
             {
-                continue;
+                float jitter = distance * 0.1f * Random.Range(0.6f, 1.4f);
+                point += perp * Random.Range(-jitter, jitter);
+                point += Vector3.up * Random.Range(-jitter * 0.4f, jitter * 0.4f);
             }
 
-            Vector3 axis =
-                direction / distance;
-
-            Vector3 perp =
-                Vector3.Cross(axis, Vector3.up);
-
-            if (perp.sqrMagnitude < 0.0001f)
-                perp = Vector3.Cross(axis, Vector3.right);
-
-            perp.Normalize();
-
-            float jitter =
-                distance *
-                0.1f *
-                Random.Range(0.6f, 1.4f);
-
-            points[i] +=
-                perp *
-                Random.Range(-jitter, jitter);
-
-            points[i] +=
-                Vector3.up *
-                Random.Range(
-                    -jitter * 0.4f,
-                    jitter * 0.4f
-                );
+            lineRenderer.SetPosition(i, point);
         }
-
-        return points;
     }
 
-    private void BuildSpark(
-        Vector3 position)
+    private void BuildSpark(Vector3 position)
     {
-        GameObject sphere =
-            GameObject.CreatePrimitive(
-                PrimitiveType.Sphere
-            );
-
+        GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         sphere.name = "RicochetSpark";
-
-        sphere.transform.SetParent(
-            transform,
-            false
-        );
-
+        sphere.transform.SetParent(transform, false);
         sphere.transform.position = position;
 
-        Collider collider =
-            sphere.GetComponent<Collider>();
-
+        Collider collider = sphere.GetComponent<Collider>();
         if (collider != null)
             Destroy(collider);
 
-        targetSparkScale =
-            sparkRadius * 2f;
+        targetSparkScale = sparkRadius * 2f;
+        sphere.transform.localScale = Vector3.one * sparkRadius * 0.4f;
 
-        sphere.transform.localScale =
-            Vector3.one *
-            sparkRadius *
-            0.4f;
+        sparkRenderer = sphere.GetComponent<MeshRenderer>();
+        if (sparkRenderer == null)
+            return;
 
-        MeshRenderer renderer =
-            sphere.GetComponent<MeshRenderer>();
-
-        renderer.shadowCastingMode =
-            UnityEngine.Rendering.ShadowCastingMode.Off;
-
-        renderer.receiveShadows = false;
-
-        sparkMaterial =
-            CreateUnlitMaterial(boltColor);
-
-        renderer.sharedMaterial =
-            sparkMaterial;
-
-        sparkTransform =
-            sphere.transform;
+        sparkRenderer.shadowCastingMode = ShadowCastingMode.Off;
+        sparkRenderer.receiveShadows = false;
+        sparkRenderer.sharedMaterial = GetSharedMaterial();
+        sparkTransform = sphere.transform;
     }
 
-    private Material CreateUnlitMaterial(
-        Color color)
+    private static Material GetSharedMaterial()
     {
-        Shader shader =
-            Shader.Find(
-                "Universal Render Pipeline/Unlit"
-            );
+        if (sharedMaterial != null)
+            return sharedMaterial;
 
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null)
+            shader = Shader.Find("Unlit/Color");
         if (shader == null)
             shader = Shader.Find("Standard");
 
-        Material mat =
-            new Material(shader);
+        if (shader == null)
+            return null;
 
-        // Прозрачный поверхностный режим — иначе alpha-затухание
-        // игнорируется и эффект выглядит мутным/мгновенно исчезает.
-        mat.SetOverrideTag("RenderType", "Transparent");
-
-        if (mat.HasProperty("_Surface"))
-            mat.SetFloat("_Surface", 1f);
-
-        if (mat.HasProperty("_Blend"))
-            mat.SetFloat("_Blend", 0f);
-
-        if (mat.HasProperty("_SrcBlend"))
-            mat.SetFloat(
-                "_SrcBlend",
-                (int)UnityEngine.Rendering.BlendMode.SrcAlpha
-            );
-
-        if (mat.HasProperty("_DstBlend"))
-            mat.SetFloat(
-                "_DstBlend",
-                (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha
-            );
-
-        if (mat.HasProperty("_ZWrite"))
-            mat.SetFloat("_ZWrite", 0f);
-
-        mat.renderQueue = 3000;
-
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
-
-        if (mat.HasProperty("_EmissionColor"))
+        sharedMaterial = new Material(shader)
         {
-            Color emission =
-                new Color(
-                    color.r * 2f,
-                    color.g * 2f,
-                    color.b * 2f,
-                    1f
-                );
+            name = "TraceBoltSharedMat"
+        };
 
-            mat.SetColor("_EmissionColor", emission);
-            mat.EnableKeyword("_EMISSION");
-        }
+        sharedMaterial.SetOverrideTag("RenderType", "Transparent");
 
-        return mat;
+        if (sharedMaterial.HasProperty("_Surface"))
+            sharedMaterial.SetFloat("_Surface", 1f);
+        if (sharedMaterial.HasProperty("_Blend"))
+            sharedMaterial.SetFloat("_Blend", 0f);
+        if (sharedMaterial.HasProperty("_SrcBlend"))
+            sharedMaterial.SetFloat("_SrcBlend", (int)BlendMode.SrcAlpha);
+        if (sharedMaterial.HasProperty("_DstBlend"))
+            sharedMaterial.SetFloat("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+        if (sharedMaterial.HasProperty("_ZWrite"))
+            sharedMaterial.SetFloat("_ZWrite", 0f);
+
+        sharedMaterial.renderQueue = (int)RenderQueue.Transparent;
+        materialHasBaseColor = sharedMaterial.HasProperty("_BaseColor");
+        materialHasColor = sharedMaterial.HasProperty("_Color");
+        materialHasEmission = sharedMaterial.HasProperty("_EmissionColor");
+
+        if (materialHasEmission)
+            sharedMaterial.EnableKeyword("_EMISSION");
+
+        propertyBlock = new MaterialPropertyBlock();
+        return sharedMaterial;
     }
 
-    private IEnumerator AnimateRoutine()
+    private void ApplyAlpha(float alpha)
     {
-        float t = 0f;
+        if (lineRenderer == null && sparkRenderer == null)
+            return;
 
-        while (t < lifetime)
+        Material material = GetSharedMaterial();
+        if (material == null)
+            return;
+
+        if (propertyBlock == null)
+            propertyBlock = new MaterialPropertyBlock();
+
+        Color color = boltColor;
+        color.a = Mathf.Clamp01(alpha * boltColor.a);
+
+        propertyBlock.Clear();
+
+        if (materialHasBaseColor)
+            propertyBlock.SetColor(BaseColorId, color);
+
+        if (materialHasColor)
+            propertyBlock.SetColor(ColorId, color);
+
+        if (materialHasEmission)
         {
-            t += Time.deltaTime;
-
-            float progress =
-                Mathf.Clamp01(t / lifetime);
-
-            float fade =
-                1f - progress;
-
-            SetAlpha(
-                lineMaterial,
-                fade * boltColor.a
+            Color emission = new Color(
+                boltColor.r * 2f,
+                boltColor.g * 2f,
+                boltColor.b * 2f,
+                1f
             );
-
-            UpdateSpark(progress);
-
-            yield return null;
+            propertyBlock.SetColor(EmissionColorId, emission);
         }
 
-        Destroy(gameObject);
+        if (lineRenderer != null)
+            lineRenderer.SetPropertyBlock(propertyBlock);
+
+        if (sparkRenderer != null)
+            sparkRenderer.SetPropertyBlock(propertyBlock);
     }
 
     private void UpdateSpark(float progress)
     {
-        if (sparkTransform == null ||
-            sparkMaterial == null)
-        {
+        if (sparkTransform == null)
             return;
-        }
 
-        float eased =
-            1f - Mathf.Pow(1f - progress, 2f);
-
-        float scale =
-            Mathf.Lerp(
-                sparkRadius * 0.4f,
-                targetSparkScale,
-                eased
-            );
-
-        sparkTransform.localScale =
-            Vector3.one * scale;
-
-        SetAlpha(
-            sparkMaterial,
-            (1f - progress) * boltColor.a
+        float eased = 1f - Mathf.Pow(1f - progress, 2f);
+        float scale = Mathf.Lerp(
+            sparkRadius * 0.4f,
+            targetSparkScale,
+            eased
         );
-    }
 
-    private void SetAlpha(
-        Material mat,
-        float alpha)
-    {
-        if (mat == null)
-            return;
-
-        if (mat.HasProperty("_BaseColor"))
-        {
-            Color color =
-                mat.GetColor("_BaseColor");
-
-            color.a =
-                Mathf.Clamp01(alpha);
-
-            mat.SetColor("_BaseColor", color);
-        }
-        else if (mat.HasProperty("_Color"))
-        {
-            Color color =
-                mat.GetColor("_Color");
-
-            color.a =
-                Mathf.Clamp01(alpha);
-
-            mat.SetColor("_Color", color);
-        }
+        sparkTransform.localScale = Vector3.one * scale;
     }
 }

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
@@ -172,84 +171,62 @@ public class EnemySpawner : MonoBehaviour
     private GameObject GetEnemyPrefabForWave(
         int wave)
     {
-        List<GameObject> pool =
-            new List<GameObject>();
+        // Weighted selection without allocating a temporary List on every spawn.
+        // The old implementation rebuilt a 17-item list for every enemy.
+        int totalWeight = 0;
 
-        // NORMAL
         if (normalPrefab != null)
-        {
-            AddMultiple(
-                pool,
-                normalPrefab,
-                10
-            );
-        }
+            totalWeight += 10;
 
-        // FAST - Wave 2+
-        if (wave >= 2 &&
-            fastPrefab != null)
-        {
-            AddMultiple(
-                pool,
-                fastPrefab,
-                3
-            );
-        }
+        if (wave >= 2 && fastPrefab != null)
+            totalWeight += 3;
 
-        // RANGED - Wave 3+
-        if (wave >= 3 &&
-            rangedPrefab != null)
-        {
-            AddMultiple(
-                pool,
-                rangedPrefab,
-                2
-            );
-        }
+        if (wave >= 3 && rangedPrefab != null)
+            totalWeight += 2;
 
-        // TANK - Wave 4+
-        if (wave >= 4 &&
-            tankPrefab != null)
-        {
-            AddMultiple(
-                pool,
-                tankPrefab,
-                1
-            );
-        }
+        if (wave >= 4 && tankPrefab != null)
+            totalWeight += 1;
 
-        // ELITE - Wave 7+
-        if (wave >= 7 &&
-            elitePrefab != null)
-        {
-            AddMultiple(
-                pool,
-                elitePrefab,
-                1
-            );
-        }
+        if (wave >= 7 && elitePrefab != null)
+            totalWeight += 1;
 
-        if (pool.Count == 0)
+        if (totalWeight <= 0)
             return null;
 
-        int randomIndex =
-            Random.Range(
-                0,
-                pool.Count
-            );
+        int roll = Random.Range(0, totalWeight);
 
-        return pool[randomIndex];
-    }
-
-    private void AddMultiple(
-        List<GameObject> pool,
-        GameObject prefab,
-        int amount)
-    {
-        for (int i = 0; i < amount; i++)
+        if (normalPrefab != null)
         {
-            pool.Add(prefab);
+            roll -= 10;
+            if (roll < 0)
+                return normalPrefab;
         }
+
+        if (wave >= 2 && fastPrefab != null)
+        {
+            roll -= 3;
+            if (roll < 0)
+                return fastPrefab;
+        }
+
+        if (wave >= 3 && rangedPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return rangedPrefab;
+        }
+
+        if (wave >= 4 && tankPrefab != null)
+        {
+            roll -= 1;
+            if (roll < 0)
+                return tankPrefab;
+        }
+
+        if (wave >= 7 && elitePrefab != null)
+            return elitePrefab;
+
+        return null;
     }
 
     public void SpawnEnemyAtPosition(

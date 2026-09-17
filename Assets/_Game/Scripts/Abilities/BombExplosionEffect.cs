@@ -1,6 +1,5 @@
-using System.Collections;
 using UnityEngine;
-
+using UnityEngine.Rendering;
 public class BombExplosionEffect : MonoBehaviour
 {
     [Header("Visual")]
@@ -11,17 +10,44 @@ public class BombExplosionEffect : MonoBehaviour
     [SerializeField] private float flashDuration = 0.22f;
     [SerializeField] private float ringHeight = 0.04f;
 
-    private Material ringMaterial;
-    private Material flashMaterial;
+    private static Material sharedMaterial;
+    private static MaterialPropertyBlock propertyBlock;
+    private static bool materialHasBaseColor;
+    private static bool materialHasColor;
+    private static bool materialHasEmission;
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
+    private Renderer ringRenderer;
+    private Renderer flashRenderer;
     private Transform ringTransform;
     private Transform flashTransform;
     private float targetRadius = 5f;
+    private float elapsed;
+    private float totalDuration;
+    private bool initialized;
 
     private void Start()
     {
         BuildVisual();
+        elapsed = 0f;
+        totalDuration = Mathf.Max(flashDuration, ringDuration);
+        initialized = true;
+        ApplyAlpha(1f);
+    }
 
-        StartCoroutine(AnimateRoutine());
+    private void Update()
+    {
+        if (!initialized)
+            return;
+
+        elapsed += Time.deltaTime;
+        UpdateRing(elapsed);
+        UpdateFlash(elapsed);
+
+        if (elapsed >= totalDuration)
+            Destroy(gameObject);
     }
 
     public void Initialize(float radius, Color color)
@@ -41,11 +67,9 @@ public class BombExplosionEffect : MonoBehaviour
         ringTransform.localPosition =
             new Vector3(0f, ringHeight, 0f);
 
-        ringMaterial =
-            CreateTransparentMaterial();
-
-        ringTransform.GetComponent<MeshRenderer>().sharedMaterial =
-            ringMaterial;
+        ringRenderer = ringTransform.GetComponent<MeshRenderer>();
+        if (ringRenderer != null)
+            ringRenderer.sharedMaterial = GetSharedMaterial();
 
         flashTransform =
             CreatePrimitive(
@@ -56,11 +80,9 @@ public class BombExplosionEffect : MonoBehaviour
         flashTransform.localPosition =
             new Vector3(0f, 0.4f, 0f);
 
-        flashMaterial =
-            CreateTransparentMaterial();
-
-        flashTransform.GetComponent<MeshRenderer>().sharedMaterial =
-            flashMaterial;
+        flashRenderer = flashTransform.GetComponent<MeshRenderer>();
+        if (flashRenderer != null)
+            flashRenderer.sharedMaterial = GetSharedMaterial();
     }
 
     private GameObject CreatePrimitive(
@@ -96,98 +118,52 @@ public class BombExplosionEffect : MonoBehaviour
         return go;
     }
 
-    private Material CreateTransparentMaterial()
+    private static Material GetSharedMaterial()
     {
-        Shader shader =
-            Shader.Find("Universal Render Pipeline/Lit");
+        if (sharedMaterial != null)
+            return sharedMaterial;
 
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
         if (shader == null)
-            shader = Shader.Find("Universal Render Pipeline/Unlit");
-
+            shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null)
             shader = Shader.Find("Standard");
 
-        Material mat = new Material(shader);
+        if (shader == null)
+            return null;
 
-        mat.SetOverrideTag("RenderType", "Transparent");
-
-        if (mat.HasProperty("_Surface"))
-            mat.SetFloat("_Surface", 1f);
-
-        if (mat.HasProperty("_Blend"))
-            mat.SetFloat("_Blend", 0f);
-
-        if (mat.HasProperty("_SrcBlend"))
-            mat.SetFloat(
-                "_SrcBlend",
-                (int)UnityEngine.Rendering.BlendMode.SrcAlpha
-            );
-
-        if (mat.HasProperty("_DstBlend"))
-            mat.SetFloat(
-                "_DstBlend",
-                (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha
-            );
-
-        if (mat.HasProperty("_ZWrite"))
-            mat.SetFloat("_ZWrite", 0f);
-
-        mat.renderQueue = 3000;
-
-        // URP читает цвет из _BaseColor, но _Color есть как legacy-поле.
-        // Ставим оба — иначе поверхность остаётся белой.
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", explosionColor);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", explosionColor);
-
-        // Эмиссия: чтобы эффект светился и был виден при любом освещении.
-        if (mat.HasProperty("_EmissionColor"))
+        sharedMaterial = new Material(shader)
         {
-            Color emission =
-                new Color(
-                    explosionColor.r * 2f,
-                    explosionColor.g * 2f,
-                    explosionColor.b * 2f,
-                    1f
-                );
+            name = "ExplosionSharedMat"
+        };
 
-            mat.SetColor("_EmissionColor", emission);
-            mat.EnableKeyword("_EMISSION");
-            mat.globalIlluminationFlags =
-                MaterialGlobalIlluminationFlags.RealtimeEmissive;
-        }
+        sharedMaterial.SetOverrideTag("RenderType", "Transparent");
+        if (sharedMaterial.HasProperty("_Surface"))
+            sharedMaterial.SetFloat("_Surface", 1f);
+        if (sharedMaterial.HasProperty("_Blend"))
+            sharedMaterial.SetFloat("_Blend", 0f);
+        if (sharedMaterial.HasProperty("_SrcBlend"))
+            sharedMaterial.SetFloat("_SrcBlend", (int)BlendMode.SrcAlpha);
+        if (sharedMaterial.HasProperty("_DstBlend"))
+            sharedMaterial.SetFloat("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+        if (sharedMaterial.HasProperty("_ZWrite"))
+            sharedMaterial.SetFloat("_ZWrite", 0f);
 
-        mat.name = "ExplosionMat";
+        sharedMaterial.renderQueue = (int)RenderQueue.Transparent;
+        materialHasBaseColor = sharedMaterial.HasProperty("_BaseColor");
+        materialHasColor = sharedMaterial.HasProperty("_Color");
+        materialHasEmission = sharedMaterial.HasProperty("_EmissionColor");
 
-        return mat;
-    }
+        if (materialHasEmission)
+            sharedMaterial.EnableKeyword("_EMISSION");
 
-    private IEnumerator AnimateRoutine()
-    {
-        float seconds =
-            Mathf.Max(flashDuration, ringDuration);
-
-        float t = 0f;
-
-        while (t < seconds)
-        {
-            t += Time.deltaTime;
-
-            UpdateRing(t);
-            UpdateFlash(t);
-
-            yield return null;
-        }
-
-        Destroy(gameObject);
+        propertyBlock = new MaterialPropertyBlock();
+        return sharedMaterial;
     }
 
     private void UpdateRing(float t)
     {
-        if (ringTransform == null ||
-            ringMaterial == null)
+        if (ringTransform == null)
         {
             return;
         }
@@ -206,13 +182,12 @@ public class BombExplosionEffect : MonoBehaviour
         ringTransform.localScale =
             new Vector3(diameter, 1f, diameter);
 
-        SetMaterialAlpha(ringMaterial, 1f - progress);
+        SetRendererAlpha(ringRenderer, 1f - progress);
     }
 
     private void UpdateFlash(float t)
     {
-        if (flashTransform == null ||
-            flashMaterial == null)
+        if (flashTransform == null)
         {
             return;
         }
@@ -234,24 +209,52 @@ public class BombExplosionEffect : MonoBehaviour
         flashTransform.localScale =
             new Vector3(diameter, diameter, diameter);
 
-        SetMaterialAlpha(flashMaterial, 1f - progress);
+        SetRendererAlpha(flashRenderer, 1f - progress);
     }
 
-    private void SetMaterialAlpha(
-        Material mat,
-        float alpha)
+    private void ApplyAlpha(float alpha)
     {
-        if (mat.HasProperty("_BaseColor"))
-        {
-            Color c = mat.GetColor("_BaseColor");
-            c.a = Mathf.Clamp01(alpha);
-            mat.SetColor("_BaseColor", c);
-        }
-        else if (mat.HasProperty("_Color"))
-        {
-            Color c = mat.GetColor("_Color");
-            c.a = Mathf.Clamp01(alpha);
-            mat.SetColor("_Color", c);
-        }
+        SetRendererAlpha(ringRenderer, alpha);
+        SetRendererAlpha(flashRenderer, alpha);
     }
+
+    private void SetRendererAlpha(Renderer renderer, float alpha)
+    {
+        if (renderer == null)
+            return;
+
+        Material material = GetSharedMaterial();
+        if (material == null)
+            return;
+
+        if (propertyBlock == null)
+            propertyBlock = new MaterialPropertyBlock();
+
+        propertyBlock.Clear();
+
+        Color color = new Color(
+            explosionColor.r,
+            explosionColor.g,
+            explosionColor.b,
+            Mathf.Clamp01(alpha * explosionColor.a)
+        );
+
+        if (materialHasBaseColor)
+            propertyBlock.SetColor(BaseColorId, color);
+        if (materialHasColor)
+            propertyBlock.SetColor(ColorId, color);
+        if (materialHasEmission)
+        {
+            Color emission = new Color(
+                explosionColor.r * 2f,
+                explosionColor.g * 2f,
+                explosionColor.b * 2f,
+                1f
+            );
+            propertyBlock.SetColor(EmissionColorId, emission);
+        }
+
+        renderer.SetPropertyBlock(propertyBlock);
+    }
+
 }

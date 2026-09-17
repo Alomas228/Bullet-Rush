@@ -27,12 +27,6 @@ public class EnemyProjectile : MonoBehaviour
         damage = newDamage;
         speed = newSpeed;
 
-        Debug.Log(
-            $"Enemy projectile initialized. " +
-            $"Direction: {direction}, " +
-            $"Speed: {speed}, " +
-            $"Damage: {damage}"
-        );
     }
 
     private void Awake()
@@ -82,7 +76,7 @@ public class EnemyProjectile : MonoBehaviour
 
         lineRenderer.receiveShadows = false;
 
-        lineRenderer.material =
+        lineRenderer.sharedMaterial =
             GetTrailMaterial();
     }
 

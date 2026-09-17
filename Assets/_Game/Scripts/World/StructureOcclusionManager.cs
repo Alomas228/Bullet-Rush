@@ -17,6 +17,9 @@ public class StructureOcclusionManager : MonoBehaviour
     [Tooltip("Дополнительные лучи по углам хитбокса игрока (помимо центрального).")]
     [SerializeField] private bool probeCorners = true;
 
+    [Tooltip("Интервал обновления проверки заслонения. 0.05 = 20 проверок в секунду.")]
+    [SerializeField] private float updateInterval = 0.05f;
+
     private static readonly Vector3[] CornerOffsets =
     {
         new Vector3(-1f, -1f, -1f),
@@ -38,6 +41,7 @@ public class StructureOcclusionManager : MonoBehaviour
         new HashSet<WorldStructure>();
 
     private Collider targetCollider;
+    private float updateTimer;
 
     private bool wasActive;
 
@@ -55,10 +59,16 @@ public class StructureOcclusionManager : MonoBehaviour
         if (targetCamera == null || target == null)
         {
             ResetAll();
-
             return;
         }
 
+        if (updateTimer > 0f)
+        {
+            updateTimer -= Time.unscaledDeltaTime;
+            return;
+        }
+
+        updateTimer = Mathf.Max(updateInterval, 0.02f);
         wasActive = true;
 
         HashSet<WorldStructure> current =
@@ -135,6 +145,7 @@ public class StructureOcclusionManager : MonoBehaviour
 
         blockedSet.Clear();
         wasActive = false;
+        updateTimer = 0f;
     }
 
     private HashSet<WorldStructure> CollectOccludingStructures()
