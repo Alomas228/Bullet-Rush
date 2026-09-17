@@ -339,16 +339,24 @@ public class Bullet : MonoBehaviour
             lightningRange > 0f
         )
         {
-            if (
-                Random.value <
-                lightningChance
-            )
+            if (!VfxFactory.IsLightningMerged(
+                    transform.position))
             {
-                enemy.TriggerLightning(
-                    lightningDamage,
-                    lightningTargets,
-                    lightningRange
+                VfxFactory.MarkLightningAttempt(
+                    transform.position
                 );
+
+                if (
+                    Random.value <
+                    lightningChance
+                )
+                {
+                    enemy.TriggerLightning(
+                        lightningDamage,
+                        lightningTargets,
+                        lightningRange
+                    );
+                }
             }
         }
 
@@ -480,10 +488,12 @@ public class Bullet : MonoBehaviour
     private void TriggerExplosion(
         Enemy hitEnemy)
     {
-        VfxFactory.SpawnExplosion(
-            transform.position,
-            explosionRadius
-        );
+        if (!VfxFactory.TrySpawnExplosion(
+                transform.position,
+                explosionRadius))
+        {
+            return;
+        }
 
         Collider[] colliders =
             StructureQuery.OverlapSphere(

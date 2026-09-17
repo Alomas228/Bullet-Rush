@@ -428,12 +428,9 @@ public class WorldStructureGenerator : MonoBehaviour
                         rng.Next(0, materials.Length)
                     ];
             }
-            else if (palette != null &&
-                     palette.Length > 0)
+            else
             {
-                EnsurePaletteMaterials(
-                    renderer.sharedMaterial
-                );
+                EnsurePaletteMaterials();
 
                 if (paletteMaterials != null)
                 {
@@ -455,31 +452,80 @@ public class WorldStructureGenerator : MonoBehaviour
         );
     }
 
-    private void EnsurePaletteMaterials(
-        Material baseMaterial)
+    // Создаёт по одному материалу на цвет из шейдера, который
+    // гарантированно попадает в билд (в отличие от Default-Material,
+    // который CreatePrimitive вешает в редакторе, но чей шейдер
+    // вырезается из собранной игры). Если палитра пуста — берёт
+    // нейтральный серый, чтобы кубы не были магентовыми.
+    private void EnsurePaletteMaterials()
     {
         if (paletteMaterials != null)
             return;
 
-        if (palette == null ||
-            palette.Length == 0 ||
-            baseMaterial == null)
-        {
+        Shader shader = GetBuildSafeShader();
+
+        if (shader == null)
             return;
-        }
+
+        Color[] colors =
+            (palette != null &&
+             palette.Length > 0)
+                ? palette
+                : new[]
+                {
+                    new Color(0.7f, 0.7f, 0.7f, 1f)
+                };
 
         paletteMaterials =
-            new Material[palette.Length];
+            new Material[colors.Length];
 
-        for (int i = 0; i < palette.Length; i++)
+        for (int i = 0; i < colors.Length; i++)
         {
             Material material =
-                new Material(baseMaterial);
+                new Material(shader);
 
-            material.color = palette[i];
+            material.name =
+                $"Structure Palette {i}";
+
+            SetMaterialColor(material, colors[i]);
 
             paletteMaterials[i] = material;
         }
+    }
+
+    // Возвращает шейдер, который точно есть в билде: URP Lit/Unlit
+    // используется материалами проекта, Standard — фолбэк.
+    private static Shader GetBuildSafeShader()
+    {
+        Shader shader =
+            Shader.Find("Universal Render Pipeline/Lit");
+
+        if (shader != null)
+            return shader;
+
+        shader =
+            Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (shader != null)
+            return shader;
+
+        shader = Shader.Find("Standard");
+
+        if (shader != null)
+            return shader;
+
+        return Shader.Find("Unlit/Color");
+    }
+
+    // URP-Lit хранит базовый цвет в _BaseColor, а не в _Color.
+    private static void SetMaterialColor(
+        Material material,
+        Color color)
+    {
+        if (material.HasProperty("_BaseColor"))
+            material.SetColor("_BaseColor", color);
+        else if (material.HasProperty("_Color"))
+            material.SetColor("_Color", color);
     }
 
     private static float NextFloat(

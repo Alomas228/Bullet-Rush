@@ -44,9 +44,7 @@ public class StructureOcclusionFader : MonoBehaviour
             meshRenderer.material;
 
         originalColor =
-            opaqueMaterial.HasProperty("_Color")
-                ? opaqueMaterial.color
-                : Color.white;
+            GetMaterialColor(opaqueMaterial);
 
         ghostMaterial =
             new Material(opaqueMaterial)
@@ -56,8 +54,10 @@ public class StructureOcclusionFader : MonoBehaviour
 
         MakeTransparent(ghostMaterial);
 
-        ghostMaterial.color =
-            originalColor;
+        SetMaterialColor(
+            ghostMaterial,
+            originalColor
+        );
     }
 
     private void OnDestroy()
@@ -160,7 +160,29 @@ public class StructureOcclusionFader : MonoBehaviour
 
         color.a = currentAlpha;
 
-        ghostMaterial.color = color;
+        SetMaterialColor(ghostMaterial, color);
+    }
+
+    private static Color GetMaterialColor(
+        Material material)
+    {
+        if (material.HasProperty("_BaseColor"))
+            return material.GetColor("_BaseColor");
+
+        if (material.HasProperty("_Color"))
+            return material.GetColor("_Color");
+
+        return Color.white;
+    }
+
+    private static void SetMaterialColor(
+        Material material,
+        Color color)
+    {
+        if (material.HasProperty("_BaseColor"))
+            material.SetColor("_BaseColor", color);
+        else if (material.HasProperty("_Color"))
+            material.SetColor("_Color", color);
     }
 
     // Переключает копию материала в прозрачный режим.
