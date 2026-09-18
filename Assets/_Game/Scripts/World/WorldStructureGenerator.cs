@@ -66,6 +66,14 @@ public class WorldStructureGenerator : MonoBehaviour
     public bool IsGenerating =>
         generateCoroutine != null;
 
+    public Vector3 ArenaCenter =>
+        center != null
+            ? center.position
+            : transform.position;
+
+    public float ArenaRadius =>
+        arenaRadius;
+
     private void Awake()
     {
         if (baseSeed == 0)

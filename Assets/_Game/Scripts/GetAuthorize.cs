@@ -3,30 +3,36 @@ using YG;
 
 public class GetAuthorize : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {   
+    private void OnEnable()
+    {
         YG2.onGetSDKData += OnAuth;
-        if(!YG2.player.auth)
-        {
-            YG2.OpenAuthDialog();
-        }
-        else
-        {
-            print(YG2.player.name);
-            print(YG2.player.id);
-        }
+
+        if (YG2.isSDKEnabled)
+            OnAuth();
+    }
+
+    private void OnDisable()
+    {
+        YG2.onGetSDKData -= OnAuth;
     }
 
     private void OnAuth()
     {
-        print(YG2.player.name);
-        print(YG2.player.id);
+        if (YG2.player.auth)
+        {
+            Debug.Log(
+                $"[YG2] Player: {YG2.player.name} ({YG2.player.id})"
+            );
+        }
+        else
+        {
+            Debug.Log("[YG2] Player unauthorized");
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    /// <summary>Вызывается по кнопке «Войти» из UI (не насильно!).</summary>
+    public void OpenAuthDialog()
     {
-        
+        YG2.OpenAuthDialog();
     }
 }

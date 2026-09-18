@@ -4,6 +4,8 @@ using UnityEngine.UI;
 
 public class PauseManager : MonoBehaviour
 {
+    public static PauseManager Instance { get; private set; }
+
     [Header("HUD")]
     [Tooltip("Кнопка паузы на экране боя. Подписывается автоматически.")]
     [SerializeField] private Button pauseButton;
@@ -23,11 +25,22 @@ public class PauseManager : MonoBehaviour
 
     public bool IsPaused { get; private set; }
 
+    /// <summary>Оповещает о смене паузы (true = игра на паузе). Нужен Gameplay API.</summary>
+    public event System.Action<bool> OnPauseChanged;
+
     private UpgradeUI cachedUpgradeUI;
     private bool subscribed;
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
         if (pauseButton != null)
             pauseButton.onClick.AddListener(TogglePause);
 
@@ -147,6 +160,8 @@ public class PauseManager : MonoBehaviour
 
         if (pausePanel != null)
             pausePanel.SetActive(true);
+
+        OnPauseChanged?.Invoke(true);
     }
 
     public void ResumeGame()
@@ -167,6 +182,8 @@ public class PauseManager : MonoBehaviour
 
         if (pausePanel != null)
             pausePanel.SetActive(false);
+
+        OnPauseChanged?.Invoke(false);
     }
 
     private void ResetPause()

@@ -151,16 +151,35 @@ public class Enemy : MonoBehaviour
         LockVerticalRigidbody();
     }
 
-    // Враги двигаются через transform, физика нужна только для
-    // контактного урона. Замораживаем вертикаль, чтобы рывок игрока
-    // не выбивал моба в воздух.
+    // Враги двигаются через transform (скрипт), а не через физику.
+    // Некинематическое тело с нулевым damping подхватывает скорость от
+    // толчков (игрок/соседний моб), она никогда не гаснет, и враг начинает
+    // бесконечно скользить в одну сторону. Кинематическое тело убирает
+    // это: солвер не пишет ему скорость, а триггеры (пули, KillZone) и
+    // контактный урон с динамическим игроком продолжают работать.
     private void LockVerticalRigidbody()
     {
         if (cachedRigidbody == null)
             return;
 
+        cachedRigidbody.isKinematic = true;
+
         cachedRigidbody.constraints |=
             RigidbodyConstraints.FreezePositionY;
+    }
+
+    // Страховка от остаточной скорости, записанной до перевода в
+    // кинематический режим.
+    private void FixedUpdate()
+    {
+        if (cachedRigidbody == null)
+            return;
+
+        if (cachedRigidbody.linearVelocity.sqrMagnitude > 0f)
+            cachedRigidbody.linearVelocity = Vector3.zero;
+
+        if (cachedRigidbody.angularVelocity.sqrMagnitude > 0f)
+            cachedRigidbody.angularVelocity = Vector3.zero;
     }
 
     public void Initialize(int wave)

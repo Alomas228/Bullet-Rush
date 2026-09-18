@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
 {
+    public static PlayerHealth Instance { get; private set; }
+
     [SerializeField] private float maxHealth = 10f;
     [SerializeField] private float healTickInterval = 0.5f;
 
@@ -24,6 +26,8 @@ public class PlayerHealth : MonoBehaviour
 
     private void Start()
     {
+        Instance = this;
+
         CurrentHealth = maxHealth;
 
         playerController =
@@ -196,6 +200,50 @@ public class PlayerHealth : MonoBehaviour
             GameOverManager.Instance.GameOver();
 
         gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Возрождение после смерти (rewarded-реклама). Снова включает объект,
+    /// восстанавливает HP и телепортирует игрока в безопасную точку у края арены.
+    /// </summary>
+    public void Revive()
+    {
+        if (CurrentHealth > 0f)
+            return;
+
+        gameObject.SetActive(true);
+
+        CurrentHealth = maxHealth;
+
+        TeleportToSafePosition();
+
+        if (playerController != null)
+            playerController.PlaySpawnIn();
+
+        Debug.Log("Player revived");
+    }
+
+    private void TeleportToSafePosition()
+    {
+        EnemySpawner spawner =
+            FindAnyObjectByType<EnemySpawner>();
+
+        Vector3 position =
+            spawner != null
+                ? spawner.GetArenaEdgeSpawnPosition()
+                : transform.position;
+
+        Rigidbody body =
+            GetComponent<Rigidbody>();
+
+        if (body != null)
+        {
+            body.position = position;
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+
+        transform.position = position;
     }
 
     private void PlayPlayerDeathSound()

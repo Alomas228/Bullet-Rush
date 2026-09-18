@@ -15,6 +15,14 @@ public class WaveManager : MonoBehaviour
     [Tooltip("Каждая N-я волна заменяется боссом.")]
     [SerializeField] private int bossWaveInterval = 10;
 
+    [Header("Boss Spawning")]
+    [Tooltip("Пауза между выходом босса и его прислугой.")]
+    [SerializeField] private float bossMinionDelay = 1.2f;
+    [Tooltip("Сколько прислуги выходит вместе с боссом.")]
+    [SerializeField] private int bossMinionCount = 5;
+    [Tooltip("Длительность «материализации» босса (окно неуязвимости и интро).")]
+    [SerializeField] private float bossSpawnInDuration = 1.2f;
+
     [Header("Timing")]
     [SerializeField] private float waveDisplayTime = 1.5f;
     [SerializeField] private float prepareTime = 1.5f;
@@ -82,6 +90,9 @@ public class WaveManager : MonoBehaviour
             waveCompleteShown = false;
             StopAllCoroutines();
 
+            if (enemySpawner != null)
+                enemySpawner.StopSpawnQueue();
+
             if (waveUI != null)
                 waveUI.Hide();
         }
@@ -96,7 +107,16 @@ public class WaveManager : MonoBehaviour
             && GameStateManager.Instance.CurrentState != GameState.Playing)
             return;
 
-        if (Enemy.AliveCount <= 0)
+        // Волна считается пройденной только когда исчерпана очередь спавна
+        // И все заспавненные враги мертвы. При растянутом спавне нельзя
+        // полагаться только на счётчик живых.
+        bool spawnerBusy =
+            enemySpawner != null &&
+            enemySpawner.IsSpawning;
+
+        if (spawnerBusy || Enemy.AliveCount > 0)
+            return;
+
         {
             waitingForNextWave = true;
             waveActive = false;
@@ -233,12 +253,15 @@ public class WaveManager : MonoBehaviour
 
         enemySpawner.CurrentWave = CurrentWave;
 
+        // Босс-волна начинает «материализацию» сразу после каунтдауна.
         if (CurrentWave % bossWaveInterval == 0)
         {
             SpawnBossWave();
             return;
         }
 
+        // Обычная волна «вытекает» приёмами — эмиттер сам сообщит
+        // через IsSpawning, когда очередь спавна исчерпана.
         enemySpawner.SpawnWave(
             enemyCount,
             CurrentWave
@@ -253,41 +276,54 @@ public class WaveManager : MonoBehaviour
 
         PlayBossSpawnSound();
 
+        SwitchToBossMusic();
+
+        if (enemySpawner == null)
+            return;
+
+        // Волна активна, пока босс материализуется и подтягивается прислуга.
+        enemySpawner.SetManualSpawning(true);
+        StartCoroutine(BossWaveRoutine());
+    }
+
+    private IEnumerator BossWaveRoutine()
+    {
+        Vector3 bossPosition =
+            enemySpawner.GetArenaEdgeSpawnPosition();
+
         enemySpawner.SpawnEnemyAtPosition(
             EnemyType.Boss,
-            GetBossSpawnPosition()
+            bossPosition,
+            bossSpawnInDuration
         );
 
-        for (int i = 0; i < 5; i++)
+        // Пауза: игрок видит «ритуал» появления босса, потом выходит прислуга.
+        yield return new WaitForSeconds(bossMinionDelay);
+
+        for (int i = 0; i < bossMinionCount; i++)
         {
             enemySpawner.SpawnEnemyAtPosition(
                 EnemyType.Normal,
-                GetBossSpawnPosition()
+                GetMinionPositionAround(bossPosition)
             );
         }
 
-        SwitchToBossMusic();
+        enemySpawner.SetManualSpawning(false);
     }
 
-    private Vector3 GetBossSpawnPosition()
+    private Vector3 GetMinionPositionAround(
+        Vector3 center)
     {
-        GameObject playerObject =
-            GameObject.FindGameObjectWithTag("Player");
-
-        if (playerObject == null)
-            return Vector3.zero;
-
-        Vector2 randomDirection =
-            Random.insideUnitCircle.normalized;
+        Vector2 randomOffset =
+            Random.insideUnitCircle * 2.5f;
 
         return
-            playerObject.transform.position +
+            center +
             new Vector3(
-                randomDirection.x,
+                randomOffset.x,
                 0f,
-                randomDirection.y
-            ) *
-            12f;
+                randomOffset.y
+            );
     }
 
     public void ContinueAfterUpgrade()

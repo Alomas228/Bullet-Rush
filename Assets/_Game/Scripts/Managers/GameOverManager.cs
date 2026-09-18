@@ -78,6 +78,26 @@ public class GameOverManager : MonoBehaviour
         );
     }
 
+    /// <summary>
+    /// Возрождение игрока через rewarded-рекламу: отменяет Game Over и
+    /// продолжает забег в текущей волне.
+    /// </summary>
+    public void RevivePlayer()
+    {
+        if (!IsGameOver)
+            return;
+
+        IsGameOver = false;
+
+        if (GameStateManager.Instance != null)
+            GameStateManager.Instance.SetState(GameState.Playing);
+
+        Time.timeScale = 1f;
+
+        if (PlayerHealth.Instance != null)
+            PlayerHealth.Instance.Revive();
+    }
+
     public void BackToMenu()
     {
         IsGameOver = false;
