@@ -7,10 +7,15 @@ public class UpgradeUI : MonoBehaviour
     [System.Serializable]
     private class UpgradeCard
     {
-        public GameObject root;
-        public TMP_Text nameText;
-        public TMP_Text descriptionText;
-        public Button button;
+        [SerializeField] private GameObject root;
+        [SerializeField] private TMP_Text nameText;
+        [SerializeField] private TMP_Text descriptionText;
+        [SerializeField] private Button button;
+
+        public GameObject Root => root;
+        public TMP_Text NameText => nameText;
+        public TMP_Text DescriptionText => descriptionText;
+        public Button Button => button;
     }
 
     [Header("UI")]
@@ -34,9 +39,9 @@ public class UpgradeUI : MonoBehaviour
         {
             int index = i;
 
-            if (cards[i].button != null)
+            if (cards[i].Button != null)
             {
-                cards[i].button.onClick.AddListener(
+                cards[i].Button.onClick.AddListener(
                     () => ChooseUpgrade(index)
                 );
             }
@@ -70,25 +75,25 @@ public class UpgradeUI : MonoBehaviour
             {
                 UpgradeData upgrade = choices[i];
 
-                if (cards[i].root != null)
-                    cards[i].root.SetActive(true);
+                if (cards[i].Root != null)
+                    cards[i].Root.SetActive(true);
 
-                if (cards[i].nameText != null)
+                if (cards[i].NameText != null)
                 {
-                    cards[i].nameText.text =
+                    cards[i].NameText.text =
                         upgrade.UpgradeName;
                 }
 
-                if (cards[i].descriptionText != null)
+                if (cards[i].DescriptionText != null)
                 {
-                    cards[i].descriptionText.text =
+                    cards[i].DescriptionText.text =
                         upgrade.Description;
                 }
             }
             else
             {
-                if (cards[i].root != null)
-                    cards[i].root.SetActive(false);
+                if (cards[i].Root != null)
+                    cards[i].Root.SetActive(false);
             }
         }
 
@@ -143,8 +148,8 @@ public class UpgradeUI : MonoBehaviour
 
         foreach (UpgradeCard card in cards)
         {
-            if (card.button != null)
-                card.button.onClick.RemoveAllListeners();
+            if (card.Button != null)
+                card.Button.onClick.RemoveAllListeners();
         }
     }
 }

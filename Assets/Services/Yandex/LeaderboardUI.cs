@@ -227,7 +227,7 @@ public class LeaderboardUI : MonoBehaviour
         leaderboardText = textObj.AddComponent<TextMeshProUGUI>();
         leaderboardText.fontSize = autoFontSize;
         leaderboardText.lineSpacing = autoLineSpacing;
-        leaderboardText.enableWordWrapping = true;
+        leaderboardText.textWrappingMode = TextWrappingModes.Normal;
         leaderboardText.alignment = TextAlignmentOptions.TopLeft;
 
         RectTransform rect = leaderboardText.rectTransform;

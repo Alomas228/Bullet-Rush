@@ -3,8 +3,8 @@ using UnityEngine;
 
 public static class StructureQuery
 {
-    private static readonly Dictionary<int, WorldStructure> structureCache =
-        new Dictionary<int, WorldStructure>(64);
+    private static readonly Dictionary<EntityId, WorldStructure> structureCache =
+        new Dictionary<EntityId, WorldStructure>(64);
 
     private static Collider[] overlapBuffer = new Collider[16];
 
@@ -25,7 +25,7 @@ public static class StructureQuery
         if (collider == null)
             return false;
 
-        int id = collider.GetInstanceID();
+        EntityId id = collider.GetEntityId();
 
         if (structureCache.TryGetValue(id, out WorldStructure cached))
         {

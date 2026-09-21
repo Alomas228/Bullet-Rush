@@ -28,7 +28,7 @@ public static class EquipmentUIBuilder
     public static void Build()
     {
         MainMenuUI menu =
-            Object.FindFirstObjectByType<MainMenuUI>();
+            Object.FindAnyObjectByType<MainMenuUI>();
 
         if (menu == null)
         {
@@ -421,7 +421,7 @@ public static class EquipmentUIBuilder
             style
         );
 
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.color = new Color(0.92f, 0.92f, 0.92f, 1f);
     }
 
