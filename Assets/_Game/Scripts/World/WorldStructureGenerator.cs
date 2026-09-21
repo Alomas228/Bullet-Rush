@@ -44,6 +44,8 @@ public class WorldStructureGenerator : MonoBehaviour
     [SerializeField] private float spawnStagger = 0.05f;
     [Tooltip("Длительность «вырастания» одного куба.")]
     [SerializeField] private float scaleInDuration = 0.25f;
+    [Tooltip("Сколько структур обрабатывается за один шаг стаггера. Больше — быстрее перестройка карты между волнами.")]
+    [SerializeField] private int structuresPerTick = 4;
 
     private readonly List<GameObject> structures =
         new List<GameObject>();
@@ -136,6 +138,12 @@ public class WorldStructureGenerator : MonoBehaviour
         Vector3 centerPos,
         int count)
     {
+        WaitForSecondsRealtime staggerWait =
+            new WaitForSecondsRealtime(spawnStagger);
+
+        WaitForSecondsRealtime growWait =
+            new WaitForSecondsRealtime(scaleInDuration);
+
         if (structures.Count > 0)
         {
             List<GameObject> oldStructures =
@@ -145,39 +153,53 @@ public class WorldStructureGenerator : MonoBehaviour
             placedPositions.Clear();
             placedClearances.Clear();
 
-            for (int i = 0; i < oldStructures.Count; i++)
+            int perTick = Mathf.Max(structuresPerTick, 1);
+
+            for (int i = 0; i < oldStructures.Count; i += perTick)
             {
-                if (oldStructures[i] != null)
-                    StartCoroutine(
-                        FadeOutStructure(
-                            oldStructures[i]
-                        )
+                int batchEnd =
+                    Mathf.Min(
+                        i + perTick,
+                        oldStructures.Count
                     );
 
-                yield return new WaitForSecondsRealtime(
-                    spawnStagger
-                );
+                for (int j = i; j < batchEnd; j++)
+                {
+                    if (oldStructures[j] != null)
+                        StartCoroutine(
+                            FadeOutStructure(
+                                oldStructures[j]
+                            )
+                        );
+                }
+
+                yield return staggerWait;
             }
 
-            yield return new WaitForSecondsRealtime(
-                scaleInDuration
-            );
+            yield return growWait;
         }
 
-        for (int i = 0; i < count; i++)
-        {
-            TrySpawnStructure(rng, centerPos);
+        int spawnPerTick = Mathf.Max(structuresPerTick, 1);
 
-            yield return new WaitForSecondsRealtime(
-                spawnStagger
-            );
+        for (int i = 0; i < count; i += spawnPerTick)
+        {
+            int batchEnd =
+                Mathf.Min(
+                    i + spawnPerTick,
+                    count
+                );
+
+            for (int j = i; j < batchEnd; j++)
+            {
+                TrySpawnStructure(rng, centerPos);
+            }
+
+            yield return staggerWait;
         }
 
         // Ждём роста последнего куба, чтобы генерация
         // считалась завершённой только когда всё выросло.
-        yield return new WaitForSecondsRealtime(
-            scaleInDuration
-        );
+        yield return growWait;
 
         generateCoroutine = null;
     }

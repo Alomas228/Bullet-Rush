@@ -124,22 +124,26 @@ public class GameOverManager : MonoBehaviour
             fadeOut.FadeOutEverything();
 
         if (!menuReturnPending)
-            StartCoroutine(ReloadAfterCameraReachesMenu());
+            StartCoroutine(ReloadAfterCameraReachesMenu(fadeOut));
     }
 
-    private IEnumerator ReloadAfterCameraReachesMenu()
+    private IEnumerator ReloadAfterCameraReachesMenu(
+        WorldFadeOutManager fadeOut)
     {
         menuReturnPending = true;
 
-        const float maxWait = 4f;
+        const float maxWait = 5f;
         float timer = 0f;
 
         CameraFollow camera = FindAnyObjectByType<CameraFollow>();
 
+        if (fadeOut == null)
+            fadeOut = FindAnyObjectByType<WorldFadeOutManager>();
+
         while (
             timer < maxWait &&
-            camera != null &&
-            camera.IsTransitioning
+                ((camera != null && camera.IsTransitioning) ||
+                 (fadeOut != null && fadeOut.IsFading))
         )
         {
             timer += Time.unscaledDeltaTime;

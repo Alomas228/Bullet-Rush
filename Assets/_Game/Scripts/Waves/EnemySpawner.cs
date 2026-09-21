@@ -52,6 +52,8 @@ public class EnemySpawner : MonoBehaviour
 
     private Coroutine spawnQueueCoroutine;
 
+    private Camera cachedCamera;
+
     // Позиции уже заспавненных врагов волны: пока враг материализуется,
     // у него нет коллайдеров, поэтому только по ним можно отсечь соседство.
     private readonly List<Vector3> spawnedPositions =
@@ -63,6 +65,8 @@ public class EnemySpawner : MonoBehaviour
 
     private void Awake()
     {
+        cachedCamera = Camera.main;
+
         if (player == null)
         {
             GameObject playerObject =
@@ -373,7 +377,10 @@ public class EnemySpawner : MonoBehaviour
     // Запас чуть шире экрана, чтобы враг не «вспыхивал» на кромке кадра.
     private bool IsPositionVisible(Vector3 worldPosition)
     {
-        Camera cameraComponent = Camera.main;
+        if (cachedCamera == null)
+            cachedCamera = Camera.main;
+
+        Camera cameraComponent = cachedCamera;
 
         if (cameraComponent == null)
             return false;

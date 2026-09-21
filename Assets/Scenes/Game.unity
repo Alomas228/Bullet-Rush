@@ -12698,7 +12698,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::YG.GetPlayerYG
   playerNameText: {fileID: 0}
   photoImageLoad: {fileID: 0}
-  playerNameTMP: {fileID: 0}
+  playerNameTMP: {fileID: 1552389468}
   unauthorizedTexture: {fileID: 0}
 --- !u!114 &1552389468
 MonoBehaviour:

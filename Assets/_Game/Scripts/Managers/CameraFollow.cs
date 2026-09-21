@@ -326,8 +326,10 @@ public class CameraFollow : MonoBehaviour
         );
 
         transform.position = basePosition;
-        ApplyMouseParallaxToPosition();
         transform.rotation = baseRotation;
+
+        if (!isMenu)
+            ApplyMouseParallaxToPosition();
 
         shakeBasePosition = transform.position;
 
@@ -340,19 +342,24 @@ public class CameraFollow : MonoBehaviour
         {
             basePosition = destination;
             baseRotation = targetRotation;
-            transform.position = basePosition;
-            transform.rotation = baseRotation;
             transitioning = false;
 
             if (isMenu)
             {
+                transform.position = basePosition;
+                transform.rotation = baseRotation;
                 menuReported = true;
                 OnReachedMenu?.Invoke();
             }
             else
             {
+                transform.position = basePosition;
+                transform.rotation = baseRotation;
+                ApplyMouseParallaxToPosition();
                 followTarget = true;
             }
+
+            shakeBasePosition = transform.position;
         }
     }
 

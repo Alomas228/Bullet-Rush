@@ -9,6 +9,8 @@ public class WorldFadeOutManager : MonoBehaviour
 
     private bool fading;
 
+    public bool IsFading => fading;
+
     public void FadeOutEverything()
     {
         if (fading)
@@ -24,7 +26,7 @@ public class WorldFadeOutManager : MonoBehaviour
             return;
         }
 
-        float stagger = EstimateCameraFlightTime() / objects.Count;
+        float stagger = (EstimateCameraFlightTime() + 0.5f) / objects.Count;
 
         StartCoroutine(FadeOutRoutine(objects, stagger));
     }
@@ -87,11 +89,17 @@ public class WorldFadeOutManager : MonoBehaviour
         float stagger)
     {
         float effectiveFade =
-            Mathf.Clamp(
-                stagger * 0.75f,
-                0.05f,
-                maxFadeDuration
+            Mathf.Min(
+                Mathf.Clamp(
+                    stagger * 0.75f,
+                    0.05f,
+                    maxFadeDuration
+                ),
+                stagger
             );
+
+        WaitForSecondsRealtime staggerWait =
+            new WaitForSecondsRealtime(stagger);
 
         for (int i = 0; i < objects.Count; i++)
         {
@@ -103,9 +111,7 @@ public class WorldFadeOutManager : MonoBehaviour
                     )
                 );
 
-            yield return new WaitForSecondsRealtime(
-                stagger
-            );
+            yield return staggerWait;
         }
 
         fading = false;

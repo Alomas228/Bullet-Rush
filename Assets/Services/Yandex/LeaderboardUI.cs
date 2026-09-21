@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Text;
 using System.Collections;
+using System.Linq;
 #if Leaderboards_yg
 using YG.Utils.LB;
 #endif
@@ -19,7 +20,7 @@ public class LeaderboardUI : MonoBehaviour
     [Tooltip("TechnoName лидерборда на консоли Яндекс Игр (должен совпадать с созданным).")]
     [SerializeField] private string leaderboardName = "BestScore";
 
-    [Tooltip("Сколько топ-записей показывать.")]
+    [Tooltip("Сколько топ-записей запрашивать у сервера (вместе с записями вокруг игрока).")]
     [Min(1)]
     [SerializeField] private int topCount = 10;
 
@@ -166,33 +167,31 @@ public class LeaderboardUI : MonoBehaviour
         SetText(Render(result));
     }
 
+    /// <summary>
+    /// Отрисовывает таблицу от самого высокого счёта к низкому:
+    /// №1 = максимальный балл, дальше по убыванию.
+    /// </summary>
     private string Render(LBData lb)
     {
         if (lb == null || lb.players == null || lb.players.Length == 0)
             return emptyText;
 
-        StringBuilder sb = new StringBuilder();
-        int shown = 0;
+        var sorted = lb.players
+            .Where(player => player != null && !string.IsNullOrEmpty(player.name))
+            .OrderByDescending(player => player.score)
+            .ToList();
 
-        for (int i = 0; i < lb.players.Length; i++)
-        {
-            LBPlayerData player = lb.players[i];
-
-            if (player == null || string.IsNullOrEmpty(player.name))
-                continue;
-
-            string name = LBMethods.AnonymousName(player.name);
-
-            sb.AppendLine($"{player.rank}. {name}  -  {player.score}");
-
-            shown++;
-
-            if (shown >= topCount)
-                break;
-        }
-
-        if (shown == 0)
+        if (sorted.Count == 0)
             return emptyText;
+
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            string name = LBMethods.AnonymousName(sorted[i].name);
+
+            sb.AppendLine($"{i + 1}. {name}  -  {sorted[i].score}");
+        }
 
         if (!YandexGameManager.Instance.IsAuthorized)
         {
