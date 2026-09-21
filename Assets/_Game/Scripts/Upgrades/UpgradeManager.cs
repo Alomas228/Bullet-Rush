@@ -24,6 +24,24 @@ public class UpgradeManager : MonoBehaviour
     private List<WeaponData> availableWeapons =
         new List<WeaponData>();
 
+    [Header("Abilities (Shop / Equipment)")]
+    [Tooltip(
+        "Способности для вкладки «Способности» панели «Снаряжение». " +
+        "Заполняется автоматически при сборке UI (Tools -> Bullet Rush)."
+    )]
+    [SerializeField]
+    private List<AbilityData> availableAbilities =
+        new List<AbilityData>();
+
+    [Header("Clothing (Shop / Equipment)")]
+    [Tooltip(
+        "Одежда для вкладки «Одежда» панели «Снаряжение». " +
+        "Заполняется автоматически при сборке UI (Tools -> Bullet Rush)."
+    )]
+    [SerializeField]
+    private List<ClothingData> availableClothing =
+        new List<ClothingData>();
+
     [Header("Selection")]
     [SerializeField] private int choicesCount = 3;
 
@@ -46,6 +64,18 @@ public class UpgradeManager : MonoBehaviour
     /// </summary>
     public IReadOnlyList<WeaponData> GetAvailableWeapons() =>
         availableWeapons;
+
+    /// <summary>
+    /// Все способности магазина (вкладка «Способности» панели снаряжения).
+    /// </summary>
+    public IReadOnlyList<AbilityData> GetAvailableAbilities() =>
+        availableAbilities;
+
+    /// <summary>
+    /// Вся одежда магазина (вкладка «Одежда» панели снаряжения).
+    /// </summary>
+    public IReadOnlyList<ClothingData> GetAvailableClothing() =>
+        availableClothing;
 
     private void Awake()
     {

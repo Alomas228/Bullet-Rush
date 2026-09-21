@@ -11,17 +11,23 @@ using TMPro;
 /// Пункт меню: Tools -> Bullet Rush -> Build Equipment UI.
 ///
 /// За один клик:
+///  - удаляет старую панель «Снаряжение» и кнопку «Снаряжение», если они есть;
 ///  - создаёт кнопку «Снаряжение» рядом с остальными кнопками меню;
-///  - создаёт панель снаряжения (шапка + ScrollRect + один шаблон карточки
-///    + кнопка «Назад»);
-///  - подключает все ссылки на MainMenuUI / EquipmentUI / SubPanelUI.
+///  - создаёт панель «Снаряжение» с тремя вкладками: Магазин, Способности, Одежда
+///    (шапка + табы + три ScrollRect с шаблонами карточек + кнопка «Назад»);
+///  - подключает все ссылки на MainMenuUI / EquipmentUI / SubPanelUI;
+///  - добавляет PlayerEquipmentApplier на игрока (применяет снаряжение в забеге);
+///  - автоматически регистрирует все AbilityData/ClothingData-ассеты проекта
+///    в списках UpgradeManager (availableAbilities / availableClothing).
 /// </summary>
 public static class EquipmentUIBuilder
 {
     private const string MenuPath =
         "Tools/Bullet Rush/Build Equipment UI";
 
-    private const float CardHeight = 250f;
+    private const float WeaponCardHeight = 250f;
+    private const float AbilityCardHeight = 210f;
+    private const float ClothingCardHeight = 210f;
     private const float BackButtonHeight = 60f;
 
     [MenuItem(MenuPath)]
@@ -74,12 +80,14 @@ public static class EquipmentUIBuilder
         }
 
         Transform panelParent = menuPanel.transform.parent;
+        Transform buttonsRoot = shopButton.transform.parent;
+
+        // Старую панель и кнопку удаляем, чтобы не было дублей при пересборке.
+        DeletePreviousEquipment(buttonsRoot, panelParent, menuSo);
 
         // =====================================================
         // 1. Кнопка «Снаряжение» (клонируем магазин, сохраняя стиль)
         // =====================================================
-        Transform buttonsRoot = shopButton.transform.parent;
-
         GameObject equipButtonObject =
             Object.Instantiate(shopButton.gameObject, buttonsRoot);
 
@@ -170,31 +178,384 @@ public static class EquipmentUIBuilder
         TextMeshProUGUI equippedText = AddText(
             panelRect,
             "EquippedText",
-            "Снаряжение: —",
-            22,
+            "Оружие: —\nСпособности: —\nОбраз: —",
+            18,
             TextAlignmentOptions.Center,
             FontStyles.Normal
         );
 
         equippedText.color = new Color(0.9f, 0.9f, 0.85f, 1f);
+        equippedText.textWrappingMode = TextWrappingModes.NoWrap;
 
         SetAnchors(
             equippedText.rectTransform,
             0.5f, 1f,
-            new Vector2(0f, -84f),
-            new Vector2(600f, 40f)
+            new Vector2(0f, -88f),
+            new Vector2(640f, 60f)
         );
 
         // =====================================================
-        // 4. Область прокрутки
+        // 4. Табы: Магазин / Способности / Одежда
         // =====================================================
+        RectTransform tabBar = AddRect(
+            panelRect,
+            "TabBar",
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(24f, -224f),
+            new Vector2(-24f, -160f)
+        );
+
+        HorizontalLayoutGroup tabLayout =
+            tabBar.gameObject.AddComponent<HorizontalLayoutGroup>();
+
+        tabLayout.spacing = 10f;
+        tabLayout.childAlignment = TextAnchor.MiddleCenter;
+        tabLayout.childControlWidth = true;
+        tabLayout.childForceExpandWidth = true;
+        tabLayout.childControlHeight = true;
+        tabLayout.childForceExpandHeight = true;
+        tabLayout.padding = new RectOffset(0, 0, 0, 0);
+
+        string[] tabLabels = { "Магазин", "Способности", "Одежда" };
+
+        Button[] tabButtons = new Button[tabLabels.Length];
+
+        for (int i = 0; i < tabLabels.Length; i++)
+        {
+            tabButtons[i] = AddTabButton(tabBar, tabLabels[i], $"Tab{i}");
+        }
+
+        // =====================================================
+        // 5. Области прокрутки для каждой вкладки
+        // =====================================================
+        string[] areaNames =
+        {
+            "ShopScrollArea",
+            "AbilitiesScrollArea",
+            "ClothingScrollArea"
+        };
+
+        float[] cardHeights =
+        {
+            WeaponCardHeight,
+            AbilityCardHeight,
+            ClothingCardHeight
+        };
+
+        RectTransform[] areaRoots = new RectTransform[areaNames.Length];
+        GameObject[] cardTemplates = new GameObject[areaNames.Length];
+
+        for (int i = 0; i < areaNames.Length; i++)
+        {
+            (RectTransform root, RectTransform _, GameObject card) =
+                BuildTabScrollArea(
+                    panelRect,
+                    areaNames[i],
+                    cardHeights[i]
+                );
+
+            areaRoots[i] = root;
+            cardTemplates[i] = card;
+        }
+
+        // =====================================================
+        // 6. Кнопка «Назад»
+        // =====================================================
+        Button backButton = AddButton(panelRect, "BackButton");
+        backButton.image.color = new Color(0.20f, 0.30f, 0.45f, 0.95f);
+
+        RectTransform backRect = backButton.GetComponent<RectTransform>();
+        backRect.anchorMin = new Vector2(0f, 0f);
+        backRect.anchorMax = new Vector2(0f, 0f);
+        backRect.pivot = new Vector2(0f, 0f);
+        backRect.anchoredPosition = new Vector2(24f, 12f);
+        backRect.sizeDelta = new Vector2(220f, BackButtonHeight);
+
+        TextMeshProUGUI backText = AddText(
+            backButton.transform,
+            "Text",
+            "Назад",
+            24,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal
+        );
+
+        SetFullStretch(backText.rectTransform);
+
+        // =====================================================
+        // 7. Компоненты панели
+        // =====================================================
+        EquipmentUI equipmentUI =
+            panelObject.AddComponent<EquipmentUI>();
+
+        SerializedObject equipmentSo =
+            new SerializedObject(equipmentUI);
+
+        equipmentSo.FindProperty("equipmentPanel").objectReferenceValue =
+            panelObject;
+        equipmentSo.FindProperty("playerLevelText").objectReferenceValue =
+            levelText;
+        equipmentSo.FindProperty("playerCoinsText").objectReferenceValue =
+            coinsText;
+        equipmentSo.FindProperty("equippedText").objectReferenceValue =
+            equippedText;
+
+        SetObjectArray(equipmentSo, "tabButtons", tabButtons);
+        SetObjectArray(equipmentSo, "tabContentRoots", areaRoots);
+        SetObjectArray(equipmentSo, "cardTemplates", cardTemplates);
+
+        equipmentSo.ApplyModifiedProperties();
+
+        SubPanelUI subPanel = panelObject.AddComponent<SubPanelUI>();
+
+        SerializedObject subSo = new SerializedObject(subPanel);
+
+        subSo.FindProperty("backButton").objectReferenceValue = backButton;
+
+        subSo.ApplyModifiedProperties();
+
+        // =====================================================
+        // 8. Подключаем к главному меню, игроку и UpgradeManager
+        // =====================================================
+        menuSo.FindProperty("equipmentButton").objectReferenceValue =
+            equipButton;
+        menuSo.FindProperty("equipmentPanel").objectReferenceValue =
+            panelObject;
+
+        menuSo.ApplyModifiedProperties();
+
+        EnsurePlayerEquipmentApplier();
+
+        UpgradeManager upgradeManager =
+            Object.FindAnyObjectByType<UpgradeManager>();
+
+        if (upgradeManager != null)
+        {
+            RegisterStoreAssets<AbilityData>(
+                upgradeManager,
+                "availableAbilities",
+                "t:AbilityData"
+            );
+
+            RegisterStoreAssets<ClothingData>(
+                upgradeManager,
+                "availableClothing",
+                "t:ClothingData"
+            );
+        }
+
+        // =====================================================
+        // 9. Финал
+        // =====================================================
+        panelObject.SetActive(false);
+
+        EditorSceneManager.MarkSceneDirty(panelObject.scene);
+
+        Selection.activeGameObject = panelObject;
+
+        EditorUtility.DisplayDialog(
+            "Build Equipment UI",
+            "Панель «Снаряжение» создана и подключена.\n\n" +
+            "Вкладки: Магазин (оружие), Способности, Одежда.\n\n" +
+            "Как добавить предметы:\n" +
+            "1. Assets -> Create -> Arcade Survivor -> Ability / Clothing.\n" +
+            "2. Заполни имя, цену, уровень разблокировки и хар-ки.\n" +
+            "3. Запусти сборку снова — ассеты автоматически попадут\n" +
+            "   в UpgradeManager (availableAbilities / availableClothing).\n\n" +
+            "Снаряжение применяется на старте забега (PlayerEquipmentApplier " +
+            "добавлен на игрока). Стилизация карточек — на твоё усмотрение.",
+            "OK"
+        );
+    }
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
+
+    private static void DeletePreviousEquipment(
+        Transform buttonsRoot,
+        Transform panelParent,
+        SerializedObject menuSo)
+    {
+        // Сначала разрываем старые ссылки на главном меню.
+        menuSo.FindProperty("equipmentButton").objectReferenceValue = null;
+        menuSo.FindProperty("equipmentPanel").objectReferenceValue = null;
+
+        menuSo.ApplyModifiedProperties();
+
+        if (buttonsRoot != null)
+        {
+            var children =
+                new System.Collections.Generic.List<Transform>();
+
+            foreach (Transform child in buttonsRoot)
+                children.Add(child);
+
+            foreach (Transform child in children)
+            {
+                if (child.name == "EquipmentButton")
+                    Object.DestroyImmediate(child.gameObject);
+            }
+        }
+
+        if (panelParent != null)
+        {
+            var children =
+                new System.Collections.Generic.List<Transform>();
+
+            foreach (Transform child in panelParent)
+                children.Add(child);
+
+            foreach (Transform child in children)
+            {
+                if (child.name == "EquipmentPanel")
+                    Object.DestroyImmediate(child.gameObject);
+            }
+        }
+    }
+
+    // =====================================================
+    // PLAYER / UPGRADE MANAGER
+    // =====================================================
+
+    private static bool EnsurePlayerEquipmentApplier()
+    {
+        GameObject player =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (player == null)
+            return false;
+
+        if (player.GetComponent<PlayerEquipmentApplier>() == null)
+        {
+            player.AddComponent<PlayerEquipmentApplier>();
+
+            EditorUtility.SetDirty(player);
+            EditorSceneManager.MarkSceneDirty(player.scene);
+        }
+
+        return true;
+    }
+
+    private static void RegisterStoreAssets<T>(
+        UpgradeManager manager,
+        string fieldName,
+        string assetFilter) where T : ScriptableObject
+    {
+        if (manager == null)
+            return;
+
+        SerializedObject managerSo =
+            new SerializedObject(manager);
+
+        SerializedProperty list =
+            managerSo.FindProperty(fieldName);
+
+        if (list == null)
+            return;
+
+        string[] guids =
+            AssetDatabase.FindAssets(assetFilter);
+
+        foreach (string guid in guids)
+        {
+            string path =
+                AssetDatabase.GUIDToAssetPath(guid);
+
+            T asset =
+                AssetDatabase.LoadAssetAtPath<T>(path);
+
+            if (asset == null)
+                continue;
+
+            bool alreadyPresent = false;
+
+            for (int i = 0; i < list.arraySize; i++)
+            {
+                Object existing =
+                    list.GetArrayElementAtIndex(i).objectReferenceValue;
+
+                if (existing == asset)
+                {
+                    alreadyPresent = true;
+                    break;
+                }
+            }
+
+            if (alreadyPresent)
+                continue;
+
+            list.InsertArrayElementAtIndex(list.arraySize);
+            list.GetArrayElementAtIndex(list.arraySize - 1)
+                .objectReferenceValue = asset;
+        }
+
+        managerSo.ApplyModifiedProperties();
+
+        EditorUtility.SetDirty(manager);
+        EditorSceneManager.MarkSceneDirty(manager.gameObject.scene);
+    }
+
+    // =====================================================
+    // TAB AREA CONSTRUCTION
+    // =====================================================
+
+    private static Button AddTabButton(
+        Transform parent,
+        string label,
+        string objectName)
+    {
+        RectTransform rect = AddRect(
+            parent,
+            objectName,
+            new Vector2(0f, 0f),
+            new Vector2(1f, 1f),
+            Vector2.zero,
+            Vector2.zero
+        );
+
+        Image image = rect.gameObject.AddComponent<Image>();
+        image.color = new Color(0.16f, 0.16f, 0.22f, 0.9f);
+
+        LayoutElement layout =
+            rect.gameObject.AddComponent<LayoutElement>();
+
+        layout.flexibleWidth = 1f;
+        layout.flexibleHeight = 1f;
+
+        Button button = rect.gameObject.AddComponent<Button>();
+
+        TextMeshProUGUI text = AddText(
+            rect,
+            "Text",
+            label,
+            24,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold
+        );
+
+        SetFullStretch(text.rectTransform);
+
+        return button;
+    }
+
+    private static (
+        RectTransform root,
+        RectTransform content,
+        GameObject card
+    ) BuildTabScrollArea(
+        RectTransform panelRect,
+        string areaName,
+        float cardHeight)
+    {
         RectTransform scrollArea = AddRect(
             panelRect,
-            "ScrollArea",
+            areaName,
             Vector2.zero,
             Vector2.one,
-            new Vector2(24f, 72f),        // снизу: над кнопкой «Назад»
-            new Vector2(-24f, -132f)      // сверху: под шапкой
+            new Vector2(24f, 84f),        // снизу: над кнопкой «Назад»
+            new Vector2(-24f, -232f)      // сверху: под табами и шапкой
         );
 
         Image scrollBg = scrollArea.gameObject.AddComponent<Image>();
@@ -203,7 +564,7 @@ public static class EquipmentUIBuilder
         ScrollRect scrollRect =
             scrollArea.gameObject.AddComponent<ScrollRect>();
 
-        // 4.1 Viewport
+        // 1 Viewport
         RectTransform viewport = AddRect(
             scrollArea,
             "Viewport",
@@ -215,7 +576,7 @@ public static class EquipmentUIBuilder
 
         viewport.gameObject.AddComponent<RectMask2D>();
 
-        // 4.2 Content + вертикальный список карточек
+        // 2 Content + вертикальный список карточек
         RectTransform content = AddRect(
             viewport,
             "Content",
@@ -244,7 +605,34 @@ public static class EquipmentUIBuilder
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
-        // 4.3 Шаблон карточки
+        // 3 Шаблон карточки
+        RectTransform cardRect =
+            BuildCardTemplate(content, cardHeight);
+
+        // 4 Полоса прокрутки (вертикальная)
+        Scrollbar scrollbar = BuildVerticalScrollbar(scrollArea);
+
+        scrollRect.viewport = viewport;
+        scrollRect.content = content;
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.verticalScrollbar = scrollbar;
+        scrollRect.verticalScrollbarVisibility =
+            ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+        scrollRect.verticalScrollbarSpacing = 4f;
+
+        return (
+            scrollArea,
+            content,
+            cardRect.gameObject
+        );
+    }
+
+    private static RectTransform BuildCardTemplate(
+        RectTransform content,
+        float cardHeight)
+    {
         RectTransform cardRect = AddRect(
             content,
             "CardTemplate",
@@ -260,7 +648,7 @@ public static class EquipmentUIBuilder
         LayoutElement cardLayout =
             cardRect.gameObject.AddComponent<LayoutElement>();
 
-        cardLayout.preferredHeight = CardHeight;
+        cardLayout.preferredHeight = cardHeight;
 
         VerticalLayoutGroup cardRows =
             cardRect.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -304,101 +692,7 @@ public static class EquipmentUIBuilder
 
         cardRect.gameObject.SetActive(false);
 
-        // 4.4 Полоса прокрутки (вертикальная)
-        Scrollbar scrollbar = BuildVerticalScrollbar(scrollArea);
-
-        scrollRect.viewport = viewport;
-        scrollRect.content = content;
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-        scrollRect.verticalScrollbar = scrollbar;
-        scrollRect.verticalScrollbarVisibility =
-            ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
-        scrollRect.verticalScrollbarSpacing = 4f;
-
-        // =====================================================
-        // 5. Кнопка «Назад»
-        // =====================================================
-        Button backButton = AddButton(panelRect, "BackButton");
-        backButton.image.color = new Color(0.20f, 0.30f, 0.45f, 0.95f);
-
-        RectTransform backRect = backButton.GetComponent<RectTransform>();
-        backRect.anchorMin = new Vector2(0f, 0f);
-        backRect.anchorMax = new Vector2(0f, 0f);
-        backRect.pivot = new Vector2(0f, 0f);
-        backRect.anchoredPosition = new Vector2(24f, 12f);
-        backRect.sizeDelta = new Vector2(220f, BackButtonHeight);
-
-        TextMeshProUGUI backText = AddText(
-            backButton.transform,
-            "Text",
-            "Назад",
-            24,
-            TextAlignmentOptions.Center,
-            FontStyles.Normal
-        );
-
-        SetFullStretch(backText.rectTransform);
-
-        // =====================================================
-        // 6. Компоненты панели
-        // =====================================================
-        EquipmentUI equipmentUI =
-            panelObject.AddComponent<EquipmentUI>();
-
-        SerializedObject equipmentSo =
-            new SerializedObject(equipmentUI);
-
-        equipmentSo.FindProperty("equipmentPanel").objectReferenceValue =
-            panelObject;
-        equipmentSo.FindProperty("playerLevelText").objectReferenceValue =
-            levelText;
-        equipmentSo.FindProperty("playerCoinsText").objectReferenceValue =
-            coinsText;
-        equipmentSo.FindProperty("equippedText").objectReferenceValue =
-            equippedText;
-        equipmentSo.FindProperty("cardTemplate").objectReferenceValue =
-            cardRect.gameObject;
-
-        equipmentSo.ApplyModifiedProperties();
-
-        SubPanelUI subPanel = panelObject.AddComponent<SubPanelUI>();
-
-        SerializedObject subSo = new SerializedObject(subPanel);
-
-        subSo.FindProperty("backButton").objectReferenceValue = backButton;
-
-        subSo.ApplyModifiedProperties();
-
-        // =====================================================
-        // 7. Подключаем к главному меню
-        // =====================================================
-        menuSo.FindProperty("equipmentButton").objectReferenceValue =
-            equipButton;
-        menuSo.FindProperty("equipmentPanel").objectReferenceValue =
-            panelObject;
-
-        menuSo.ApplyModifiedProperties();
-
-        // =====================================================
-        // 8. Финал
-        // =====================================================
-        panelObject.SetActive(false);
-
-        EditorSceneManager.MarkSceneDirty(panelObject.scene);
-
-        Selection.activeGameObject = panelObject;
-
-        EditorUtility.DisplayDialog(
-            "Build Equipment UI",
-            "Панель «Снаряжение» создана и подключена.\n\n" +
-            "1. Нажми Play — проверить панель.\n" +
-            "2. Стилизация карточки CardTemplate и кнопок — на твоё усмотрение.\n" +
-            "3. Цены и уровни разблокировки каждого оружия правятся в самих\n" +
-            "   WeaponData-ассетах (поля Unlock Level / Price).",
-            "OK"
-        );
+        return cardRect;
     }
 
     // =====================================================
@@ -564,6 +858,26 @@ public static class EquipmentUIBuilder
         rect.pivot = new Vector2(anchorX, anchorY);
         rect.anchoredPosition = position;
         rect.sizeDelta = size;
+    }
+
+    private static void SetObjectArray(
+        SerializedObject so,
+        string propertyName,
+        Object[] values)
+    {
+        SerializedProperty property =
+            so.FindProperty(propertyName);
+
+        if (property == null)
+            return;
+
+        property.arraySize = values.Length;
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            property.GetArrayElementAtIndex(i)
+                .objectReferenceValue = values[i];
+        }
     }
 }
 

@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f2a91b4c3d84e5e8a1b2c3d4e5f6a7b, type: 3}
+  m_Name: Ability_Bomb
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityData
+  abilityName: Бомба
+  description: Мощный взрыв вокруг персонажа. Наносит урон всем врагам поблизости.
+  kind: 0
+  unlockLevel: 3
+  price: 150
+  stats: Урон: 5 • Радиус: 5 • Кулдаун: 8 с
