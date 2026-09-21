@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Weapon_HeavyShotgun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Heavy Shotgun
-  description: 
+  description: Магнум-дробовик. Один залп — и толпа поредела.
   weaponType: 1
   rarity: 1
   unlockLevel: 3
-  price: 500
+  price: 300
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 18
-  fireRate: 1
+  damage: 24
+  fireRate: 0.9
   projectileSpeed: 11
   projectileCount: 4
   spreadAngle: 8
@@ -32,11 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
   recoilForce: 0.75
+  shakeOnFire: 1
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

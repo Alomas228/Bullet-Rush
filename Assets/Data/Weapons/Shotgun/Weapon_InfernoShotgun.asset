@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Weapon_InfernoShotgun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Inferno Shotgun
-  description: 
-  weaponType: 0
-  rarity: 0
+  description: Картечь с зажигательной смесью. Поджигает всё вокруг.
+  weaponType: 1
+  rarity: 3
   unlockLevel: 8
-  price: 2500
+  price: 1500
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 10
-  fireRate: 1.4
+  damage: 7
+  fireRate: 1.6
   projectileSpeed: 14
   projectileCount: 5
   spreadAngle: 18
@@ -32,11 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 6
+  burnDuration: 2.5
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
   recoilForce: 0.45
+  shakeOnFire: 1
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

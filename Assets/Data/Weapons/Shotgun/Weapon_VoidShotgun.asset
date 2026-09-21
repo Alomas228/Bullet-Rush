@@ -13,18 +13,18 @@ MonoBehaviour:
   m_Name: Weapon_VoidShotgun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Void Shotgun
-  description: 
+  description: Дробь пронзает плоть насквозь, оставляя после себя пустоту.
   weaponType: 1
   rarity: 4
   unlockLevel: 12
-  price: 5000
+  price: 3000
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 30
-  fireRate: 0.8
+  damage: 14
+  fireRate: 1.2
   projectileSpeed: 14
-  projectileCount: 7
-  spreadAngle: 18
-  pierceCount: 0
+  projectileCount: 6
+  spreadAngle: 16
+  pierceCount: 1
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
@@ -32,11 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
   recoilForce: 0.65
+  shakeOnFire: 1
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

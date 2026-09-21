@@ -2864,8 +2864,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7ad72c39f4dfb4b42ab8180e2ede09da, type: 2}
   - {fileID: 11400000, guid: 7988fa6fae176134f818d9e7370871c3, type: 2}
   - {fileID: 11400000, guid: 04cb3a2e8db896e4aacfb5ddfad2c562, type: 2}
-  - {fileID: 11400000, guid: cfc2e5818b2fbfc40bc5ed7cfe48a235, type: 2}
-  - {fileID: 11400000, guid: 6535fbe7c2798ec408b8374ab504f830, type: 2}
   - {fileID: 11400000, guid: a7fb5a3b8e0afa1458a40c21520d79c8, type: 2}
   - {fileID: 11400000, guid: 7d87bd9c8e64d2b45a9aa658b3a3458e, type: 2}
   - {fileID: 11400000, guid: 2189dcc589742c14498cc96e20123b20, type: 2}
@@ -2889,7 +2887,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e5f03519e6bf9d24aa2606c88ae85e0b, type: 2}
   - {fileID: 11400000, guid: 03773f093a8776241863ac35e23ed326, type: 2}
   choicesCount: 3
-  weaponDropChance: 0.44
+  weaponDropChance: 0.22
 --- !u!4 &375041978
 Transform:
   m_ObjectHideFlags: 0

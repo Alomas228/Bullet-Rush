@@ -453,9 +453,12 @@ public class Weapon : MonoBehaviour
         if (bullet == null)
             return;
 
+        float damageMultiplier =
+            GetDamageMultiplier();
+
         float damage =
             weaponData.Damage *
-            GetDamageMultiplier();
+            damageMultiplier;
 
         bool isCritical =
             Random.value <
@@ -477,12 +480,12 @@ public class Weapon : MonoBehaviour
             isCritical,
             weaponData.PierceCount + GetBonusPierce(),
 
-            weaponData.BurnDamagePerSecond,
+            weaponData.BurnDamagePerSecond * damageMultiplier,
             weaponData.BurnDuration,
             weaponData.BurnTickInterval,
 
             weaponData.LightningChance,
-            weaponData.LightningDamage,
+            weaponData.LightningDamage * damageMultiplier,
             weaponData.LightningTargets,
             weaponData.LightningRange
         );
@@ -490,7 +493,8 @@ public class Weapon : MonoBehaviour
         bullet.SetRunEffects(
             runUpgrades,
             playerHealth,
-            bulletPrefab
+            bulletPrefab,
+            damageMultiplier
         );
 
         SpawnTracer(bullet.transform);

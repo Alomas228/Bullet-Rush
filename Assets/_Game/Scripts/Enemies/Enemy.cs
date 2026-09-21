@@ -1768,12 +1768,12 @@ public class Enemy : MonoBehaviour
         if (isBoss)
         {
             LootPickup.SpawnHealth(position, 0.35f);
-            LootPickup.SpawnCoin(position, 3);
+            LootPickup.SpawnCoin(position, 5);
 
             return;
         }
 
-        if (Random.value < 0.08f)
+        if (Random.value < 0.10f)
         {
             LootPickup.SpawnHealth(
                 position,
@@ -1781,11 +1781,13 @@ public class Enemy : MonoBehaviour
             );
         }
 
-        if (Random.value < 0.12f)
+        if (Random.value < 0.15f)
         {
+            int coins = Random.value < 0.35f ? 2 : 1;
+
             LootPickup.SpawnCoin(
                 position,
-                1
+                coins
             );
         }
     }

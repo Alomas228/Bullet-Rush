@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Weapon_BasicSMG
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Basic SMG
-  description: 
+  description: Автомат с высоким темпом стрельбы. Прост, но надёжен.
   weaponType: 2
   rarity: 0
   unlockLevel: 1
   price: 0
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 5
+  damage: 4
   fireRate: 12
   projectileSpeed: 14
   projectileCount: 1
@@ -32,10 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0
+  shakeOnFire: 0
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

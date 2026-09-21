@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Weapon_AssassinSMG
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Assassin SMG
-  description: 
+  description: Убийственный автомат с хирургической меткостью и частыми критическими попаданиями.
   weaponType: 2
   rarity: 2
   unlockLevel: 5
-  price: 1200
+  price: 700
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 7
-  fireRate: 10
+  damage: 6
+  fireRate: 12
   projectileSpeed: 16
   projectileCount: 1
   spreadAngle: 2
@@ -28,14 +28,16 @@ MonoBehaviour:
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
-  criticalChanceBonus: 0
-  criticalDamageBonus: 0
+  criticalChanceBonus: 0.15
+  criticalDamageBonus: 0.5
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0
+  shakeOnFire: 0
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

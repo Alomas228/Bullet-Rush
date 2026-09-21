@@ -13,29 +13,31 @@ MonoBehaviour:
   m_Name: Weapon_Minigun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Minigun
-  description: 
+  description: Ураган свинца. Огромный темп стрельбы, сметающий толпу.
   weaponType: 2
   rarity: 4
   unlockLevel: 12
-  price: 5000
+  price: 3000
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
   damage: 4
-  fireRate: 30
+  fireRate: 28
   projectileSpeed: 16
   projectileCount: 1
-  spreadAngle: 5
+  spreadAngle: 6
   pierceCount: 0
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
-  criticalChanceBonus: 1
-  criticalDamageBonus: 0
+  criticalChanceBonus: 0.1
+  criticalDamageBonus: 0.5
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0.3
+  shakeOnFire: 0.5
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

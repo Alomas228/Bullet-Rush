@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: Weapon_BasicShotgun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Basic Shotgun
-  description: 
+  description: Классический дробовик. Смертоносен вблизи.
   weaponType: 1
   rarity: 0
   unlockLevel: 1
   price: 0
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 8
-  fireRate: 1.5
+  damage: 6
+  fireRate: 1.8
   projectileSpeed: 12
-  projectileCount: 5
+  projectileCount: 6
   spreadAngle: 10
   pierceCount: 0
   specialType: 0
@@ -32,12 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
   recoilForce: 0.4
   shakeOnFire: 1
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

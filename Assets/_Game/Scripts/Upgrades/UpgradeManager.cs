@@ -146,15 +146,12 @@ public class UpgradeManager : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            int randomIndex =
-                Random.Range(0, pool.Count);
-
             UpgradeData selected =
-                pool[randomIndex];
+                PickWeighted(pool);
 
             currentChoices.Add(selected);
 
-            pool.RemoveAt(randomIndex);
+            pool.Remove(selected);
         }
     }
 
@@ -196,15 +193,12 @@ public class UpgradeManager : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            int randomIndex =
-                Random.Range(0, pool.Count);
-
             UpgradeData selected =
-                pool[randomIndex];
+                PickWeighted(pool);
 
             currentChoices.Add(selected);
 
-            pool.RemoveAt(randomIndex);
+            pool.Remove(selected);
         }
     }
 
@@ -213,13 +207,91 @@ public class UpgradeManager : MonoBehaviour
         if (availableWeapons.Count == 0)
             return null;
 
-        int randomIndex =
-            Random.Range(
-                0,
-                availableWeapons.Count
-            );
+        int totalWeight = 0;
 
-        return availableWeapons[randomIndex];
+        foreach (WeaponData weapon in availableWeapons)
+        {
+            if (weapon == null)
+                continue;
+
+            totalWeight += GetRarityWeight(weapon.Rarity);
+        }
+
+        if (totalWeight <= 0)
+        {
+            return availableWeapons[
+                Random.Range(0, availableWeapons.Count)
+            ];
+        }
+
+        int roll =
+            Random.Range(0, totalWeight);
+
+        foreach (WeaponData weapon in availableWeapons)
+        {
+            if (weapon == null)
+                continue;
+
+            roll -= GetRarityWeight(weapon.Rarity);
+
+            if (roll < 0)
+                return weapon;
+        }
+
+        return availableWeapons[availableWeapons.Count - 1];
+    }
+
+    /// <summary>
+    /// Случайный элемент пула, взвешенный по редкости:
+    /// чем выше редкость, тем реже выпадает.
+    /// </summary>
+    private UpgradeData PickWeighted(
+        List<UpgradeData> pool)
+    {
+        if (pool == null || pool.Count == 0)
+            return null;
+
+        int totalWeight = 0;
+
+        for (int i = 0; i < pool.Count; i++)
+        {
+            UpgradeData candidate = pool[i];
+
+            if (candidate == null)
+                continue;
+
+            totalWeight += GetRarityWeight(candidate.Rarity);
+        }
+
+        if (totalWeight <= 0)
+        {
+            return pool[
+                Random.Range(0, pool.Count)
+            ];
+        }
+
+        int roll =
+            Random.Range(0, totalWeight);
+
+        for (int i = 0; i < pool.Count; i++)
+        {
+            UpgradeData candidate = pool[i];
+
+            if (candidate == null)
+                continue;
+
+            roll -= GetRarityWeight(candidate.Rarity);
+
+            if (roll < 0)
+                return candidate;
+        }
+
+        return pool[pool.Count - 1];
+    }
+
+    private int GetRarityWeight(Rarity rarity)
+    {
+        return Mathf.Max(5 - (int)rarity, 1);
     }
 
     public void ChooseUpgrade(int index)

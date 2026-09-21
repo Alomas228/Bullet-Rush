@@ -17,7 +17,7 @@ MonoBehaviour:
     20% \u0448\u0430\u043D\u0441, 2 \u0443\u0440\u043E\u043D\u0430/\u0441 \u0432
     \u0442\u0435\u0447\u0435\u043D\u0438\u0435 3 \u0441\u0435\u043A."
   type: 16
-  rarity: 3
+  rarity: 2
   percentValue: 0.1
   weaponData: {fileID: 0}
   effectData: {fileID: 11400000, guid: 991d9af3c7c62154ba64c0a88739a8df, type: 2}

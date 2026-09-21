@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Weapon_PlasmaRifle
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Plasma Rifle
-  description: 
+  description: Стреляет раскалённой плазмой, прожигающей врагов насквозь.
   weaponType: 0
   rarity: 4
   unlockLevel: 12
-  price: 5000
+  price: 3000
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 25
-  fireRate: 4
+  damage: 18
+  fireRate: 5
   projectileSpeed: 20
   projectileCount: 1
   spreadAngle: 0
@@ -32,10 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 8
+  burnDuration: 2.5
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0
+  shakeOnFire: 0
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

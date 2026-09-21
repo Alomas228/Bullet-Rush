@@ -13,29 +13,31 @@ MonoBehaviour:
   m_Name: Weapon_TwinSMG
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Twin SMG
-  description: 
+  description: Два ствола — двойной залп при каждом нажатии на спуск.
   weaponType: 2
   rarity: 1
   unlockLevel: 3
-  price: 500
+  price: 300
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
   damage: 4
-  fireRate: 12
+  fireRate: 8
   projectileSpeed: 14
   projectileCount: 1
-  spreadAngle: 5
+  spreadAngle: 4
   pierceCount: 0
-  specialType: 0
+  specialType: 5
   shotsPerBurst: 3
   burstInterval: 0.08
   criticalChanceBonus: 0
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0
+  shakeOnFire: 0
+  lightningChance: 0
+  lightningDamage: 0
+  lightningTargets: 1
+  lightningRange: 0

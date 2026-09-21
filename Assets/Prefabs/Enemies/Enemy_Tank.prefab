@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 82aa03911237de045a20ae5179c7a9c0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  enemyData: {fileID: 11400000, guid: e35faa5552e1631468df374b94c45711, type: 2}
+  enemyData: {fileID: 11400000, guid: 1545bb7e790225848997fa8b0a8f54c9, type: 2}
   player: {fileID: 0}
   enemyProjectilePrefab: {fileID: 4475368127408814556, guid: cd629b8dc18ca4d499842955b9f0dfde, type: 3}
   attackPoint: {fileID: 0}

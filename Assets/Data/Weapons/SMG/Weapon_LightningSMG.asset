@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Weapon_LightningSMG
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Lightning SMG
-  description: 
+  description: Пули разряжаются в соседних врагов, выжигая целые цепочки.
   weaponType: 2
   rarity: 3
   unlockLevel: 8
-  price: 2500
+  price: 1500
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 5.5
+  damage: 5
   fireRate: 13
   projectileSpeed: 15
   projectileCount: 1
@@ -32,10 +32,12 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 3
-  burnDuration: 2
+  burnDamagePerSecond: 0
+  burnDuration: 0
   burnTickInterval: 0.5
-  lightningChance: 0.25
-  lightningDamage: 8
-  lightningTargets: 2
-  lightningRange: 4
+  recoilForce: 0
+  shakeOnFire: 0
+  lightningChance: 0.35
+  lightningDamage: 10
+  lightningTargets: 3
+  lightningRange: 4.5

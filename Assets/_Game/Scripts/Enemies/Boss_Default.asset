@@ -17,21 +17,35 @@ MonoBehaviour:
   moveSpeed: 1.5
   contactDamage: 10
   attackRange: 8
-  attackRate: 1.5
+  attackInterval: 1.5
   projectileDamage: 15
   projectileSpeed: 8
+  phase1HealthPercent: 1
+  phase1AbilityCooldown: 8
+  phase1AbilityDamage: 25
+  phase1AbilityRadius: 5
+  phase1AbilityWarningDuration: 2
+  phase1SummonCooldown: 10
+  phase1SummonCount: 3
   phase2HealthPercent: 0.6
   phase2MoveSpeedMultiplier: 1.2
-  phase2AttackRateMultiplier: 1.2
+  phase2AttackIntervalMultiplier: 0.8
+  phase2AbilityCooldown: 6
+  phase2AbilityDamage: 35
+  phase2AbilityRadius: 5
+  phase2AbilityWarningDuration: 2
+  phase2SummonCooldown: 8
+  phase2SummonCount: 4
   phase3HealthPercent: 0.3
   phase3MoveSpeedMultiplier: 1.5
-  phase3AttackRateMultiplier: 1.5
+  phase3AttackIntervalMultiplier: 0.65
   phase3DamageMultiplier: 1.5
-  abilityCooldown: 8
-  abilityDamage: 25
-  abilityRadius: 5
-  summonCooldown: 10
-  summonCount: 3
+  phase3AbilityCooldown: 4
+  phase3AbilityDamage: 50
+  phase3AbilityRadius: 6
+  phase3AbilityWarningDuration: 1.5
+  phase3SummonCooldown: 6
+  phase3SummonCount: 6
   waveHealthPercent: 0.2
   waveDamagePercent: 0.1
   waveScorePercent: 0.1

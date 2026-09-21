@@ -165,7 +165,8 @@ public class Bullet : MonoBehaviour
     public void SetRunEffects(
         RunUpgrades run,
         PlayerHealth health,
-        GameObject bulletPrefabRef)
+        GameObject bulletPrefabRef,
+        float damageMultiplier = 1f)
     {
         cachedPlayerHealth = health;
         bulletPrefab = bulletPrefabRef;
@@ -180,7 +181,7 @@ public class Bullet : MonoBehaviour
             run.RunBurnChance;
 
         runBurnDamage =
-            run.RunBurnDamage;
+            run.RunBurnDamage * damageMultiplier;
 
         runBurnDuration =
             run.RunBurnDuration;
@@ -192,7 +193,7 @@ public class Bullet : MonoBehaviour
             run.BleedChance;
 
         bleedDamage =
-            run.BleedDamage;
+            run.BleedDamage * damageMultiplier;
 
         bleedDuration =
             run.BleedDuration;
@@ -204,13 +205,13 @@ public class Bullet : MonoBehaviour
             run.ExplosionRadius;
 
         explosionDamage =
-            run.ExplosionDamage;
+            run.ExplosionDamage * damageMultiplier;
 
         chainLightningChance =
             run.LightningChance;
 
         chainLightningDamage =
-            run.LightningDamage;
+            run.LightningDamage * damageMultiplier;
 
         chainLightningRadius =
             run.LightningRadius;

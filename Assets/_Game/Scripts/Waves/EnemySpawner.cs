@@ -122,11 +122,37 @@ public class EnemySpawner : MonoBehaviour
         int remaining = Mathf.Max(enemyCount, 0);
         bool firstBatch = true;
 
+        // Давление волны растёт с её номером: порции крупнее,
+        // паузы между ними короче.
+        int batchSizeGrowth =
+            Mathf.FloorToInt(
+                Mathf.Max(wave - 1, 0) / 8f
+            );
+
+        int effectiveBatchSize =
+            Mathf.Max(spawnBatchSize, 1) +
+            batchSizeGrowth;
+
+        const int maxScaledBatchSize = 12;
+
+        effectiveBatchSize =
+            Mathf.Min(
+                effectiveBatchSize,
+                Mathf.Max(maxScaledBatchSize, spawnBatchSize)
+            );
+
+        float effectiveInterval =
+            spawnBatchInterval *
+            Mathf.Pow(0.95f, Mathf.Max(wave - 1, 0));
+
+        effectiveInterval =
+            Mathf.Max(effectiveInterval, 0.45f);
+
         while (remaining > 0)
         {
             int batchSize = firstBatch
                 ? Mathf.Min(firstBatchSize, remaining)
-                : Mathf.Min(spawnBatchSize, remaining);
+                : Mathf.Min(effectiveBatchSize, remaining);
             firstBatch = false;
 
             batchAngles.Clear();
@@ -143,8 +169,8 @@ public class EnemySpawner : MonoBehaviour
                     yield return new WaitForSeconds(spawnStagger);
             }
 
-            if (remaining > 0 && spawnBatchInterval > 0f)
-                yield return new WaitForSeconds(spawnBatchInterval);
+            if (remaining > 0 && effectiveInterval > 0f)
+                yield return new WaitForSeconds(effectiveInterval);
         }
 
         spawnQueueCoroutine = null;
@@ -577,10 +603,10 @@ public class EnemySpawner : MonoBehaviour
             totalWeight += 2;
 
         if (wave >= 4 && tankPrefab != null)
-            totalWeight += 1;
+            totalWeight += 1 + (wave >= 16 ? 1 : 0);
 
         if (wave >= 7 && elitePrefab != null)
-            totalWeight += 1;
+            totalWeight += 1 + Mathf.FloorToInt((wave - 7) / 5f);
 
         if (totalWeight <= 0)
             return null;
@@ -610,7 +636,7 @@ public class EnemySpawner : MonoBehaviour
 
         if (wave >= 4 && tankPrefab != null)
         {
-            roll -= 1;
+            roll -= 1 + (wave >= 16 ? 1 : 0);
             if (roll < 0)
                 return tankPrefab;
         }
