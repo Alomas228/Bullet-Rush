@@ -349,17 +349,17 @@ public class YandexGameManager : MonoBehaviour
     public void ShowRewarded(string id, Action onReward)
     {
 #if RewardedAdv_yg
-        if (!IsReady || pendingReward != null)
+        if (!IsReady)
         {
             onReward?.Invoke();
             return;
         }
 
-        if (YG2.nowInterAdv || YG2.nowRewardAdv)
-        {
-            onReward?.Invoke();
+        if (pendingReward != null)
             return;
-        }
+
+        if (YG2.nowInterAdv || YG2.nowRewardAdv)
+            return;
 
         pendingReward = onReward;
         pendingRewardId = id;

@@ -253,10 +253,16 @@ public class GameOverUI : MonoBehaviour
         }
 
         if (doubleCoinsButton != null)
+        {
+            doubleCoinsButton.onClick.RemoveListener(OnDoubleCoinsClicked);
             doubleCoinsButton.onClick.AddListener(OnDoubleCoinsClicked);
+        }
 
         if (reviveButton != null)
+        {
+            reviveButton.onClick.RemoveListener(OnReviveClicked);
             reviveButton.onClick.AddListener(OnReviveClicked);
+        }
     }
 
     private Button CreateRewardedButton(
