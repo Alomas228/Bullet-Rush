@@ -15,7 +15,9 @@ public class WaveUI : MonoBehaviour
         Hide();
     }
 
-    public void ShowWave(int wave)
+    public void ShowWave(
+        int wave,
+        string subtitle = null)
     {
         if (wavePanel != null)
             wavePanel.SetActive(true);
@@ -33,7 +35,12 @@ public class WaveUI : MonoBehaviour
             waveCompleteText.gameObject.SetActive(false);
 
         if (waveText != null)
-            waveText.text = $"WAVE {wave}";
+        {
+            waveText.text =
+                string.IsNullOrEmpty(subtitle)
+                    ? $"ВОЛНА {wave}"
+                    : $"ВОЛНА {wave} · {subtitle}";
+        }
     }
 
     public void ShowPrepare()
@@ -53,7 +60,7 @@ public class WaveUI : MonoBehaviour
         if (prepareText != null)
         {
             prepareText.gameObject.SetActive(true);
-            prepareText.text = "GET READY!";
+            prepareText.text = "ПРИГОТОВЬСЯ!";
         }
     }
 
@@ -95,7 +102,7 @@ public class WaveUI : MonoBehaviour
         if (waveCompleteText != null)
         {
             waveCompleteText.gameObject.SetActive(true);
-            waveCompleteText.text = "WAVE COMPLETE";
+            waveCompleteText.text = "ВОЛНА ЗАВЕРШЕНА";
         }
     }
 
@@ -115,5 +122,28 @@ public class WaveUI : MonoBehaviour
 
         if (waveCompleteText != null)
             waveCompleteText.gameObject.SetActive(false);
+    }
+
+    // Короткий баннер игрового события (амбуш, пачка, зона) —
+    // переиспользует панель волны, которая во время боя скрыта.
+    public void ShowEvent(string label)
+    {
+        if (wavePanel != null)
+            wavePanel.SetActive(true);
+
+        if (prepareText != null)
+            prepareText.gameObject.SetActive(false);
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
+
+        if (waveCompleteText != null)
+            waveCompleteText.gameObject.SetActive(false);
+
+        if (waveText != null)
+        {
+            waveText.gameObject.SetActive(true);
+            waveText.text = label;
+        }
     }
 }

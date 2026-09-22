@@ -15,6 +15,10 @@ public class EnemyProjectile : MonoBehaviour
 
     private Vector3 direction;
     private LineRenderer lineRenderer;
+    private float lifetimeRemaining;
+
+    // Ключ пула (по префабу): пустой = объект живёт вне пула.
+    public int PoolKey { get; internal set; }
 
     private static Material cachedTrailMaterial;
 
@@ -27,6 +31,7 @@ public class EnemyProjectile : MonoBehaviour
         damage = newDamage;
         speed = newSpeed;
 
+        lifetimeRemaining = lifetime;
     }
 
     private void Awake()
@@ -35,19 +40,29 @@ public class EnemyProjectile : MonoBehaviour
             BuildTrail();
     }
 
-    private void Start()
-    {
-        Destroy(gameObject, lifetime);
-    }
-
     private void Update()
     {
+        lifetimeRemaining -= Time.deltaTime;
+
+        if (lifetimeRemaining <= 0f)
+        {
+            ReturnToPool();
+            return;
+        }
+
         transform.position +=
             direction *
             speed *
             Time.deltaTime;
 
         UpdateTrail();
+    }
+
+    public void ReturnToPool()
+    {
+        lifetimeRemaining = 0f;
+
+        EnemyProjectilePool.Despawn(this);
     }
 
     private void BuildTrail()
@@ -135,7 +150,7 @@ public class EnemyProjectile : MonoBehaviour
     {
         if (StructureQuery.IsWorldStructure(other))
         {
-            Destroy(gameObject);
+            ReturnToPool();
             return;
         }
 
@@ -148,6 +163,6 @@ public class EnemyProjectile : MonoBehaviour
         if (playerHealth != null)
             playerHealth.TakeDamage(damage);
 
-        Destroy(gameObject);
+        ReturnToPool();
     }
 }

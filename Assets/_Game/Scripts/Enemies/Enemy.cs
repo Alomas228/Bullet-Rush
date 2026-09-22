@@ -55,6 +55,12 @@ public class Enemy : MonoBehaviour
     private float abilityTimer;
     private float summonTimer;
 
+    // Состояние рывка быстрых врагов.
+    private bool isDashing;
+    private float dashTimer;
+    private float dashRemainingTime;
+    private Vector3 dashDirection;
+
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
 
@@ -296,6 +302,10 @@ public class Enemy : MonoBehaviour
                 HandleRangedBehaviour();
                 break;
 
+            case EnemyType.Fast:
+                HandleFastBehaviour();
+                break;
+
             case EnemyType.Elite:
                 HandleEliteBehaviour();
                 break;
@@ -352,6 +362,9 @@ public class Enemy : MonoBehaviour
 
         if (avoidSideTimer > 0f)
             avoidSideTimer -= deltaTime;
+
+        if (dashTimer > 0f)
+            dashTimer -= deltaTime;
 
         UpdateDoT(deltaTime);
     }
@@ -439,7 +452,22 @@ public class Enemy : MonoBehaviour
         if (desired.sqrMagnitude <= 0.01f)
             return;
 
+        // Полная дистанция нужна только быстрым врагам для проверки
+        // рывка — обычные не платят за лишний sqrt каждый кадр.
+        float distanceToPlayer =
+            cachedEnemyType == EnemyType.Fast
+                ? Mathf.Sqrt(desired.sqrMagnitude)
+                : 0f;
+
         desired.Normalize();
+
+        TryStartDash(desired, distanceToPlayer);
+
+        if (isDashing)
+        {
+            ApplyDash();
+            return;
+        }
 
         float speed =
             enemyData != null
@@ -474,6 +502,79 @@ public class Enemy : MonoBehaviour
         RotateTowards(moveDirection);
     }
 
+
+    // =========================================================
+    // FAST DASH
+    // =========================================================
+
+    // Быстрые враги не просто гонятся — вблизи бросаются рывком.
+    // Преследование ведёт MoveTowardsPlayer, рывок берёт на себя
+    // движение до конца длительности.
+    private void HandleFastBehaviour()
+    {
+        if (isDashing)
+        {
+            ApplyDash();
+            return;
+        }
+
+        MoveTowardsPlayer();
+    }
+
+    private void TryStartDash(
+        Vector3 direction,
+        float distanceToPlayer)
+    {
+        if (isDashing)
+            return;
+
+        if (cachedEnemyType != EnemyType.Fast)
+            return;
+
+        if (enemyData == null)
+            return;
+
+        if (dashTimer > 0f)
+            return;
+
+        if (distanceToPlayer > enemyData.DashRange)
+            return;
+
+        isDashing = true;
+        dashDirection = direction;
+        dashRemainingTime = enemyData.DashDuration;
+        dashTimer = enemyData.DashCooldown;
+    }
+
+    private void ApplyDash()
+    {
+        dashRemainingTime -= Time.deltaTime;
+
+        if (dashRemainingTime <= 0f)
+        {
+            isDashing = false;
+            return;
+        }
+
+        float dashSpeed =
+            enemyData != null
+                ? enemyData.MoveSpeed *
+                  enemyData.DashSpeedMultiplier
+                : 14f;
+
+        transform.position +=
+            dashDirection *
+            dashSpeed *
+            Time.deltaTime;
+
+        if (structureResolveTimer <= 0f)
+        {
+            ResolveStructureOverlap();
+            structureResolveTimer = Mathf.Max(structureResolveInterval, 0.02f);
+        }
+
+        RotateTowards(dashDirection);
+    }
 
     // =========================================================
     // SMOOTH ROTATION
@@ -862,7 +963,7 @@ public class Enemy : MonoBehaviour
 
         if (attackTimer <= 0f)
         {
-            ShootAtPlayer(
+            ShootFanAtPlayer(
                 enemyData.ProjectileDamage * scaledDamageMultiplier,
                 enemyData.ProjectileSpeed
             );
@@ -895,21 +996,48 @@ public class Enemy : MonoBehaviour
 
     private void EliteAbility()
     {
-        if (currentHealth >= scaledMaxHealth * 0.8f)
+        if (enemyData == null)
             return;
 
-        float healAmount =
-            scaledMaxHealth * 0.05f;
+        // Вместо пассивного хилинга — зона шока вокруг элиты:
+        // нельзя стоять рядом и дожигать её с руки.
+        GameObject zoneObject =
+            new GameObject("Elite_Shockwave");
 
-        currentHealth =
-            Mathf.Min(
-                currentHealth + healAmount,
-                scaledMaxHealth
-            );
+        zoneObject.transform.position =
+            transform.position;
+
+        zoneObject.transform.rotation =
+            Quaternion.identity;
+
+        HazardZone zone =
+            zoneObject.AddComponent<HazardZone>();
+
+        zone.Initialize(
+            enemyData.AbilityWarning,
+            enemyData.AbilityRadius,
+            enemyData.AbilityDps,
+            enemyData.AbilityDuration,
+            1.35f
+        );
+
+        PlayEliteAbilitySound();
 
         Debug.Log(
-            $"Elite '{name}' healed {healAmount:0} HP."
+            $"Elite '{name}' cast a shockwave zone."
         );
+    }
+
+    private void PlayEliteAbilitySound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(sfx.BossAbility);
     }
 
 
@@ -1381,15 +1509,91 @@ public class Enemy : MonoBehaviour
 
         direction.Normalize();
 
-        GameObject projectileObject =
-            Instantiate(
+        SpawnEnemyProjectile(
+            direction,
+            damage,
+            projectileSpeed
+        );
+    }
+
+    // Веер дальника: несколько снарядов с равномерным разлётом
+    // вокруг прицела. Одиночная пуля стала слишком легко уворачиваемой.
+    private void ShootFanAtPlayer(
+        float damage,
+        float projectileSpeed)
+    {
+        if (enemyProjectilePrefab == null)
+        {
+            Debug.LogWarning(
+                $"Enemy '{name}' has no projectile prefab."
+            );
+
+            return;
+        }
+
+        Vector3 baseDirection =
+            player.position -
+            attackPoint.position;
+
+        if (baseDirection.sqrMagnitude <= 0.01f)
+            return;
+
+        baseDirection.Normalize();
+
+        int projectileCount =
+            enemyData != null
+                ? enemyData.FanProjectileCount
+                : 1;
+
+        float spread =
+            enemyData != null
+                ? enemyData.FanSpreadDegrees
+                : 0f;
+
+        for (int i = 0; i < projectileCount; i++)
+        {
+            float t =
+                projectileCount <= 1
+                    ? 0f
+                    : (float)i / (projectileCount - 1f);
+
+            float angleOffset =
+                Mathf.Lerp(
+                    -spread * 0.5f,
+                    spread * 0.5f,
+                    t
+                );
+
+            Vector3 direction =
+                Quaternion.Euler(
+                    0f,
+                    angleOffset,
+                    0f
+                ) *
+                baseDirection;
+
+            SpawnEnemyProjectile(
+                direction,
+                damage,
+                projectileSpeed
+            );
+        }
+    }
+
+    private void SpawnEnemyProjectile(
+        Vector3 direction,
+        float damage,
+        float projectileSpeed)
+    {
+        if (enemyProjectilePrefab == null)
+            return;
+
+        EnemyProjectile projectile =
+            EnemyProjectilePool.Spawn(
                 enemyProjectilePrefab,
                 attackPoint.position,
                 Quaternion.LookRotation(direction)
             );
-
-        EnemyProjectile projectile =
-            projectileObject.GetComponent<EnemyProjectile>();
 
         if (projectile != null)
         {
@@ -1680,6 +1884,7 @@ public class Enemy : MonoBehaviour
 
         IsDead = true;
 
+        SpawnDeathExplosion();
         SpawnBloodPool();
         SpawnLoot();
 
@@ -1822,6 +2027,88 @@ public class Enemy : MonoBehaviour
             splatters,
             maxOffset
         );
+    }
+
+    // =========================================================
+    // DEATH EXPLOSION
+    // =========================================================
+
+    // Танк при смерти разлетается веером снарядов — «не стой рядом,
+    // чтобы зачистить жирную тушу». Урон снарядов едет от масштаба волны.
+    private void SpawnDeathExplosion()
+    {
+        if (cachedEnemyType != EnemyType.Tank)
+            return;
+
+        if (enemyData == null ||
+            enemyProjectilePrefab == null)
+        {
+            return;
+        }
+
+        int projectileCount =
+            enemyData.DeathExplosionProjectileCount;
+
+        if (projectileCount <= 0)
+            return;
+
+        float damage =
+            enemyData.DeathExplosionDamage *
+            scaledDamageMultiplier;
+
+        float projectileSpeed =
+            enemyData.DeathExplosionProjectileSpeed;
+
+        Vector3 origin =
+            transform.position +
+            Vector3.up * 0.6f;
+
+        for (int i = 0; i < projectileCount; i++)
+        {
+            float angle =
+                (float)i / projectileCount *
+                360f +
+                Random.Range(-6f, 6f);
+
+            Vector3 direction =
+                new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad),
+                    0f,
+                    Mathf.Sin(angle * Mathf.Deg2Rad)
+                );
+
+            direction.Normalize();
+
+            EnemyProjectile projectile =
+                EnemyProjectilePool.Spawn(
+                    enemyProjectilePrefab,
+                    origin,
+                    Quaternion.LookRotation(direction)
+                );
+
+            if (projectile != null)
+            {
+                projectile.Initialize(
+                    direction,
+                    damage,
+                    projectileSpeed
+                );
+            }
+        }
+
+        PlayTankExplosionSound();
+    }
+
+    private void PlayTankExplosionSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(sfx.BossAoeExplode);
     }
 
 

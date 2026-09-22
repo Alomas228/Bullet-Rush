@@ -32,6 +32,31 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("Пауза между врагами внутри одного приёма.")]
     [SerializeField] private float spawnStagger = 0.15f;
 
+    [Header("Wave Archetype Pressure")]
+    [Tooltip("Делитель роста батчей от номера волны. Чем меньше — тем быстрее нарастает давление.")]
+    [SerializeField] private float batchSizeGrowthDivisor = 5f;
+    [Tooltip("Затухание интервала между приёмами за волну (перемножается каждую волну).")]
+    [SerializeField] private float spawnIntervalDecay = 0.95f;
+    [Tooltip("Минимальный интервал между приёмами волны (до множителя архетипа).")]
+    [SerializeField] private float minSpawnInterval = 0.30f;
+    [Tooltip("Потолок размера приёма после масштабирования.")]
+    [SerializeField] private int maxScaledBatchSize = 12;
+
+    [Tooltip("Множитель размера приёма для «Роя».")]
+    [SerializeField] private float swarmBatchSizeMultiplier = 1.5f;
+    [Tooltip("Множитель интервала для «Роя» (меньше = чаще).")]
+    [SerializeField] private float swarmIntervalMultiplier = 0.6f;
+
+    [Tooltip("Множитель размера приёма для «Осады».")]
+    [SerializeField] private float siegeBatchSizeMultiplier = 0.7f;
+    [Tooltip("Множитель интервала для «Осады».")]
+    [SerializeField] private float siegeIntervalMultiplier = 1.35f;
+
+    [Tooltip("Множитель размера приёма для «Вылазки».")]
+    [SerializeField] private float huntBatchSizeMultiplier = 0.8f;
+    [Tooltip("Множитель интервала для «Вылазки».")]
+    [SerializeField] private float huntIntervalMultiplier = 0.9f;
+
     [Header("Arena Edge Spawning")]
     [Tooltip("Ближняя граница кольца спауна у края арены (доля радиуса).")]
     [SerializeField] private float arenaEdgeMin = 0.85f;
@@ -46,9 +71,18 @@ public class EnemySpawner : MonoBehaviour
 
     public int CurrentWave { get; set; } = 1;
 
+    // Архетип текущей волны — влияет на состав и давление. Выставляется
+    // менеджером волн до начала спавна.
+    public WaveArchetype CurrentArchetype { get; set; } =
+        WaveArchetype.Standard;
+
     // Пока true — волна считается «идущей»: очередь спавна ещё не исчерпана.
     // Нужно менеджеру волн, чтобы не завершать волну, пока враги только едут.
     public bool IsSpawning { get; private set; }
+
+    // Архетип, под который спавнятся враги текущей волны.
+    private WaveArchetype currentWaveArchetype =
+        WaveArchetype.Standard;
 
     private Coroutine spawnQueueCoroutine;
 
@@ -87,14 +121,19 @@ public class EnemySpawner : MonoBehaviour
 
     public void SpawnWave(
         int enemyCount,
-        int wave)
+        int wave,
+        WaveArchetype archetype =
+            WaveArchetype.Standard)
     {
         StopSpawnQueue();
+
+        CurrentArchetype = archetype;
+        currentWaveArchetype = archetype;
         spawnedPositions.Clear();
 
         IsSpawning = enemyCount > 0;
         spawnQueueCoroutine = StartCoroutine(
-            SpawnWaveRoutine(enemyCount, wave)
+            SpawnWaveRoutine(enemyCount, wave, archetype)
         );
     }
 
@@ -119,25 +158,32 @@ public class EnemySpawner : MonoBehaviour
     // Волна не вываливается за один кадр, а «вытекает» приёмами:
     // щуп → регулярные порции → паузы. Так у игрока есть время
     // среагировать на каждый выход, а не паника от 20 врагов разом.
+    // Архетип правит и размером порций, и частотой приёмов.
     private IEnumerator SpawnWaveRoutine(
         int enemyCount,
-        int wave)
+        int wave,
+        WaveArchetype archetype)
     {
         int remaining = Mathf.Max(enemyCount, 0);
         bool firstBatch = true;
 
+        currentWaveArchetype = archetype;
+
         // Давление волны растёт с её номером: порции крупнее,
-        // паузы между ними короче.
+        // паузы между ними короче. Скорость роста настраивается
+        // делителем — чем он меньше, тем раньше волны «жарят».
         int batchSizeGrowth =
             Mathf.FloorToInt(
-                Mathf.Max(wave - 1, 0) / 8f
+                Mathf.Max(wave - 1, 0) /
+                Mathf.Max(batchSizeGrowthDivisor, 1f)
             );
 
         int effectiveBatchSize =
-            Mathf.Max(spawnBatchSize, 1) +
+            Mathf.RoundToInt(
+                Mathf.Max(spawnBatchSize, 1) *
+                GetBatchSizeMultiplier(archetype)
+            ) +
             batchSizeGrowth;
-
-        const int maxScaledBatchSize = 12;
 
         effectiveBatchSize =
             Mathf.Min(
@@ -147,10 +193,23 @@ public class EnemySpawner : MonoBehaviour
 
         float effectiveInterval =
             spawnBatchInterval *
-            Mathf.Pow(0.95f, Mathf.Max(wave - 1, 0));
+            GetIntervalMultiplier(archetype) *
+            Mathf.Pow(
+                spawnIntervalDecay,
+                Mathf.Max(wave - 1, 0)
+            );
 
         effectiveInterval =
-            Mathf.Max(effectiveInterval, 0.45f);
+            Mathf.Max(
+                effectiveInterval,
+                minSpawnInterval *
+                GetIntervalMultiplier(archetype)
+            );
+
+        // «Вылазка» гарантированно выводит одну элиту первой порцией.
+        bool elitePending =
+            archetype == WaveArchetype.Hunt &&
+            wave >= 7;
 
         while (remaining > 0)
         {
@@ -163,7 +222,16 @@ public class EnemySpawner : MonoBehaviour
 
             for (int i = 0; i < batchSize; i++)
             {
-                SpawnEnemy(wave);
+                if (elitePending)
+                {
+                    SpawnEnemy(wave, elitePrefab);
+                    elitePending = false;
+                }
+                else
+                {
+                    SpawnEnemy(wave);
+                }
+
                 remaining--;
 
                 if (remaining <= 0)
@@ -181,7 +249,47 @@ public class EnemySpawner : MonoBehaviour
         IsSpawning = false;
     }
 
-    private void SpawnEnemy(int wave)
+    private float GetBatchSizeMultiplier(
+        WaveArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case WaveArchetype.Swarm:
+                return Mathf.Max(swarmBatchSizeMultiplier, 0.1f);
+
+            case WaveArchetype.Siege:
+                return Mathf.Max(siegeBatchSizeMultiplier, 0.1f);
+
+            case WaveArchetype.Hunt:
+                return Mathf.Max(huntBatchSizeMultiplier, 0.1f);
+
+            default:
+                return 1f;
+        }
+    }
+
+    private float GetIntervalMultiplier(
+        WaveArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case WaveArchetype.Swarm:
+                return Mathf.Max(swarmIntervalMultiplier, 0.1f);
+
+            case WaveArchetype.Siege:
+                return Mathf.Max(siegeIntervalMultiplier, 0.1f);
+
+            case WaveArchetype.Hunt:
+                return Mathf.Max(huntIntervalMultiplier, 0.1f);
+
+            default:
+                return 1f;
+        }
+    }
+
+    private void SpawnEnemy(
+        int wave,
+        GameObject forcedPrefab = null)
     {
         if (player == null)
         {
@@ -193,7 +301,9 @@ public class EnemySpawner : MonoBehaviour
         }
 
         GameObject prefab =
-            GetEnemyPrefabForWave(wave);
+            forcedPrefab != null
+                ? forcedPrefab
+                : GetEnemyPrefabForWave(wave);
 
         if (prefab == null)
         {
@@ -562,6 +672,119 @@ public class EnemySpawner : MonoBehaviour
             enemy.Initialize(CurrentWave);
     }
 
+    // =========================================================
+    // MID-WAVE EVENTS (Ambush / Rush)
+    // =========================================================
+
+    // Внезапная «осада» с близкой дистанции: кольцо быстрых врагов
+    // вокруг игрока. Работает через общего спасвнера, чтобы враги
+    // корректно инициализировались и уважали структуры.
+    public void SpawnAmbush(
+        int count,
+        float minDistance,
+        float maxDistance)
+    {
+        if (player == null)
+            return;
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle =
+                Random.Range(0f, 360f);
+
+            float radius =
+                Random.Range(minDistance, maxDistance);
+
+            Vector3 desired =
+                player.position +
+                new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
+                    0f,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * radius
+                );
+
+            desired.y = player.position.y;
+
+            if (!IsSpawnPositionFree(desired) &&
+                !TryGetFreePositionAround(desired, out desired))
+            {
+                continue;
+            }
+
+            EnemyType type =
+                CurrentWave >= 2
+                    ? EnemyType.Fast
+                    : EnemyType.Normal;
+
+            SpawnEnemyAtPosition(type, desired);
+        }
+    }
+
+    // Стенда с одного фланга: куча быстрых врагов из узкой дуги у края
+    // арены. Игрок вынужден сместиться, а не стоять на месте.
+    public void SpawnRushPack(
+        int count,
+        float arcDegrees,
+        int wave)
+    {
+        if (player == null)
+            return;
+
+        Vector3 arenaCenter = GetArenaCenter();
+
+        float minRadius =
+            GetArenaRadius() * arenaEdgeMin;
+
+        float maxRadius =
+            GetArenaRadius() * arenaEdgeMax;
+
+        float centerAngle =
+            Random.Range(0f, 360f);
+
+        float halfArc =
+            Mathf.Clamp(arcDegrees, 10f, 180f) *
+            0.5f;
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle =
+                centerAngle +
+                Random.Range(-halfArc, halfArc);
+
+            float radius =
+                Random.Range(minRadius, maxRadius);
+
+            Vector3 candidate =
+                arenaCenter +
+                new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
+                    player.position.y,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * radius
+                );
+
+            if (!IsSpawnPositionFree(candidate) &&
+                !TryGetFreePositionAround(candidate, out candidate))
+            {
+                continue;
+            }
+
+            EnemyType type =
+                wave >= 2
+                    ? EnemyType.Fast
+                    : EnemyType.Normal;
+
+            // Немного разного времени материализации, чтобы пачка
+            // выходила «волной», а не одним кадром.
+            float materialize =
+                Random.Range(
+                    spawnInDuration * 0.6f,
+                    spawnInDuration * 1.3f
+                );
+
+            SpawnEnemyAtPosition(type, candidate, materialize);
+        }
+    }
+
     private GameObject GetPrefabByType(
         EnemyType enemyType)
     {
@@ -596,8 +819,26 @@ public class EnemySpawner : MonoBehaviour
     private GameObject GetEnemyPrefabForWave(
         int wave)
     {
-        // Weighted selection without allocating a temporary List on every spawn.
-        // The old implementation rebuilt a 17-item list for every enemy.
+        switch (currentWaveArchetype)
+        {
+            case WaveArchetype.Swarm:
+                return GetSwarmPrefabForWave(wave);
+
+            case WaveArchetype.Siege:
+                return GetSiegePrefabForWave(wave);
+
+            case WaveArchetype.Hunt:
+                return GetHuntPrefabForWave(wave);
+
+            default:
+                return GetStandardPrefabForWave(wave);
+        }
+    }
+
+    // Сбалансированная смесь всех типов.
+    private GameObject GetStandardPrefabForWave(
+        int wave)
+    {
         int totalWeight = 0;
 
         if (normalPrefab != null)
@@ -610,10 +851,10 @@ public class EnemySpawner : MonoBehaviour
             totalWeight += 2;
 
         if (wave >= 4 && tankPrefab != null)
-            totalWeight += 1 + (wave >= 16 ? 1 : 0);
+            totalWeight += 1;
 
         if (wave >= 7 && elitePrefab != null)
-            totalWeight += 1 + Mathf.FloorToInt((wave - 7) / 5f);
+            totalWeight += 1 + Mathf.FloorToInt((wave - 7) / 12f);
 
         if (totalWeight <= 0)
             return null;
@@ -643,7 +884,178 @@ public class EnemySpawner : MonoBehaviour
 
         if (wave >= 4 && tankPrefab != null)
         {
-            roll -= 1 + (wave >= 16 ? 1 : 0);
+            roll -= 1;
+            if (roll < 0)
+                return tankPrefab;
+        }
+
+        if (wave >= 7 && elitePrefab != null)
+            return elitePrefab;
+
+        return null;
+    }
+
+    // «Рой»: давление быстрых бегунов.
+    private GameObject GetSwarmPrefabForWave(
+        int wave)
+    {
+        int totalWeight = 0;
+
+        if (normalPrefab != null)
+            totalWeight += 4;
+
+        if (wave >= 2 && fastPrefab != null)
+            totalWeight += 9;
+
+        if (wave >= 4 && rangedPrefab != null)
+            totalWeight += 1;
+
+        if (wave >= 8 && elitePrefab != null)
+            totalWeight += 1 + Mathf.FloorToInt((wave - 8) / 8f);
+
+        if (totalWeight <= 0)
+            return null;
+
+        int roll = Random.Range(0, totalWeight);
+
+        if (normalPrefab != null)
+        {
+            roll -= 4;
+            if (roll < 0)
+                return normalPrefab;
+        }
+
+        if (wave >= 2 && fastPrefab != null)
+        {
+            roll -= 9;
+            if (roll < 0)
+                return fastPrefab;
+        }
+
+        if (wave >= 4 && rangedPrefab != null)
+        {
+            roll -= 1;
+            if (roll < 0)
+                return rangedPrefab;
+        }
+
+        if (wave >= 8 && elitePrefab != null)
+            return elitePrefab;
+
+        return null;
+    }
+
+    // «Осада»: тяжёлые впереди, дальники стреляют из-за блоков.
+    private GameObject GetSiegePrefabForWave(
+        int wave)
+    {
+        int totalWeight = 0;
+
+        if (normalPrefab != null)
+            totalWeight += 4;
+
+        if (wave >= 2 && fastPrefab != null)
+            totalWeight += 1;
+
+        if (wave >= 3 && rangedPrefab != null)
+            totalWeight += 6;
+
+        if (wave >= 4 && tankPrefab != null)
+            totalWeight += 3;
+
+        if (wave >= 9 && elitePrefab != null)
+            totalWeight += 1;
+
+        if (totalWeight <= 0)
+            return null;
+
+        int roll = Random.Range(0, totalWeight);
+
+        if (normalPrefab != null)
+        {
+            roll -= 4;
+            if (roll < 0)
+                return normalPrefab;
+        }
+
+        if (wave >= 2 && fastPrefab != null)
+        {
+            roll -= 1;
+            if (roll < 0)
+                return fastPrefab;
+        }
+
+        if (wave >= 3 && rangedPrefab != null)
+        {
+            roll -= 6;
+            if (roll < 0)
+                return rangedPrefab;
+        }
+
+        if (wave >= 4 && tankPrefab != null)
+        {
+            roll -= 3;
+            if (roll < 0)
+                return tankPrefab;
+        }
+
+        if (wave >= 9 && elitePrefab != null)
+            return elitePrefab;
+
+        return null;
+    }
+
+    // «Вылазка»: элита впереди под прикрытием обычных.
+    // Гарантированная элита заводится отдельно в SpawnWaveRoutine.
+    private GameObject GetHuntPrefabForWave(
+        int wave)
+    {
+        int totalWeight = 0;
+
+        if (normalPrefab != null)
+            totalWeight += 6;
+
+        if (wave >= 2 && fastPrefab != null)
+            totalWeight += 2;
+
+        if (wave >= 3 && rangedPrefab != null)
+            totalWeight += 2;
+
+        if (wave >= 4 && tankPrefab != null)
+            totalWeight += 1;
+
+        if (wave >= 7 && elitePrefab != null)
+            totalWeight += 2;
+
+        if (totalWeight <= 0)
+            return null;
+
+        int roll = Random.Range(0, totalWeight);
+
+        if (normalPrefab != null)
+        {
+            roll -= 6;
+            if (roll < 0)
+                return normalPrefab;
+        }
+
+        if (wave >= 2 && fastPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return fastPrefab;
+        }
+
+        if (wave >= 3 && rangedPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return rangedPrefab;
+        }
+
+        if (wave >= 4 && tankPrefab != null)
+        {
+            roll -= 1;
             if (roll < 0)
                 return tankPrefab;
         }

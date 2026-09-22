@@ -8,6 +8,8 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private WaveUI waveUI;
     [SerializeField] private UpgradeUI upgradeUI;
     [SerializeField] private WorldStructureGenerator worldGenerator;
+    [Tooltip("События посреди волны. Если не назначен — создаётся на этом объекте.")]
+    [SerializeField] private WaveEventDirector eventDirector;
 
     [Header("Wave Settings")]
     [SerializeField] private int startingEnemies = 5;
@@ -38,6 +40,9 @@ public class WaveManager : MonoBehaviour
 
     public int CurrentWave { get; private set; }
 
+    private WaveArchetype currentArchetype =
+        WaveArchetype.Standard;
+
     private bool waveActive;
     private bool waitingForNextWave;
     private bool gameStarted;
@@ -50,6 +55,12 @@ public class WaveManager : MonoBehaviour
 
         if (upgradeUI == null)
             upgradeUI = FindAnyObjectByType<UpgradeUI>();
+
+        if (eventDirector == null)
+            eventDirector =
+                gameObject.AddComponent<WaveEventDirector>();
+
+        eventDirector.Initialize(enemySpawner, waveUI);
 
         if (GameStateManager.Instance != null)
         {
@@ -90,6 +101,9 @@ public class WaveManager : MonoBehaviour
             waveCompleteShown = false;
             StopAllCoroutines();
 
+            if (eventDirector != null)
+                eventDirector.Stop();
+
             if (enemySpawner != null)
                 enemySpawner.StopSpawnQueue();
 
@@ -120,6 +134,9 @@ public class WaveManager : MonoBehaviour
         {
             waitingForNextWave = true;
             waveActive = false;
+
+            if (eventDirector != null)
+                eventDirector.OnWaveEnded();
 
             if (waveCompleteShown)
                 return;
@@ -172,13 +189,19 @@ public class WaveManager : MonoBehaviour
         waitingForNextWave = false;
         waveCompleteShown = false;
 
+        currentArchetype =
+            GetArchetypeForWave(CurrentWave);
+
         SwitchToMainMusic();
 
         if (worldGenerator != null)
             worldGenerator.GenerateForWave(CurrentWave);
 
         if (waveUI != null)
-            waveUI.ShowWave(CurrentWave);
+            waveUI.ShowWave(
+                CurrentWave,
+                GetArchetypeSubtitle(currentArchetype)
+            );
 
         yield return new WaitForSeconds(waveDisplayTime);
 
@@ -243,7 +266,8 @@ public class WaveManager : MonoBehaviour
             enemiesAddedPerWave;
 
         Debug.Log(
-            $"WAVE {CurrentWave} START"
+            $"WAVE {CurrentWave} START " +
+            $"({currentArchetype})"
         );
 
         PlayWaveStartSound();
@@ -254,9 +278,15 @@ public class WaveManager : MonoBehaviour
         enemySpawner.CurrentWave = CurrentWave;
 
         // Босс-волна начинает «материализацию» сразу после каунтдауна.
+        // События посреди босс-волны не запускаем — у босса и так
+        // есть прислуга и способности.
         if (CurrentWave % bossWaveInterval == 0)
         {
             SpawnBossWave();
+
+            if (eventDirector != null)
+                eventDirector.OnWaveStarted(CurrentWave, false);
+
             return;
         }
 
@@ -264,8 +294,12 @@ public class WaveManager : MonoBehaviour
         // через IsSpawning, когда очередь спавна исчерпана.
         enemySpawner.SpawnWave(
             enemyCount,
-            CurrentWave
+            CurrentWave,
+            currentArchetype
         );
+
+        if (eventDirector != null)
+            eventDirector.OnWaveStarted(CurrentWave, true);
     }
 
     private void SpawnBossWave()
@@ -340,6 +374,52 @@ public class WaveManager : MonoBehaviour
         waveCompleteShown = false;
 
         StartCoroutine(StartNextWaveAfterDelay());
+    }
+
+    // =========================================================
+    // WAVE ARCHETYPES
+    // =========================================================
+
+    // Волны чередуются по фиксированному циклу, чтобы у каждой
+    // был свой характер: рой → осада → вылазка → снова.
+    private WaveArchetype GetArchetypeForWave(
+        int wave)
+    {
+        switch ((wave - 1) % 8)
+        {
+            case 1:
+            case 5:
+                return WaveArchetype.Swarm;
+
+            case 3:
+            case 7:
+                return WaveArchetype.Siege;
+
+            case 6:
+                return WaveArchetype.Hunt;
+
+            default:
+                return WaveArchetype.Standard;
+        }
+    }
+
+    private string GetArchetypeSubtitle(
+        WaveArchetype archetype)
+    {
+        switch (archetype)
+        {
+            case WaveArchetype.Swarm:
+                return "РОЙ";
+
+            case WaveArchetype.Siege:
+                return "ОСАДА";
+
+            case WaveArchetype.Hunt:
+                return "ВЫЛАЗКА";
+
+            default:
+                return null;
+        }
     }
 
     // =========================================================
