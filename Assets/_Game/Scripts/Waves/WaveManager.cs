@@ -48,6 +48,10 @@ public class WaveManager : MonoBehaviour
     private bool gameStarted;
     private bool waveCompleteShown;
 
+    // Для какой волны мир уже сгенерирован — чтобы не перестраивать
+    // арену заново, если она была подготовлена во время обучения.
+    private int generatedWorldWave = -1;
+
     private void Start()
     {
         if (waveUI != null)
@@ -69,8 +73,7 @@ public class WaveManager : MonoBehaviour
             if (GameStateManager.Instance.CurrentState == GameState.Playing && !gameStarted)
             {
                 gameStarted = true;
-                CurrentWave = 0;
-                StartCoroutine(StartWaveSequence());
+                BeginRun();
             }
         }
     }
@@ -86,12 +89,8 @@ public class WaveManager : MonoBehaviour
         if (state == GameState.Playing && !gameStarted)
         {
             gameStarted = true;
-            CurrentWave = 0;
 
-            if (ScoreManager.Instance != null)
-                ScoreManager.Instance.ResetRunStats();
-
-            StartCoroutine(StartWaveSequence());
+            BeginRun();
         }
         else if (state == GameState.Menu)
         {
@@ -99,6 +98,7 @@ public class WaveManager : MonoBehaviour
             waveActive = false;
             waitingForNextWave = false;
             waveCompleteShown = false;
+            generatedWorldWave = -1;
             StopAllCoroutines();
 
             if (eventDirector != null)
@@ -182,6 +182,59 @@ public class WaveManager : MonoBehaviour
         }
     }
 
+    // =========================================================
+    // RUN / TUTORIAL ENTRY POINTS
+    // =========================================================
+
+    // Первый запуск забега: сброс статистики и старт первой волны —
+    // либо сразу, либо через обучение, если оно ещё не пройдено.
+    private void BeginRun()
+    {
+        CurrentWave = 0;
+
+        if (ScoreManager.Instance != null)
+            ScoreManager.Instance.ResetRunStats();
+
+        // Обучение перехватывает запуск: волна стартует сама,
+        // когда игрок дошёл до конца туториала (StartFirstWave).
+        if (TutorialManager.Instance != null &&
+            TutorialManager.Instance.BeginTutorial())
+        {
+            return;
+        }
+
+        StartCoroutine(StartWaveSequence());
+    }
+
+    /// <summary>
+    /// Запускает первую волну после завершения обучения.
+    /// </summary>
+    public void StartFirstWave()
+    {
+        if (CurrentWave != 0)
+            return;
+
+        // Статистика обнуляется заново: убийства во время
+        // обучения не должны идти в счёт забега.
+        if (ScoreManager.Instance != null)
+            ScoreManager.Instance.ResetRunStats();
+
+        StartCoroutine(StartWaveSequence());
+    }
+
+    /// <summary>
+    /// Строит арену для первой волны заранее — во время обучения,
+    /// чтобы игрок сражался не на пустом поле.
+    /// </summary>
+    public void PrepareTutorialWorld()
+    {
+        if (worldGenerator == null)
+            return;
+
+        worldGenerator.GenerateForWave(1);
+        generatedWorldWave = 1;
+    }
+
     private IEnumerator StartWaveSequence()
     {
         CurrentWave++;
@@ -194,8 +247,14 @@ public class WaveManager : MonoBehaviour
 
         SwitchToMainMusic();
 
-        if (worldGenerator != null)
+        // Мир может быть уже построен во время обучения —
+        // тогда волну 1 не перестраиваем заново.
+        if (worldGenerator != null &&
+            generatedWorldWave != CurrentWave)
+        {
             worldGenerator.GenerateForWave(CurrentWave);
+            generatedWorldWave = CurrentWave;
+        }
 
         if (waveUI != null)
             waveUI.ShowWave(

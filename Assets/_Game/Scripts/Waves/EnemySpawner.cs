@@ -622,7 +622,7 @@ public class EnemySpawner : MonoBehaviour
     // SINGLE ENEMY SPAWN (Boss / Summons)
     // =========================================================
 
-    public void SpawnEnemyAtPosition(
+    public Enemy SpawnEnemyAtPosition(
         EnemyType enemyType,
         Vector3 position,
         float spawnDuration = -1f)
@@ -636,7 +636,7 @@ public class EnemySpawner : MonoBehaviour
                 $"EnemySpawner: Prefab for {enemyType} is not assigned."
             );
 
-            return;
+            return null;
         }
 
         Vector3 spawnPosition;
@@ -649,7 +649,7 @@ public class EnemySpawner : MonoBehaviour
                 $"EnemySpawner: Could not find a free position for {enemyType}."
             );
 
-            return;
+            return null;
         }
 
         GameObject enemyObject =
@@ -670,6 +670,8 @@ public class EnemySpawner : MonoBehaviour
 
         if (enemy != null)
             enemy.Initialize(CurrentWave);
+
+        return enemy;
     }
 
     // =========================================================

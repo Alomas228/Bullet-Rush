@@ -142,7 +142,11 @@ public class GameplayUI : MonoBehaviour
             {
                 cachedWave = wave;
 
-                waveText.text = $"WAVE: {wave}";
+                // WAVE: 0 выглядит багом — во время обучения волны ещё нет.
+                waveText.text =
+                    wave > 0
+                        ? $"WAVE: {wave}"
+                        : string.Empty;
             }
         }
 

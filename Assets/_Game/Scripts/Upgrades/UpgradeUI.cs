@@ -28,6 +28,12 @@ public class UpgradeUI : MonoBehaviour
     public bool IsShowing =>
         upgradePanel != null && upgradePanel.activeSelf;
 
+    /// <summary>
+    /// Срабатывает, когда игрок выбрал улучшение (index — слот карточки).
+    /// Нужен обучению: оно показывает это окно без WaveManager-волны.
+    /// </summary>
+    public event System.Action<int> OnUpgradeChosen;
+
     private void Start()
     {
         Hide();
@@ -113,6 +119,8 @@ public class UpgradeUI : MonoBehaviour
             return;
 
         UpgradeManager.Instance.ChooseUpgrade(index);
+
+        OnUpgradeChosen?.Invoke(index);
 
         // Передаём управление WaveManager
         if (waveManager != null)
