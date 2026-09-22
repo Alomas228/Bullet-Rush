@@ -7,25 +7,11 @@ public class LootPickup : MonoBehaviour
     [SerializeField] private float collectDistance = 0.7f;
 
     private LootType lootType;
-    private int xpValue;
     private float healPercent;
     private int coinValue;
 
     private Transform player;
     private bool collected;
-
-    public static void SpawnXP(
-        Vector3 position,
-        int xp)
-    {
-        CreatePickup(
-            position,
-            LootType.XP,
-            xp,
-            0f,
-            0
-        );
-    }
 
     public static void SpawnHealth(
         Vector3 position,
@@ -34,7 +20,6 @@ public class LootPickup : MonoBehaviour
         CreatePickup(
             position,
             LootType.Health,
-            0,
             healPercent,
             0
         );
@@ -47,7 +32,6 @@ public class LootPickup : MonoBehaviour
         CreatePickup(
             position,
             LootType.Coin,
-            0,
             0f,
             coins
         );
@@ -56,7 +40,6 @@ public class LootPickup : MonoBehaviour
     private static void CreatePickup(
         Vector3 position,
         LootType type,
-        int xp,
         float healPercent,
         int coins)
     {
@@ -79,10 +62,6 @@ public class LootPickup : MonoBehaviour
 
         switch (type)
         {
-            case LootType.XP:
-                prefab = config.XpPrefab;
-                break;
-
             case LootType.Health:
                 prefab = config.HealthPrefab;
                 break;
@@ -116,7 +95,6 @@ public class LootPickup : MonoBehaviour
 
         pickup.Initialize(
             type,
-            xp,
             healPercent,
             coins
         );
@@ -128,12 +106,10 @@ public class LootPickup : MonoBehaviour
 
     private void Initialize(
         LootType type,
-        int xp,
         float heal,
         int coins)
     {
         lootType = type;
-        xpValue = Mathf.Max(xp, 0);
         healPercent = Mathf.Max(heal, 0f);
         coinValue = Mathf.Max(coins, 0);
     }
@@ -192,13 +168,6 @@ public class LootPickup : MonoBehaviour
 
         switch (lootType)
         {
-            case LootType.XP:
-
-                if (XpManager.Instance != null)
-                    XpManager.Instance.AddRunXP(xpValue);
-
-                break;
-
             case LootType.Health:
 
                 PlayerHealth health =

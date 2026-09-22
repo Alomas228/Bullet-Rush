@@ -30,9 +30,6 @@ public class XpManager : MonoBehaviour
 
     public int RunCoins { get; private set; }
 
-    /// <summary>XP collected during the current run. Reset every run.</summary>
-    public int RunXP { get; private set; }
-
     /// <summary>Persistent Player XP. Survives runs and game restarts.</summary>
     public int GlobalXP { get; private set; }
     public int GlobalCoins { get; private set; }
@@ -93,9 +90,6 @@ public class XpManager : MonoBehaviour
     }
 
     public event Action<int> OnCoinsChanged;
-
-    /// <summary>Fired when XP collected during the run changes.</summary>
-    public event Action<int> OnRunXPChanged;
 
     /// <summary>Fired when persistent Player XP changes.</summary>
     public event Action<int> OnPlayerXPChanged;
@@ -161,26 +155,9 @@ public class XpManager : MonoBehaviour
     private void ResetRunData()
     {
         RunCoins = 0;
-        RunXP = 0;
         runRewardGranted = false;
 
         OnCoinsChanged?.Invoke(RunCoins);
-        OnRunXPChanged?.Invoke(RunXP);
-    }
-
-    // =========================================================
-    // RUN XP (inside the run only, resets every run)
-    // =========================================================
-
-    /// <summary>Adds XP collected during the current run. It is converted to Player XP at run end.</summary>
-    public void AddRunXP(int amount)
-    {
-        if (amount <= 0)
-            return;
-
-        RunXP += amount;
-
-        OnRunXPChanged?.Invoke(RunXP);
     }
 
     // =========================================================
@@ -240,7 +217,7 @@ public class XpManager : MonoBehaviour
         if (runRewardGranted)
             return;
 
-        Debug.Log("[Xp.ProcessRunEnd] entered, IsRunActive=" + IsRunActive + ", RunXP=" + RunXP + ", RunCoins=" + RunCoins);
+        Debug.Log("[Xp.ProcessRunEnd] entered, IsRunActive=" + IsRunActive + ", RunCoins=" + RunCoins);
 
         if (!IsRunActive)
         {
@@ -257,26 +234,17 @@ public class XpManager : MonoBehaviour
                 ? waveManager.CurrentWave
                 : 0;
 
-        int kills =
-            ScoreManager.Instance != null
-                ? ScoreManager.Instance.Kills
-                : 0;
-
         int reward =
             CalculateRunReward(
-                RunXP,
-                waveReached,
-                kills
+                waveReached
             );
 
         GrantPlayerXP(reward);
     }
 
-    /// <summary>Computes the Player XP reward for a finished run. Extensible: future XP sources can be added here.</summary>
+    /// <summary>Computes the Player XP reward for a finished run.</summary>
     public int CalculateRunReward(
-        int runXP,
-        int waveReached,
-        int kills)
+        int waveReached)
     {
         int baseReward =
             Mathf.Max(baseXPReward, 0);
@@ -295,17 +263,13 @@ public class XpManager : MonoBehaviour
             bossCount *
             Mathf.Max(xpPerBoss, 0);
 
-        int collectedRunXP =
-            Mathf.Max(runXP, 0);
-
         int result =
             baseReward +
             waveBonus +
-            bossBonus +
-            collectedRunXP;
+            bossBonus;
 
         Debug.Log(
-            $"Run reward: base {baseReward} + wave {waveBonus} + boss {bossBonus} + runXP {collectedRunXP} = {result}"
+            $"Run reward: base {baseReward} + wave {waveBonus} + boss {bossBonus} = {result}"
         );
 
         return result;

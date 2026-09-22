@@ -1760,11 +1760,6 @@ public class Enemy : MonoBehaviour
         Vector3 position =
             transform.position;
 
-        LootPickup.SpawnXP(
-            position,
-            GetXpValue()
-        );
-
         if (isBoss)
         {
             LootPickup.SpawnHealth(position, 0.35f);
@@ -1791,41 +1786,6 @@ public class Enemy : MonoBehaviour
             );
         }
     }
-
-    private int GetXpValue()
-    {
-        if (enemyData != null &&
-            cachedEnemyType == EnemyType.Boss &&
-            bossData != null)
-        {
-            return 100;
-        }
-
-        if (enemyData == null)
-            return 5;
-
-        switch (cachedEnemyType)
-        {
-            case EnemyType.Normal:
-                return 5;
-
-            case EnemyType.Fast:
-                return 7;
-
-            case EnemyType.Tank:
-                return 12;
-
-            case EnemyType.Ranged:
-                return 8;
-
-            case EnemyType.Elite:
-                return 25;
-
-            default:
-                return Mathf.Max(enemyData.ScoreValue / 2, 5);
-        }
-    }
-
 
     // =========================================================
     // BLOOD POOL
