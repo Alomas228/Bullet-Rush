@@ -88,6 +88,10 @@ public class UpgradeUI : MonoBehaviour
                 {
                     cards[i].NameText.text =
                         upgrade.UpgradeName;
+
+                    // Цвет названия = редкость (об этом говорит обучение).
+                    cards[i].NameText.color =
+                        RarityColor(upgrade.Rarity);
                 }
 
                 if (cards[i].DescriptionText != null)
@@ -135,6 +139,27 @@ public class UpgradeUI : MonoBehaviour
 
             Time.timeScale = 1f;
             Hide();
+        }
+    }
+
+    private static Color RarityColor(Rarity rarity)
+    {
+        switch (rarity)
+        {
+            case Rarity.Uncommon:
+                return new Color(0.42f, 0.8f, 0.35f);
+
+            case Rarity.Rare:
+                return new Color(0.4f, 0.58f, 0.95f);
+
+            case Rarity.Epic:
+                return new Color(0.66f, 0.42f, 0.92f);
+
+            case Rarity.Legendary:
+                return new Color(0.96f, 0.62f, 0.22f);
+
+            default:
+                return new Color(0.58f, 0.6f, 0.64f);
         }
     }
 
