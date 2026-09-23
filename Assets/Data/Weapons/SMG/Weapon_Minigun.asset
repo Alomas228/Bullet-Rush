@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: Weapon_Minigun
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   weaponName: Minigun
-  description: Ураган свинца. Огромный темп стрельбы, сметающий толпу.
+  description: "\u0423\u0440\u0430\u0433\u0430\u043D \u0441\u0432\u0438\u043D\u0446\u0430.
+    \u041E\u0433\u0440\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043C\u043F \u0441\u0442\u0440\u0435\u043B\u044C\u0431\u044B,
+    \u0441\u043C\u0435\u0442\u0430\u044E\u0449\u0438\u0439 \u0442\u043E\u043B\u043F\u0443."
   weaponType: 2
   rarity: 4
   unlockLevel: 12
@@ -35,8 +37,8 @@ MonoBehaviour:
   burnDamagePerSecond: 0
   burnDuration: 0
   burnTickInterval: 0.5
-  recoilForce: 0.3
-  shakeOnFire: 0.5
+  recoilForce: 0.01
+  shakeOnFire: 0.08
   lightningChance: 0
   lightningDamage: 0
   lightningTargets: 1

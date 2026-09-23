@@ -192,6 +192,10 @@ public static class TutorialUIBuilder
         skipText.color = Color.white;
         skipText.raycastTarget = false;
 
+        // Панель обучения кладём в самый низ Canvas, чтобы пауза,
+        // меню и Game Over рисовались поверх неё.
+        panel.transform.SetSiblingIndex(0);
+
         panel.SetActive(false);
 
         Undo.RegisterCreatedObjectUndo(

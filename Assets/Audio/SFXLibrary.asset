@@ -18,11 +18,14 @@ MonoBehaviour:
   weaponSwitch: {fileID: 0}
   enemySpawn: {fileID: 0}
   enemyHit: {fileID: 8300000, guid: cd839b7da0f218149963478d238883d0, type: 3}
-  enemyDie: {fileID: 0}
-  bossSpawn: {fileID: 0}
+  enemyDie: {fileID: 8300000, guid: db7c8a7df55b00d40a9b6f6348ffa0b7, type: 3}
+  bossSpawn: {fileID: 8300000, guid: 07a042b9012653245b78cb10445ae85c, type: 3}
   bossPhaseChange: {fileID: 0}
   bossAbility: {fileID: 0}
   bossAoeExplode: {fileID: 0}
+  pickupSpawn: {fileID: 0}
+  pickupCollect: {fileID: 0}
+  uiClick: {fileID: 0}
   countdownTick: {fileID: 0}
   waveStart: {fileID: 0}
   upgradePick: {fileID: 0}

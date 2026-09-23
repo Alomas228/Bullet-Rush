@@ -118,6 +118,7 @@ public class TutorialManager : MonoBehaviour
     private Transform player;
     private Enemy dodgeEnemy;
     private bool upgradeChosen;
+    private bool upgradeSubscribed;
     private bool subscribedState;
     private bool skipWired;
 
@@ -165,8 +166,38 @@ public class TutorialManager : MonoBehaviour
     {
         UnwireSkipButton();
 
+        UnsubscribeUpgrade();
+
         if (Instance == this)
             Instance = null;
+    }
+
+    private void Update()
+    {
+        if (GameStateManager.Instance == null)
+            return;
+
+        GameState state =
+            GameStateManager.Instance.CurrentState;
+
+        // Резервный контроль: не полагаемся только на событие.
+        // Если обучение идёт, а игры уже нет — сворачиваем его.
+        if (IsRunning && state != GameState.Playing)
+        {
+            AbortTutorial();
+            return;
+        }
+
+        // Защита от «застрявшей» панели: если она осталась активной
+        // вне игры (например, при возврате в меню), прячем принудительно.
+        if (!IsRunning &&
+            state != GameState.Playing &&
+            tutorialPanel != null &&
+            tutorialPanel.activeSelf)
+        {
+            HideAllSteps();
+            tutorialPanel.SetActive(false);
+        }
     }
 
     private void WireSkipButton()
@@ -194,7 +225,7 @@ public class TutorialManager : MonoBehaviour
 
     private void HandleStateChanged(GameState state)
     {
-        if (state == GameState.Menu && IsRunning)
+        if (state != GameState.Playing && IsRunning)
             AbortTutorial();
     }
 
@@ -266,13 +297,10 @@ public class TutorialManager : MonoBehaviour
 
         StopAllCoroutines();
 
-        if (upgradeUI != null)
-        {
-            upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
+        UnsubscribeUpgrade();
 
-            if (upgradeUI.IsShowing)
-                upgradeUI.Hide();
-        }
+        if (upgradeUI != null && upgradeUI.IsShowing)
+            upgradeUI.Hide();
 
         Time.timeScale = 1f;
 
@@ -304,24 +332,26 @@ public class TutorialManager : MonoBehaviour
 
         StopAllCoroutines();
 
+        UnsubscribeUpgrade();
+
+        // Паузу держит только окно улучшений — его и размораживаем.
+        bool upgradeWasShowing =
+            upgradeUI != null && upgradeUI.IsShowing;
+
+        if (upgradeUI != null && upgradeUI.IsShowing)
+            upgradeUI.Hide();
+
         IsRunning = false;
         upgradeChosen = false;
         dodgeEnemy = null;
-
-        if (upgradeUI != null)
-        {
-            upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
-
-            if (upgradeUI.IsShowing)
-                upgradeUI.Hide();
-        }
 
         HideAllSteps();
 
         if (tutorialPanel != null)
             tutorialPanel.SetActive(false);
 
-        Time.timeScale = 1f;
+        if (upgradeWasShowing)
+            Time.timeScale = 1f;
 
         WireSkipButton();
     }
@@ -406,14 +436,16 @@ public class TutorialManager : MonoBehaviour
         if (upgradeUI != null)
         {
             upgradeChosen = false;
+
             upgradeUI.OnUpgradeChosen += HandleUpgradeChosen;
+            upgradeSubscribed = true;
 
             upgradeUI.Show();
 
             while (!upgradeChosen)
                 yield return null;
 
-            upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
+            UnsubscribeUpgrade();
 
             upgradeUI.Hide();
             Time.timeScale = 1f;
@@ -761,6 +793,17 @@ public class TutorialManager : MonoBehaviour
     private void HandleUpgradeChosen(int index)
     {
         upgradeChosen = true;
+    }
+
+    private void UnsubscribeUpgrade()
+    {
+        if (!upgradeSubscribed)
+            return;
+
+        if (upgradeUI != null)
+            upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
+
+        upgradeSubscribed = false;
     }
 
     // =========================================================
