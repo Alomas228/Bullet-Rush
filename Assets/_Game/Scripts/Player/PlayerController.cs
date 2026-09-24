@@ -35,6 +35,8 @@ public class PlayerController : MonoBehaviour
 
     private bool spawnGrowInProgress;
 
+    public BonusSettings bonusSettings;
+
     public void PlaySpawnIn()
     {
         if (spawnGrowInProgress)
@@ -101,9 +103,6 @@ public class PlayerController : MonoBehaviour
         playerStats =
             GetComponent<PlayerStats>();
 
-        BonusSettings bonusSettings; 
-        
-        bonusSettings = FindAnyObjectByType<BonusSettings>();
 
         if (playerCamera == null)
             playerCamera = Camera.main;
@@ -304,7 +303,9 @@ public class PlayerController : MonoBehaviour
 
         ScoreManager sm = ScoreManager.Instance;
         if (sm != null)
-            sm.AddBonus(50, "Dash Dodge");
+        {
+            sm.AddBonus(bonusSettings.dashDodgeBonus, "Dash Dodge");
+        }
     }
 
     private void MoveDuringDash()

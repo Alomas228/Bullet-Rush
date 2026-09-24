@@ -9,7 +9,7 @@ public class BonusSettings : ScriptableObject
 {
     [Header("Движения")]
     [Tooltip("Бонус за рывок (dash dodge)")]
-    public int dashDodgeBonus = 50;
+    public int dashDodgeBonus = 20;
 
     [Tooltip("Бонус за использование способности")]
     public int abilityUseBonus = 25;

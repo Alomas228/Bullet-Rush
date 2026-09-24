@@ -1919,7 +1919,7 @@ public class Enemy : MonoBehaviour
         {
             ScoreManager.Instance.IncrementKills();
             ScoreManager.Instance.AddScore(
-                Mathf.RoundToInt(baseScore)
+                Mathf.RoundToInt(baseScore), "Убийство врага"
             );
         }
 

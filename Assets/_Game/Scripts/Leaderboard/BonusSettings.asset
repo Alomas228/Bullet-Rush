@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77d9a9a0e2a284f34806cd98808691e2, type: 3}
+  m_Name: BonusSettings
+  m_EditorClassIdentifier: Assembly-CSharp::BonusSettings
+  dashDodgeBonus: 20
+  abilityUseBonus: 25
+  comboThreshold10: 10
+  comboBonus10: 100
+  comboThreshold20: 20
+  comboBonus20: 250
+  comboThreshold30: 30
+  comboBonus30: 500
+  comboThreshold50: 50
+  comboBonus50: 1000
+  perfectWaveBonus: 500
+  speedBonusFast: 2000
+  speedThresholdFast: 180
+  speedBonusMedium: 1000
+  speedThresholdMedium: 300
+  efficiencyBonusHigh: 1500
+  efficiencyThresholdHigh: 10
+  efficiencyBonusMedium: 750
+  efficiencyThresholdMedium: 5
+  multiKillBonus: 100
