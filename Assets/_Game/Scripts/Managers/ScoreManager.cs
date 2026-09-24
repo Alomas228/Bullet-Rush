@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class ScoreManager : MonoBehaviour
@@ -9,6 +10,8 @@ public class ScoreManager : MonoBehaviour
 
     public int Score { get; private set; }
     public int Kills { get; private set; }
+
+    public event Action<int> OnScoreAdded;
 
     private void Awake()
     {
@@ -62,6 +65,8 @@ public class ScoreManager : MonoBehaviour
             );
 
         Score += finalAmount;
+
+        OnScoreAdded?.Invoke(finalAmount);
 
         Debug.Log(
             $"Score: +{finalAmount} " +

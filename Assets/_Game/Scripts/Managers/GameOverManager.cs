@@ -51,6 +51,26 @@ public class GameOverManager : MonoBehaviour
 
         IsGameOver = true;
 
+        // ============================================
+        // LEADERBOARD: Собираем метрики
+        // ============================================
+        RunMetrics metrics =
+            FindAnyObjectByType<RunMetrics>();
+        
+        if (metrics != null)
+        {
+            RunResult result = metrics.CollectResult();
+            
+            // Отправляем на сервер
+            LeaderboardService.Instance?.SubmitResult(result);
+            
+            // Показываем UI
+            GameOverLeaderboardUI lbUI =
+                FindAnyObjectByType<GameOverLeaderboardUI>();
+            if (lbUI != null)
+                lbUI.ShowResults(metrics);
+        }
+
         Debug.Log("[GameOver] entered; XpManager.Instance present: " + (XpManager.Instance != null) + ", IsRunActive: " + (XpManager.Instance != null ? XpManager.Instance.IsRunActive.ToString() : "n/a"));
 
         if (XpManager.Instance != null)

@@ -293,6 +293,10 @@ public class PlayerController : MonoBehaviour
         dashCooldownTimer = dashCooldown;
 
         recoilOffset = Vector3.zero;
+
+        RunMetrics rm = FindAnyObjectByType<RunMetrics>();
+        if (rm != null)
+            rm.RecordDashDodged();
     }
 
     private void MoveDuringDash()

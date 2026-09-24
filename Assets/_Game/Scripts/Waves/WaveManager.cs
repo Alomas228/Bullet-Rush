@@ -143,6 +143,18 @@ public class WaveManager : MonoBehaviour
 
             waveCompleteShown = true;
 
+            // ============================================
+            // LEADERBOARD METRICS
+            // ============================================
+            RunMetrics metrics =
+                FindAnyObjectByType<RunMetrics>();
+            if (metrics != null)
+            {
+                PlayerHealth ph = FindAnyObjectByType<PlayerHealth>();
+                bool wasPerfect = ph != null && ph.CurrentHealth >= ph.MaxHealth;
+                metrics.OnWaveCleared(wasPerfect);
+            }
+
             if (waveUI != null)
             {
                 waveUI.ShowWaveComplete();
@@ -193,7 +205,17 @@ public class WaveManager : MonoBehaviour
         CurrentWave = 0;
 
         if (ScoreManager.Instance != null)
+        {
             ScoreManager.Instance.ResetRunStats();
+        }
+            
+        // LEADERBOARD: сброс и старт метрик
+        RunMetrics metrics = FindAnyObjectByType<RunMetrics>();
+        if (metrics != null)
+        {
+            metrics.ResetAll();
+            metrics.StartRun();
+        }
 
         // Обучение перехватывает запуск: волна стартует сама,
         // когда игрок дошёл до конца туториала (StartFirstWave).
@@ -216,8 +238,16 @@ public class WaveManager : MonoBehaviour
 
         // Статистика обнуляется заново: убийства во время
         // обучения не должны идти в счёт забега.
-        if (ScoreManager.Instance != null)
+        if (ScoreManager.Instance != null){
             ScoreManager.Instance.ResetRunStats();
+        }
+
+        // LEADERBOARD: старт метрик после обучения
+        RunMetrics metrics = FindAnyObjectByType<RunMetrics>();
+        if (metrics != null)
+        {
+            metrics.StartRun();
+        }
 
         StartCoroutine(StartWaveSequence());
     }

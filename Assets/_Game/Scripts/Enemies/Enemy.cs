@@ -1893,31 +1893,52 @@ public class Enemy : MonoBehaviour
         burnActive = false;
         bleedActive = false;
 
+        // ============================================
+        // LEADERBOARD METRICS
+        // ============================================
+
+        float scoreValue = 0f;
+
+        if (enemyData != null &&
+            isBoss &&
+            bossData != null)
+        {
+            scoreValue = bossData.ScoreValue;
+        }
+        else if (enemyData != null)
+        {
+            scoreValue = enemyData.ScoreValue;
+        }
+
+        float scoreMultiplier =
+            1f + (currentWave - 1) * GetWaveScorePercent();
+
+        float baseScore = scoreValue * scoreMultiplier;
+
         if (ScoreManager.Instance != null)
         {
             ScoreManager.Instance.IncrementKills();
+            ScoreManager.Instance.AddScore(
+                Mathf.RoundToInt(baseScore)
+            );
+        }
 
-            float scoreMultiplier =
-                1f + (currentWave - 1) * GetWaveScorePercent();
+        // Отправляем метрику в RunMetrics
+        RunMetrics metrics =
+            FindAnyObjectByType<RunMetrics>();
 
-            if (enemyData != null &&
-                isBoss &&
-                bossData != null)
-            {
-                ScoreManager.Instance.AddScore(
-                    Mathf.RoundToInt(
-                        bossData.ScoreValue * scoreMultiplier
-                    )
-                );
-            }
-            else if (enemyData != null)
-            {
-                ScoreManager.Instance.AddScore(
-                    Mathf.RoundToInt(
-                        enemyData.ScoreValue * scoreMultiplier
-                    )
-                );
-            }
+        if (metrics != null)
+        {
+            metrics.OnEnemyDied(
+                this,
+                baseScore,
+                false
+            );
+
+            ComboSystem combo =
+                FindAnyObjectByType<ComboSystem>();
+            if (combo != null)
+                combo.OnEnemyKilled();
         }
 
         if (enemyData != null &&

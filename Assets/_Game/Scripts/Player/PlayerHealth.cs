@@ -87,6 +87,20 @@ public class PlayerHealth : MonoBehaviour
         CurrentHealth -= damage;
         CurrentHealth = Mathf.Max(CurrentHealth, 0f);
 
+        // ============================================
+        // LEADERBOARD METRICS
+        // ============================================
+        RunMetrics metrics =
+            FindAnyObjectByType<RunMetrics>();
+        if (metrics != null)
+            metrics.OnPlayerDamaged(damage);
+
+        // Сброс комбо при получении урона
+        ComboSystem combo =
+            FindAnyObjectByType<ComboSystem>();
+        if (combo != null)
+            combo.OnPlayerHit();
+
         PlayPlayerHitSound();
         TriggerScreenShake();
 
