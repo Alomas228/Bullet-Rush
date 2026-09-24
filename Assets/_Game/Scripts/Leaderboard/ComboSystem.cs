@@ -13,6 +13,7 @@ public class ComboSystem : MonoBehaviour
     private int comboCount;
     private float comboTimer;
     private float lastKillTime;
+    private int lastComboThresholdReached = 0; // Для отслеживания порогов бонусов
 
     public int ComboCount => comboCount;
 
@@ -74,9 +75,11 @@ public class ComboSystem : MonoBehaviour
 
     /// <summary>
     /// Вызывается при получении урона игроком.
+    /// Сбрасывает порог бонусов!
     /// </summary>
     public void OnPlayerHit()
     {
+        lastComboThresholdReached = 0;
         ResetCombo();
     }
 
@@ -109,10 +112,27 @@ public class ComboSystem : MonoBehaviour
         OnComboChanged?.Invoke(comboCount);
     }
 
+    /// <summary>
+    /// Получить последний достигнутый порог комбо.
+    /// </summary>
+    public int GetLastComboThresholdReached()
+    {
+        return lastComboThresholdReached;
+    }
+
+    /// <summary>
+    /// Установить последний достигнутый порог комбо.
+    /// </summary>
+    public void SetLastComboThresholdReached(int threshold)
+    {
+        lastComboThresholdReached = threshold;
+    }
+
     public void ResetAll()
     {
         comboCount = 0;
         comboTimer = 0f;
         lastKillTime = 0f;
+        lastComboThresholdReached = 0;
     }
 }

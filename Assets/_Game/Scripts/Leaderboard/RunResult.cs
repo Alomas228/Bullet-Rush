@@ -52,6 +52,8 @@ public class RunResult
     public int abilitiesUsed;
     public int dashDodges;
     public int multiKillStreaks;
+    public float totalDistance;
+    public int totalDashDistance;
 
     // =========================================================
     // RANK & BONUS
@@ -98,6 +100,9 @@ public class RunResult
         abilitiesUsed = 0;
         dashDodges = 0;
         multiKillStreaks = 0;
+
+        totalDistance = 0f;
+        totalDashDistance = 0;
 
         rank = "F";
         styleBonus = 0;

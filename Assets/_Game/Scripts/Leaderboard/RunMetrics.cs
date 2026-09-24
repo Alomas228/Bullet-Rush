@@ -43,6 +43,15 @@ public class RunMetrics : MonoBehaviour
     private int multiKillStreaks;
 
     // =========================================================
+    // MOVEMENT METRICS
+    // =========================================================
+
+    private float totalDistanceTraveled;
+    private float lastPosition;
+    private int totalDashDistance;
+    private int movementBurstCount;
+
+    // =========================================================
     // PROPERTIES
     // =========================================================
 
@@ -62,6 +71,8 @@ public class RunMetrics : MonoBehaviour
     public int AbilitiesUsed => abilitiesUsed;
     public int DashDodges => dashDodges;
     public int MultiKillStreaks => multiKillStreaks;
+    public float TotalDistance => totalDistanceTraveled;
+    public int TotalDashDistance => totalDashDistance;
 
     public event System.Action<float> OnDamageDealt;
     public event System.Action<float> OnDamageTaken;
@@ -82,27 +93,19 @@ public class RunMetrics : MonoBehaviour
     private void OnEnable()
     {
         if (scoreManager != null)
-        {
             scoreManager.OnScoreAdded += OnScoreAdded;
-        }
 
         if (comboSystem != null)
-        {
             comboSystem.OnComboChanged += OnComboChanged;
-        }
     }
 
     private void OnDisable()
     {
         if (scoreManager != null)
-        {
             scoreManager.OnScoreAdded -= OnScoreAdded;
-        }
 
         if (comboSystem != null)
-        {
             comboSystem.OnComboChanged -= OnComboChanged;
-        }
     }
 
     /// <summary>
@@ -113,6 +116,30 @@ public class RunMetrics : MonoBehaviour
         runStarted = true;
         runStartTime = Time.time;
         currentWaveStartTime = Time.time;
+        lastPosition = transform != null ? transform.position.x : 0f;
+    }
+
+    /// <summary>
+    /// Обновление метрик движений (вызывать каждый кадр).
+    /// </summary>
+    private void Update()
+    {
+        if (!runStarted) return;
+
+        // Отслеживаем расстояние
+        if (transform != null)
+        {
+            float currentX = transform.position.x;
+            float delta = Mathf.Abs(currentX - lastPosition);
+            totalDistanceTraveled += delta;
+            lastPosition = currentX;
+
+            // Бонус за рывки
+            if (delta > 5f) // Большой рывок
+            {
+                totalDashDistance += Mathf.RoundToInt(delta);
+            }
+        }
     }
 
     /// <summary>
@@ -128,9 +155,7 @@ public class RunMetrics : MonoBehaviour
         totalKillTime += killTime;
 
         if (fastestKillTime == float.MaxValue || killTime < fastestKillTime)
-        {
             fastestKillTime = killTime;
-        }
 
         if (!firstKillReached)
         {
@@ -138,7 +163,6 @@ public class RunMetrics : MonoBehaviour
             firstKillReached = true;
         }
 
-        // Проверяем, был ли это босс
         if (enemy != null && enemy.GetEnemyData() != null)
         {
             if (enemy.GetEnemyData().EnemyType == EnemyType.Boss && !firstBossReached)
@@ -149,12 +173,9 @@ public class RunMetrics : MonoBehaviour
         }
 
         if (isCritical)
-        {
             criticalHits++;
-        }
 
         totalDamageDealt += damageDealt;
-
         OnDamageDealt?.Invoke(damageDealt);
     }
 
@@ -175,7 +196,6 @@ public class RunMetrics : MonoBehaviour
     public void OnAbilityUsed()
     {
         if (!runStarted) return;
-
         abilitiesUsed++;
     }
 
@@ -185,6 +205,7 @@ public class RunMetrics : MonoBehaviour
     public void RecordDashDodged()
     {
         if (!runStarted) return;
+
         dashDodges++;
         OnDashDodged?.Invoke(dashDodges);
     }
@@ -204,14 +225,14 @@ public class RunMetrics : MonoBehaviour
     /// <summary>
     /// Вызывается при добавлении очков.
     /// </summary>
-    private void OnScoreAdded(int amount)
+    private void OnScoreAdded(int amount, string bonusName)
     {
         // Можно использовать для дополнительных метрик
     }
 
     /// <summary>
     /// Вызывается при завершении волны.
-    /// </waveClearTime>
+    /// </summary>
     public void OnWaveCleared(bool wasPerfect)
     {
         if (!runStarted) return;
@@ -219,14 +240,11 @@ public class RunMetrics : MonoBehaviour
         float waveClearTime = Time.time - currentWaveStartTime;
 
         if (bestWaveClearTime == float.MaxValue || waveClearTime < bestWaveClearTime)
-        {
             bestWaveClearTime = waveClearTime;
-        }
 
         if (wasPerfect)
         {
             perfectWaves++;
-
             if (comboSystem != null)
                 comboSystem.OnPerfectWave();
         }
@@ -235,12 +253,11 @@ public class RunMetrics : MonoBehaviour
     }
 
     /// <summary>
-    /// Вызывается при мульти-килле (несколько убийств за короткое время).
+    /// Вызывается при мульти-килле.
     /// </summary>
     public void OnMultiKill(int count)
     {
         if (!runStarted) return;
-
         multiKillStreaks++;
     }
 
@@ -255,33 +272,27 @@ public class RunMetrics : MonoBehaviour
             kills = killsThisRun,
             wavesCleared = waveManager != null ? waveManager.CurrentWave : 0,
             runTime = RunTime,
-
             maxCombo = maxCombo,
             totalCriticalHits = criticalHits,
             averageKillTime = AverageKillTime,
             fastestKillTime = FastestKillTime,
-
             timeToFirstKill = TimeToFirstKill,
             timeToFirstBoss = TimeToFirstBoss,
             bestWaveClearTime = BestWaveClearTime,
-
             perfectWaves = perfectWaves,
             noHitKillStreak = noHitKillStreak,
             totalDamageDealt = totalDamageDealt,
             totalDamageTaken = totalDamageTaken,
-
             abilitiesUsed = abilitiesUsed,
             dashDodges = dashDodges,
             multiKillStreaks = multiKillStreaks,
+            totalDistance = totalDistanceTraveled,
+            totalDashDistance = totalDashDistance,
         };
 
-        // Вычисляем эффективность
         if (totalDamageTaken > 0f)
-        {
             result.damageEfficiency = totalDamageDealt / totalDamageTaken;
-        }
 
-        // Рассчитываем ранг и бонусы
         result.CalculateRank();
         result.CalculateStyleBonus();
 
@@ -317,5 +328,9 @@ public class RunMetrics : MonoBehaviour
         abilitiesUsed = 0;
         dashDodges = 0;
         multiKillStreaks = 0;
+
+        totalDistanceTraveled = 0f;
+        lastPosition = 0f;
+        totalDashDistance = 0;
     }
 }

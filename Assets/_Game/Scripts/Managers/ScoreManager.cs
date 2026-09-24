@@ -7,18 +7,16 @@ public class ScoreManager : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private PlayerStats playerStats;
+    [SerializeField] private BonusSettings bonusSettings;
 
     public int Score { get; private set; }
     public int Kills { get; private set; }
 
-    public event Action<int> OnScoreAdded;
+    public event Action<int, string> OnScoreAdded; // amount, bonusName
 
     private void Awake()
     {
-        if (
-            Instance != null &&
-            Instance != this
-        )
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
@@ -30,10 +28,7 @@ public class ScoreManager : MonoBehaviour
     private void Start()
     {
         if (playerStats == null)
-        {
-            playerStats =
-                FindAnyObjectByType<PlayerStats>();
-        }
+            playerStats = FindAnyObjectByType<PlayerStats>();
     }
 
     public void ResetRunStats()
@@ -42,47 +37,43 @@ public class ScoreManager : MonoBehaviour
         Kills = 0;
     }
 
-    public void AddScore(int amount)
+    /// <summary>
+    /// Добавить очки за убийство.
+    /// </summary>
+    public void AddScore(int amount, string bonusName = "")
     {
         if (amount <= 0)
             return;
 
         float multiplier = 1f;
-
         if (playerStats != null)
-        {
-            multiplier =
-                playerStats.ScoreMultiplier;
-        }
+            multiplier = playerStats.ScoreMultiplier;
 
-        int finalAmount =
-            Mathf.Max(
-                Mathf.RoundToInt(
-                    amount *
-                    multiplier
-                ),
-                1
-            );
+        int finalAmount = Mathf.Max(Mathf.RoundToInt(amount * multiplier), 1);
 
         Score += finalAmount;
+        OnScoreAdded?.Invoke(finalAmount, bonusName);
 
-        OnScoreAdded?.Invoke(finalAmount);
+        Debug.Log($"Score: +{finalAmount}" + (string.IsNullOrEmpty(bonusName) ? "" : $" [{bonusName}]"));
+    }
 
-        Debug.Log(
-            $"Score: +{finalAmount} " +
-            $"(Base: {amount}, " +
-            $"Multiplier: {multiplier:0.##}, " +
-            $"Total: {Score})"
-        );
+    /// <summary>
+    /// Добавить бонусные очки.
+    /// </summary>
+    public void AddBonus(int amount, string bonusName)
+    {
+        if (amount <= 0)
+            return;
+
+        Score += amount;
+        OnScoreAdded?.Invoke(amount, bonusName);
+
+        Debug.Log($"BONUS +{amount} [{bonusName}]");
     }
 
     public void IncrementKills()
     {
         Kills++;
-
-        Debug.Log(
-            $"Kills: {Kills}"
-        );
     }
 
     public void ResetScore()

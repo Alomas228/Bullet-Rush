@@ -1,9 +1,10 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 /// <summary>
 /// Live HUD — показывает счёт и бонусы в стиле Ultrakill.
-/// Одна строка счёта + всплывающие бонусы.
+/// Одна строка счёта + всплывающие бонусы с названием.
 /// </summary>
 public class GameplayHUD : MonoBehaviour
 {
@@ -20,7 +21,6 @@ public class GameplayHUD : MonoBehaviour
     [SerializeField] private GameObject bonusPopupPrefab;
     [SerializeField] private Transform bonusPopupContainer;
     [SerializeField] private float popupLifetime = 2f;
-    [SerializeField] private float popupMoveSpeed = 100f;
 
     // =========================================================
     // CACHED REFERENCES
@@ -30,10 +30,10 @@ public class GameplayHUD : MonoBehaviour
     private ComboSystem cachedCombo;
     private WaveManager cachedWaveManager;
     private ScoreManager cachedScoreManager;
+    private BonusSettings bonusSettings;
 
     private int lastScore;
     private int lastCombo;
-    private float lastComboMultiplier;
     private float lastRunTime;
 
     private int bonusPopupCount;
@@ -49,6 +49,7 @@ public class GameplayHUD : MonoBehaviour
         cachedCombo = FindAnyObjectByType<ComboSystem>();
         cachedWaveManager = FindAnyObjectByType<WaveManager>();
         cachedScoreManager = FindAnyObjectByType<ScoreManager>();
+        bonusSettings = FindAnyObjectByType<BonusSettings>();
 
         if (comboPanel != null)
             comboPanel.SetActive(false);
@@ -60,12 +61,18 @@ public class GameplayHUD : MonoBehaviour
     {
         if (cachedCombo != null)
             cachedCombo.OnComboChanged += OnComboChanged;
+
+        if (cachedScoreManager != null)
+            cachedScoreManager.OnScoreAdded += OnScoreAdded;
     }
 
     private void OnDisable()
     {
         if (cachedCombo != null)
             cachedCombo.OnComboChanged -= OnComboChanged;
+
+        if (cachedScoreManager != null)
+            cachedScoreManager.OnScoreAdded -= OnScoreAdded;
     }
 
     // =========================================================
@@ -82,15 +89,18 @@ public class GameplayHUD : MonoBehaviour
         if (currentScore != lastScore)
         {
             lastScore = currentScore;
-            if (scoreText != null)
-                scoreText.text = currentScore.ToString("N0");
+            UpdateScoreText();
         }
 
         // Обновляем волну
-        if (cachedWaveManager != null && scoreText != null)
+        if (cachedWaveManager != null)
         {
-            string suffix = " | WAVE " + cachedWaveManager.CurrentWave;
-            scoreText.text += suffix;
+            int currentWave = cachedWaveManager.CurrentWave;
+            if (scoreText != null)
+            {
+                string suffix = " | WAVE " + currentWave;
+                scoreText.text = scoreText.text.Split('|')[0].Trim() + suffix;
+            }
         }
 
         // Обновляем время (каждую секунду)
@@ -101,9 +111,39 @@ public class GameplayHUD : MonoBehaviour
             {
                 lastRunTime = currentTime;
                 if (scoreText != null)
-                    scoreText.text += " | " + FormatTime(currentTime);
+                {
+                    string timeStr = FormatTime(currentTime);
+                    if (!scoreText.text.Contains("TIME"))
+                        scoreText.text += " | TIME " + timeStr;
+                }
             }
         }
+    }
+
+    private void UpdateScoreText()
+    {
+        if (scoreText == null)
+            return;
+
+        string baseText = lastScore.ToString("N0");
+
+        if (cachedWaveManager != null)
+            baseText += " | WAVE " + cachedWaveManager.CurrentWave;
+
+        if (cachedMetrics != null)
+            baseText += " | TIME " + FormatTime(cachedMetrics.RunTime);
+
+        scoreText.text = baseText;
+    }
+
+    // =========================================================
+    // SCORE ADDED — всплывающие бонусы с названием
+    // =========================================================
+
+    private void OnScoreAdded(int amount, string bonusName)
+    {
+        // Показываем всплывающий бонус с названием
+        ShowBonusPopup(bonusName, amount);
     }
 
     // =========================================================
@@ -133,6 +173,39 @@ public class GameplayHUD : MonoBehaviour
                 comboMultiplierText.text = "";
             }
         }
+
+        // Проверяем пороги комбо и начисляем бонусы
+        CheckComboThresholds(combo);
+    }
+
+    private void CheckComboThresholds(int combo)
+    {
+        if (bonusSettings == null || cachedScoreManager == null)
+            return;
+
+        int lastThreshold = cachedCombo.GetLastComboThresholdReached();
+
+        // Проверяем каждый порог
+        if (combo >= bonusSettings.comboThreshold50 && lastThreshold < 50)
+        {
+            cachedScoreManager.AddBonus(bonusSettings.comboBonus50, "Комбо 50x");
+            cachedCombo.SetLastComboThresholdReached(50);
+        }
+        else if (combo >= bonusSettings.comboThreshold30 && lastThreshold < 30)
+        {
+            cachedScoreManager.AddBonus(bonusSettings.comboBonus30, "Комбо 30x");
+            cachedCombo.SetLastComboThresholdReached(30);
+        }
+        else if (combo >= bonusSettings.comboThreshold20 && lastThreshold < 20)
+        {
+            cachedScoreManager.AddBonus(bonusSettings.comboBonus20, "Комбо 20x");
+            cachedCombo.SetLastComboThresholdReached(20);
+        }
+        else if (combo >= bonusSettings.comboThreshold10 && lastThreshold < 10)
+        {
+            cachedScoreManager.AddBonus(bonusSettings.comboBonus10, "Комбо 10x");
+            cachedCombo.SetLastComboThresholdReached(10);
+        }
     }
 
     private Color GetComboColor(int combo)
@@ -154,14 +227,10 @@ public class GameplayHUD : MonoBehaviour
     }
 
     // =========================================================
-    // BONUS POPUPS — всплывающие бонусы
+    // BONUS POPUPS — всплывающие бонусы с названием
     // =========================================================
 
-    /// <summary>
-    /// Вызывается при получении бонуса.
-    /// Показывает всплывающий текст "+500" в стиле Ultrakill.
-    /// </summary>
-    public void ShowBonusPopup(string bonusName, int bonusAmount)
+    private void ShowBonusPopup(string bonusName, int amount)
     {
         if (bonusPopupPrefab == null || bonusPopupContainer == null)
             return;
@@ -178,22 +247,88 @@ public class GameplayHUD : MonoBehaviour
         TMP_Text popupText = popup.GetComponentInChildren<TMP_Text>();
         if (popupText != null)
         {
-            popupText.text = bonusName + " +" + bonusAmount.ToString("N0");
-            popupText.color = bonusAmount > 1000 ? new Color(1f, 0.84f, 0f) : Color.white;
+            popupText.text = bonusName + ": +" + amount.ToString("N0");
+            popupText.color = new Color(1f, 0.84f, 0f); // Золотой
         }
 
-        // Анимация движения вверх
+        // Анимация движения вверх и смещение вниз
         RectTransform rect = popup.GetComponent<RectTransform>();
         if (rect != null)
         {
-            Vector3 startPos = rect.anchoredPosition;
-            Vector3 endPos = startPos;
-            endPos.y += 50f; // Поднимаем вверх
+            // Начальная позиция — чуть выше контейнера
+            rect.anchoredPosition = new Vector2(0, 50f * bonusPopupCount);
+            
+            // Анимация подъёма
+            Vector3 endPos = rect.anchoredPosition;
+            endPos.y += 50f;
+            
+            // Запускаем корутину для анимации
+            StartCoroutine(AnimatePopup(rect, endPos));
 
-            Destroy(popup, popupLifetime);
+            // Смещаем все остальные popup'ы вниз
+            ShiftPopupsDown(bonusPopupCount);
         }
 
         bonusPopupCount++;
+
+        // Удаляем через popupLifetime с пересчётом позиций
+        StartCoroutine(DestroyWithShift(popup));
+    }
+
+    private System.Collections.IEnumerator AnimatePopup(RectTransform rect, Vector3 endPos)
+    {
+        float duration = 0.3f;
+        float elapsed = 0f;
+        Vector3 startPos = rect.anchoredPosition;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            rect.anchoredPosition = Vector3.Lerp(startPos, endPos, t);
+            yield return null;
+        }
+
+        rect.anchoredPosition = endPos;
+    }
+
+    private System.Collections.IEnumerator DestroyWithShift(GameObject popup)
+    {
+        yield return new WaitForSeconds(popupLifetime);
+        
+        // Удаляем popup
+        Destroy(popup);
+        bonusPopupCount--;
+        
+        // Пересчитываем позиции всех popup'ов
+        ShiftPopupsUp();
+    }
+
+    private void ShiftPopupsDown(int startIndex)
+    {
+        for (int i = startIndex; i < bonusPopupContainer.childCount; i++)
+        {
+            RectTransform rect = bonusPopupContainer.GetChild(i).GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                Vector3 pos = rect.anchoredPosition;
+                pos.y += 50f; // Сдвигаем вверх (новые popup'ы выше)
+                rect.anchoredPosition = pos;
+            }
+        }
+    }
+
+    private void ShiftPopupsUp()
+    {
+        // Пересчитываем позиции всех popup'ов
+        for (int i = 0; i < bonusPopupContainer.childCount; i++)
+        {
+            RectTransform rect = bonusPopupContainer.GetChild(i).GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchoredPosition = new Vector2(0, 50f * i);
+            }
+        }
     }
 
     // =========================================================

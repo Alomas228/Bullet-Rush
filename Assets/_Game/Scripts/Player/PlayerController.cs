@@ -101,6 +101,10 @@ public class PlayerController : MonoBehaviour
         playerStats =
             GetComponent<PlayerStats>();
 
+        BonusSettings bonusSettings; 
+        
+        bonusSettings = FindAnyObjectByType<BonusSettings>();
+
         if (playerCamera == null)
             playerCamera = Camera.main;
     }
@@ -297,6 +301,10 @@ public class PlayerController : MonoBehaviour
         RunMetrics rm = FindAnyObjectByType<RunMetrics>();
         if (rm != null)
             rm.RecordDashDodged();
+
+        ScoreManager sm = ScoreManager.Instance;
+        if (sm != null)
+            sm.AddBonus(50, "Dash Dodge");
     }
 
     private void MoveDuringDash()
