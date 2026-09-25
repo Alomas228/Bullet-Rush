@@ -7,10 +7,15 @@ public class BulletTracer : MonoBehaviour
 
     private Transform target;
     private LineRenderer lineRenderer;
+    private float lifetimeRemaining;
+
+    // Ключ пула (по префабу): пустой = объект живёт вне пула.
+    public int PoolKey { get; internal set; }
 
     public void Initialize(Transform bullet)
     {
         target = bullet;
+        lifetimeRemaining = lifetime;
     }
 
     private void Awake()
@@ -20,9 +25,20 @@ public class BulletTracer : MonoBehaviour
 
     private void Update()
     {
-        if (target == null)
+        // Пуля не уничтожается, а возвращается в пул (SetActive(false)).
+        // Неактивная цель = пуля «мертва»: трассер сразу уходит.
+        if (target == null ||
+            !target.gameObject.activeInHierarchy)
         {
-            Destroy(gameObject);
+            ReturnToPool();
+            return;
+        }
+
+        lifetimeRemaining -= Time.deltaTime;
+
+        if (lifetimeRemaining <= 0f)
+        {
+            ReturnToPool();
             return;
         }
 
@@ -39,8 +55,11 @@ public class BulletTracer : MonoBehaviour
         lineRenderer.SetPosition(1, trailEnd);
     }
 
-    private void Start()
+    public void ReturnToPool()
     {
-        Destroy(gameObject, lifetime);
+        target = null;
+        lifetimeRemaining = 0f;
+
+        BulletTracerPool.Despawn(this);
     }
 }

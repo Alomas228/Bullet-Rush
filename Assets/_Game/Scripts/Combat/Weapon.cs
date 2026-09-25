@@ -440,15 +440,12 @@ public class Weapon : MonoBehaviour
         Quaternion rotation =
             Quaternion.LookRotation(direction);
 
-        GameObject bulletObject =
-            Instantiate(
+        Bullet bullet =
+            BulletPool.Spawn(
                 bulletPrefab,
                 firePoint.position,
                 rotation
             );
-
-        Bullet bullet =
-            bulletObject.GetComponent<Bullet>();
 
         if (bullet == null)
             return;
@@ -572,15 +569,12 @@ public class Weapon : MonoBehaviour
         if (tracerPrefab == null)
             return;
 
-        GameObject tracerObject =
-            Instantiate(
+        BulletTracer tracer =
+            BulletTracerPool.Spawn(
                 tracerPrefab,
                 bullet.position,
                 Quaternion.identity
             );
-
-        BulletTracer tracer =
-            tracerObject.GetComponent<BulletTracer>();
 
         if (tracer != null)
             tracer.Initialize(bullet);

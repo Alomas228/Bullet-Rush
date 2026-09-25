@@ -60,13 +60,21 @@ public class Bullet : MonoBehaviour
     private bool isCritical;
     private int enemiesHit;
 
-    private void Start()
-    {
-        Destroy(gameObject, lifetime);
-    }
+    private float lifetimeRemaining;
+
+    // Ключ пула (по префабу): пустой = объект живёт вне пула.
+    public int PoolKey { get; internal set; }
 
     private void Update()
     {
+        lifetimeRemaining -= Time.deltaTime;
+
+        if (lifetimeRemaining <= 0f)
+        {
+            ReturnToPool();
+            return;
+        }
+
         Vector3 previousPosition =
             transform.position;
 
@@ -80,8 +88,17 @@ public class Bullet : MonoBehaviour
             previousPosition,
             transform.position))
         {
-            Destroy(gameObject);
+            ReturnToPool();
         }
+    }
+
+    public void ReturnToPool()
+    {
+        lifetimeRemaining = 0f;
+        ignoredEnemy = null;
+        enemiesHit = 0;
+
+        BulletPool.Despawn(this);
     }
 
     private bool HitStructure(
@@ -156,6 +173,12 @@ public class Bullet : MonoBehaviour
             newLightningRange;
 
         enemiesHit = 0;
+
+        lifetimeRemaining = lifetime;
+
+        // Пул переиспользует объект: сбрасываем цель, в которую
+        // рикошетная пуля уже попала.
+        ignoredEnemy = null;
     }
 
     /// <summary>
@@ -289,7 +312,7 @@ public class Bullet : MonoBehaviour
     {
         if (StructureQuery.IsWorldStructure(other))
         {
-            Destroy(gameObject);
+            ReturnToPool();
             return;
         }
 
@@ -478,7 +501,7 @@ public class Bullet : MonoBehaviour
 
         if (enemiesHit > pierceCount)
         {
-            Destroy(gameObject);
+            ReturnToPool();
         }
     }
 
@@ -670,21 +693,15 @@ public class Bullet : MonoBehaviour
             transform.position +
             direction * 0.5f;
 
-        GameObject bulletObject =
-            Instantiate(
+        Bullet bullet =
+            BulletPool.Spawn(
                 bulletPrefab,
                 spawnPosition,
                 rotation
             );
 
-        Bullet bullet =
-            bulletObject.GetComponent<Bullet>();
-
         if (bullet == null)
-        {
-            Destroy(bulletObject);
             return;
-        }
 
         bullet.Initialize(
             damage * ricochetDamageMultiplier,
