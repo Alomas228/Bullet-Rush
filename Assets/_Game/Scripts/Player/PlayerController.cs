@@ -224,15 +224,14 @@ public class PlayerController : MonoBehaviour
             currentSpeed =
                 playerStats.MoveSpeed;
 
-        Vector3 newPosition =
-            rb.position +
+        Vector3 delta =
             movement *
             currentSpeed *
             Time.fixedDeltaTime;
 
         if (recoilOffset.sqrMagnitude > 0.0001f)
         {
-            newPosition +=
+            delta +=
                 recoilOffset;
 
             recoilOffset =
@@ -244,7 +243,13 @@ public class PlayerController : MonoBehaviour
                 );
         }
 
-        rb.MovePosition(newPosition);
+        // Превентивное скольжение: свободные оси двигаются,
+        // заблокированные стеной — не двигаются вовсе.
+        delta = SlideMovement(delta, true);
+
+        rb.MovePosition(
+            rb.position + delta
+        );
 
         ResolveStructureOverlap();
     }
@@ -321,13 +326,18 @@ public class PlayerController : MonoBehaviour
             dashDistance /
             dashDuration;
 
-        Vector3 newPosition =
-            rb.position +
+        Vector3 delta =
             dashDirection *
             dashSpeed *
             Time.fixedDeltaTime;
 
-        rb.MovePosition(newPosition);
+        // Дэш скользит по стенам, но пролетает сквозь врагов —
+        // иначе из окружённой толпы не выбраться.
+        delta = SlideMovement(delta, false);
+
+        rb.MovePosition(
+            rb.position + delta
+        );
 
         ResolveStructureOverlap();
     }
@@ -375,12 +385,145 @@ public class PlayerController : MonoBehaviour
                 continue;
             }
 
-            if (distance > 0.05f)
-                resolvedPosition += direction * (distance + 0.02f);
+            if (distance <= 0.005f)
+                continue;
+
+            // Выталкиваем строго по горизонтали, иначе при
+            // касании верхней грани/угла стены игрока поднимает —
+            // он «залезает» на стену и прыгает по ней.
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude <= 0.0001f)
+                continue;
+
+            direction.Normalize();
+
+            resolvedPosition +=
+                direction *
+                (distance + 0.005f);
         }
 
         if ((resolvedPosition - rb.position).sqrMagnitude > 0.0001f)
             rb.MovePosition(resolvedPosition);
+    }
+
+    // Превентивное скольжение: если желаемое перемещение ведёт
+    // внутрь препятствия (стена или враг), убираем его
+    // составляющую по нормали. Тангенциальная часть сохраняется
+    // полностью — игрок едет вдоль препятствия на полной скорости.
+    private Vector3 SlideMovement(
+        Vector3 delta,
+        bool includeEnemies)
+    {
+        if (playerCollider == null ||
+            delta.sqrMagnitude <= 0.0001f)
+        {
+            return delta;
+        }
+
+        Vector3 result = delta;
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (!PenetratesObstacle(
+                rb.position + result,
+                out Vector3 normal,
+                out _,
+                includeEnemies))
+            {
+                break;
+            }
+
+            result -=
+                normal *
+                Vector3.Dot(result, normal);
+
+            if (result.sqrMagnitude <= 0.0001f)
+                break;
+        }
+
+        return result;
+    }
+
+    private bool PenetratesObstacle(
+        Vector3 position,
+        out Vector3 normal,
+        out float depth,
+        bool includeEnemies)
+    {
+        normal = Vector3.zero;
+        depth = 0f;
+
+        if (playerCollider == null)
+            return false;
+
+        Vector3 center =
+            position +
+            (playerCollider.bounds.center - rb.position);
+
+        Vector3 size =
+            playerCollider.bounds.size;
+
+        float checkRadius =
+            Mathf.Max(
+                size.x,
+                Mathf.Max(size.y, size.z)
+            ) *
+            0.5f +
+            1f;
+
+        Collider[] nearby =
+            StructureQuery.OverlapSphere(
+                center,
+                checkRadius,
+                out int nearbyCount
+            );
+
+        for (int i = 0; i < nearbyCount; i++)
+        {
+            Collider obstacle = nearby[i];
+
+            bool isStructure =
+                StructureQuery.IsWorldStructure(obstacle);
+
+            bool isEnemy = false;
+
+            if (!isStructure &&
+                includeEnemies)
+            {
+                Enemy enemy =
+                    obstacle.GetComponent<Enemy>();
+
+                if (enemy != null &&
+                    !enemy.IsDead)
+                {
+                    isEnemy = true;
+                }
+            }
+
+            if (!isStructure && !isEnemy)
+                continue;
+
+            if (Physics.ComputePenetration(
+                playerCollider,
+                position,
+                transform.rotation,
+                obstacle,
+                obstacle.transform.position,
+                obstacle.transform.rotation,
+                out Vector3 direction,
+                out float distance))
+            {
+                if (distance > 0.0005f)
+                {
+                    normal = direction;
+                    depth = distance;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public void ApplyRecoil(

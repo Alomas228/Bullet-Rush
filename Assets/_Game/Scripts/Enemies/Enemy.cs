@@ -39,8 +39,10 @@ public class Enemy : MonoBehaviour
     [Header("Performance")]
     [Tooltip("Как часто обновлять дорогую проверку обхода препятствий.")]
     [SerializeField] private float navigationUpdateInterval = 0.05f;
-    [Tooltip("Как часто проверять пересечение врага со структурами.")]
-    [SerializeField] private float structureResolveInterval = 0.10f;
+    [Tooltip("Как часто проверять пересечение врага со структурами и игроком.")]
+    [SerializeField] private float structureResolveInterval = 0.04f;
+    [Tooltip("Скорость плавного досъезда к точке выталкивания — убирает скачки при редком разрешении пересечений.")]
+    [SerializeField] private float resolveSlideSpeed = 6f;
     [Tooltip("Как часто проверять линию огня у дальних врагов.")]
     [SerializeField] private float lineOfSightCheckInterval = 0.10f;
 
@@ -63,6 +65,11 @@ public class Enemy : MonoBehaviour
 
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
+
+    // Точка плавного выталкивания, к которой враг досъезжает каждый кадр.
+    private Vector3 resolveSlideTarget;
+    private bool hasResolveSlideTarget;
+    private Collider playerCollider;
 
     private EnemyType cachedEnemyType;
     private bool isBoss;
@@ -288,11 +295,22 @@ public class Enemy : MonoBehaviour
                 return;
         }
 
+        Vector3 startPosition =
+            transform.position;
+
         UpdateTimers();
 
         if (enemyData == null)
         {
             MoveTowardsPlayer();
+
+            ApplyResolveSlide();
+
+            TryApplyContactDamage();
+
+            // Превентивное скольжение по игроку (как стене).
+            ApplyPreventivePlayerSlide(startPosition);
+
             return;
         }
 
@@ -328,6 +346,13 @@ public class Enemy : MonoBehaviour
                 MoveTowardsPlayer();
                 break;
         }
+
+        ApplyResolveSlide();
+
+        TryApplyContactDamage();
+
+        // Превентивное скольжение по игроку (как стене).
+        ApplyPreventivePlayerSlide(startPosition);
     }
 
 
@@ -431,7 +456,11 @@ public class Enemy : MonoBehaviour
             GameObject.FindGameObjectWithTag("Player");
 
         if (playerObject != null)
+        {
             player = playerObject.transform;
+            playerCollider =
+                playerObject.GetComponentInChildren<Collider>();
+        }
     }
 
 
@@ -796,8 +825,9 @@ public class Enemy : MonoBehaviour
         return clearanceProbeDistance;
     }
 
-    // Выталкиваем врага из стен, если движение всё же занесло
-    // его на кромку блока, чтобы он не «цеплялся» краем коллайдера.
+    // Выталкиваем врага из стен, игрока и других врагов.
+    // Все тела kinematic — физика сама их не расталкивает,
+    // поэтому пересечения решаются вручную.
     private void ResolveStructureOverlap()
     {
         if (selfCollider == null)
@@ -826,30 +856,265 @@ public class Enemy : MonoBehaviour
 
         for (int i = 0; i < nearbyCount; i++)
         {
-            Collider structure = nearbyColliders[i];
+            Collider nearby = nearbyColliders[i];
 
-            if (!StructureQuery.IsWorldStructure(structure))
-                continue;
-
-            if (!Physics.ComputePenetration(
-                selfCollider,
-                position,
-                transform.rotation,
-                structure,
-                structure.transform.position,
-                structure.transform.rotation,
-                out Vector3 direction,
-                out float distance))
+            if (nearby == null ||
+                nearby == selfCollider)
             {
                 continue;
             }
 
-            if (distance > 0.05f)
-                position += direction * (distance + 0.02f);
+            if (StructureQuery.IsWorldStructure(nearby))
+            {
+                ResolvePenetration(
+                    ref position,
+                    nearby,
+                    1f
+                );
+
+                continue;
+            }
+
+            // Игрок не должен толкаться врагами — выталкивается только враг.
+            if (nearby.transform.root.CompareTag("Player"))
+            {
+                ResolvePenetration(
+                    ref position,
+                    nearby,
+                    1f
+                );
+
+                continue;
+            }
+
+            // Другой враг — расталкиваемся пополам:
+            // сосед тоже выталкивает себя своей половиной.
+            if (nearby.GetComponentInParent<Enemy>() != null)
+            {
+                ResolvePenetration(
+                    ref position,
+                    nearby,
+                    0.5f
+                );
+            }
         }
 
         if ((position - transform.position).sqrMagnitude > 0.0001f)
-            transform.position = position;
+        {
+            resolveSlideTarget = position;
+            hasResolveSlideTarget = true;
+        }
+    }
+
+    private void ResolvePenetration(
+        ref Vector3 position,
+        Collider other,
+        float pushFactor)
+    {
+        if (!Physics.ComputePenetration(
+            selfCollider,
+            position,
+            transform.rotation,
+            other,
+            other.transform.position,
+            other.transform.rotation,
+            out Vector3 direction,
+            out float distance))
+        {
+            return;
+        }
+
+        if (distance <= 0.01f)
+            return;
+
+        position +=
+            direction *
+            (distance * pushFactor + 0.005f);
+    }
+
+    // Плавный «досъезд» к точке выталкивания вместо жёсткого
+    // телепорта — убирает скачки, когда разрешение пересечений
+    // происходит раз в 0.02–0.10с.
+    private void ApplyResolveSlide()
+    {
+        if (!hasResolveSlideTarget)
+            return;
+
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            resolveSlideTarget,
+            resolveSlideSpeed * Time.deltaTime
+        );
+
+        if (Vector3.Distance(
+                transform.position,
+                resolveSlideTarget
+            ) <= 0.01f)
+        {
+            transform.position = resolveSlideTarget;
+            hasResolveSlideTarget = false;
+        }
+    }
+
+    // Превентивное скольжение по игроку: составляющая движения,
+    // ведущая внутрь игрока, гасится до того, как враг в него
+    // зашёл. Игрок ведёт себя как стена — враг упирается и
+    // скользит вокруг, не проседая внутрь и не отдёргиваясь.
+    private void ApplyPreventivePlayerSlide(
+        Vector3 startPosition)
+    {
+        if (selfCollider == null ||
+            playerCollider == null ||
+            player == null)
+        {
+            return;
+        }
+
+        Vector3 toPlayer =
+            player.position - transform.position;
+
+        toPlayer.y = 0f;
+
+        // Быстрый ранний выход: большинство врагов далеко от игрока.
+        if (toPlayer.sqrMagnitude > 64f)
+            return;
+
+        Vector3 delta =
+            transform.position - startPosition;
+
+        if (delta.sqrMagnitude <= 0.0001f)
+            return;
+
+        Vector3 result = delta;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (!PenetratesPlayer(
+                startPosition + result,
+                out Vector3 normal))
+            {
+                break;
+            }
+
+            result -=
+                normal *
+                Vector3.Dot(result, normal);
+
+            if (result.sqrMagnitude <= 0.0001f)
+                break;
+        }
+
+        transform.position =
+            startPosition + result;
+    }
+
+    private bool PenetratesPlayer(
+        Vector3 position,
+        out Vector3 normal)
+    {
+        normal = Vector3.zero;
+
+        if (selfCollider == null ||
+            playerCollider == null)
+        {
+            return false;
+        }
+
+        if (Physics.ComputePenetration(
+            selfCollider,
+            position,
+            transform.rotation,
+            playerCollider,
+            playerCollider.transform.position,
+            playerCollider.transform.rotation,
+            out Vector3 direction,
+            out float distance))
+        {
+            if (distance > 0.0005f)
+            {
+                normal = direction;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Контактный урон по близости: kinematic-тела не шлют
+    // OnCollisionStay, поэтому проверяем дистанцию напрямую.
+    private void TryApplyContactDamage()
+    {
+        if (IsDead ||
+            player == null ||
+            contactDamageTimer > 0f)
+        {
+            return;
+        }
+
+        Vector3 toPlayer =
+            player.position - transform.position;
+
+        toPlayer.y = 0f;
+
+        float contactRange =
+            GetContactRange();
+
+        if (toPlayer.sqrMagnitude >
+            contactRange * contactRange)
+        {
+            return;
+        }
+
+        PlayerHealth playerHealth =
+            player.GetComponentInChildren<PlayerHealth>();
+
+        if (playerHealth == null)
+            return;
+
+        float damage = 1f;
+
+        if (enemyData != null)
+            damage =
+                enemyData.ContactDamage;
+
+        if (isBoss &&
+            bossData != null)
+        {
+            damage =
+                bossData.ContactDamage;
+
+            if (BossPhase == 3)
+            {
+                damage *=
+                    bossData.Phase3DamageMultiplier;
+            }
+        }
+
+        damage *= scaledDamageMultiplier;
+
+        playerHealth.TakeDamage(damage);
+
+        float cooldown =
+            enemyData != null
+                ? enemyData.DamageCooldown
+                : 1f;
+
+        contactDamageTimer = cooldown;
+    }
+
+    private float GetContactRange()
+    {
+        float selfRadius =
+            selfCollider != null
+                ? selfCollider.bounds.extents.magnitude
+                : 1f;
+
+        float playerRadius =
+            playerCollider != null
+                ? playerCollider.bounds.extents.magnitude
+                : 0.5f;
+
+        return selfRadius + playerRadius + 0.15f;
     }
 
     private bool TryGetProbeHit(
