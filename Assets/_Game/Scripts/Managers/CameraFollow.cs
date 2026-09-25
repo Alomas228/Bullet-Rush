@@ -34,6 +34,9 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private float shakeDecay = 3f;
     [SerializeField] private float maxShakeRotation = 3f;
 
+    [Tooltip("При слабой тряске (< этого уровня) камера дёргается через кадр — меньше лишних проходов рендера.")]
+    [SerializeField] private float shakeSkipFramesThreshold = 0.3f;
+
     [Header("Mouse Parallax")]
     [Tooltip("Сила смещения камеры в сторону курсора.")]
     [SerializeField] private float mouseParallaxStrength = 1.2f;
@@ -61,6 +64,7 @@ public class CameraFollow : MonoBehaviour
     private bool menuReported;
 
     private float trauma;
+    private int shakeFrameIndex;
     private Vector3 basePosition;
     private Quaternion baseRotation;
     private bool baseInitialized;
@@ -72,6 +76,7 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 smoothedParallax;
     private float freezeTimer;
+    private Vector3 cachedParallaxOffset;
 
     public void AddShake(float amount)
     {
@@ -156,6 +161,8 @@ public class CameraFollow : MonoBehaviour
 
     private void LateUpdate()
     {
+        RefreshParallaxOffsetOncePerFrame();
+
         if (transitioning)
         {
             UpdateTransition();
@@ -171,6 +178,56 @@ public class CameraFollow : MonoBehaviour
         }
 
         ReportMenuSettledIfNeeded();
+    }
+
+    // Позиция и скорость мыши читаются один раз за кадр
+    // и переиспользуются в FreezeIfSettled и ApplyMouseParallaxToPosition.
+    private void RefreshParallaxOffsetOncePerFrame()
+    {
+        if (Mouse.current == null)
+        {
+            cachedParallaxOffset = Vector3.zero;
+            return;
+        }
+
+        Vector2 mousePos =
+            Mouse.current.position.ReadValue();
+
+        float normalizedX =
+            (mousePos.x / Screen.width) * 2f - 1f;
+
+        float normalizedY =
+            (mousePos.y / Screen.height) * 2f - 1f;
+
+        if (mouseVelocityKick > 0f)
+        {
+            // Подхлёст от скорости мыши: камера «летит» за быстрым
+            // движением курсора и плавно успокаивается после остановки.
+            Vector2 delta =
+                Mouse.current.delta.ReadValue();
+
+            normalizedX +=
+                Mathf.Clamp(
+                    delta.x / Screen.width,
+                    -1f,
+                    1f
+                ) * mouseVelocityKick;
+
+            // По вертикали подхлёст слабее — амплитуда и так занижена
+            normalizedY +=
+                Mathf.Clamp(
+                    delta.y / Screen.height,
+                    -1f,
+                    1f
+                ) * mouseVelocityKick * 0.5f;
+        }
+
+        cachedParallaxOffset =
+            new Vector3(
+                normalizedX,
+                normalizedY * 0.5f,
+                0f
+            ) * mouseParallaxStrength;
     }
 
     private void EnsureBaseInitialized()
@@ -288,46 +345,7 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 GetMouseParallaxOffset()
     {
-        if (Mouse.current == null)
-            return Vector3.zero;
-
-        Vector2 mousePos =
-            Mouse.current.position.ReadValue();
-
-        float normalizedX =
-            (mousePos.x / Screen.width) * 2f - 1f;
-
-        float normalizedY =
-            (mousePos.y / Screen.height) * 2f - 1f;
-
-        if (mouseVelocityKick > 0f)
-        {
-            // Подхлёст от скорости мыши: камера «летит» за быстрым
-            // движением курсора и плавно успокаивается после остановки.
-            Vector2 delta =
-                Mouse.current.delta.ReadValue();
-
-            normalizedX +=
-                Mathf.Clamp(
-                    delta.x / Screen.width,
-                    -1f,
-                    1f
-                ) * mouseVelocityKick;
-
-            // По вертикали подхлёст слабее — амплитуда и так занижена
-            normalizedY +=
-                Mathf.Clamp(
-                    delta.y / Screen.height,
-                    -1f,
-                    1f
-                ) * mouseVelocityKick * 0.5f;
-        }
-
-        return new Vector3(
-            normalizedX,
-            normalizedY * 0.5f,
-            0f
-        ) * mouseParallaxStrength;
+        return cachedParallaxOffset;
     }
 
     private void ApplyMouseParallaxToPosition()
@@ -369,6 +387,17 @@ public class CameraFollow : MonoBehaviour
             0f,
             trauma - shakeDecay * Time.unscaledDeltaTime
         );
+
+        // Слабая тряска обновляется через кадр: камера держит
+        // предыдущее смещение, а лишний проход рендера не вызывается.
+        if (trauma < shakeSkipFramesThreshold)
+        {
+            shakeFrameIndex =
+                (shakeFrameIndex + 1) % 2;
+
+            if (shakeFrameIndex == 1)
+                return;
+        }
 
         float strength = trauma * trauma;
 

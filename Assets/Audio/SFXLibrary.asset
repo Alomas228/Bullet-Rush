@@ -30,4 +30,5 @@ MonoBehaviour:
   waveStart: {fileID: 0}
   upgradePick: {fileID: 0}
   menuOpen: {fileID: 0}
+  startGame: {fileID: 8300000, guid: c80658310e8567541aeb73ee9abc415f, type: 3}
   gameOver: {fileID: 0}

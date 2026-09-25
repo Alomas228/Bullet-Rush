@@ -47,6 +47,10 @@ public class WorldStructureGenerator : MonoBehaviour
     [Tooltip("Сколько структур обрабатывается за один шаг стаггера. Больше — быстрее перестройка карты между волнами.")]
     [SerializeField] private int structuresPerTick = 4;
 
+    [Header("Layer")]
+    [Tooltip("Слой, на который помещаются создаваемые кубы. Должен совпадать с occlusionMask в StructureOcclusionManager. Пусто — слой не меняется.")]
+    [SerializeField] private string structureLayerName = "World";
+
     private readonly List<GameObject> structures =
         new List<GameObject>();
 
@@ -57,6 +61,7 @@ public class WorldStructureGenerator : MonoBehaviour
         new List<float>();
 
     private Coroutine generateCoroutine;
+    private int cachedWorldLayer = -1;
 
     // Общие материалы для палитры: один материал на цвет вместо
     // создания копии на каждый куб (иначе каждая волна плодит
@@ -80,6 +85,18 @@ public class WorldStructureGenerator : MonoBehaviour
     {
         if (baseSeed == 0)
             baseSeed = Random.Range(1, int.MaxValue);
+
+        cachedWorldLayer =
+            LayerMask.NameToLayer(structureLayerName);
+
+        if (cachedWorldLayer < 0 &&
+            !string.IsNullOrEmpty(structureLayerName))
+        {
+            Debug.LogWarning(
+                $"[WorldStructureGenerator] Слой '{structureLayerName}' " +
+                "не найден. Создай его в Project Settings → Tags and Layers."
+            );
+        }
 
         EnsureOcclusionManager();
     }
@@ -414,6 +431,9 @@ public class WorldStructureGenerator : MonoBehaviour
         cube.name = $"Structure_{structures.Count}";
 
         cube.AddComponent<WorldStructure>();
+
+        if (cachedWorldLayer >= 0)
+            cube.layer = cachedWorldLayer;
 
         cube.transform.SetParent(
             transform,

@@ -20,6 +20,9 @@ public class StructureOcclusionManager : MonoBehaviour
     [Tooltip("Интервал обновления проверки заслонения. 0.05 = 20 проверок в секунду.")]
     [SerializeField] private float updateInterval = 0.05f;
 
+    [Tooltip("Слои, которые проверяются лучами. Назначь только слой World, чтобы не тратить лучи на игроков/врагов/пули. Пусто — все слои.")]
+    [SerializeField] private LayerMask occlusionMask = -1;
+
     private static readonly Vector3[] CornerOffsets =
     {
         new Vector3(-1f, -1f, -1f),
@@ -205,7 +208,9 @@ public class StructureOcclusionManager : MonoBehaviour
                 cameraPosition,
                 direction.normalized,
                 probeHits,
-                maxDistance
+                maxDistance,
+                occlusionMask,
+                QueryTriggerInteraction.Ignore
             );
 
         for (int i = 0; i < hitCount; i++)

@@ -97,8 +97,10 @@ public class PlayerController : MonoBehaviour
 
         playerCollider = GetComponent<Collider>();
 
-        rb.collisionDetectionMode =
-            CollisionDetectionMode.ContinuousDynamic;
+        rb.isKinematic = true;
+
+        rb.interpolation =
+            RigidbodyInterpolation.Interpolate;
 
         playerStats =
             GetComponent<PlayerStats>();
@@ -301,8 +303,13 @@ public class PlayerController : MonoBehaviour
         if (rm != null)
             rm.RecordDashDodged();
 
+        if (bonusSettings == null)
+            bonusSettings =
+                FindAnyObjectByType<BonusSettings>();
+
         ScoreManager sm = ScoreManager.Instance;
-        if (sm != null)
+        if (sm != null &&
+            bonusSettings != null)
         {
             sm.AddBonus(bonusSettings.dashDodgeBonus, "Dash Dodge");
         }
