@@ -35,6 +35,7 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip waveStart;
     [SerializeField] private AudioClip upgradePick;
     [SerializeField] private AudioClip menuOpen;
+    [SerializeField] private AudioClip startGame;
     [SerializeField] private AudioClip gameOver;
 
     public AudioClip PlayerHit => playerHit;
@@ -56,6 +57,7 @@ public class SFXLibrary : ScriptableObject
     public AudioClip WaveStart => waveStart;
     public AudioClip UpgradePick => upgradePick;
     public AudioClip MenuOpen => menuOpen;
+    public AudioClip StartGame => startGame;
     public AudioClip GameOver => gameOver;
     public AudioClip UiClick => uiClick;
 

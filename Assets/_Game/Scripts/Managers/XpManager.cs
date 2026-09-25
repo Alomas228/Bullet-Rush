@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System;
 
 public class XpManager : MonoBehaviour
@@ -98,6 +99,7 @@ public class XpManager : MonoBehaviour
     public event Action<int> OnPlayerLevelChanged;
 
     private bool subscribed;
+    private GameStateManager subscribedManager;
 
     private void Awake()
     {
@@ -115,28 +117,49 @@ public class XpManager : MonoBehaviour
 
     private void OnEnable()
     {
+        SceneManager.sceneLoaded += OnSceneLoaded;
         EnsureSubscribed();
     }
 
     private void OnDisable()
     {
-        if (subscribed && GameStateManager.Instance != null)
-        {
-            GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
-            subscribed = false;
-        }
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+
+        if (subscribedManager != null)
+            subscribedManager.OnGameStateChanged -= HandleStateChanged;
+
+        subscribedManager = null;
+        subscribed = false;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        EnsureSubscribed();
     }
 
     private void EnsureSubscribed()
     {
-        if (subscribed)
+        GameStateManager current =
+            GameStateManager.Instance;
+
+        if (current == null)
             return;
 
-        if (GameStateManager.Instance == null)
+        if (subscribedManager == current &&
+            subscribed)
+        {
             return;
+        }
 
-        GameStateManager.Instance.OnGameStateChanged += HandleStateChanged;
+        if (subscribedManager != null)
+            subscribedManager.OnGameStateChanged -= HandleStateChanged;
+
+        current.OnGameStateChanged += HandleStateChanged;
+
+        subscribedManager = current;
         subscribed = true;
+
+        HandleStateChanged(current.CurrentState);
     }
 
     private void HandleStateChanged(GameState state)

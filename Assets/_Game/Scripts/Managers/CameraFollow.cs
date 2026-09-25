@@ -38,6 +38,24 @@ public class CameraFollow : MonoBehaviour
     [Tooltip("Сила смещения камеры в сторону курсора.")]
     [SerializeField] private float mouseParallaxStrength = 1.2f;
 
+    [Tooltip("Скорость плавного подтягивания параллакса к курсору.")]
+    [SerializeField] private float parallaxSmoothSpeed = 12f;
+
+    [Tooltip("Расстояние до цели, ниже которого камера ставится точно и «замирает». 0 = не замораживать.")]
+    [SerializeField] private float freezeDistanceThreshold = 0.001f;
+
+    [Tooltip("Разница поворота до цели, ниже которой камера ставится точно и «замирает».")]
+    [SerializeField] private float freezeAngleThreshold = 0.1f;
+
+    [Tooltip("Порог «замирания» параллакса: насколько он уже близок к целевому значению.")]
+    [SerializeField] private float parallaxFreezeThreshold = 0.001f;
+
+    [Tooltip("Сила «подхлёста» камеры за быстро движущейся мышью (0 = выключено).")]
+    [SerializeField] private float mouseVelocityKick = 0.25f;
+
+    [Tooltip("Сколько времени камера должна быть почти неподвижна, прежде чем «замереть».")]
+    [SerializeField] private float freezeIdleTime = 0.5f;
+
     private bool followTarget;
     private bool transitioning;
     private bool menuReported;
@@ -51,6 +69,9 @@ public class CameraFollow : MonoBehaviour
     // Без неё тряска возвращала камеру к центру, игнорируя сдвиг за курсором,
     // и камера «дёргалась» между параллаксом и базой.
     private Vector3 shakeBasePosition;
+
+    private Vector3 smoothedParallax;
+    private float freezeTimer;
 
     public void AddShake(float amount)
     {
@@ -175,10 +196,18 @@ public class CameraFollow : MonoBehaviour
             followSpeed * Time.deltaTime
         );
 
+        Quaternion targetRotation =
+            GetGameplayLookRotation();
+
         baseRotation = Quaternion.Slerp(
             baseRotation,
-            GetGameplayLookRotation(),
+            targetRotation,
             followSpeed * Time.deltaTime
+        );
+
+        FreezeIfSettled(
+            targetPos,
+            targetRotation
         );
 
         transform.position = basePosition;
@@ -186,6 +215,62 @@ public class CameraFollow : MonoBehaviour
         transform.rotation = baseRotation;
 
         shakeBasePosition = transform.position;
+    }
+
+    // Когда игрок и мышь почти не двигаются,
+    // камера ставится точно и перестаёт «дышать» каждый кадр —
+    // тени и рендер не пересчитываются.
+    private void FreezeIfSettled(
+        Vector3 targetPos,
+        Quaternion targetRotation)
+    {
+        if (freezeDistanceThreshold <= 0f)
+            return;
+
+        // Без задержки — мгновенная фиксация (старое поведение)
+        if (freezeIdleTime <= 0f)
+        {
+            basePosition = targetPos;
+            baseRotation = targetRotation;
+            return;
+        }
+
+        if (Vector3.Distance(
+                basePosition,
+                targetPos
+            ) > freezeDistanceThreshold)
+        {
+            freezeTimer = 0f;
+            return;
+        }
+
+        if (Quaternion.Angle(
+                baseRotation,
+                targetRotation
+            ) > freezeAngleThreshold)
+        {
+            freezeTimer = 0f;
+            return;
+        }
+
+        if (Vector3.Distance(
+                smoothedParallax,
+                GetMouseParallaxOffset()
+            ) > parallaxFreezeThreshold)
+        {
+            freezeTimer = 0f;
+            return;
+        }
+
+        // Некоторое время камера продолжает «дышать» рядом с целью,
+        // а затем уже замирает — без резкой остановки.
+        freezeTimer += Time.deltaTime;
+
+        if (freezeTimer < freezeIdleTime)
+            return;
+
+        basePosition = targetPos;
+        baseRotation = targetRotation;
     }
 
     private Quaternion GetGameplayLookRotation()
@@ -215,6 +300,29 @@ public class CameraFollow : MonoBehaviour
         float normalizedY =
             (mousePos.y / Screen.height) * 2f - 1f;
 
+        if (mouseVelocityKick > 0f)
+        {
+            // Подхлёст от скорости мыши: камера «летит» за быстрым
+            // движением курсора и плавно успокаивается после остановки.
+            Vector2 delta =
+                Mouse.current.delta.ReadValue();
+
+            normalizedX +=
+                Mathf.Clamp(
+                    delta.x / Screen.width,
+                    -1f,
+                    1f
+                ) * mouseVelocityKick;
+
+            // По вертикали подхлёст слабее — амплитуда и так занижена
+            normalizedY +=
+                Mathf.Clamp(
+                    delta.y / Screen.height,
+                    -1f,
+                    1f
+                ) * mouseVelocityKick * 0.5f;
+        }
+
         return new Vector3(
             normalizedX,
             normalizedY * 0.5f,
@@ -224,12 +332,32 @@ public class CameraFollow : MonoBehaviour
 
     private void ApplyMouseParallaxToPosition()
     {
-        Vector3 parallax = GetMouseParallaxOffset();
+        Vector3 parallaxTarget =
+            GetMouseParallaxOffset();
 
-        if (parallax == Vector3.zero)
+        float smooth =
+            parallaxSmoothSpeed * Time.deltaTime;
+
+        smoothedParallax =
+            Vector3.Lerp(
+                smoothedParallax,
+                parallaxTarget,
+                smooth
+            );
+
+        if (Vector3.Distance(
+                smoothedParallax,
+                parallaxTarget
+            ) <= parallaxFreezeThreshold)
+        {
+            smoothedParallax =
+                parallaxTarget;
+        }
+
+        if (smoothedParallax == Vector3.zero)
             return;
 
-        transform.position += parallax;
+        transform.position += smoothedParallax;
     }
 
     private void ApplyShakeOverBase()
@@ -374,6 +502,7 @@ public class CameraFollow : MonoBehaviour
         followTarget = false;
         transitioning = false;
 
+        smoothedParallax = Vector3.zero;
         shakeBasePosition = transform.position;
     }
 
@@ -390,6 +519,7 @@ public class CameraFollow : MonoBehaviour
         followTarget = true;
         transitioning = false;
 
+        smoothedParallax = Vector3.zero;
         shakeBasePosition = transform.position;
     }
 

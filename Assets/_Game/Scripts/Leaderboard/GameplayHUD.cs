@@ -34,7 +34,9 @@ public class GameplayHUD : MonoBehaviour
 
     private int lastScore;
     private int lastCombo;
+    private int lastWave;
     private float lastRunTime;
+    private string lastTimeString;
 
     private int bonusPopupCount;
     private const int maxBonusPopups = 8;
@@ -55,6 +57,8 @@ public class GameplayHUD : MonoBehaviour
             comboPanel.SetActive(false);
         if (scorePanel != null)
             scorePanel.SetActive(true);
+
+        RebuildScoreText();
     }
 
     private void OnEnable()
@@ -84,56 +88,60 @@ public class GameplayHUD : MonoBehaviour
         if (cachedScoreManager == null)
             return;
 
-        // Обновляем основной счёт
+        bool changed = false;
+
         int currentScore = cachedScoreManager.Score;
         if (currentScore != lastScore)
         {
             lastScore = currentScore;
-            UpdateScoreText();
+            changed = true;
         }
 
-        // Обновляем волну
         if (cachedWaveManager != null)
         {
             int currentWave = cachedWaveManager.CurrentWave;
-            if (scoreText != null)
+            if (currentWave != lastWave)
             {
-                string suffix = " | WAVE " + currentWave;
-                scoreText.text = scoreText.text.Split('|')[0].Trim() + suffix;
+                lastWave = currentWave;
+                changed = true;
             }
         }
 
-        // Обновляем время (каждую секунду)
+        // Время — обновляем раз в секунду
         if (cachedMetrics != null)
         {
             float currentTime = cachedMetrics.RunTime;
             if (Mathf.Abs(currentTime - lastRunTime) > 1f)
             {
                 lastRunTime = currentTime;
-                if (scoreText != null)
-                {
-                    string timeStr = FormatTime(currentTime);
-                    if (!scoreText.text.Contains("TIME"))
-                        scoreText.text += " | TIME " + timeStr;
-                }
+                lastTimeString = FormatTime(currentTime);
+                changed = true;
             }
         }
+
+        if (changed)
+            RebuildScoreText();
     }
 
-    private void UpdateScoreText()
+    // Собираем строку только при изменении счёта/волны/времени —
+    // без Split/переприсвоения text каждый кадр.
+    private void RebuildScoreText()
     {
         if (scoreText == null)
             return;
 
-        string baseText = lastScore.ToString("N0");
+        string text = lastScore.ToString("N0");
 
         if (cachedWaveManager != null)
-            baseText += " | WAVE " + cachedWaveManager.CurrentWave;
+            text += " | WAVE " + lastWave;
 
-        if (cachedMetrics != null)
-            baseText += " | TIME " + FormatTime(cachedMetrics.RunTime);
+        if (cachedMetrics != null &&
+            lastTimeString != null)
+        {
+            text += " | TIME " + lastTimeString;
+        }
 
-        scoreText.text = baseText;
+        scoreText.text = text;
     }
 
     // =========================================================

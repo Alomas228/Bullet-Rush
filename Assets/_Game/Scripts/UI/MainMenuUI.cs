@@ -369,6 +369,8 @@ public class MainMenuUI : MonoBehaviour
 
     private void OnPlayClicked()
     {
+        PlayStartSound();
+
         if (slideCoroutine != null)
             StopCoroutine(slideCoroutine);
 
@@ -391,6 +393,19 @@ public class MainMenuUI : MonoBehaviour
         }
 
         ThenStartGame();
+    }
+
+    private void PlayStartSound()
+    {
+        AudioManager audio = AudioManager.Instance;
+
+        if (audio == null)
+            return;
+
+        SFXLibrary sfx = audio.SFXLibrary;
+
+        if (sfx != null && sfx.StartGame != null)
+            audio.PlayUI(sfx.StartGame);
     }
 
     private void ThenStartGame()
