@@ -65,6 +65,8 @@ public class BombAbility : MonoBehaviour
     {
         Vector3 center = GetOwnerPosition();
 
+        PlayPlayerExplosionSound();
+
         if (bombEffectPrefab != null)
         {
             GameObject effect =
@@ -115,6 +117,21 @@ public class BombAbility : MonoBehaviour
             multiplier = playerStats.DamageMultiplier;
 
         return baseDamage * multiplier;
+    }
+
+    private void PlayPlayerExplosionSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(
+                sfx.PlayerAbilityExplosion,
+                0.9f
+            );
     }
 
     private void SpawnProceduralEffect(Vector3 center)

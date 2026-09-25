@@ -304,6 +304,8 @@ public class PlayerController : MonoBehaviour
 
         recoilOffset = Vector3.zero;
 
+        PlayDashSound();
+
         RunMetrics rm = FindAnyObjectByType<RunMetrics>();
         if (rm != null)
             rm.RecordDashDodged();
@@ -541,6 +543,20 @@ public class PlayerController : MonoBehaviour
         recoilOffset +=
             flatDirection.normalized *
             Mathf.Max(force, 0f);
+    }
+
+    private void PlayDashSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.Dash
+            );
     }
 
     private void HandleAiming()

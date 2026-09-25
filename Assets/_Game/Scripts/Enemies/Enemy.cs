@@ -1867,7 +1867,23 @@ public class Enemy : MonoBehaviour
                 damage,
                 projectileSpeed
             );
+
+            PlayEnemyShotSound();
         }
+    }
+
+    private void PlayEnemyShotSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.EnemyShot
+            );
     }
 
 

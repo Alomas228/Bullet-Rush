@@ -72,7 +72,10 @@ public class AudioManager : MonoBehaviour
         if (clip == null)
             return;
 
-        sfxSource.PlayOneShot(clip, sfxVolume);
+        sfxSource.PlayOneShot(
+            clip,
+            sfxVolume * GetClipVolume(clip)
+        );
     }
 
     public void PlaySFX(AudioClip clip, float volumeScale)
@@ -80,7 +83,10 @@ public class AudioManager : MonoBehaviour
         if (clip == null)
             return;
 
-        sfxSource.PlayOneShot(clip, sfxVolume * volumeScale);
+        sfxSource.PlayOneShot(
+            clip,
+            sfxVolume * GetClipVolume(clip) * volumeScale
+        );
     }
 
     public void PlaySFXVariation(AudioClip clip)
@@ -89,7 +95,10 @@ public class AudioManager : MonoBehaviour
             return;
 
         sfxSource.pitch = Random.Range(0.9f, 1.1f);
-        sfxSource.PlayOneShot(clip, sfxVolume);
+        sfxSource.PlayOneShot(
+            clip,
+            sfxVolume * GetClipVolume(clip)
+        );
         sfxSource.pitch = 1f;
     }
 
@@ -98,7 +107,18 @@ public class AudioManager : MonoBehaviour
         if (clip == null)
             return;
 
-        sfxSource.PlayOneShot(clip, uiVolume * volumeScale);
+        sfxSource.PlayOneShot(
+            clip,
+            uiVolume * GetClipVolume(clip) * volumeScale
+        );
+    }
+
+    private float GetClipVolume(AudioClip clip)
+    {
+        if (sfxLibrary == null)
+            return 1f;
+
+        return sfxLibrary.GetClipVolume(clip);
     }
 
     public void PlayMusic(AudioClip clip)

@@ -380,6 +380,8 @@ public class Bullet : MonoBehaviour
                         lightningTargets,
                         lightningRange
                     );
+
+                    PlayLightningSound();
                 }
             }
         }
@@ -519,6 +521,8 @@ public class Bullet : MonoBehaviour
             return;
         }
 
+        PlayExplosionSound();
+
         Collider[] colliders =
             StructureQuery.OverlapSphere(
                 transform.position,
@@ -550,6 +554,48 @@ public class Bullet : MonoBehaviour
         }
     }
 
+    private void PlayExplosionSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.BulletExplosion
+            );
+    }
+
+    private void PlayLightningSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.Lightning
+            );
+    }
+
+    private void PlayRicochetSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.Ricochet
+            );
+    }
+
     // =========================================================
     // CHAIN LIGHTNING
     // =========================================================
@@ -571,6 +617,8 @@ public class Bullet : MonoBehaviour
             fromPosition,
             hitEnemy.transform.position
         );
+
+        PlayLightningSound();
 
         fromPosition =
             hitEnemy.transform.position;
@@ -676,6 +724,8 @@ public class Bullet : MonoBehaviour
             transform.position,
             closest.transform.position
         );
+
+        PlayRicochetSound();
 
         Vector3 direction =
             closest.transform.position -
