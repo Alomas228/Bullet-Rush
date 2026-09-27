@@ -137,6 +137,52 @@ public static class VfxFactory
         return true;
     }
 
+    /// <summary>
+    /// Брызги крови при попадании в моба.
+    ///
+    /// Свой бюджет на кадр и он ниже, чем у вспышек: капли живут
+    /// до 0.7 с (вспышка - 0.1 с), поэтому при залпе дроби семь
+    /// брызг одного кадра ещё видны, а восемь превращаются в
+    /// сплошное красное пятно.
+    /// </summary>
+    /// <param name="position">Точка попадания.</param>
+    /// <param name="normal">Направление полёта пули.</param>
+    /// <param name="scale">Общий множитель размера брызг.</param>
+    public static bool SpawnBlood(
+        Vector3 position,
+        Vector3 normal,
+        float scale = 1f)
+    {
+        if (bloodFrame != Time.frameCount)
+        {
+            bloodFrame = Time.frameCount;
+            bloodThisFrame = 0;
+        }
+
+        if (bloodThisFrame >= MaxBloodPerFrame)
+            return false;
+
+        bloodThisFrame++;
+
+        BloodEffect blood =
+            VfxPools.BloodBursts.Spawn(
+                null,
+                position,
+                Quaternion.identity
+            );
+
+        if (blood == null)
+            return false;
+
+        blood.Play(position, normal, scale);
+        return true;
+    }
+
+    private const int MaxBloodPerFrame = 6;
+
+    private static int bloodFrame = -1;
+    private static int bloodThisFrame;
+
     // Схлопывание взрывов: если в одном месте уже есть взрыв,
     // случившийся в коротком окне, новый не создаётся.
     // Иначе дробь с улучшением «взрыв при попадании» плодит

@@ -360,6 +360,10 @@ public static class VfxPools
         new VfxPool<ImpactEffect>(
             ImpactEffect.CreateTemplate);
 
+    public static readonly VfxPool<BloodEffect> BloodBursts =
+        new VfxPool<BloodEffect>(
+            BloodEffect.CreateTemplate);
+
     static VfxPools()
     {
         // Трассер живёт всю жизнь пули (lifetime в Bullet = 3 с),
@@ -377,6 +381,12 @@ public static class VfxPools
         // Попадание = объект с 5 рендерерами (вспышка, 3 осколка
         // и один запасной), поэтому запас меньше.
         Impacts.PrewarmCount = 16;
+
+        // Капля крови живёт до 0.7 с, бюджет на кадр у SpawnBlood
+        // - 6 брызг, то есть теоретический потолок выше, чем у
+        // вспышек. На практике столько попаданий в кадр не
+        // бывает, а 32 переживают и залп дробовика в упор.
+        BloodBursts.PrewarmCount = 32;
     }
 
     public static void ClearAll()
@@ -384,5 +394,6 @@ public static class VfxPools
         Tracers.Clear();
         EnemyTracers.Clear();
         Impacts.Clear();
+        BloodBursts.Clear();
     }
 }

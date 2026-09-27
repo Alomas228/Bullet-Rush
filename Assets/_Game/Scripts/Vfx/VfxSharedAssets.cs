@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Разделяемые ресурсы VFX: пять материалов и две сетки на весь забег.
+/// Разделяемые ресурсы VFX: шесть материалов и две сетки на весь забег.
 ///
 /// Всё создаётся лениво, ровно один раз, и дальше только переиспользуется.
 /// Ни один эффект не создаёт себе Material/mesh в рантайме.
@@ -15,8 +15,10 @@ using UnityEngine.Rendering;
 ///   вспышка         — круглое пятно (радиальный спад),
 ///   шар пули        — настоящая сфера с френелем, отдельный
 ///                    шейдер: UV-формы трассеров на сфере дают
-///                    ромб, а не шар.
-/// Пять экземпляров на игру = ноль влияния на GPU, зато эффекты
+///                    ромб, а не шар,
+///   кровь           — единственный неаддитивный: альфа-смешивание,
+///                    тёмно-красный, читает vertex color.
+/// Шесть экземпляров на игру = ноль влияния на GPU, зато эффекты
 /// настраиваются независимо. Новых материалов в рантайме
 /// не появляется никогда.
 /// </summary>
@@ -27,6 +29,9 @@ public static class VfxSharedAssets
 
     private const string GlowBallShaderName =
         "Custom/Bullet Rush Glow Ball";
+
+    private const string BloodShaderName =
+        "Custom/Bullet Rush VFX Blood";
 
     private const string FallbackShaderName =
         "Universal Render Pipeline/Unlit";
@@ -76,6 +81,13 @@ public static class VfxSharedAssets
     private static readonly Color EnemyBulletRimColor =
         new Color(1f, 0.32f, 0.16f, 1f);
 
+    // Цвет крови. Тёмно-красный, НЕ HDR: кровь не светится,
+    // и после тонмаппинга она должна остаться кровавой, а не
+    // розовой. Светлое пятно внутри капли и прозрачность
+    // приходят из vertex color, который ставит BloodEffect.
+    private static readonly Color BloodColor =
+        new Color(0.42f, 0.02f, 0.02f, 1f);
+
     // Яркость шара держится чуть выше порога Bloom (0.9 в
     // SampleSceneProfile). Раньше здесь стояло 2.6 - шар светился
     // втрое выше порога, Bloom получал всю избыточную энергию и
@@ -89,6 +101,7 @@ public static class VfxSharedAssets
     private static Material impactMaterial;
     private static Material bulletMaterial;
     private static Material enemyBulletMaterial;
+    private static Material bloodMaterial;
     private static bool shaderWarningLogged;
 
     /// <summary>
@@ -198,6 +211,51 @@ public static class VfxSharedAssets
 
             return enemyBulletMaterial;
         }
+    }
+
+    /// <summary>
+    /// Материал капель крови: тёмно-красный, альфа-смешивание.
+    /// Единственный VFX-материал без свечения.
+    /// </summary>
+    public static Material BloodMaterial
+    {
+        get
+        {
+            if (bloodMaterial == null)
+            {
+                bloodMaterial = CreateBloodMaterial();
+            }
+
+            return bloodMaterial;
+        }
+    }
+
+    private static Material CreateBloodMaterial()
+    {
+        Shader shader = ResolveShader(
+            BloodShaderName,
+            "Assets/Materials/BloodDroplet.shader");
+
+        if (shader == null)
+            return null;
+
+        Material material = new Material(shader)
+        {
+            name = "BloodVfxMat",
+            renderQueue = (int)RenderQueue.Transparent
+        };
+
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", BloodColor);
+        if (material.HasProperty("_BaseColor"))
+            material.SetColor("_BaseColor", BloodColor);
+        if (material.HasProperty("_EdgePower"))
+            material.SetFloat("_EdgePower", 1.9f);
+        if (material.HasProperty("_CorePower"))
+            material.SetFloat("_CorePower", 2f);
+
+        ConfigureAlphaBlended(material);
+        return material;
     }
 
     private static Material CreateMaterial(
@@ -416,10 +474,12 @@ public static class VfxSharedAssets
     // =========================================================
 
     /// <summary>
-    /// Общая настройка аддитивного рендерера: без теней, без
+    /// Общая настройка VFX-рендерера: без теней, без
     /// light probes, без motion vectors, без occlusion culling.
+    /// Материал здесь может быть любым - метод задаёт только
+    /// флаги рендерера, меш и материал.
     /// </summary>
-    public static void SetupAdditiveRenderer(
+    public static void SetupRenderer(
         MeshRenderer renderer,
         Mesh mesh,
         Material material)
@@ -438,6 +498,43 @@ public static class VfxSharedAssets
         renderer.motionVectorGenerationMode =
             MotionVectorGenerationMode.ForceNoMotion;
         renderer.allowOcclusionWhenDynamic = false;
+    }
+
+    /// <summary>
+    /// Историческое имя: осталось от первой версии, когда
+    /// все VFX были аддитивными. Само настройка - общая.
+    /// </summary>
+    public static void SetupAdditiveRenderer(
+        MeshRenderer renderer,
+        Mesh mesh,
+        Material material)
+    {
+        SetupRenderer(renderer, mesh, material);
+    }
+
+    /// <summary>
+    /// Альфа-смешивание вместо аддитивного: для крови и всего,
+    /// что не должно светиться.
+    /// </summary>
+    private static void ConfigureAlphaBlended(Material material)
+    {
+        material.SetOverrideTag("RenderType", "Transparent");
+
+        if (material.HasProperty("_Surface"))
+            material.SetFloat("_Surface", 1f);
+        if (material.HasProperty("_Blend"))
+            material.SetFloat("_Blend", 0f);
+        if (material.HasProperty("_SrcBlend"))
+            material.SetFloat("_SrcBlend", (int)BlendMode.SrcAlpha);
+        if (material.HasProperty("_DstBlend"))
+            material.SetFloat("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+        if (material.HasProperty("_ZWrite"))
+            material.SetFloat("_ZWrite", 0f);
+        if (material.HasProperty("_Cull"))
+            material.SetFloat("_Cull", (int)CullMode.Off);
+
+        material.DisableKeyword("_ALPHATEST_ON");
+        material.renderQueue = (int)RenderQueue.Transparent;
     }
 
     private static void ConfigureAdditive(Material material)
@@ -499,6 +596,7 @@ public static class VfxSharedAssets
         impactMaterial = null;
         bulletMaterial = null;
         enemyBulletMaterial = null;
+        bloodMaterial = null;
         shaderWarningLogged = false;
         streakMesh = null;
         centeredMesh = null;

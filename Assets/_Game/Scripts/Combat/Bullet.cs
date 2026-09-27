@@ -372,6 +372,13 @@ public class Bullet : MonoBehaviour
             transform.forward
         );
 
+        // Кровь: капли разлетаются от точки попадания по
+        // направлению полёта пули. Отдельный бюджет на кадр.
+        VfxFactory.SpawnBlood(
+            transform.position,
+            transform.forward
+        );
+
         // ============================================
         // BURN
         // ============================================
