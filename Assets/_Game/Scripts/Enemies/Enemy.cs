@@ -98,6 +98,10 @@ public class Enemy : MonoBehaviour
     private float burnTickInterval;
     private float burnTickTimer;
 
+    // Предыдущее состояние горения: нужно, чтобы поймать
+    // переход и зажечь огонь один раз, а не каждый кадр.
+    private bool wasBurning;
+
     private bool bleedActive;
     private float bleedDamagePerTick;
     private float bleedRemainingTime;
@@ -121,6 +125,12 @@ public class Enemy : MonoBehaviour
     }
 
     public bool IsDead { get; private set; }
+
+    /// <summary>
+    /// Горит ли моб сейчас. Читает BurnFlameEffect, чтобы огонь
+    /// сам знал, когда погаснуть.
+    /// </summary>
+    public bool IsBurning => burnActive;
 
     public float CurrentHealth => currentHealth;
 
@@ -421,6 +431,8 @@ public class Enemy : MonoBehaviour
             }
         }
 
+        UpdateBurnFlames();
+
         if (bleedActive)
         {
             bleedRemainingTime -= deltaTime;
@@ -443,6 +455,25 @@ public class Enemy : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Огонь на мобе появляется ровно один раз - на переходе
+    /// «не горит → горит». Повторные поджоги просто продлевают
+    /// горение (ApplyBurn перезаписывает таймер), а эффект сам
+    /// следит за IsBurning и гаснет, когда горение кончилось
+    /// или моб умер. Поэтому здесь не нужно ни хранить ссылку
+    /// на эффект, ни останавливать его в Die().
+    /// </summary>
+    private void UpdateBurnFlames()
+    {
+        if (burnActive == wasBurning)
+            return;
+
+        wasBurning = burnActive;
+
+        if (burnActive)
+            VfxFactory.SpawnBurnFlames(this);
     }
 
 

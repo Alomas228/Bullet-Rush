@@ -364,6 +364,14 @@ public static class VfxPools
         new VfxPool<BloodEffect>(
             BloodEffect.CreateTemplate);
 
+    public static readonly VfxPool<ExplosionEffect> Explosions =
+        new VfxPool<ExplosionEffect>(
+            ExplosionEffect.CreateTemplate);
+
+    public static readonly VfxPool<BurnFlameEffect> BurnFlames =
+        new VfxPool<BurnFlameEffect>(
+            BurnFlameEffect.CreateTemplate);
+
     static VfxPools()
     {
         // Трассер живёт всю жизнь пули (lifetime в Bullet = 3 с),
@@ -387,6 +395,19 @@ public static class VfxPools
         // вспышек. На практике столько попаданий в кадр не
         // бывает, а 32 переживают и залп дробовика в упор.
         BloodBursts.PrewarmCount = 32;
+
+        // Взрыв живёт до 0.9 с (дым держит дольше всех), но
+        // спавнится редко: VfxFactory схлопывает взрывы в
+        // одном месте и режет их бюджетом. Шести хватает и на
+        // залп бомбы, и на цепочку взрывов «при попадании».
+        Explosions.PrewarmCount = 6;
+
+        // Горение - состояние, а не вспышка: эффект живёт, пока
+        // моб горит, то есть единицы на несколько секунд. Шанс
+        // поджога 20% на попадание у дробовика даёт десятки
+        // зажиганий за секунду, поэтому запас заметный. Плюс
+        // бюджет в VfxFactory: за кадр столько не пройдёт.
+        BurnFlames.PrewarmCount = 24;
     }
 
     public static void ClearAll()
@@ -395,5 +416,7 @@ public static class VfxPools
         EnemyTracers.Clear();
         Impacts.Clear();
         BloodBursts.Clear();
+        Explosions.Clear();
+        BurnFlames.Clear();
     }
 }

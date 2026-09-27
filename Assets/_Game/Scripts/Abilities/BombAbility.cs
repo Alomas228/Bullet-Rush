@@ -136,21 +136,11 @@ public class BombAbility : MonoBehaviour
 
     private void SpawnProceduralEffect(Vector3 center)
     {
-        GameObject effect =
-            new GameObject("BombExplosion");
-
-        effect.transform.position = center;
-
-        BombExplosionEffect visual =
-            effect.AddComponent<BombExplosionEffect>();
-
-        if (visual != null)
-        {
-            visual.Initialize(
-                radius,
-                new Color(1f, 0.55f, 0.1f, 0.8f)
-            );
-        }
+        VfxFactory.TrySpawnExplosion(
+            center,
+            radius,
+            new Color(1f, 0.55f, 0.1f, 0.8f)
+        );
     }
 
     public void UpgradeCooldown(float percent)

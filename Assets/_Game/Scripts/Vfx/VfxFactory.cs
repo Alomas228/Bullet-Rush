@@ -10,6 +10,13 @@ public static class VfxFactory
     private static readonly Color ExplosionColor =
         new Color(1f, 0.55f, 0.1f, 0.8f);
 
+    /// <summary>
+    /// Цвет пламени взрыва. Публичный: вызывающий код (бонусы,
+    /// способности) задаёт его явно, чтобы разные взрывы не
+    /// выглядели одинаково.
+    /// </summary>
+    public static Color DefaultExplosionColor => ExplosionColor;
+
     private static readonly Color LightningColor =
         new Color(0.45f, 0.8f, 1f, 0.95f);
 
@@ -151,8 +158,7 @@ public static class VfxFactory
     public static bool SpawnBlood(
         Vector3 position,
         Vector3 normal,
-        float scale = 1f)
-    {
+        float scale = 1f)    {
         if (bloodFrame != Time.frameCount)
         {
             bloodFrame = Time.frameCount;
@@ -183,6 +189,48 @@ public static class VfxFactory
     private static int bloodFrame = -1;
     private static int bloodThisFrame;
 
+    /// <summary>
+    /// Горение моба. Эффект не вспышка, а состояние, но бюджет
+    /// всё равно нужен: у дробовика с «горящими» зарядами один
+    /// залп поджигает сразу десяток мобов, и каждый залп мог бы
+    /// создать столько же эффектов за кадр. Превышение бюджета
+    /// не ломает геймплей - моб горит, просто без огня на нём.
+    /// </summary>
+    private const int MaxBurnFlamesPerFrame = 8;
+
+    private static int burnFrame = -1;
+    private static int burnThisFrame;
+
+    public static bool SpawnBurnFlames(Enemy enemy)
+    {
+        if (enemy == null)
+            return false;
+
+        if (burnFrame != Time.frameCount)
+        {
+            burnFrame = Time.frameCount;
+            burnThisFrame = 0;
+        }
+
+        if (burnThisFrame >= MaxBurnFlamesPerFrame)
+            return false;
+
+        burnThisFrame++;
+
+        BurnFlameEffect flames =
+            VfxPools.BurnFlames.Spawn(
+                null,
+                enemy.transform.position,
+                Quaternion.identity
+            );
+
+        if (flames == null)
+            return false;
+
+        flames.Play(enemy);
+        return true;
+    }
+
     // Схлопывание взрывов: если в одном месте уже есть взрыв,
     // случившийся в коротком окне, новый не создаётся.
     // Иначе дробь с улучшением «взрыв при попадании» плодит
@@ -203,22 +251,26 @@ public static class VfxFactory
 
     public static bool TrySpawnExplosion(
         Vector3 position,
-        float radius)
+        float radius,
+        Color color)
     {
         if (IsDuplicatedExplosion(position, radius))
             return false;
 
-        GameObject effect =
-            new GameObject("BulletExplosion");
+        ExplosionEffect explosion =
+            VfxPools.Explosions.Spawn(
+                null,
+                position,
+                Quaternion.identity
+            );
 
-        effect.transform.position = position;
+        if (explosion == null)
+            return false;
 
-        BombExplosionEffect visual =
-            effect.AddComponent<BombExplosionEffect>();
-
-        visual.Initialize(
+        explosion.Play(
+            position,
             radius,
-            ExplosionColor
+            color
         );
 
         RecordExplosion(position, radius);

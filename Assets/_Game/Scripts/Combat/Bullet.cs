@@ -558,7 +558,8 @@ public class Bullet : MonoBehaviour
     {
         if (!VfxFactory.TrySpawnExplosion(
                 transform.position,
-                explosionRadius))
+                explosionRadius,
+                VfxFactory.DefaultExplosionColor))
         {
             return;
         }
