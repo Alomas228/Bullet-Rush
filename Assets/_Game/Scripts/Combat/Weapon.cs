@@ -10,6 +10,9 @@ public class Weapon : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform weaponVisualRoot;
     [SerializeField] private GameObject bulletPrefab;
+
+    // Необязательный префаб трассера. Если пусто - трассер
+    // строится процедурно (см. VfxFactory.SpawnTracer).
     [SerializeField] private GameObject tracerPrefab;
 
     private PlayerStats playerStats;
@@ -494,7 +497,11 @@ public class Weapon : MonoBehaviour
             damageMultiplier
         );
 
-        SpawnTracer(bullet.transform);
+        SpawnTracer(
+            bullet.transform,
+            direction,
+            projectileSpeed
+        );
 
         PlayFireSound();
     }
@@ -564,20 +571,17 @@ public class Weapon : MonoBehaviour
     // =========================================================
 
     private void SpawnTracer(
-        Transform bullet)
+        Transform bullet,
+        Vector3 direction,
+        float speed)
     {
-        if (tracerPrefab == null)
-            return;
-
-        BulletTracer tracer =
-            BulletTracerPool.Spawn(
-                tracerPrefab,
-                bullet.position,
-                Quaternion.identity
-            );
-
-        if (tracer != null)
-            tracer.Initialize(bullet);
+        VfxFactory.SpawnTracer(
+            bullet.position,
+            direction,
+            speed,
+            bullet,
+            tracerPrefab
+        );
     }
 
     // =========================================================

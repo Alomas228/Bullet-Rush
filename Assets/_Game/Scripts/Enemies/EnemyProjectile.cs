@@ -7,20 +7,15 @@ public class EnemyProjectile : MonoBehaviour
     [SerializeField] private float lifetime = 5f;
     [SerializeField] private float damage = 5f;
 
-    [Header("Trail")]
-    [Tooltip("Красный след как у игрока, но красный.")]
-    [SerializeField] private bool showTrail = true;
-    [SerializeField] private float trailLength = 0.7f;
-    [SerializeField] private float trailWidth = 0.12f;
+    [Header("Tracer")]
+    [Tooltip("Красный трассер как у пуль игрока.")]
+    [SerializeField] private bool showTracer = true;
 
     private Vector3 direction;
-    private LineRenderer lineRenderer;
     private float lifetimeRemaining;
 
     // Ключ пула (по префабу): пустой = объект живёт вне пула.
-    public int PoolKey { get; internal set; }
-
-    private static Material cachedTrailMaterial;
+    public EntityId? PoolKey { get; internal set; }
 
     public void Initialize(
         Vector3 newDirection,
@@ -32,12 +27,46 @@ public class EnemyProjectile : MonoBehaviour
         speed = newSpeed;
 
         lifetimeRemaining = lifetime;
+
+        if (showTracer)
+            SpawnTracer();
+    }
+
+    /// <summary>
+    /// Хвост едет вместе со снарядом: трассер сам следит за
+    /// активностью объекта и гаснет, когда снаряд вернулся в
+    /// пул. Своего Update у него нет - тикает общий VfxUpdater.
+    /// </summary>
+    private void SpawnTracer()
+    {
+        VfxFactory.SpawnEnemyTracer(
+            transform.position,
+            direction,
+            speed,
+            transform
+        );
     }
 
     private void Awake()
     {
-        if (showTrail)
-            BuildTrail();
+        ApplyGlowMaterial();
+    }
+
+    /// <summary>
+    /// Тело снаряда светится красным, как и хвост за ним, иначе
+    /// на экране видно «шарик в хвосте». Цвет общий на все
+    /// снаряды врага, поэтому материал ставится один раз.
+    /// </summary>
+    private void ApplyGlowMaterial()
+    {
+        MeshRenderer meshRenderer =
+            GetComponent<MeshRenderer>();
+
+        if (meshRenderer == null)
+            return;
+
+        meshRenderer.sharedMaterial =
+            VfxSharedAssets.EnemyBulletMaterial;
     }
 
     private void Update()
@@ -54,8 +83,6 @@ public class EnemyProjectile : MonoBehaviour
             direction *
             speed *
             Time.deltaTime;
-
-        UpdateTrail();
     }
 
     public void ReturnToPool()
@@ -63,87 +90,6 @@ public class EnemyProjectile : MonoBehaviour
         lifetimeRemaining = 0f;
 
         EnemyProjectilePool.Despawn(this);
-    }
-
-    private void BuildTrail()
-    {
-        GameObject trailObject =
-            new GameObject("EnemyTracer");
-
-        trailObject.transform.SetParent(
-            transform,
-            false
-        );
-
-        lineRenderer =
-            trailObject.AddComponent<LineRenderer>();
-
-        lineRenderer.useWorldSpace = true;
-        lineRenderer.positionCount = 2;
-
-        lineRenderer.startWidth = trailWidth;
-        lineRenderer.endWidth = trailWidth * 0.9f;
-
-        lineRenderer.numCapVertices = 2;
-
-        lineRenderer.shadowCastingMode =
-            UnityEngine.Rendering.ShadowCastingMode.Off;
-
-        lineRenderer.receiveShadows = false;
-
-        lineRenderer.sharedMaterial =
-            GetTrailMaterial();
-    }
-
-    private void UpdateTrail()
-    {
-        if (lineRenderer == null)
-            return;
-
-        Vector3 position =
-            transform.position;
-
-        lineRenderer.SetPosition(
-            0,
-            position - direction * trailLength
-        );
-
-        lineRenderer.SetPosition(1, position);
-    }
-
-    private static Material GetTrailMaterial()
-    {
-        if (cachedTrailMaterial != null)
-            return cachedTrailMaterial;
-
-        Shader shader =
-            Shader.Find("Universal Render Pipeline/Unlit");
-
-        if (shader == null)
-            shader = Shader.Find("Unlit/Color");
-
-        if (shader == null)
-            shader = Shader.Find("Universal Render Pipeline/Lit");
-
-        if (shader == null)
-            shader = Shader.Find("Standard");
-
-        Material mat = new Material(shader);
-
-        Color color =
-            new Color(1f, 0.3f, 0.25f, 1f);
-
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
-
-        mat.name = "EnemyTrailMat";
-
-        cachedTrailMaterial = mat;
-
-        return mat;
     }
 
     private void OnTriggerEnter(Collider other)

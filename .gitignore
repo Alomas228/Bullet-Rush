@@ -64,3 +64,6 @@ InitTestScene*.unity*
 .vscode
 .vscodeAssets.zip
 Assets.zip
+
+# Unity Profiler captures
+ProfilerCaptures/

@@ -3357,7 +3357,14 @@ MonoBehaviour:
   shakeAmplitude: 0.35
   shakeDecay: 3
   maxShakeRotation: 3
+  shakeSkipFramesThreshold: 0.3
   mouseParallaxStrength: 1.2
+  parallaxSmoothSpeed: 12
+  freezeDistanceThreshold: 0.001
+  freezeAngleThreshold: 0.1
+  parallaxFreezeThreshold: 0.001
+  mouseVelocityKick: 0
+  freezeIdleTime: 0.5
 --- !u!1 &360861479
 GameObject:
   m_ObjectHideFlags: 0
@@ -7559,6 +7566,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScoreManager
   playerStats: {fileID: 0}
+  bonusSettings: {fileID: 0}
 --- !u!4 &736491859
 Transform:
   m_ObjectHideFlags: 0
@@ -11944,6 +11952,7 @@ MonoBehaviour:
   spawnStagger: 0.1
   scaleInDuration: 0.25
   structuresPerTick: 4
+  structureLayerName: World
 --- !u!4 &1135991942
 Transform:
   m_ObjectHideFlags: 0
@@ -17971,7 +17980,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -0.000061035156}
+  m_AnchoredPosition: {x: 0, y: -0.00012207031}
   m_SizeDelta: {x: -1581.8962, y: -749.06}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1694220937
@@ -23313,7 +23322,7 @@ PrefabInstance:
     - target: {fileID: 6513190377178077395, guid: 15b17f8ea4d5c7f4b8431098d11eb5ea, type: 3}
       propertyPath: weaponData
       value: 
-      objectReference: {fileID: 11400000, guid: 3b5616761add97a4f975711f23704d7d, type: 2}
+      objectReference: {fileID: 11400000, guid: e5f03519e6bf9d24aa2606c88ae85e0b, type: 2}
     - target: {fileID: 6513190377178077395, guid: 15b17f8ea4d5c7f4b8431098d11eb5ea, type: 3}
       propertyPath: tracerPrefab
       value: 

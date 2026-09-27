@@ -16,6 +16,127 @@ public static class VfxFactory
     private static readonly Color RicochetColor =
         new Color(1f, 0.92f, 0.6f, 1f);
 
+    // =========================================================
+    // ТРАССЕРЫ И ПОПАДАНИЯ
+    // =========================================================
+
+    // Трассер стоит копейки (1 квад, 1 draw call), спавнится
+    // без ограничений.
+    //
+    // Попадание дороже: вспышка + 3 осколка = 4 draw call.
+    // При дробовике, попадающем в залп, за один кадр можно
+    // получить 30+ попаданий в одну точку, и эффект превратится
+    // в белое пятно. Поэтому на кадр есть жёсткий бюджет.
+    private const int MaxImpactsPerFrame = 8;
+
+    private static int impactFrame = -1;
+    private static int impactsThisFrame;
+
+    /// <summary>
+    /// Пулевой трассер. Забирается из пула, тратит один
+    /// квад и 0.075 секунды жизни.
+    /// </summary>
+    /// <param name="position">Точка выстрела.</param>
+    /// <param name="direction">Направление полёта пули.</param>
+    /// <param name="speed">Скорость пули: задаёт длину хвоста.</param>
+    /// <param name="followTarget">Пуля, за которой идёт трассер.</param>
+    /// <param name="prefab">Опциональный префаб вместо шаблона.</param>
+    public static TracerEffect SpawnTracer(
+        Vector3 position,
+        Vector3 direction,
+        float speed,
+        Transform followTarget = null,
+        GameObject prefab = null)
+    {
+        TracerEffect tracer =
+            VfxPools.Tracers.Spawn(
+                prefab,
+                position,
+                Quaternion.identity
+            );
+
+        if (tracer == null)
+            return null;
+
+        tracer.Play(
+            direction,
+            speed,
+            followTarget
+        );
+
+        return tracer;
+    }
+
+    /// <summary>
+    /// Красный трассер снаряда врага. Тот же эффект и тот же
+    /// квад, что у пуль игрока, но из своего пула и с красным
+    /// материалом - глаз отличает чужую пулю на лету.
+    /// </summary>
+    /// <param name="position">Точка выстрела.</param>
+    /// <param name="direction">Направление полёта снаряда.</param>
+    /// <param name="speed">Скорость снаряда: задаёт длину хвоста.</param>
+    /// <param name="followTarget">Снаряд, за которым идёт трассер.</param>
+    public static TracerEffect SpawnEnemyTracer(
+        Vector3 position,
+        Vector3 direction,
+        float speed,
+        Transform followTarget = null)
+    {
+        TracerEffect tracer =
+            VfxPools.EnemyTracers.Spawn(
+                null,
+                position,
+                Quaternion.identity
+            );
+
+        if (tracer == null)
+            return null;
+
+        tracer.Play(
+            direction,
+            speed,
+            followTarget
+        );
+
+        return tracer;
+    }
+
+    /// <summary>
+    /// Вспышка попадания с осколками.
+    /// </summary>
+    /// <param name="position">Точка попадания.</param>
+    /// <param name="normal">Направление отдачи осколков.</param>
+    /// <param name="prefab">Опциональный префаб вместо шаблона.</param>
+    public static bool SpawnImpact(
+        Vector3 position,
+        Vector3 normal,
+        GameObject prefab = null)
+    {
+        if (impactFrame != Time.frameCount)
+        {
+            impactFrame = Time.frameCount;
+            impactsThisFrame = 0;
+        }
+
+        if (impactsThisFrame >= MaxImpactsPerFrame)
+            return false;
+
+        impactsThisFrame++;
+
+        ImpactEffect impact =
+            VfxPools.Impacts.Spawn(
+                prefab,
+                position,
+                Quaternion.identity
+            );
+
+        if (impact == null)
+            return false;
+
+        impact.Play(position, normal);
+        return true;
+    }
+
     // Схлопывание взрывов: если в одном месте уже есть взрыв,
     // случившийся в коротком окне, новый не создаётся.
     // Иначе дробь с улучшением «взрыв при попадании» плодит

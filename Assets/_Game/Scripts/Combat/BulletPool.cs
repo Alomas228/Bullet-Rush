@@ -6,8 +6,8 @@ using UnityEngine;
 // Убирает Instantiate/Destroy на каждый выстрел и рикошет (GC на WebGL).
 public static class BulletPool
 {
-    private static readonly Dictionary<int, Queue<Bullet>> Pools =
-        new Dictionary<int, Queue<Bullet>>();
+    private static readonly Dictionary<EntityId, Queue<Bullet>> Pools =
+        new Dictionary<EntityId, Queue<Bullet>>();
 
     public static Bullet Spawn(
         GameObject prefab,
@@ -17,7 +17,7 @@ public static class BulletPool
         if (prefab == null)
             return null;
 
-        int key = prefab.GetInstanceID();
+        EntityId key = prefab.GetEntityId();
 
         Queue<Bullet> queue;
 
@@ -81,9 +81,9 @@ public static class BulletPool
 
         bulletObject.SetActive(false);
 
-        int key = bullet.PoolKey;
+        EntityId? key = bullet.PoolKey;
 
-        if (key == 0)
+        if (!key.HasValue)
         {
             Object.Destroy(bulletObject);
             return;
@@ -91,7 +91,7 @@ public static class BulletPool
 
         Queue<Bullet> queue;
 
-        if (!Pools.TryGetValue(key, out queue))
+        if (!Pools.TryGetValue(key.Value, out queue))
         {
             Object.Destroy(bulletObject);
             return;

@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Пул снарядов врагов: снаряд при «смерти» не уничтожается,
-// а прячется и переиспользуется. Трейл (LineRenderer) строится
+// а прячется и переиспользуется. Геймобъект снаряда создаётся
 // один раз за жизнь слота пула, а не на каждый залп.
 public static class EnemyProjectilePool
 {
-    private static readonly Dictionary<int, Queue<EnemyProjectile>> Pools =
-        new Dictionary<int, Queue<EnemyProjectile>>();
+    private static readonly Dictionary<EntityId, Queue<EnemyProjectile>> Pools =
+        new Dictionary<EntityId, Queue<EnemyProjectile>>();
 
     public static EnemyProjectile Spawn(
         GameObject prefab,
@@ -17,7 +17,7 @@ public static class EnemyProjectilePool
         if (prefab == null)
             return null;
 
-        int key = prefab.GetInstanceID();
+        EntityId key = prefab.GetEntityId();
 
         Queue<EnemyProjectile> queue;
 
@@ -81,9 +81,9 @@ public static class EnemyProjectilePool
 
         projectileObject.SetActive(false);
 
-        int key = projectile.PoolKey;
+        EntityId? key = projectile.PoolKey;
 
-        if (key == 0)
+        if (!key.HasValue)
         {
             Object.Destroy(projectileObject);
             return;
@@ -91,7 +91,7 @@ public static class EnemyProjectilePool
 
         Queue<EnemyProjectile> queue;
 
-        if (!Pools.TryGetValue(key, out queue))
+        if (!Pools.TryGetValue(key.Value, out queue))
         {
             Object.Destroy(projectileObject);
             return;

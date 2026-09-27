@@ -63,7 +63,30 @@ public class Bullet : MonoBehaviour
     private float lifetimeRemaining;
 
     // Ключ пула (по префабу): пустой = объект живёт вне пула.
-    public int PoolKey { get; internal set; }
+    public EntityId? PoolKey { get; internal set; }
+
+    private void Awake()
+    {
+        ApplyGlowMaterial();
+    }
+
+    /// <summary>
+    /// Тело пули должно светиться так же, как трассер за ней,
+    /// иначе на экране видно «шарик в хвосте». Цвет общий на все
+    /// пули игрока, поэтому материал ставится один раз за жизнь
+    /// объекта: ни MaterialPropertyBlock, ни копий материала.
+    /// </summary>
+    private void ApplyGlowMaterial()
+    {
+        MeshRenderer meshRenderer =
+            GetComponent<MeshRenderer>();
+
+        if (meshRenderer == null)
+            return;
+
+        meshRenderer.sharedMaterial =
+            VfxSharedAssets.BulletMaterial;
+    }
 
     private void Update()
     {
@@ -335,6 +358,18 @@ public class Bullet : MonoBehaviour
         enemy.TakeDamage(
             damage,
             isCritical
+        );
+
+        // ============================================
+        // IMPACT VFX
+        // ============================================
+
+        // Вспышка с осколками забирается из пула, бюджет на кадр
+        // держит VfxFactory, чтобы залп в упор не превращался
+        // в белое пятно.
+        VfxFactory.SpawnImpact(
+            transform.position,
+            transform.forward
         );
 
         // ============================================
