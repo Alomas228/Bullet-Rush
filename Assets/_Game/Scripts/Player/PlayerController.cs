@@ -260,6 +260,17 @@ public class PlayerController : MonoBehaviour
 
     public float DashCooldown => dashCooldown;
 
+    /// <summary>
+    /// Уменьшает перезарядку рывка на долю (0.04 = -4%).
+    /// Персистентные улучшения применяют это на старте забега.
+    /// </summary>
+    public void ReduceDashCooldown(float percent)
+    {
+        dashCooldown *= 1f - percent;
+
+        dashCooldown = Mathf.Max(dashCooldown, 0.2f);
+    }
+
     private void UpdateDashTimers()
     {
         if (dashTimer > 0f)

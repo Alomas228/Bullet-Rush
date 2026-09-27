@@ -75,6 +75,15 @@ public class PlayerEquipmentApplier : MonoBehaviour
     {
         ApplyAbilities();
         ApplyClothing();
+
+        // Постоянные улучшения идут последними: к этому моменту
+        // бомба/щит уже разблокированы, значит перезарядку
+        // способностей есть на что повесить.
+        PermanentUpgradeApplier upgradeApplier =
+            GetComponent<PermanentUpgradeApplier>();
+
+        if (upgradeApplier != null)
+            upgradeApplier.ApplyPermanentUpgrades();
     }
 
     // =========================================================
