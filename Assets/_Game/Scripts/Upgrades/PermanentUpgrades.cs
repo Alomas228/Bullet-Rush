@@ -54,6 +54,12 @@ public static class PermanentUpgrades
         /// <summary>Шаблон итогового бонуса, {0} — значение.</summary>
         public string Format;
 
+        /// <summary>
+        /// Короткий шаблон без названия параметра — для карточки,
+        /// где значение стоит рядом со стрелкой.
+        /// </summary>
+        public string ShortFormat;
+
         public ValueMode Mode;
 
         /// <summary>Бонус одного уровня (для PercentCompound — доля).</summary>
@@ -205,13 +211,20 @@ public static class PermanentUpgrades
     /// </summary>
     private static string Format(Def def, float value)
     {
-        string number =
-            Mathf.Abs(value).ToString(
-                NumberFormat(def.Decimals),
-                System.Globalization.CultureInfo.InvariantCulture
-            );
+        return def.Format.Replace("{0}", NumberString(def, value));
+    }
 
-        return def.Format.Replace("{0}", number);
+    private static string FormatShort(Def def, float value)
+    {
+        return def.ShortFormat.Replace("{0}", NumberString(def, value));
+    }
+
+    private static string NumberString(Def def, float value)
+    {
+        return Mathf.Abs(value).ToString(
+            NumberFormat(def.Decimals),
+            System.Globalization.CultureInfo.InvariantCulture
+        );
     }
 
     private static string NumberFormat(int decimals)
@@ -297,6 +310,37 @@ public static class PermanentUpgrades
                 GetDef(stat),
                 GetNextLevelGain(stat)
             );
+    }
+
+    /// <summary>
+    /// Компактное значение текущего бонуса для карточки: «+5%».
+    /// На нулевом уровне бонуса ещё нет — возвращаем прочерк.
+    /// </summary>
+    public static string FormatLevelTotal(PermanentUpgradeStat stat)
+    {
+        int level = GetLevel(stat);
+
+        if (level <= 0)
+            return "—";
+
+        Def def = GetDef(stat);
+
+        return FormatShort(
+            def,
+            ToDisplayValue(def, GetApplyValue(stat, level))
+        );
+    }
+
+    /// <summary>
+    /// Компактное значение после покупки следующего уровня:
+    /// «+5.2%». На максимуме — прочерк.
+    /// </summary>
+    public static string FormatLevelNext(PermanentUpgradeStat stat)
+    {
+        if (IsMaxLevel(stat))
+            return "—";
+
+        return FormatShort(GetDef(stat), GetNextLevelGain(stat));
     }
 
     // =========================================================
@@ -399,8 +443,9 @@ public static class PermanentUpgrades
             {
                 Stat = PermanentUpgradeStat.Damage,
                 Name = "Урон",
-                Description = "Усиливает все попадания оружия.",
+                Description = "Увеличивает урон всего оружия.",
                 Format = "+{0}% к урону",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = 0.05f,
                 Decimals = 1
@@ -416,6 +461,7 @@ public static class PermanentUpgrades
                 Name = "Скорострельность",
                 Description = "Оружие стреляет чаще.",
                 Format = "+{0}% к скорострельности",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = 0.05f,
                 Decimals = 1
@@ -429,8 +475,9 @@ public static class PermanentUpgrades
             {
                 Stat = PermanentUpgradeStat.MoveSpeed,
                 Name = "Скорость бега",
-                Description = "Позволяет уворачиваться, но не делает игрока бегометелем.",
+                Description = "Позволяет быстрее уворачиваться.",
                 Format = "+{0}% к скорости бега",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = 0.03f,
                 Decimals = 1
@@ -446,6 +493,7 @@ public static class PermanentUpgrades
                 Name = "Запас здоровья",
                 Description = "Больше HP в каждом забеге.",
                 Format = "+{0}% к максимуму здоровья",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = 0.07f,
                 Decimals = 1
@@ -461,6 +509,7 @@ public static class PermanentUpgrades
                 Name = "Регенерация",
                 Description = "Здоровье восстанавливается само.",
                 Format = "+{0} HP/с",
+                ShortFormat = "+{0} HP/с",
                 Mode = ValueMode.FlatAdd,
                 ValuePerLevel = 0.1f,
                 ValueIsFraction = false,
@@ -477,6 +526,7 @@ public static class PermanentUpgrades
                 Name = "Шанс крита",
                 Description = "Шанс нанести критический урон.",
                 Format = "+{0}% к шансу крита",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.FlatAdd,
                 ValuePerLevel = 0.02f,
                 Decimals = 0
@@ -490,8 +540,9 @@ public static class PermanentUpgrades
             {
                 Stat = PermanentUpgradeStat.CriticalDamage,
                 Name = "Сила крита",
-                Description = "Критический удар наносит больше урона.",
+                Description = "Критический удар бьёт сильнее.",
                 Format = "+{0}x к силе крита",
+                ShortFormat = "+{0}x",
                 Mode = ValueMode.FlatAdd,
                 ValuePerLevel = 0.15f,
                 ValueIsFraction = false,
@@ -508,6 +559,7 @@ public static class PermanentUpgrades
                 Name = "Скорость снарядов",
                 Description = "Пуля летит до цели быстрее.",
                 Format = "+{0}% к скорости снарядов",
+                ShortFormat = "+{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = 0.05f,
                 Decimals = 1
@@ -523,6 +575,7 @@ public static class PermanentUpgrades
                 Name = "Перезарядка рывка",
                 Description = "Рывок (Space) восстанавливается быстрее.",
                 Format = "-{0}% к перезарядке рывка",
+                ShortFormat = "-{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = -0.04f,
                 Decimals = 1
@@ -536,8 +589,9 @@ public static class PermanentUpgrades
             {
                 Stat = PermanentUpgradeStat.AbilityCooldown,
                 Name = "Перезарядка способностей",
-                Description = "Бомба (E) и щит (Q) восстанавливаются быстрее.",
+                Description = "Бомба и щит восстанавливаются быстрее.",
                 Format = "-{0}% к перезарядке способностей",
+                ShortFormat = "-{0}%",
                 Mode = ValueMode.PercentCompound,
                 ValuePerLevel = -0.04f,
                 Decimals = 1

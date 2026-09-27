@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d446077efb530be4fa9f456cfb49b6b8, type: 3}
+  m_Name: EquipmentLayoutSettings
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::EquipmentLayoutSettings
+  referenceWidth: 1620
+  referenceHeight: 900
+  topBarHeight: 130
+  tabBarHeight: 100
+  cardAreaTop: 246
+  cardAreaBottom: 190
+  cardsPerPage: 4
+  cardWidth: 360
+  cardHeight: 540
+  cardGap: 20
+  rowPadding: 120
+  frameInset: 3
+  rowSpacing: 8
+  facePaddingLeft: 20
+  facePaddingRight: 20
+  facePaddingTop: 24
+  facePaddingBottom: 20
+  accentLineInset: 40
+  iconAreaHeight: 100
+  iconDiscSize: 56
+  typeTextHeight: 24
+  nameHeight: 34
+  rarityHeight: 24
+  statsHeight: 92
+  stateHeight: 36
+  actionHeight: 66

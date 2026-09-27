@@ -1,983 +1,989 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 /// <summary>
-/// Панель «Снаряжение» в главном меню с тремя вкладками:
-///  - Магазин      — все оружия проекта (UpgradeManager.availableWeapons);
-///  - Способности  — все способности (UpgradeManager.availableAbilities);
-///  - Одежда       — вся одежда (UpgradeManager.availableClothing).
+/// Панель «Снаряжение» в главном меню: магазин предметов и
+/// подбор боевого набора.
 ///
-/// Карточки генерируются из одного шаблона на вкладку (ScrollRect/Content).
-/// Состояния карточки:
-///  - заблокировано по уровню        -> «Заблокировано», кнопка неактивна
-///  - уровень достигнут, не куплено  -> «Купить N», покупка за монеты
-///  - куплено, не снаряжено          -> «Снарядить»
-///  - куплено и снаряжено            -> «Снаряжено» (способности: «Снять»)
+/// Три вкладки — Оружие, Способности, Одежда — приходят из
+/// UpgradeManager (availableWeapons / availableAbilities /
+/// availableClothing). Внутри каждой вкладки работает тот же
+/// горизонтальный приём, что и на «Улучшениях»: по
+/// CardsPerPage карточек, стрелки листают страницы, точки
+/// показывают позицию. Вертикального списка нет.
+///
+/// Отличия от «Улучшений» намеренные:
+///  - вкладка — главный навигатор, и на ней же написано, что
+///    сейчас надето, поэтому отдельной строки «снаряжено» нет;
+///  - состояние предмета (закрыт / куплен / надет) показывается
+///    плашкой на карточке, а не уровнем в прогресс-баре;
+///  - акцент карточки задаёт редкость предмета, а не группа
+///    параметра;
+///  - вместо кнопки обновления — счётчик страниц.
+///
+/// Состояние покупок и выбора живёт в EquipmentManager
+/// (PlayerPrefs), здесь только отображение.
 /// </summary>
 public class EquipmentUI : MonoBehaviour
 {
+    /// <summary>
+    /// Сколько карточек помещается на страницу. Задаётся ассетом
+    /// EquipmentLayoutSettings, чтобы размеры карточек и разбивка
+    /// на страницы менялись из одного места.
+    /// </summary>
+    [Header("Разметка")]
+    [SerializeField] private int cardsPerPage = 4;
+
+    private int CardsPerPage => Mathf.Max(1, cardsPerPage);
+
     private enum TabKind
     {
-        Shop = 0,
+        Weapons = 0,
         Abilities = 1,
         Clothing = 2
     }
 
-    private abstract class RuntimeCard
+    private sealed class TabRefs
     {
-        public GameObject root;
-
-        public Image background;
-        public TMP_Text nameText;
-        public TMP_Text typeText;
-        public TMP_Text statsText;
-        public TMP_Text statusText;
-        public Button actionButton;
-        public Image actionButtonImage;
-        public TMP_Text actionButtonText;
+        public Button button;
+        public Image image;
+        public TMP_Text label;
+        public TMP_Text value;
     }
 
-    private sealed class WeaponCard : RuntimeCard
+    private sealed class Dot
     {
-        public WeaponData data;
+        public Image image;
+        public LayoutElement layout;
     }
 
-    private sealed class AbilityCard : RuntimeCard
-    {
-        public AbilityData data;
-    }
-
-    private sealed class ClothingCard : RuntimeCard
-    {
-        public ClothingData data;
-    }
-
-    [Header("Panel")]
-    [SerializeField] private GameObject equipmentPanel;
-
-    [Header("Header")]
-    [SerializeField] private TMP_Text playerLevelText;
-    [SerializeField] private TMP_Text playerCoinsText;
-    [SerializeField] private TMP_Text equippedText;
+    [Header("Top bar")]
+    [SerializeField] private TMP_Text coinsText;
+    [SerializeField] private TMP_Text levelText;
 
     [Header("Tabs")]
-    [Tooltip("Кнопки вкладок в порядке: Магазин, Способности, Одежда.")]
-    [SerializeField] private Button[] tabButtons;
+    [Tooltip("Кнопки вкладок в порядке: Оружие, Способности, Одежда.")]
+    [SerializeField] private List<Button> tabButtons = new List<Button>();
 
-    [Tooltip("Корни областей прокрутки вкладок (тот же порядок).")]
-    [SerializeField] private RectTransform[] tabContentRoots;
+    [Tooltip("Подписи «что надето» под названием вкладки, тот же порядок.")]
+    [SerializeField] private List<TMP_Text> tabValueTexts = new List<TMP_Text>();
 
-    [Tooltip("Шаблоны карточек каждой вкладки (тот же порядок).")]
-    [SerializeField] private GameObject[] cardTemplates;
+    [Header("Cards")]
+    [SerializeField] private List<EquipmentCardView> cardSlots =
+        new List<EquipmentCardView>();
 
-    [Header("Colors")]
-    [SerializeField] private Color normalCardColor =
-        new Color(0.16f, 0.16f, 0.20f, 1f);
-    [SerializeField] private Color equippedCardColor =
-        new Color(0.18f, 0.38f, 0.22f, 1f);
-    [SerializeField] private Color activeButtonColor =
-        new Color(0.25f, 0.55f, 0.25f, 1f);
-    [SerializeField] private Color inactiveButtonColor =
-        new Color(0.35f, 0.35f, 0.40f, 0.55f);
-    [SerializeField] private Color activeTabColor =
-        new Color(0.28f, 0.55f, 0.30f, 1f);
-    [SerializeField] private Color inactiveTabColor =
-        new Color(0.16f, 0.16f, 0.22f, 0.9f);
+    [Header("Pagination")]
+    [SerializeField] private Button previousButton;
+    [SerializeField] private Image previousImage;
+    [SerializeField] private Button nextButton;
+    [SerializeField] private Image nextImage;
+    [SerializeField] private RectTransform dotsRoot;
+    [SerializeField] private GameObject dotTemplate;
+    [SerializeField] private TMP_Text pageCounterText;
 
-    private readonly List<WeaponCard> weaponCards =
-        new List<WeaponCard>();
+    [Header("Empty state")]
+    [SerializeField] private GameObject emptyState;
+    [SerializeField] private TMP_Text emptyStateText;
 
-    private readonly List<AbilityCard> abilityCards =
-        new List<AbilityCard>();
+    /// <summary>
+    /// Что показывать в подписи вкладки, когда ничего не надето.
+    /// Спрашиваем у EquipmentManager, чтобы не дублировать его
+    /// форматирование.
+    /// </summary>
+    [SerializeField] private string emptySlotLabel = "не выбрано";
 
-    private readonly List<ClothingCard> clothingCards =
-        new List<ClothingCard>();
+    private sealed class WeaponEntry
+    {
+        public WeaponData data;
+        public EquipmentCardData card;
+    }
+
+    private sealed class AbilityEntry
+    {
+        public AbilityData data;
+        public EquipmentCardData card;
+    }
+
+    private sealed class ClothingEntry
+    {
+        public ClothingData data;
+        public EquipmentCardData card;
+    }
+
+    private readonly List<WeaponEntry> weapons = new List<WeaponEntry>();
+    private readonly List<AbilityEntry> abilities = new List<AbilityEntry>();
+    private readonly List<ClothingEntry> clothing = new List<ClothingEntry>();
+    private readonly List<Dot> dots = new List<Dot>();
+    private readonly List<TabRefs> tabs = new List<TabRefs>();
+
+    /// <summary>Страница у каждой вкладки своя.</summary>
+    private readonly int[] pages = new int[3];
 
     private bool built;
     private bool subscribed;
 
-    private TabKind activeTab = TabKind.Shop;
+    private TabKind activeTab = TabKind.Weapons;
 
     private void OnEnable()
     {
-        EnsureTabListeners();
+        EnsureBuilt();
 
+        if (!built)
+            return;
+
+        Subscribe();
         Refresh();
     }
 
     private void OnDisable()
     {
-        RemoveTabListeners();
-    }
-
-    public void Refresh()
-    {
-        if (!built)
-            BuildCards();
-
-        RefreshHeader();
-
-        ShowTab(activeTab);
-    }
-
-    // =====================================================
-    // TABS
-    // =====================================================
-
-    private void EnsureTabListeners()
-    {
-        if (subscribed)
-            return;
-
-        subscribed = true;
-
-        if (tabButtons == null)
-            return;
-
-        for (int i = 0; i < tabButtons.Length; i++)
-        {
-            Button button = tabButtons[i];
-
-            if (button == null)
-                continue;
-
-            var captured = i;
-
-            button.onClick.AddListener(
-                () => OnTabClicked((TabKind)captured)
-            );
-        }
-    }
-
-    private void RemoveTabListeners()
-    {
-        if (!subscribed)
-            return;
-
-        subscribed = false;
-
-        if (tabButtons == null)
-            return;
-
-        for (int i = 0; i < tabButtons.Length; i++)
-        {
-            if (tabButtons[i] != null)
-                tabButtons[i].onClick.RemoveAllListeners();
-        }
-    }
-
-    private void OnTabClicked(TabKind tab)
-    {
-        if (activeTab == tab)
-        {
-            Refresh();
-            return;
-        }
-
-        activeTab = tab;
-
-        ShowTab(tab);
-    }
-
-    private void ShowTab(TabKind tab)
-    {
-        int index = (int)tab;
-
-        if (tabContentRoots != null)
-        {
-            for (int i = 0; i < tabContentRoots.Length; i++)
-            {
-                if (tabContentRoots[i] == null)
-                    continue;
-
-                tabContentRoots[i].gameObject.SetActive(i == index);
-            }
-        }
-
-        if (tabButtons != null)
-        {
-            for (int i = 0; i < tabButtons.Length; i++)
-            {
-                if (tabButtons[i] == null)
-                    continue;
-
-                Image image =
-                    tabButtons[i].GetComponent<Image>();
-
-                if (image != null)
-                {
-                    image.color =
-                        i == index
-                            ? activeTabColor
-                            : inactiveTabColor;
-                }
-            }
-        }
-
-        if (index == (int)TabKind.Shop)
-            RefreshShopCards();
-        else if (index == (int)TabKind.Abilities)
-            RefreshAbilityCards();
-        else if (index == (int)TabKind.Clothing)
-            RefreshClothingCards();
-
-        RebuildContentLayout(GetTabContent(tab));
-    }
-
-    private RectTransform GetTabContent(TabKind tab)
-    {
-        if (tabContentRoots == null)
-            return null;
-
-        int index = (int)tab;
-
-        if (index < 0 || index >= tabContentRoots.Length)
-            return null;
-
-        RectTransform root = tabContentRoots[index];
-
-        if (root == null)
-            return null;
-
-        Transform content =
-            root.Find("Viewport/Content");
-
-        return content as RectTransform;
-    }
-
-    private void RebuildContentLayout(RectTransform content)
-    {
-        if (content == null)
-            return;
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
-        Canvas.ForceUpdateCanvases();
+        Unsubscribe();
     }
 
     // =====================================================
     // BUILD
     // =====================================================
 
-    private void BuildCards()
+    private void EnsureBuilt()
     {
+        if (built)
+            return;
+
+        if (!HasLayout())
+        {
+            Debug.LogError(
+                "[Equipment] Панель не собрана новым билдером: " +
+                "нет карточек или вкладок.\n" +
+                "Запусти Tools -> Bullet Rush -> Build Equipment UI.",
+                this
+            );
+
+            enabled = false;
+
+            return;
+        }
+
         built = true;
 
-        if (cardTemplates == null || cardTemplates.Length == 0)
-        {
-            Debug.LogWarning(
-                "EquipmentUI: cardTemplates не назначены.",
-                this
-            );
-
-            return;
-        }
-
-        UpgradeManager upgradeManager =
-            UpgradeManager.Instance;
-
-        if (upgradeManager == null)
-        {
-            Debug.LogWarning(
-                "EquipmentUI: UpgradeManager.Instance is null.",
-                this
-            );
-
-            return;
-        }
-
-        BuildWeaponCards(upgradeManager);
-        BuildAbilityCards(upgradeManager);
-        BuildClothingCards(upgradeManager);
+        CacheTabs();
+        WireButtons();
+        EnsureItems();
     }
 
-    private void BuildWeaponCards(UpgradeManager upgradeManager)
+    /// <summary>
+    /// Проверяет, что на объекте лежит новая иерархия билдера.
+    /// Нужна, потому что старая панель может сохраниться с
+    /// прошлой версии компонента, где полей не было.
+    /// </summary>
+    private bool HasLayout()
     {
-        GameObject template =
-            GetCardTemplate(TabKind.Shop);
+        if (tabButtons == null || tabButtons.Count == 0)
+            return false;
 
-        RectTransform content =
-            template != null
-                ? template.transform.parent as RectTransform
-                : GetContentRoot(TabKind.Shop);
+        if (cardSlots == null || cardSlots.Count == 0)
+            return false;
 
-        template?.SetActive(false);
-
-        if (content == null)
+        for (int i = 0; i < cardSlots.Count; i++)
         {
-            Debug.LogWarning(
-                "EquipmentUI: нет Content для вкладки «Магазин».",
-                this
-            );
+            if (cardSlots[i] == null)
+                return false;
+        }
 
+        return previousButton != null && nextButton != null;
+    }
+
+    private void CacheTabs()
+    {
+        tabs.Clear();
+
+        for (int i = 0; i < tabButtons.Count; i++)
+        {
+            Button button = tabButtons[i];
+
+            TMP_Text value = null;
+
+            if (tabValueTexts != null && i < tabValueTexts.Count)
+                value = tabValueTexts[i];
+
+            // Не пропускаем пустые кнопки: индекс в списке должен
+            // совпадать с порядком вкладок, иначе в TabKind
+            // попадёт не та вкладка.
+            tabs.Add(
+                new TabRefs
+                {
+                    button = button,
+                    image = button != null
+                        ? button.GetComponent<Image>()
+                        : null,
+                    label = button != null
+                        ? button.GetComponentInChildren<TMP_Text>(true)
+                        : null,
+                    value = value
+                }
+            );
+        }
+    }
+
+    private void WireButtons()
+    {
+        for (int i = 0; i < tabs.Count; i++)
+        {
+            TabRefs tab = tabs[i];
+            int index = i;
+
+            if (tab.button != null)
+                tab.button.onClick.AddListener(() => SelectTab(index));
+        }
+
+        if (previousButton != null)
+            previousButton.onClick.AddListener(PreviousPage);
+
+        if (nextButton != null)
+            nextButton.onClick.AddListener(NextPage);
+
+        for (int i = 0; i < cardSlots.Count; i++)
+            RegisterCard(cardSlots[i]);
+    }
+
+    /// <summary>
+    /// Раздаёт карточкам обработчики. Клик по карточке и по строке
+    /// действия делают одно и то же, поэтому обработчика один.
+    /// </summary>
+    public void RegisterCard(EquipmentCardView card)
+    {
+        if (card == null)
+            return;
+
+        if (card.Wired)
+            return;
+
+        card.MarkWired();
+
+        EquipmentCardView captured = card;
+
+        if (card.CardButton != null)
+        {
+            card.CardButton.onClick.AddListener(
+                () => OnActionClicked(captured)
+            );
+        }
+
+        if (card.ActionButton != null)
+        {
+            card.ActionButton.onClick.AddListener(
+                () => OnActionClicked(captured)
+            );
+        }
+    }
+
+    // =====================================================
+    // TABS
+    // =====================================================
+
+    private void SelectTab(int index)
+    {
+        if (index < 0 || index >= tabs.Count)
+            return;
+
+        if ((int)activeTab == index)
+        {
+            PlayUiClick();
             return;
         }
 
-        foreach (WeaponData weapon in
-                 upgradeManager.GetAvailableWeapons())
+        activeTab = (TabKind)index;
+
+        PlayUiClick();
+        Refresh();
+    }
+
+    private void ShowTab()
+    {
+        int index = (int)activeTab;
+
+        for (int i = 0; i < tabs.Count; i++)
         {
-            if (weapon == null)
-                continue;
+            TabRefs tab = tabs[i];
 
-            GameObject cardObject =
-                template != null
-                    ? Instantiate(template, content)
-                    : CreateFallbackCard(content, "WeaponCard");
+            bool active = i == index;
 
-            cardObject.name = $"Card_{weapon.WeaponName}";
-
-            WeaponCard card = new WeaponCard
+            if (tab.image != null)
             {
-                root = cardObject,
-                data = weapon,
-                background = cardObject.GetComponent<Image>(),
-                nameText = FindText(cardObject, "Name"),
-                typeText = FindText(cardObject, "Type"),
-                statsText = FindText(cardObject, "Stats"),
-                statusText = FindText(cardObject, "Status")
-            };
+                tab.image.color = active
+                    ? EquipmentWireframeTheme.Surface
+                    : EquipmentWireframeTheme.SurfaceMuted;
+            }
 
-            BindActionButton(
-                card,
-                cardObject,
-                () => OnActionClicked(card)
-            );
-
-            cardObject.SetActive(true);
-
-            weaponCards.Add(card);
-        }
-
-        RebuildContentLayout(content);
-    }
-
-    private void BuildAbilityCards(UpgradeManager upgradeManager)
-    {
-        GameObject template =
-            GetCardTemplate(TabKind.Abilities);
-
-        RectTransform content =
-            template != null
-                ? template.transform.parent as RectTransform
-                : GetContentRoot(TabKind.Abilities);
-
-        template?.SetActive(false);
-
-        if (content == null)
-        {
-            Debug.LogWarning(
-                "EquipmentUI: нет Content для вкладки «Способности».",
-                this
-            );
-
-            return;
-        }
-
-        foreach (AbilityData ability in
-                 upgradeManager.GetAvailableAbilities())
-        {
-            if (ability == null)
-                continue;
-
-            GameObject cardObject =
-                template != null
-                    ? Instantiate(template, content)
-                    : CreateFallbackCard(content, "AbilityCard");
-
-            cardObject.name = $"Card_{ability.AbilityName}";
-
-            AbilityCard card = new AbilityCard
+            if (tab.label != null)
             {
-                root = cardObject,
-                data = ability,
-                background = cardObject.GetComponent<Image>(),
-                nameText = FindText(cardObject, "Name"),
-                typeText = FindText(cardObject, "Type"),
-                statsText = FindText(cardObject, "Stats"),
-                statusText = FindText(cardObject, "Status")
-            };
+                tab.label.color = active
+                    ? EquipmentWireframeTheme.TextPrimary
+                    : EquipmentWireframeTheme.TextSecondary;
+            }
 
-            BindActionButton(
-                card,
-                cardObject,
-                () => OnActionClicked(card)
-            );
-
-            cardObject.SetActive(true);
-
-            abilityCards.Add(card);
-        }
-
-        RebuildContentLayout(content);
-    }
-
-    private void BuildClothingCards(UpgradeManager upgradeManager)
-    {
-        GameObject template =
-            GetCardTemplate(TabKind.Clothing);
-
-        RectTransform content =
-            template != null
-                ? template.transform.parent as RectTransform
-                : GetContentRoot(TabKind.Clothing);
-
-        template?.SetActive(false);
-
-        if (content == null)
-        {
-            Debug.LogWarning(
-                "EquipmentUI: нет Content для вкладки «Одежда».",
-                this
-            );
-
-            return;
-        }
-
-        foreach (ClothingData clothing in
-                 upgradeManager.GetAvailableClothing())
-        {
-            if (clothing == null)
-                continue;
-
-            GameObject cardObject =
-                template != null
-                    ? Instantiate(template, content)
-                    : CreateFallbackCard(content, "ClothingCard");
-
-            cardObject.name = $"Card_{clothing.ClothingName}";
-
-            ClothingCard card = new ClothingCard
+            if (tab.value != null)
             {
-                root = cardObject,
-                data = clothing,
-                background = cardObject.GetComponent<Image>(),
-                nameText = FindText(cardObject, "Name"),
-                typeText = FindText(cardObject, "Type"),
-                statsText = FindText(cardObject, "Stats"),
-                statusText = FindText(cardObject, "Status")
-            };
-
-            BindActionButton(
-                card,
-                cardObject,
-                () => OnActionClicked(card)
-            );
-
-            cardObject.SetActive(true);
-
-            clothingCards.Add(card);
+                tab.value.color = active
+                    ? EquipmentWireframeTheme.TextSecondary
+                    : EquipmentWireframeTheme.TextMuted;
+            }
         }
-
-        RebuildContentLayout(content);
-    }
-
-    private void BindActionButton(
-        RuntimeCard card,
-        GameObject cardObject,
-        UnityEngine.Events.UnityAction action)
-    {
-        Transform actionTransform =
-            cardObject.transform.Find("ActionButton");
-
-        if (actionTransform == null)
-            return;
-
-        card.actionButton =
-            actionTransform.GetComponent<Button>();
-
-        card.actionButtonImage =
-            actionTransform.GetComponent<Image>();
-
-        card.actionButtonText =
-            FindText(actionTransform.gameObject, "Text");
-
-        if (card.actionButton != null)
-            card.actionButton.onClick.AddListener(action);
-    }
-
-    private GameObject GetCardTemplate(TabKind tab)
-    {
-        if (cardTemplates == null)
-            return null;
-
-        int index = (int)tab;
-
-        if (index < 0 || index >= cardTemplates.Length)
-            return null;
-
-        return cardTemplates[index];
-    }
-
-    private RectTransform GetContentRoot(TabKind tab)
-    {
-        if (tabContentRoots == null)
-            return null;
-
-        int index = (int)tab;
-
-        if (index < 0 || index >= tabContentRoots.Length)
-            return null;
-
-        RectTransform root = tabContentRoots[index];
-
-        return root != null
-            ? root.Find("Viewport")?.Find("Content") as RectTransform
-            : null;
-    }
-
-    /// <summary>Создаёт простую карточку без шаблона (аварийный путь при сборке).</summary>
-    private static GameObject CreateFallbackCard(
-        Transform content,
-        string name)
-    {
-        var rect = new GameObject(
-            name,
-            typeof(RectTransform)
-        );
-
-        rect.transform.SetParent(content, false);
-
-        return rect;
-    }
-
-    private static TMP_Text FindText(GameObject root, string childName)
-    {
-        Transform child = root.transform.Find(childName);
-
-        return child != null
-            ? child.GetComponent<TMP_Text>()
-            : null;
     }
 
     // =====================================================
     // REFRESH
     // =====================================================
 
-    private void RefreshHeader()
+    public void Refresh()
     {
-        XpManager xp = XpManager.Instance;
+        EnsureBuilt();
 
-        int level =
-            xp != null ? xp.GetPlayerLevel() : 1;
+        if (!built)
+            return;
 
-        int coins =
-            xp != null ? xp.GlobalCoins : 0;
+        int coins = CurrentCoins();
+        int level = CurrentLevel();
 
-        if (playerLevelText != null)
-            playerLevelText.text = $"LEVEL {level}";
+        if (coinsText != null)
+            coinsText.text = coins.ToString();
 
-        if (playerCoinsText != null)
-            playerCoinsText.text = $"МОНЕТЫ: {coins}";
+        if (levelText != null)
+            levelText.text = $"УР. {level}";
 
-        if (equippedText != null)
-            equippedText.text = FormatEquippedSummary();
+        ShowTab();
+        RefreshTabValues();
+        ShowPage(coins);
     }
 
-    private string FormatEquippedSummary()
+    /// <summary>
+    /// Под вкладкой показываем то, что сейчас надето в этой
+    /// категории. Это заменяет отдельную строку «снаряжено»
+    /// в шапке макета.
+    /// </summary>
+    private void RefreshTabValues()
     {
-        string weapon =
-            EquipmentManager.EquippedWeaponName;
+        if (tabs.Count < 3)
+            return;
 
-        string weaponLabel =
-            string.IsNullOrEmpty(weapon)
-                ? "—"
-                : weapon;
+        SetTabValue(0, EquipmentManager.EquippedWeaponName);
+        SetTabValue(1, JoinAbilities(EquipmentManager.EquippedAbilityNames));
+        SetTabValue(2, EquipmentManager.EquippedClothingName);
+    }
 
-        List<string> abilities =
-            new List<string>(
-                EquipmentManager.EquippedAbilityNames
-            );
+    private void SetTabValue(int index, string value)
+    {
+        if (index >= tabs.Count)
+            return;
 
-        string abilityLabel =
-            abilities.Count > 0
-                ? string.Join(", ", abilities)
+        TMP_Text text = tabs[index].value;
+
+        if (text == null)
+            return;
+
+        text.text = string.IsNullOrEmpty(value)
+            ? emptySlotLabel
+            : value;
+    }
+
+    private static string JoinAbilities(IReadOnlyList<string> names)
+    {
+        if (names == null || names.Count == 0)
+            return string.Empty;
+
+        return string.Join(", ", names);
+    }
+
+    private void ShowPage(int coins)
+    {
+        int tabIndex = (int)activeTab;
+        int count = CountOf(tabIndex);
+
+        // Mathf.Clamp возвращает max, когда max меньше min, а при
+        // пустом списке pageCount равен нулю и clamp давал -1. Из-за
+        // этого start уходил в минус и CardAt падал на отрицательном
+        // индексе. Пустая категория — это page 0, а не -1.
+        int pageCount = PageCount(CountOf(tabIndex));
+
+        int page = pageCount > 0
+            ? Mathf.Clamp(pages[tabIndex], 0, pageCount - 1)
+            : 0;
+
+        pages[tabIndex] = page;
+
+        int start = page * CardsPerPage;
+
+        for (int i = 0; i < cardSlots.Count; i++)
+        {
+            EquipmentCardView slot = cardSlots[i];
+
+            if (slot == null)
+                continue;
+
+            int index = start + i;
+            bool visible = index < count;
+
+            if (slot.gameObject.activeSelf != visible)
+                slot.gameObject.SetActive(visible);
+
+            if (!visible)
+                continue;
+
+            EquipmentCardData card = CardAt(tabIndex, index);
+
+            if (card == null)
+                continue;
+
+            // Владение и выбор меняются после покупки, поэтому
+            // состояние перечитывается на каждом Refresh.
+            card.SyncState();
+            FillState(card);
+
+            slot.Refresh(card, coins);
+        }
+
+        if (emptyState != null)
+            emptyState.SetActive(count == 0);
+
+        if (emptyStateText != null && count == 0)
+        {
+            emptyStateText.text =
+                "В этой категории пока нет предметов.";
+        }
+
+        UpdatePagination(page, pageCount);
+    }
+
+    /// <summary>
+    /// Дописывает в карточку текст состояния. Владение и выбор
+    /// считает EquipmentCardData.SyncState — у неё есть ссылка
+    /// на ассет и доступ к EquipmentManager.
+    /// </summary>
+    private static void FillState(EquipmentCardData card)
+    {
+        if (!card.Unlocked)
+        {
+            card.State = $"ОТКРОЕТСЯ НА УРОВНЕ {card.UnlockLevel}";
+            return;
+        }
+
+        if (!card.Owned)
+        {
+            card.State = "НЕ КУПЛЕНО";
+            return;
+        }
+
+        card.State = card.Equipped ? "СНАРЯЖЕНО" : "КУПЛЕНО";
+    }
+
+    private void UpdatePagination(int page, int pageCount)
+    {
+        bool hasPrevious = page > 0;
+        bool hasNext = page < pageCount - 1;
+
+        if (previousButton != null)
+            previousButton.interactable = hasPrevious;
+
+        if (nextButton != null)
+            nextButton.interactable = hasNext;
+
+        if (previousImage != null)
+        {
+            previousImage.color = hasPrevious
+                ? EquipmentWireframeTheme.Surface
+                : EquipmentWireframeTheme.SurfaceDisabled;
+        }
+
+        if (nextImage != null)
+        {
+            nextImage.color = hasNext
+                ? EquipmentWireframeTheme.Surface
+                : EquipmentWireframeTheme.SurfaceDisabled;
+        }
+
+        if (pageCounterText != null)
+        {
+            pageCounterText.text = pageCount > 0
+                ? $"{page + 1:00} / {pageCount:00}"
                 : "—";
+        }
 
-        string clothing =
-            EquipmentManager.EquippedClothingName;
-
-        string clothingLabel =
-            string.IsNullOrEmpty(clothing)
-                ? "—"
-                : clothing;
-
-        return
-            $"Оружие: {weaponLabel}\n" +
-            $"Способности: {abilityLabel}\n" +
-            $"Образ: {clothingLabel}";
+        RebuildDots(pageCount);
+        UpdateDots(page);
     }
 
-    private void RefreshShopCards()
+    /// <summary>
+    /// Точек может быть разное число: у оружия их четыре
+    /// (15 предметов по четыре на страницу), у одежды одна.
+    /// Пересобираем список, когда количество изменилось.
+    /// </summary>
+    private void RebuildDots(int pageCount)
     {
-        foreach (WeaponCard card in weaponCards)
+        if (dotsRoot == null || dotTemplate == null)
+            return;
+
+        if (dots.Count == pageCount)
+            return;
+
+        for (int i = 0; i < dots.Count; i++)
         {
-            WeaponData weapon = card.data;
+            if (dots[i].image != null)
+                Kill(dots[i].image.gameObject);
+        }
 
-            if (weapon == null)
-                continue;
+        dots.Clear();
 
-            bool unlocked = EquipmentManager.IsUnlocked(weapon);
-            bool owned = EquipmentManager.IsOwned(weapon);
-            bool equipped = EquipmentManager.IsEquipped(weapon);
+        for (int i = 0; i < pageCount; i++)
+        {
+            GameObject dotObject = Instantiate(dotTemplate, dotsRoot);
 
-            SetCardTexts(
-                card,
-                weapon.WeaponName,
-                TypeLabel(weapon.WeaponType),
-                FormatStats(weapon)
+            dotObject.name = $"Dot_{i + 1}";
+            dotObject.SetActive(true);
+
+            Button dotButton = dotObject.GetComponent<Button>();
+
+            if (dotButton != null)
+            {
+                int target = i;
+
+                dotButton.onClick.AddListener(() => GoToPage(target));
+            }
+
+            dots.Add(
+                new Dot
+                {
+                    image = dotObject.GetComponent<Image>(),
+                    layout = dotObject.GetComponent<LayoutElement>()
+                }
+            );
+        }
+    }
+
+    private void UpdateDots(int page)
+    {
+        for (int i = 0; i < dots.Count; i++)
+        {
+            Dot dot = dots[i];
+            bool active = i == page;
+
+            if (dot.layout != null)
+            {
+                float size = active ? 20f : 12f;
+
+                dot.layout.preferredWidth = size;
+                dot.layout.preferredHeight = size;
+            }
+
+            if (dot.image != null)
+            {
+                dot.image.color = active
+                    ? EquipmentWireframeTheme.DotActive
+                    : EquipmentWireframeTheme.DotInactive;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Точки пересоздаются при смене вкладки, и OnEnable панели
+    /// в редакторе тоже отрабатывает. Destroy в режиме правки
+    /// бросает ошибку, поэтому способ удаления зависит от режима.
+    /// </summary>
+    private static void Kill(GameObject target)
+    {
+        if (target == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(target);
+        else
+            DestroyImmediate(target);
+    }
+
+    // =====================================================
+    // PAGINATION
+    // =====================================================
+
+    private void PreviousPage()
+    {
+        GoToPage(CurrentPage() - 1);
+    }
+
+    private void NextPage()
+    {
+        GoToPage(CurrentPage() + 1);
+    }
+
+    private int CurrentPage()
+    {
+        return pages[(int)activeTab];
+    }
+
+    private void GoToPage(int value)
+    {
+        int tabIndex = (int)activeTab;
+        int pageCount = PageCount(CountOf(tabIndex));
+
+        // Пустой список — это одна фиктивная страница, иначе clamp
+        // с max меньше min вернул бы -1.
+        int clamped = pageCount > 0
+            ? Mathf.Clamp(value, 0, pageCount - 1)
+            : 0;
+
+        if (clamped == pages[tabIndex])
+            return;
+
+        pages[tabIndex] = clamped;
+
+        PlayUiClick();
+        Refresh();
+    }
+
+    private int PageCount(int itemCount)
+    {
+        if (itemCount <= 0)
+            return 0;
+
+        return Mathf.CeilToInt(itemCount / (float)CardsPerPage);
+    }
+
+    // =====================================================
+    // COLLECTIONS
+    // =====================================================
+
+    private int CountOf(int tabIndex)
+    {
+        switch ((TabKind)tabIndex)
+        {
+            case TabKind.Weapons:
+                return weapons.Count;
+
+            case TabKind.Abilities:
+                return abilities.Count;
+
+            default:
+                return clothing.Count;
+        }
+    }
+
+    private EquipmentCardData CardAt(int tabIndex, int index)
+    {
+        // Отрицательный индекс тоже вне диапазона, а List бросает
+        // на нём исключение, поэтому проверяем обе границы.
+        if (index < 0)
+            return null;
+
+        switch ((TabKind)tabIndex)
+        {
+            case TabKind.Weapons:
+                return index < weapons.Count
+                    ? weapons[index].card
+                    : null;
+
+            case TabKind.Abilities:
+                return index < abilities.Count
+                    ? abilities[index].card
+                    : null;
+
+            default:
+                return index < clothing.Count
+                    ? clothing[index].card
+                    : null;
+        }
+    }
+
+    /// <summary>
+    /// Перечитывает списки предметов из UpgradeManager. Списки
+    /// меняются только в редакторе (когда добавляют ассеты), поэтому
+    /// пересборка происходит один раз за жизнь панели.
+    /// </summary>
+    private void EnsureItems()
+    {
+        if (weapons.Count > 0
+            || abilities.Count > 0
+            || clothing.Count > 0)
+        {
+            return;
+        }
+
+        UpgradeManager upgradeManager = UpgradeManager.Instance;
+
+        if (upgradeManager == null)
+        {
+            Debug.LogError(
+                "[Equipment] На сцене нет UpgradeManager, поэтому список "
+                + "предметов пуст и вкладка останется пустой.\n" +
+                "Проверь, что объект UpgradeManager есть в сцене и "
+                + "не выключен.",
+                this
             );
 
-            if (card.background != null)
-            {
-                card.background.color =
-                    equipped
-                        ? equippedCardColor
-                        : normalCardColor;
-            }
-
-            if (!unlocked)
-            {
-                SetCardState(
-                    card,
-                    $"УРОВЕНЬ {weapon.UnlockLevel}",
-                    "Заблокировано",
-                    false
-                );
-            }
-            else if (!owned)
-            {
-                SetCardState(
-                    card,
-                    $"{weapon.Price} монет",
-                    "Купить",
-                    true
-                );
-            }
-            else if (equipped)
-            {
-                SetCardState(
-                    card,
-                    "Снаряжено",
-                    "Снаряжено",
-                    false
-                );
-            }
-            else
-            {
-                SetCardState(
-                    card,
-                    "Куплено",
-                    "Снарядить",
-                    true
-                );
-            }
+            return;
         }
+
+        LoadWeapons(upgradeManager);
+        LoadAbilities(upgradeManager);
+        LoadClothing(upgradeManager);
     }
 
-    private void RefreshAbilityCards()
+    private void LoadWeapons(UpgradeManager upgradeManager)
     {
-        foreach (AbilityCard card in abilityCards)
+        foreach (WeaponData data in upgradeManager.GetAvailableWeapons())
         {
-            AbilityData ability = card.data;
-
-            if (ability == null)
+            if (data == null)
                 continue;
 
-            bool unlocked = EquipmentManager.IsUnlocked(ability);
-            bool owned = EquipmentManager.IsOwned(ability);
-            bool equipped = EquipmentManager.IsEquipped(ability);
-
-            SetCardTexts(
-                card,
-                ability.AbilityName,
-                AbilityKindLabel(ability.Kind),
-                FormatAbility(ability)
+            weapons.Add(
+                new WeaponEntry
+                {
+                    data = data,
+                    card = BuildWeaponCard(data)
+                }
             );
-
-            if (card.background != null)
-            {
-                card.background.color =
-                    equipped
-                        ? equippedCardColor
-                        : normalCardColor;
-            }
-
-            if (!unlocked)
-            {
-                SetCardState(
-                    card,
-                    $"УРОВЕНЬ {ability.UnlockLevel}",
-                    "Заблокировано",
-                    false
-                );
-            }
-            else if (!owned)
-            {
-                SetCardState(
-                    card,
-                    $"{ability.Price} монет",
-                    "Купить",
-                    true
-                );
-            }
-            else if (equipped)
-            {
-                SetCardState(
-                    card,
-                    "Снаряжена",
-                    "Снять",
-                    true
-                );
-            }
-            else
-            {
-                SetCardState(
-                    card,
-                    "Куплена",
-                    "Снарядить",
-                    true
-                );
-            }
         }
     }
 
-    private void RefreshClothingCards()
+    private void LoadAbilities(UpgradeManager upgradeManager)
     {
-        foreach (ClothingCard card in clothingCards)
+        foreach (AbilityData data in upgradeManager.GetAvailableAbilities())
         {
-            ClothingData clothing = card.data;
-
-            if (clothing == null)
+            if (data == null)
                 continue;
 
-            bool unlocked = EquipmentManager.IsUnlocked(clothing);
-            bool owned = EquipmentManager.IsOwned(clothing);
-            bool equipped = EquipmentManager.IsEquipped(clothing);
-
-            SetCardTexts(
-                card,
-                clothing.ClothingName,
-                "Одежда",
-                FormatClothing(clothing)
+            abilities.Add(
+                new AbilityEntry
+                {
+                    data = data,
+                    card = BuildAbilityCard(data)
+                }
             );
-
-            if (card.background != null)
-            {
-                card.background.color =
-                    equipped
-                        ? equippedCardColor
-                        : normalCardColor;
-            }
-
-            if (!unlocked)
-            {
-                SetCardState(
-                    card,
-                    $"УРОВЕНЬ {clothing.UnlockLevel}",
-                    "Заблокировано",
-                    false
-                );
-            }
-            else if (!owned)
-            {
-                SetCardState(
-                    card,
-                    $"{clothing.Price} монет",
-                    "Купить",
-                    true
-                );
-            }
-            else if (equipped)
-            {
-                SetCardState(
-                    card,
-                    "Надета",
-                    "Надета",
-                    false
-                );
-            }
-            else
-            {
-                SetCardState(
-                    card,
-                    "Куплена",
-                    "Надеть",
-                    true
-                );
-            }
         }
     }
 
-    private static void SetCardTexts(
-        RuntimeCard card,
-        string name,
-        string type,
-        string stats)
+    private void LoadClothing(UpgradeManager upgradeManager)
     {
-        if (card.nameText != null)
-            card.nameText.text = name;
-
-        if (card.typeText != null)
-            card.typeText.text = type;
-
-        if (card.statsText != null)
-            card.statsText.text = stats;
-    }
-
-    private void SetCardState(
-        RuntimeCard card,
-        string statusText,
-        string actionText,
-        bool interactable)
-    {
-        if (card.statusText != null)
-            card.statusText.text = statusText;
-
-        if (card.actionButtonText != null)
-            card.actionButtonText.text = actionText;
-
-        if (card.actionButton != null)
-            card.actionButton.interactable = interactable;
-
-        if (card.actionButtonImage != null)
+        foreach (ClothingData data in upgradeManager.GetAvailableClothing())
         {
-            card.actionButtonImage.color =
-                interactable
-                    ? activeButtonColor
-                    : inactiveButtonColor;
+            if (data == null)
+                continue;
+
+            clothing.Add(
+                new ClothingEntry
+                {
+                    data = data,
+                    card = BuildClothingCard(data)
+                }
+            );
         }
+    }
+
+    private EquipmentCardData BuildWeaponCard(WeaponData data)
+    {
+        return new EquipmentCardData
+        {
+            Weapon = data,
+            Name = data.WeaponName,
+            TypeLabel = WeaponTypeLabel(data.WeaponType),
+            RarityLabel = RarityLabel(data.Rarity),
+            Stats = FormatWeapon(data),
+            Price = data.Price,
+            UnlockLevel = data.UnlockLevel,
+            Accent = EquipmentWireframeTheme.GetRarityColor(data.Rarity),
+            Toggles = false
+        };
+    }
+
+    private EquipmentCardData BuildAbilityCard(AbilityData data)
+    {
+        return new EquipmentCardData
+        {
+            Ability = data,
+            Name = data.AbilityName,
+            TypeLabel = AbilityKindLabel(data.Kind),
+            RarityLabel = string.Empty,
+            Stats = string.IsNullOrEmpty(data.Stats)
+                ? data.Description
+                : data.Stats,
+            Price = data.Price,
+            UnlockLevel = data.UnlockLevel,
+            Accent = EquipmentWireframeTheme.AbilityAccent,
+            Toggles = true
+        };
+    }
+
+    private EquipmentCardData BuildClothingCard(ClothingData data)
+    {
+        return new EquipmentCardData
+        {
+            Clothing = data,
+            Name = data.ClothingName,
+            TypeLabel = "Одежда",
+            RarityLabel = string.Empty,
+            Stats = data.Description,
+            Price = data.Price,
+            UnlockLevel = data.UnlockLevel,
+            Accent = EquipmentWireframeTheme.ClothingAccent,
+            Toggles = false
+        };
     }
 
     // =====================================================
     // ACTIONS
     // =====================================================
 
-    private void OnActionClicked(RuntimeCard card)
+    private void OnActionClicked(EquipmentCardView view)
     {
-        switch (card)
+        if (view == null)
+            return;
+
+        int tabIndex = (int)activeTab;
+        int start = CurrentPage() * CardsPerPage;
+
+        for (int i = 0; i < cardSlots.Count; i++)
         {
-            case WeaponCard weaponCard:
-                HandleWeaponAction(weaponCard);
+            if (cardSlots[i] != view)
+                continue;
+
+            Handle(tabIndex, start + i);
+
+            return;
+        }
+    }
+
+    private void Handle(int tabIndex, int index)
+    {
+        switch ((TabKind)tabIndex)
+        {
+            case TabKind.Weapons:
+                if (index < weapons.Count)
+                    HandleWeapon(weapons[index].data);
+
                 break;
 
-            case AbilityCard abilityCard:
-                HandleAbilityAction(abilityCard);
+            case TabKind.Abilities:
+                if (index < abilities.Count)
+                    HandleAbility(abilities[index].data);
+
                 break;
 
-            case ClothingCard clothingCard:
-                HandleClothingAction(clothingCard);
+            default:
+                if (index < clothing.Count)
+                    HandleClothing(clothing[index].data);
+
                 break;
         }
     }
 
-    private void HandleWeaponAction(WeaponCard card)
+    private void HandleWeapon(WeaponData data)
     {
-        WeaponData weapon = card.data;
-
-        if (weapon == null)
+        if (data == null)
             return;
 
-        if (!EquipmentManager.IsUnlocked(weapon))
+        if (!EquipmentManager.IsUnlocked(data))
         {
             PlayUiClick();
+            Refresh();
+
             return;
         }
 
-        if (!EquipmentManager.IsOwned(weapon))
+        if (!EquipmentManager.IsOwned(data))
         {
-            bool bought = EquipmentManager.TryPurchase(weapon);
+            bool bought = EquipmentManager.TryPurchase(data);
 
-            if (bought) PlayPurchaseSound();
-            else PlayUiClick();
+            if (bought)
+                PlayPurchaseSound();
+            else
+                PlayUiClick();
 
             Refresh();
+
             return;
         }
 
-        if (!EquipmentManager.IsEquipped(weapon))
-        {
-            bool equipped = EquipmentManager.TryEquip(weapon);
-
-            if (equipped) PlayEquipSound();
-            else PlayUiClick();
-
-            Refresh();
-        }
-    }
-
-    private void HandleAbilityAction(AbilityCard card)
-    {
-        AbilityData ability = card.data;
-
-        if (ability == null)
-            return;
-
-        if (!EquipmentManager.IsUnlocked(ability))
-        {
+        if (EquipmentManager.TryEquip(data))
+            PlayEquipSound();
+        else
             PlayUiClick();
-            return;
-        }
-
-        if (!EquipmentManager.IsOwned(ability))
-        {
-            bool bought = EquipmentManager.TryPurchase(ability);
-
-            if (bought) PlayPurchaseSound();
-            else PlayUiClick();
-
-            Refresh();
-            return;
-        }
-
-        bool toggled = EquipmentManager.TryToggleAbility(ability);
-
-        if (toggled) PlayEquipSound();
-        else PlayUiClick();
 
         Refresh();
     }
 
-    private void HandleClothingAction(ClothingCard card)
+    private void HandleAbility(AbilityData data)
     {
-        ClothingData clothing = card.data;
-
-        if (clothing == null)
+        if (data == null)
             return;
 
-        if (!EquipmentManager.IsUnlocked(clothing))
+        if (!EquipmentManager.IsUnlocked(data))
         {
             PlayUiClick();
+            Refresh();
+
             return;
         }
 
-        if (!EquipmentManager.IsOwned(clothing))
+        if (!EquipmentManager.IsOwned(data))
         {
-            bool bought = EquipmentManager.TryPurchase(clothing);
+            bool bought = EquipmentManager.TryPurchase(data);
 
-            if (bought) PlayPurchaseSound();
-            else PlayUiClick();
+            if (bought)
+                PlayPurchaseSound();
+            else
+                PlayUiClick();
 
             Refresh();
+
             return;
         }
 
-        if (!EquipmentManager.IsEquipped(clothing))
-        {
-            bool equipped = EquipmentManager.TryEquip(clothing);
+        if (EquipmentManager.TryToggleAbility(data))
+            PlayEquipSound();
+        else
+            PlayUiClick();
 
-            if (equipped) PlayEquipSound();
-            else PlayUiClick();
+        Refresh();
+    }
+
+    private void HandleClothing(ClothingData data)
+    {
+        if (data == null)
+            return;
+
+        if (!EquipmentManager.IsUnlocked(data))
+        {
+            PlayUiClick();
+            Refresh();
+
+            return;
+        }
+
+        if (!EquipmentManager.IsOwned(data))
+        {
+            bool bought = EquipmentManager.TryPurchase(data);
+
+            if (bought)
+                PlayPurchaseSound();
+            else
+                PlayUiClick();
 
             Refresh();
+
+            return;
         }
+
+        if (EquipmentManager.TryEquip(data))
+            PlayEquipSound();
+        else
+            PlayUiClick();
+
+        Refresh();
     }
 
     // =====================================================
     // FORMATTING
     // =====================================================
 
-    private static string TypeLabel(WeaponType type)
+    private static string WeaponTypeLabel(WeaponType type)
     {
         switch (type)
         {
@@ -1034,27 +1040,93 @@ public class EquipmentUI : MonoBehaviour
         }
     }
 
-    private static string FormatStats(WeaponData weapon)
+    /// <summary>
+    /// Характеристики оружия в виде строк, а не одной простыни:
+    /// карточка 340 пикселей шириной, длинная строка не влезет.
+    /// </summary>
+    private static string FormatWeapon(WeaponData data)
     {
-        return
-            $"Урон: {weapon.Damage:0.#}   •  " +
-            $"Скорострельность: {weapon.FireRate:0.#}/с   •  " +
-            $"Снарядов: {weapon.ProjectileCount}   •  " +
-            $"Пробитие: {weapon.PierceCount}   •  " +
-            $"Редкость: {RarityLabel(weapon.Rarity)}";
+        var lines = new List<string>
+        {
+            $"Урон: {data.Damage:0.#}",
+            $"Темп: {data.FireRate:0.#}/с"
+        };
+
+        if (data.ProjectileCount > 1)
+            lines.Add($"Снарядов: {data.ProjectileCount}");
+
+        if (data.PierceCount > 0)
+            lines.Add($"Пробитие: {data.PierceCount}");
+
+        if (data.IsBurstWeapon)
+            lines.Add($"Очередь: {data.ShotsPerBurst}");
+
+        if (data.CriticalChanceBonus > 0f)
+        {
+            lines.Add(
+                $"Крит: +{data.CriticalChanceBonus * 100f:0.#}%"
+            );
+        }
+
+        if (data.ScoreBonusPercent > 0f)
+        {
+            lines.Add(
+                $"Очки: +{data.ScoreBonusPercent:0.#}%"
+            );
+        }
+
+        return string.Join("\n", lines);
     }
 
-    private static string FormatAbility(AbilityData ability)
-    {
-        if (!string.IsNullOrEmpty(ability.Stats))
-            return ability.Stats;
+    // =====================================================
+    // SOURCES
+    // =====================================================
 
-        return ability.Description;
+    private static int CurrentCoins()
+    {
+        return XpManager.Instance != null
+            ? XpManager.Instance.GlobalCoins
+            : 0;
     }
 
-    private static string FormatClothing(ClothingData clothing)
+    private static int CurrentLevel()
     {
-        return clothing.Description;
+        return XpManager.Instance != null
+            ? XpManager.Instance.GetPlayerLevel()
+            : 1;
+    }
+
+    // =====================================================
+    // EVENTS
+    // =====================================================
+
+    private void Subscribe()
+    {
+        if (subscribed)
+            return;
+
+        if (XpManager.Instance == null)
+            return;
+
+        XpManager.Instance.OnCoinsChanged += HandleCoinsChanged;
+
+        subscribed = true;
+    }
+
+    private void Unsubscribe()
+    {
+        if (!subscribed)
+            return;
+
+        if (XpManager.Instance != null)
+            XpManager.Instance.OnCoinsChanged -= HandleCoinsChanged;
+
+        subscribed = false;
+    }
+
+    private void HandleCoinsChanged(int coins)
+    {
+        Refresh();
     }
 
     // =====================================================

@@ -1,361 +1,499 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Панель «Улучшения» в главном меню: постоянные покупки параметров
-/// игрока за монеты (PermanentUpgrades).
+/// Панель «Улучшения» в главном меню: магазин постоянных улучшений.
 ///
-/// На каждый параметр — одна карточка:
-///  - имя параметра и краткое описание;
-///  - текущий суммарный бонус и прирост от следующего уровня;
-///  - полоса прогресса уровня (0..PermanentUpgrades.MaxLevel);
-///  - кнопка с ценой следующего уровня.
+/// Логика экрана простая: у каждого параметра свой уровень от 0
+/// до PermanentUpgrades.MaxLevel, следующий уровень покупается
+/// за монеты. Опыта и уровня игрока на этом экране нет.
 ///
-/// Состояния кнопки:
-///  - не хватает монет  -> «Не хватает N», неактивна
-///  - максимум           -> «Максимум», неактивна
-///  - можно купить       -> «Улучшить • N», активна
+/// Композиция — горизонтальная: одновременно видно
+/// PermanentUpgrades.CardsPerPage карточек, по краям стрелки
+/// листают страницы, снизу точки пагинации. Вертикального
+/// списка и длинного скролла нет.
 ///
-/// Карточки генерируются из одного шаблона (ScrollRect/Content)
-/// и обновляются при каждом открытии панели.
+/// Кнопка «ОБНОВИТЬ» заново раздаёт набор улучшений за монеты —
+/// это заглушка механики, порядок карточек после обновления
+/// меняется случайно.
 /// </summary>
 public class PermanentUpgradesUI : MonoBehaviour
 {
-    private sealed class RuntimeCard
-    {
-        public Image background;
-        public TMP_Text nameText;
-        public TMP_Text typeText;
-        public TMP_Text statsText;
-        public TMP_Text nextText;
-        public TMP_Text statusText;
-        public Slider progress;
-        public Button actionButton;
-        public Image actionButtonImage;
-        public TMP_Text actionButtonText;
+    /// <summary>Сколько карточек помещается на экран.</summary>
+    public const int CardsPerPage = 4;
 
-        public PermanentUpgradeStat stat;
+    [Tooltip("Порядок выдачи улучшений. Первые четыре — основные группы.")]
+    private static readonly PermanentUpgradeStat[] DefaultOrder =
+    {
+        PermanentUpgradeStat.Damage,
+        PermanentUpgradeStat.MaxHealth,
+        PermanentUpgradeStat.MoveSpeed,
+        PermanentUpgradeStat.CriticalChance,
+        PermanentUpgradeStat.FireRate,
+        PermanentUpgradeStat.HealthRegen,
+        PermanentUpgradeStat.ProjectileSpeed,
+        PermanentUpgradeStat.CriticalDamage,
+        PermanentUpgradeStat.DashCooldown,
+        PermanentUpgradeStat.AbilityCooldown
+    };
+
+    private sealed class Dot
+    {
+        public Image image;
+        public LayoutElement layout;
     }
 
-    [Header("Header")]
-    [SerializeField] private TMP_Text playerLevelText;
-    [SerializeField] private TMP_Text playerCoinsText;
-    [SerializeField] private TMP_Text summaryText;
+    [Header("Top bar")]
+    [SerializeField] private TMP_Text coinsText;
 
     [Header("Cards")]
-    [Tooltip("Корень ScrollRect прокрутки (Viewport/Content внутри).")]
-    [SerializeField] private RectTransform scrollAreaRoot;
+    [SerializeField] private List<PermanentUpgradeCardView> cardSlots =
+        new List<PermanentUpgradeCardView>();
 
-    [Tooltip("Шаблон карточки: Name, Type, Stats, Next, Status, Progress, ActionButton.")]
-    [SerializeField] private GameObject cardTemplate;
+    [Header("Pagination")]
+    [SerializeField] private Button previousButton;
+    [SerializeField] private Image previousImage;
+    [SerializeField] private Button nextButton;
+    [SerializeField] private Image nextImage;
+    [SerializeField] private RectTransform dotsRoot;
+    [SerializeField] private GameObject dotTemplate;
 
-    [Header("Colors")]
-    [SerializeField] private Color normalCardColor =
-        new Color(0.16f, 0.16f, 0.20f, 1f);
-    [SerializeField] private Color maxedCardColor =
-        new Color(0.18f, 0.38f, 0.22f, 1f);
-    [SerializeField] private Color activeButtonColor =
-        new Color(0.25f, 0.55f, 0.25f, 1f);
-    [SerializeField] private Color inactiveButtonColor =
-        new Color(0.35f, 0.35f, 0.40f, 0.55f);
+    [Header("Refresh")]
+    [SerializeField] private Button refreshButton;
+    [SerializeField] private Image refreshImage;
+    [SerializeField] private TMP_Text refreshCostText;
 
-    private readonly List<RuntimeCard> cards = new List<RuntimeCard>();
+    [Tooltip("Цена обновления набора улучшений.")]
+    [SerializeField] private int refreshCost = 50;
 
-    private RectTransform contentRoot;
+    private readonly List<Dot> dots = new List<Dot>();
+
+    private PermanentUpgradeStat[] order;
+    private int page;
+    private int selectedIndex = -1;
     private bool built;
+    private bool subscribed;
+
+    private int PageCount
+    {
+        get
+        {
+            int total = order != null ? order.Length : 0;
+
+            return Mathf.Max(1, Mathf.CeilToInt(total / (float)CardsPerPage));
+        }
+    }
 
     private void OnEnable()
     {
+        EnsureBuilt();
+
+        if (!built)
+            return;
+
+        Subscribe();
         Refresh();
     }
 
-    public void Refresh()
+    private void OnDisable()
     {
-        if (!built)
-            BuildCards();
-
-        RefreshHeader();
-        RefreshCards();
-
-        RebuildContentLayout();
+        Unsubscribe();
     }
 
-    // =====================================================
-    // HEADER
-    // =====================================================
-
-    private void RefreshHeader()
+    private void OnDestroy()
     {
-        XpManager xp = XpManager.Instance;
-
-        int level = xp != null ? xp.GetPlayerLevel() : 1;
-        int coins = xp != null ? xp.GlobalCoins : 0;
-
-        if (playerLevelText != null)
-            playerLevelText.text = $"LEVEL {level}";
-
-        if (playerCoinsText != null)
-            playerCoinsText.text = $"МОНЕТЫ: {coins}";
-
-        if (summaryText != null)
-        {
-            summaryText.text =
-                $"Куплено улучшений: " +
-                $"{PermanentUpgrades.TotalLevelsBought} / " +
-                $"{PermanentUpgrades.TotalLevelsAvailable}";
-        }
+        Unsubscribe();
     }
 
     // =====================================================
     // BUILD
     // =====================================================
 
-    private void BuildCards()
+    private void EnsureBuilt()
     {
+        if (built)
+            return;
+
+        if (!HasLayout())
+        {
+            Debug.LogError(
+                "[Upgrades] Панель не собрана новым билдером: " +
+                "нет карточек или кнопок пагинации.\n" +
+                "Запусти Tools -> Bullet Rush -> Build Upgrades UI.",
+                this
+            );
+
+            enabled = false;
+
+            return;
+        }
+
         built = true;
 
-        if (cardTemplate == null)
-        {
-            Debug.LogWarning(
-                "PermanentUpgradesUI: cardTemplate не назначен.",
-                this
-            );
+        order = new PermanentUpgradeStat[DefaultOrder.Length];
 
-            return;
+        Array.Copy(DefaultOrder, order, DefaultOrder.Length);
+
+        WireButtons();
+        RegisterSlots();
+        BuildDots();
+    }
+
+    /// <summary>
+    /// Проверяет, что на объекте лежит новая иерархия билдера.
+    /// Нужна, потому что старая панель в сцене ещё может сохраниться
+    /// с прошлой версии компонента, где полей не было.
+    /// </summary>
+    private bool HasLayout()
+    {
+        if (cardSlots == null || cardSlots.Count == 0)
+            return false;
+
+        for (int i = 0; i < cardSlots.Count; i++)
+        {
+            if (cardSlots[i] == null)
+                return false;
         }
 
-        RectTransform content = GetContentRoot();
+        return previousButton != null && nextButton != null;
+    }
 
-        if (content == null)
+    private void RegisterSlots()
+    {
+        for (int i = 0; i < cardSlots.Count; i++)
+            RegisterCard(cardSlots[i]);
+    }
+
+    private void WireButtons()
+    {
+        if (previousButton != null)
         {
-            Debug.LogWarning(
-                "PermanentUpgradesUI: нет ScrollRect/Viewport/Content.",
-                this
-            );
-
-            return;
+            previousButton.onClick.AddListener(PreviousPage);
         }
 
-        contentRoot = content;
+        if (nextButton != null)
+            nextButton.onClick.AddListener(NextPage);
 
-        GameObject template = cardTemplate;
+        if (refreshButton != null)
+            refreshButton.onClick.AddListener(OnRefreshClicked);
+    }
 
-        template.SetActive(false);
+    private void BuildDots()
+    {
+        if (dotsRoot == null || dotTemplate == null)
+            return;
 
-        IReadOnlyList<PermanentUpgradeStat> stats =
-            PermanentUpgrades.Stats;
+        dotTemplate.SetActive(false);
 
-        for (int i = 0; i < stats.Count; i++)
+        for (int i = 0; i < PageCount; i++)
         {
-            PermanentUpgradeStat stat = stats[i];
+            GameObject dotObject = Instantiate(dotTemplate, dotsRoot);
 
-            GameObject cardObject =
-                Instantiate(template, content);
+            dotObject.name = $"Dot_{i + 1}";
 
-            cardObject.name =
-                $"Card_{PermanentUpgrades.GetName(stat)}";
+            dotObject.SetActive(true);
 
-            RuntimeCard card = new RuntimeCard
+            Button dotButton = dotObject.GetComponent<Button>();
+
+            if (dotButton != null)
             {
-                stat = stat,
-                background = cardObject.GetComponent<Image>(),
-                nameText = FindText(cardObject, "Name"),
-                typeText = FindText(cardObject, "Type"),
-                statsText = FindText(cardObject, "Stats"),
-                nextText = FindText(cardObject, "Next"),
-                statusText = FindText(cardObject, "Status"),
-                progress = FindSlider(cardObject, "Progress")
-            };
+                int target = i;
 
-            BindActionButton(card, cardObject);
+                dotButton.onClick.AddListener(
+                    () => GoToPage(target)
+                );
+            }
 
-            cardObject.SetActive(true);
-
-            cards.Add(card);
+            dots.Add(
+                new Dot
+                {
+                    image = dotObject.GetComponent<Image>(),
+                    layout = dotObject.GetComponent<LayoutElement>()
+                }
+            );
         }
-
-        RebuildContentLayout();
-    }
-
-    private void BindActionButton(
-        RuntimeCard card,
-        GameObject cardObject)
-    {
-        Transform actionTransform =
-            cardObject.transform.Find("ActionButton");
-
-        if (actionTransform == null)
-            return;
-
-        card.actionButton =
-            actionTransform.GetComponent<Button>();
-
-        card.actionButtonImage =
-            actionTransform.GetComponent<Image>();
-
-        card.actionButtonText =
-            FindText(actionTransform.gameObject, "Text");
-
-        if (card.actionButton == null)
-            return;
-
-        var captured = card;
-
-        card.actionButton.onClick.AddListener(
-            () => OnBuyClicked(captured)
-        );
-    }
-
-    private RectTransform GetContentRoot()
-    {
-        if (contentRoot != null)
-            return contentRoot;
-
-        if (scrollAreaRoot == null)
-            return null;
-
-        if (cardTemplate != null)
-            return cardTemplate.transform.parent as RectTransform;
-
-        Transform viewport = scrollAreaRoot.Find("Viewport");
-
-        return viewport != null
-            ? viewport.Find("Content") as RectTransform
-            : null;
-    }
-
-    private void RebuildContentLayout()
-    {
-        RectTransform content = GetContentRoot();
-
-        if (content == null)
-            return;
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
-
-        Canvas.ForceUpdateCanvases();
-    }
-
-    private static TMP_Text FindText(GameObject root, string childName)
-    {
-        Transform child = root.transform.Find(childName);
-
-        return child != null
-            ? child.GetComponent<TMP_Text>()
-            : null;
-    }
-
-    private static Slider FindSlider(GameObject root, string childName)
-    {
-        Transform child = root.transform.Find(childName);
-
-        return child != null
-            ? child.GetComponent<Slider>()
-            : null;
     }
 
     // =====================================================
     // REFRESH
     // =====================================================
 
-    private void RefreshCards()
+    public void Refresh()
     {
-        int coins =
-            XpManager.Instance != null
-                ? XpManager.Instance.GlobalCoins
-                : 0;
+        EnsureBuilt();
 
-        for (int i = 0; i < cards.Count; i++)
+        int coins = CurrentCoins();
+
+        if (coinsText != null)
+            coinsText.text = coins.ToString();
+
+        ShowPage();
+
+        for (int i = 0; i < cardSlots.Count; i++)
         {
-            RuntimeCard card = cards[i];
+            PermanentUpgradeCardView slot = cardSlots[i];
 
-            PermanentUpgradeStat stat = card.stat;
+            if (slot != null && slot.gameObject.activeSelf)
+                slot.Refresh(coins);
+        }
 
-            int level = PermanentUpgrades.GetLevel(stat);
-            int cost = PermanentUpgrades.GetCost(stat);
-            bool maxed = PermanentUpgrades.IsMaxLevel(stat);
+        if (refreshButton != null)
+            refreshButton.interactable = coins >= refreshCost;
 
-            if (card.nameText != null)
+        if (refreshImage != null)
+        {
+            refreshImage.color = coins >= refreshCost
+                ? UpgradesWireframeTheme.Action
+                : UpgradesWireframeTheme.ActionDisabled;
+        }
+
+        if (refreshCostText != null)
+            refreshCostText.text = $"{refreshCost} монет";
+    }
+
+    private void ShowPage()
+    {
+        if (order == null)
+            return;
+
+        int start = page * CardsPerPage;
+
+        for (int i = 0; i < cardSlots.Count; i++)
+        {
+            PermanentUpgradeCardView slot = cardSlots[i];
+
+            if (slot == null)
+                continue;
+
+            int index = start + i;
+
+            bool visible = index < order.Length;
+
+            if (slot.gameObject.activeSelf != visible)
+                slot.gameObject.SetActive(visible);
+
+            if (!visible)
+                continue;
+
+            if (!slot.HasStat || slot.Stat != order[index])
+                slot.Bind(order[index]);
+
+            slot.SetSelected(index == selectedIndex);
+        }
+
+        UpdatePagination();
+    }
+
+    private void UpdatePagination()
+    {
+        bool hasPrevious = page > 0;
+        bool hasNext = page < PageCount - 1;
+
+        if (previousButton != null)
+            previousButton.interactable = hasPrevious;
+
+        if (nextButton != null)
+            nextButton.interactable = hasNext;
+
+        if (previousImage != null)
+        {
+            previousImage.color = hasPrevious
+                ? UpgradesWireframeTheme.Surface
+                : UpgradesWireframeTheme.SurfaceDisabled;
+        }
+
+        if (nextImage != null)
+        {
+            nextImage.color = hasNext
+                ? UpgradesWireframeTheme.Surface
+                : UpgradesWireframeTheme.SurfaceDisabled;
+        }
+
+        for (int i = 0; i < dots.Count; i++)
+        {
+            Dot dot = dots[i];
+            bool active = i == page;
+
+            if (dot.layout != null)
             {
-                card.nameText.text =
-                    PermanentUpgrades.GetName(stat);
+                float size = active ? 22f : 12f;
+
+                dot.layout.preferredWidth = size;
+                dot.layout.preferredHeight = size;
             }
 
-            if (card.typeText != null)
+            if (dot.image != null)
             {
-                card.typeText.text =
-                    PermanentUpgrades.GetDescription(stat);
-            }
-
-            if (card.statsText != null)
-            {
-                card.statsText.text =
-                    "Сейчас: " +
-                    PermanentUpgrades.FormatTotal(stat);
-            }
-
-            if (card.nextText != null)
-            {
-                card.nextText.text =
-                    PermanentUpgrades.FormatNextLevelGain(stat);
-            }
-
-            if (card.statusText != null)
-            {
-                card.statusText.text =
-                    $"УРОВЕНЬ {level} / {PermanentUpgrades.MaxLevel}";
-            }
-
-            if (card.progress != null)
-            {
-                card.progress.value =
-                    (float)level / PermanentUpgrades.MaxLevel;
-            }
-
-            if (card.background != null)
-            {
-                card.background.color = maxed
-                    ? maxedCardColor
-                    : normalCardColor;
-            }
-
-            bool affordable = !maxed && coins >= cost;
-
-            if (card.actionButtonText != null)
-            {
-                card.actionButtonText.text = maxed
-                    ? "Максимум"
-                    : affordable
-                        ? $"Улучшить  •  {cost}"
-                        : $"Не хватает  •  {cost}";
-            }
-
-            if (card.actionButton != null)
-                card.actionButton.interactable = affordable;
-
-            if (card.actionButtonImage != null)
-            {
-                card.actionButtonImage.color = affordable
-                    ? activeButtonColor
-                    : inactiveButtonColor;
+                dot.image.color = active
+                    ? UpgradesWireframeTheme.DotActive
+                    : UpgradesWireframeTheme.DotInactive;
             }
         }
+    }
+
+    // =====================================================
+    // PAGINATION
+    // =====================================================
+
+    private void PreviousPage()
+    {
+        GoToPage(page - 1);
+    }
+
+    private void NextPage()
+    {
+        GoToPage(page + 1);
+    }
+
+    private void GoToPage(int value)
+    {
+        if (order == null)
+            return;
+
+        int clamped = Mathf.Clamp(value, 0, PageCount - 1);
+
+        if (clamped == page)
+            return;
+
+        page = clamped;
+
+        ShowPage();
+
+        PlayUiClick();
     }
 
     // =====================================================
     // ACTIONS
     // =====================================================
 
-    private void OnBuyClicked(RuntimeCard card)
+    private void OnSelectClicked(PermanentUpgradeCardView card)
     {
-        bool bought =
-            PermanentUpgrades.TryBuy(card.stat);
+        if (card == null || !card.HasStat)
+            return;
 
-        if (bought) PlayPurchaseSound();
-        else PlayUiClick();
+        selectedIndex = IndexOf(card.Stat);
 
+        ShowPage();
+
+        PlayUiClick();
+    }
+
+    private void OnBuyClicked(PermanentUpgradeCardView card)
+    {
+        if (card == null || !card.HasStat)
+            return;
+
+        bool bought = PermanentUpgrades.TryBuy(card.Stat);
+
+        if (bought)
+            PlayPurchaseSound();
+        else
+            PlayUiClick();
+
+        Refresh();
+    }
+
+    /// <summary>
+    /// Перемешивает набор улучшений за монеты: карточки
+    /// переезжают на другие страницы.
+    /// </summary>
+    private void OnRefreshClicked()
+    {
+        EnsureBuilt();
+
+        XpManager xp = XpManager.Instance;
+
+        if (xp == null)
+            return;
+
+        int cost = Mathf.Max(0, refreshCost);
+
+        if (xp.GlobalCoins < cost)
+        {
+            PlayUiClick();
+            return;
+        }
+
+        if (cost > 0 && !xp.TrySpendCoins(cost))
+            return;
+
+        Shuffle();
+
+        page = 0;
+        selectedIndex = -1;
+
+        Refresh();
+
+        PlayUiClick();
+    }
+
+    private void Shuffle()
+    {
+        for (int i = order.Length - 1; i > 0; i--)
+        {
+            int swap = UnityEngine.Random.Range(0, i + 1);
+
+            PermanentUpgradeStat temp = order[i];
+
+            order[i] = order[swap];
+            order[swap] = temp;
+        }
+    }
+
+    private int IndexOf(PermanentUpgradeStat stat)
+    {
+        if (order == null)
+            return -1;
+
+        for (int i = 0; i < order.Length; i++)
+        {
+            if (order[i] == stat)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private int CurrentCoins()
+    {
+        return XpManager.Instance != null
+            ? XpManager.Instance.GlobalCoins
+            : 0;
+    }
+
+    // =====================================================
+    // EVENTS
+    // =====================================================
+
+    private void Subscribe()
+    {
+        if (subscribed)
+            return;
+
+        if (XpManager.Instance == null)
+            return;
+
+        XpManager.Instance.OnCoinsChanged += HandleCoinsChanged;
+
+        subscribed = true;
+    }
+
+    private void Unsubscribe()
+    {
+        if (!subscribed)
+            return;
+
+        if (XpManager.Instance != null)
+            XpManager.Instance.OnCoinsChanged -= HandleCoinsChanged;
+
+        subscribed = false;
+    }
+
+    private void HandleCoinsChanged(int coins)
+    {
         Refresh();
     }
 
@@ -385,5 +523,37 @@ public class PermanentUpgradesUI : MonoBehaviour
             return null;
 
         return AudioManager.Instance.SFXLibrary;
+    }
+
+    // =====================================================
+    // SETUP
+    // =====================================================
+
+    /// <summary>
+    /// Раздаёт карточкам обработчики кнопок. Один раз за жизнь
+    /// панели, из EnsureBuilt.
+    /// </summary>
+    public void RegisterCard(PermanentUpgradeCardView card)
+    {
+        if (card == null)
+            return;
+
+        if (card.SelectButton != null)
+        {
+            PermanentUpgradeCardView captured = card;
+
+            card.SelectButton.onClick.AddListener(
+                () => OnSelectClicked(captured)
+            );
+        }
+
+        if (card.BuyButton != null)
+        {
+            PermanentUpgradeCardView captured = card;
+
+            card.BuyButton.onClick.AddListener(
+                () => OnBuyClicked(captured)
+            );
+        }
     }
 }

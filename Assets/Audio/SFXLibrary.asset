@@ -21,13 +21,13 @@ MonoBehaviour:
   playerDie: {fileID: 0}
   playerAbilityExplosion: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
   dash: {fileID: 8300000, guid: 1f11e2509ba6e4a46af058ddf2f7e55d, type: 3}
-  weaponFire: {fileID: 8300000, guid: caf1d9b253d0fdd42bcd29e0e8702a4c, type: 3}
+  weaponFire: {fileID: 8300000, guid: 6f238096a9d162f42834b86c5ec74ee4, type: 3}
   weaponSwitch: {fileID: 0}
   bulletExplosion: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
   ricochet: {fileID: 8300000, guid: 323182bf5b6f60b4c836fcf87387b116, type: 3}
   lightning: {fileID: 8300000, guid: e9002e75893321945b7bd77e7e7c7cc0, type: 3}
   enemySpawn: {fileID: 0}
-  enemyHit: {fileID: 8300000, guid: cd839b7da0f218149963478d238883d0, type: 3}
+  enemyHit: {fileID: 8300000, guid: 113ae2175de02134e84f7702f04976b5, type: 3}
   enemyDie: {fileID: 8300000, guid: db7c8a7df55b00d40a9b6f6348ffa0b7, type: 3}
   enemyShot: {fileID: 0}
   bossSpawn: {fileID: 8300000, guid: 07a042b9012653245b78cb10445ae85c, type: 3}

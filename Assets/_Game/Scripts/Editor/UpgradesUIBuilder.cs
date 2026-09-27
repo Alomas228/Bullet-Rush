@@ -1,26 +1,32 @@
 #if UNITY_EDITOR
 
+using System.Collections.Generic;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 /// <summary>
-/// Построитель панели «Улучшения» в главном меню.
+/// Построитель экрана «Улучшения» в главном меню.
 /// Пункт меню: Tools -> Bullet Rush -> Build Upgrades UI.
+///
+/// Собирает светлый wireframe-макет магазина постоянных улучшений:
+///  - шапка: «УЛУЧШЕНИЯ» слева, подзаголовок по центру, монеты справа
+///    (опыта и уровня игрока на этом экране нет);
+///  - горизонтальный ряд из четырёх карточек со стрелками по краям;
+///  - точки пагинации снизу;
+///  - кнопка «ОБНОВИТЬ» за монеты и «Назад».
+///
+/// Иерархия намеренно плоская и с осмысленными именами, чтобы её
+/// можно было перенести в Figma и заменить элементы один на один.
 ///
 /// За один клик:
 ///  - удаляет старую панель «Улучшения», если она есть;
-///  - создаёт панель «Улучшения» (шапка + ScrollRect с шаблоном карточки
-///    + кнопка «Назад») на месте панели «Снаряжение»;
-///  - подключает все ссылки на MainMenuUI / PermanentUpgradesUI /
-///    SubPanelUI;
-///  - добавляет PermanentUpgradeApplier на игрока (навешивает
-///    постоянные бонусы на старте забега).
-///
-/// Кнопка «Улучшения» в меню обычно уже есть — если её нет,
-/// она клонируется из кнопки «Магазин».
+///  - создаёт панель и подключает все ссылки на
+///    MainMenuUI / PermanentUpgradesUI / SubPanelUI;
+///  - добавляет PermanentUpgradeApplier на игрока (постоянные
+///    бонусы применяются на старте забега).
 /// </summary>
 public static class UpgradesUIBuilder
 {
@@ -29,10 +35,16 @@ public static class UpgradesUIBuilder
 
     private const string PanelName = "UpgradesPanel";
 
-    // Сумма строк карточки: 36 + 30 + 30 + 30 + 30 + 16 + 48
-    // + вертикальные отступы 32 + интервалы 4 * 6 = 276.
-    private const float UpgradeCardHeight = 276f;
-    private const float BackButtonHeight = 60f;
+    private const int CardCount = PermanentUpgradesUI.CardsPerPage;
+
+    private const float CardWidth = 360f;
+    private const float CardHeight = 540f;
+    private const float CardGap = 24f;
+    private const float CardPadding = 22f;
+    private const float RowSpacing = 10f;
+    private const float FrameInset = 3f;
+
+    private const int RefreshCost = 50;
 
     [MenuItem(MenuPath)]
     public static void Build()
@@ -51,8 +63,7 @@ public static class UpgradesUIBuilder
             return;
         }
 
-        SerializedObject menuSo =
-            new SerializedObject(menu);
+        SerializedObject menuSo = new SerializedObject(menu);
 
         GameObject menuPanel =
             menuSo.FindProperty("menuPanel").objectReferenceValue as GameObject;
@@ -97,6 +108,14 @@ public static class UpgradesUIBuilder
             return;
         }
 
+        // Заглушки-формы нужны и фону, и карточкам.
+        WireframePlaceholderSprites.EnsureAll();
+
+        Sprite cardSprite = WireframePlaceholderSprites.CardSprite;
+        Sprite barSprite = WireframePlaceholderSprites.BarSprite;
+        Sprite circleSprite = WireframePlaceholderSprites.CircleSprite;
+        Sprite blobSprite = WireframePlaceholderSprites.BlobSprite;
+
         // =====================================================
         // 1. Панель (корень)
         // =====================================================
@@ -110,113 +129,87 @@ public static class UpgradesUIBuilder
 
         SetFullStretch(panelRect);
 
-        Image panelBg = panelObject.AddComponent<Image>();
-        panelBg.color = new Color(0.07f, 0.07f, 0.11f, 0.97f);
+        panelRect.gameObject.AddComponent<Image>().color =
+            UpgradesWireframeTheme.PanelBackground;
 
         Undo.RegisterCreatedObjectUndo(panelObject, MenuPath);
 
         // =====================================================
-        // 2. Шапка
+        // 2. Фон: мягкие пятна и простые формы
         // =====================================================
-        TextMeshProUGUI titleText = AddText(
+        BuildBackground(panelRect, barSprite, blobSprite);
+
+        // =====================================================
+        // 3. Шапка
+        // =====================================================
+        TextMeshProUGUI coinsText = BuildTopBar(panelRect, cardSprite);
+
+        // =====================================================
+        // 4. Ряд карточек со стрелками
+        // =====================================================
+        var cards = new List<PermanentUpgradeCardView>();
+        var arrows = new List<Button>();
+        var arrowImages = new List<Image>();
+
+        RectTransform cardArea = AddStretch(
             panelRect,
-            "TitleText",
-            "УЛУЧШЕНИЯ",
-            42,
-            TextAlignmentOptions.Center,
-            FontStyles.Bold
+            "CardArea",
+            0f,
+            0f,
+            0f,
+            0f
         );
 
-        SetAnchors(
-            titleText.rectTransform,
-            0.5f, 1f,
-            new Vector2(0f, -24f),
-            new Vector2(500f, 60f)
+        cardArea.anchorMin = new Vector2(0f, 1f);
+        cardArea.anchorMax = new Vector2(1f, 1f);
+        cardArea.pivot = new Vector2(0.5f, 1f);
+        cardArea.offsetMin = new Vector2(0f, -720f);
+        cardArea.offsetMax = new Vector2(0f, -180f);
+
+        RectTransform cardRow = AddStretch(
+            cardArea,
+            "CardRow",
+            150f,
+            150f,
+            0f,
+            0f
         );
 
-        TextMeshProUGUI levelText = AddText(
-            panelRect,
-            "LevelText",
-            "LEVEL 1",
-            26,
-            TextAlignmentOptions.MidlineLeft,
-            FontStyles.Normal
-        );
+        HorizontalLayoutGroup rowLayout =
+            cardRow.gameObject.AddComponent<HorizontalLayoutGroup>();
 
-        SetAnchors(
-            levelText.rectTransform,
-            0f, 1f,
-            new Vector2(28f, -30f),
-            new Vector2(320f, 60f)
-        );
+        rowLayout.spacing = CardGap;
+        rowLayout.childAlignment = TextAnchor.MiddleCenter;
+        rowLayout.childControlWidth = true;
+        rowLayout.childForceExpandWidth = false;
+        rowLayout.childControlHeight = true;
+        rowLayout.childForceExpandHeight = false;
 
-        TextMeshProUGUI coinsText = AddText(
-            panelRect,
-            "CoinsText",
-            "МОНЕТЫ: 0",
-            26,
-            TextAlignmentOptions.MidlineRight,
-            FontStyles.Normal
-        );
+        for (int i = 0; i < CardCount; i++)
+            cards.Add(BuildCard(cardRow, i, cardSprite, barSprite));
 
-        RectTransform coinsRect = coinsText.rectTransform;
-        coinsRect.anchorMin = new Vector2(1f, 1f);
-        coinsRect.anchorMax = new Vector2(1f, 1f);
-        coinsRect.pivot = new Vector2(1f, 1f);
-        coinsRect.anchoredPosition = new Vector2(-28f, -30f);
-        coinsRect.sizeDelta = new Vector2(320f, 60f);
+        BuildArrow(cardArea, "PreviousButton", "<", false, cardSprite,
+            arrows, arrowImages);
 
-        TextMeshProUGUI summaryText = AddText(
-            panelRect,
-            "SummaryText",
-            "Куплено улучшений: 0 / 0",
-            22,
-            TextAlignmentOptions.Center,
-            FontStyles.Normal
-        );
-
-        summaryText.color = new Color(0.85f, 0.85f, 0.80f, 1f);
-        summaryText.textWrappingMode = TextWrappingModes.NoWrap;
-
-        SetAnchors(
-            summaryText.rectTransform,
-            0.5f, 1f,
-            new Vector2(0f, -92f),
-            new Vector2(640f, 60f)
-        );
+        BuildArrow(cardArea, "NextButton", ">", true, cardSprite,
+            arrows, arrowImages);
 
         // =====================================================
-        // 3. Область прокрутки с карточками
+        // 5. Точки пагинации
         // =====================================================
-        (RectTransform areaRoot, _, GameObject cardTemplate) =
-            BuildScrollArea(panelRect, UpgradeCardHeight);
-
-        // =====================================================
-        // 4. Кнопка «Назад»
-        // =====================================================
-        Button backButton = AddButton(panelRect, "BackButton");
-        backButton.image.color = new Color(0.20f, 0.30f, 0.45f, 0.95f);
-
-        RectTransform backRect = backButton.GetComponent<RectTransform>();
-        backRect.anchorMin = new Vector2(0f, 0f);
-        backRect.anchorMax = new Vector2(0f, 0f);
-        backRect.pivot = new Vector2(0f, 0f);
-        backRect.anchoredPosition = new Vector2(24f, 12f);
-        backRect.sizeDelta = new Vector2(220f, BackButtonHeight);
-
-        TextMeshProUGUI backText = AddText(
-            backButton.transform,
-            "Text",
-            "Назад",
-            24,
-            TextAlignmentOptions.Center,
-            FontStyles.Normal
-        );
-
-        SetFullStretch(backText.rectTransform);
+        GameObject dotTemplate =
+            BuildDotTemplate(panelRect, circleSprite);
 
         // =====================================================
-        // 5. Компоненты панели
+        // 6. Нижние кнопки
+        // =====================================================
+        Button backButton = BuildBackButton(panelRect, cardSprite);
+
+        (Button refreshButton, Image refreshImage, TMP_Text refreshCost) =
+            BuildRefreshButton(panelRect, cardSprite, barSprite);
+
+        // =====================================================
+        // 7. Компоненты панели
         // =====================================================
         PermanentUpgradesUI upgradesUI =
             panelObject.AddComponent<PermanentUpgradesUI>();
@@ -224,16 +217,48 @@ public static class UpgradesUIBuilder
         SerializedObject upgradesSo =
             new SerializedObject(upgradesUI);
 
-        upgradesSo.FindProperty("playerLevelText").objectReferenceValue =
-            levelText;
-        upgradesSo.FindProperty("playerCoinsText").objectReferenceValue =
+        upgradesSo.FindProperty("coinsText").objectReferenceValue =
             coinsText;
-        upgradesSo.FindProperty("summaryText").objectReferenceValue =
-            summaryText;
-        upgradesSo.FindProperty("scrollAreaRoot").objectReferenceValue =
-            areaRoot;
-        upgradesSo.FindProperty("cardTemplate").objectReferenceValue =
-            cardTemplate;
+
+        SerializedProperty slots =
+            upgradesSo.FindProperty("cardSlots");
+
+        slots.arraySize = cards.Count;
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            slots.GetArrayElementAtIndex(i).objectReferenceValue =
+                cards[i];
+        }
+
+        upgradesSo.FindProperty("previousButton").objectReferenceValue =
+            arrows[0];
+
+        upgradesSo.FindProperty("previousImage").objectReferenceValue =
+            arrowImages[0];
+
+        upgradesSo.FindProperty("nextButton").objectReferenceValue =
+            arrows[1];
+
+        upgradesSo.FindProperty("nextImage").objectReferenceValue =
+            arrowImages[1];
+
+        upgradesSo.FindProperty("dotsRoot").objectReferenceValue =
+            dotTemplate.transform.parent as RectTransform;
+
+        upgradesSo.FindProperty("dotTemplate").objectReferenceValue =
+            dotTemplate;
+
+        upgradesSo.FindProperty("refreshButton").objectReferenceValue =
+            refreshButton;
+
+        upgradesSo.FindProperty("refreshImage").objectReferenceValue =
+            refreshImage;
+
+        upgradesSo.FindProperty("refreshCostText").objectReferenceValue =
+            refreshCost;
+
+        upgradesSo.FindProperty("refreshCost").intValue = RefreshCost;
 
         upgradesSo.ApplyModifiedProperties();
 
@@ -246,10 +271,11 @@ public static class UpgradesUIBuilder
         subSo.ApplyModifiedProperties();
 
         // =====================================================
-        // 6. Подключаем к главному меню и игроку
+        // 8. Подключаем к главному меню и игроку
         // =====================================================
         menuSo.FindProperty("upgradesButton").objectReferenceValue =
             upgradesButton;
+
         menuSo.FindProperty("upgradesPanel").objectReferenceValue =
             panelObject;
 
@@ -258,7 +284,7 @@ public static class UpgradesUIBuilder
         EnsurePlayerUpgradeApplier();
 
         // =====================================================
-        // 7. Финал
+        // 9. Финал
         // =====================================================
         panelObject.SetActive(false);
 
@@ -266,18 +292,1047 @@ public static class UpgradesUIBuilder
 
         Selection.activeGameObject = panelObject;
 
+        int pageCount = Mathf.CeilToInt(
+            PermanentUpgrades.Stats.Count / (float)CardCount
+        );
+
         EditorUtility.DisplayDialog(
             "Build Upgrades UI",
-            "Панель «Улучшения» создана и подключена.\n\n" +
+            "Магазин «Улучшения» собран.\n\n" +
             $"Параметров: {PermanentUpgrades.Stats.Count}, " +
             $"уровней на параметр: {PermanentUpgrades.MaxLevel}.\n" +
+            $"Страниц: {pageCount}, " +
+            $"карточек на странице: {CardCount}.\n" +
             $"Цена уровня: 10 -> 15 -> 20 -> 25 -> 35 -> 45 -> 60 -> " +
             "80 -> 110 -> 150.\n\n" +
-            "Постоянные бонусы применяются на старте забега " +
-            "(PermanentUpgradeApplier добавлен на игрока).\n" +
-            "Стилизация карточек — на твоё усмотрение.",
+            "Это wireframe-заглушка: цвета собраны в " +
+            "UpgradesWireframeTheme, формы — в " +
+            "Assets/_Game/UI/Placeholder. Опыта и уровня игрока " +
+            "на экране нет, прогресс на карточке = уровень " +
+            "улучшения.",
             "OK"
         );
+    }
+
+    // =====================================================
+    // BACKGROUND
+    // =====================================================
+
+    private static void BuildBackground(
+        RectTransform panelRect,
+        Sprite barSprite,
+        Sprite blobSprite)
+    {
+        RectTransform decor = AddStretch(
+            panelRect,
+            "BackgroundShapes",
+            0f,
+            0f,
+            0f,
+            0f
+        );
+
+        AddDecorativeImage(
+            decor,
+            "BlobLeft",
+            blobSprite,
+            UpgradesWireframeTheme.Wash(
+                UpgradesWireframeTheme.DecorWash,
+                0.55f
+            ),
+            new Vector2(0.16f, 0.78f),
+            new Vector2(-380f, 40f),
+            720f,
+            720f,
+            -14f
+        );
+
+        AddDecorativeImage(
+            decor,
+            "BlobRight",
+            blobSprite,
+            UpgradesWireframeTheme.Wash(
+                UpgradesWireframeTheme.DecorWash,
+                0.45f
+            ),
+            new Vector2(0.88f, 0.16f),
+            new Vector2(320f, -20f),
+            640f,
+            640f,
+            10f
+        );
+
+        AddDecorativeImage(
+            decor,
+            "BandTop",
+            barSprite,
+            UpgradesWireframeTheme.Wash(
+                UpgradesWireframeTheme.PanelWash,
+                0.9f
+            ),
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, 0f),
+            1500f,
+            16f
+        );
+
+        AddDecorativeImage(
+            decor,
+            "BandBottom",
+            barSprite,
+            UpgradesWireframeTheme.Wash(
+                UpgradesWireframeTheme.PanelWash,
+                0.7f
+            ),
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 0f),
+            1100f,
+            12f
+        );
+    }
+
+    private static void AddDecorativeImage(
+        Transform parent,
+        string name,
+        Sprite sprite,
+        Color color,
+        Vector2 anchor,
+        Vector2 position,
+        float width,
+        float height,
+        float rotation = 0f)
+    {
+        Image image = AddImage(
+            parent,
+            name,
+            color,
+            sprite,
+            sprite != null && rotation == 0f
+        );
+
+        RectTransform rect = image.rectTransform;
+
+        SetBlock(
+            rect,
+            anchor,
+            position,
+            new Vector2(width, height),
+            anchor
+        );
+
+        rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
+
+        // Фон не должен перехватывать клики.
+        image.raycastTarget = false;
+    }
+
+    // =====================================================
+    // TOP BAR
+    // =====================================================
+
+    private static TextMeshProUGUI BuildTopBar(
+        RectTransform panelRect,
+        Sprite cardSprite)
+    {
+        RectTransform topBar = AddBlock(
+            panelRect,
+            "TopBar",
+            new Vector2(0.5f, 1f),
+            Vector2.zero,
+            new Vector2(0f, 150f),
+            new Vector2(0.5f, 1f)
+        );
+
+        topBar.anchorMin = Vector2.zero;
+        topBar.anchorMax = Vector2.one;
+        topBar.offsetMin = new Vector2(0f, -150f);
+        topBar.offsetMax = new Vector2(0f, 0f);
+
+        TextMeshProUGUI title = AddText(
+            topBar,
+            "TitleText",
+            "УЛУЧШЕНИЯ",
+            52,
+            TextAlignmentOptions.MidlineLeft,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextPrimary
+        );
+
+        SetBlock(
+            title.rectTransform,
+            new Vector2(0f, 0.5f),
+            new Vector2(80f, 0f),
+            new Vector2(640f, 70f),
+            new Vector2(0f, 0.5f)
+        );
+
+        TextMeshProUGUI subtitle = AddText(
+            topBar,
+            "SubtitleText",
+            "Усиль своего героя",
+            26,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal,
+            UpgradesWireframeTheme.TextSecondary
+        );
+
+        SetBlock(
+            subtitle.rectTransform,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, 4f),
+            new Vector2(520f, 40f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        // Монеты: только их количество, без прогресса аккаунта.
+        RectTransform coinsBlock = AddBlock(
+            topBar,
+            "CoinsBlock",
+            new Vector2(1f, 0.5f),
+            new Vector2(-80f, 0f),
+            new Vector2(300f, 78f),
+            new Vector2(1f, 0.5f)
+        );
+
+        AddImage(
+            coinsBlock,
+            "CoinsSurface",
+            UpgradesWireframeTheme.Surface,
+            cardSprite,
+            true
+        ).raycastTarget = false;
+
+        Image coinIcon = AddImage(
+            coinsBlock,
+            "CoinIcon",
+            UpgradesWireframeTheme.DamageAccent,
+            null,
+            false
+        );
+
+        SetBlock(
+            coinIcon.rectTransform,
+            new Vector2(0f, 0.5f),
+            new Vector2(22f, 0f),
+            new Vector2(30f, 30f),
+            new Vector2(0f, 0.5f)
+        );
+
+        TextMeshProUGUI coinsText = AddText(
+            coinsBlock,
+            "CoinsText",
+            "48",
+            34,
+            TextAlignmentOptions.MidlineRight,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextPrimary
+        );
+
+        SetBlock(
+            coinsText.rectTransform,
+            new Vector2(1f, 0.5f),
+            new Vector2(-22f, 0f),
+            new Vector2(200f, 44f),
+            new Vector2(1f, 0.5f)
+        );
+
+        return coinsText;
+    }
+
+    // =====================================================
+    // CARD
+    // =====================================================
+
+    private static PermanentUpgradeCardView BuildCard(
+        RectTransform parent,
+        int index,
+        Sprite cardSprite,
+        Sprite barSprite)
+    {
+        RectTransform card = AddBlock(
+            parent,
+            $"Card_{index + 1}",
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(CardWidth, CardHeight),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        LayoutElement cardLayout =
+            card.gameObject.AddComponent<LayoutElement>();
+
+        cardLayout.preferredWidth = CardWidth;
+        cardLayout.preferredHeight = CardHeight;
+
+        Image shadow = AddImage(
+            card,
+            "CardShadow",
+            UpgradesWireframeTheme.CardShadow,
+            cardSprite,
+            true
+        );
+
+        shadow.rectTransform.offsetMin = new Vector2(-6f, -10f);
+        shadow.rectTransform.offsetMax = new Vector2(6f, 6f);
+        shadow.raycastTarget = false;
+
+        Image frame = AddImage(
+            card,
+            "CardFrame",
+            UpgradesWireframeTheme.DamageAccent,
+            cardSprite,
+            true
+        );
+
+        frame.raycastTarget = false;
+
+        RectTransform face = AddStretch(
+            card,
+            "CardFace",
+            FrameInset,
+            FrameInset,
+            FrameInset,
+            FrameInset
+        );
+
+        Image surface = AddImage(
+            face,
+            "CardSurface",
+            UpgradesWireframeTheme.Surface,
+            cardSprite,
+            true
+        );
+
+        Button selectTarget = surface.gameObject.AddComponent<Button>();
+
+        selectTarget.transition = Selectable.Transition.None;
+
+        VerticalLayoutGroup faceLayout =
+            face.gameObject.AddComponent<VerticalLayoutGroup>();
+
+        faceLayout.spacing = RowSpacing;
+        faceLayout.padding = new RectOffset(
+            (int)CardPadding,
+            (int)CardPadding,
+            (int)CardPadding,
+            (int)CardPadding
+        );
+        faceLayout.childAlignment = TextAnchor.UpperLeft;
+        faceLayout.childControlWidth = true;
+        faceLayout.childForceExpandWidth = true;
+        faceLayout.childControlHeight = true;
+        faceLayout.childForceExpandHeight = false;
+
+        // --- верх: место под иконку ---
+        Image iconArea = AddImage(
+            face,
+            "IconArea",
+            UpgradesWireframeTheme.Wash(
+                UpgradesWireframeTheme.DamageAccent,
+                0.12f
+            ),
+            cardSprite,
+            true
+        );
+
+        AddFixedHeight(iconArea.gameObject, 132f, 1f);
+
+        iconArea.raycastTarget = false;
+
+        Image iconMark = AddImage(
+            iconArea.transform,
+            "IconMark",
+            UpgradesWireframeTheme.DamageAccent,
+            cardSprite,
+            true
+        );
+
+        SetBlock(
+            iconMark.rectTransform,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, 8f),
+            new Vector2(76f, 76f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        iconMark.raycastTarget = false;
+
+        TextMeshProUGUI categoryText = AddText(
+            iconArea.transform,
+            "CategoryText",
+            "УРОН",
+            17,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.DamageAccent
+        );
+
+        SetBlock(
+            categoryText.rectTransform,
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 10f),
+            new Vector2(280f, 24f),
+            new Vector2(0.5f, 0f)
+        );
+
+        categoryText.raycastTarget = false;
+
+        // --- название и описание ---
+        TextMeshProUGUI nameText = AddText(
+            face,
+            "NameText",
+            "УРОН",
+            30,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextPrimary
+        );
+
+        AddFixedHeight(nameText.gameObject, 42f);
+
+        nameText.raycastTarget = false;
+
+        TextMeshProUGUI descriptionText = AddText(
+            face,
+            "DescriptionText",
+            "Увеличивает урон всего оружия.",
+            19,
+            TextAlignmentOptions.Top,
+            FontStyles.Normal,
+            UpgradesWireframeTheme.TextSecondary
+        );
+
+        AddFixedHeight(descriptionText.gameObject, 50f);
+
+        descriptionText.textWrappingMode = TextWrappingModes.Normal;
+        descriptionText.overflowMode = TextOverflowModes.Truncate;
+        descriptionText.raycastTarget = false;
+
+        // --- уровень улучшения и его прогресс ---
+        TextMeshProUGUI levelText = AddText(
+            face,
+            "LevelText",
+            "УРОВЕНЬ 1 / 10",
+            21,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextPrimary
+        );
+
+        AddFixedHeight(levelText.gameObject, 28f);
+
+        levelText.raycastTarget = false;
+
+        Slider levelBar = AddProgressBar(
+            face,
+            "LevelBar",
+            12f,
+            barSprite
+        );
+
+        // --- текущий и следующий бонус ---
+        TextMeshProUGUI currentValue = AddBonusRow(
+            face,
+            "CurrentRow",
+            "СЕЙЧАС",
+            26,
+            UpgradesWireframeTheme.DamageAccent
+        );
+
+        TextMeshProUGUI nextValue = AddBonusRow(
+            face,
+            "NextRow",
+            "ДАЛЬШЕ",
+            22,
+            UpgradesWireframeTheme.TextSecondary
+        );
+
+        // --- кнопка покупки ---
+        RectTransform buyRow = BuildBuyRow(face, cardSprite, barSprite);
+
+        // --- состояние «максимум» ---
+        Image maxedImage = BuildMaxedRow(face, cardSprite);
+
+        // В макете показываем обычное состояние — на максимуме
+        // строку включит PermanentUpgradeCardView.Refresh.
+        maxedImage.gameObject.SetActive(false);
+
+        // --- индикатор выбранной карточки ---
+        // Висит на Card, а не на CardFace: иначе VerticalLayoutGroup
+        // карточки попытается им управлять и обнулит размер.
+        Image selectedIndicator = AddImage(
+            card,
+            "SelectedIndicator",
+            UpgradesWireframeTheme.DamageAccent,
+            barSprite,
+            true
+        );
+
+        SetBlock(
+            selectedIndicator.rectTransform,
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, -FrameInset),
+            new Vector2(70f, 6f),
+            new Vector2(0.5f, 1f)
+        );
+
+        selectedIndicator.raycastTarget = false;
+        selectedIndicator.gameObject.SetActive(false);
+
+        PermanentUpgradeCardView view =
+            face.gameObject.AddComponent<PermanentUpgradeCardView>();
+
+        SerializedObject viewSo = new SerializedObject(view);
+
+        viewSo.FindProperty("frame").objectReferenceValue = frame;
+        viewSo.FindProperty("face").objectReferenceValue = face;
+        viewSo.FindProperty("selectedIndicator").objectReferenceValue =
+            selectedIndicator;
+
+        viewSo.FindProperty("iconArea").objectReferenceValue = iconArea;
+        viewSo.FindProperty("iconMark").objectReferenceValue = iconMark;
+        viewSo.FindProperty("categoryText").objectReferenceValue =
+            categoryText;
+
+        viewSo.FindProperty("nameText").objectReferenceValue = nameText;
+        viewSo.FindProperty("descriptionText").objectReferenceValue =
+            descriptionText;
+        viewSo.FindProperty("levelText").objectReferenceValue = levelText;
+        viewSo.FindProperty("currentValueText").objectReferenceValue =
+            currentValue;
+        viewSo.FindProperty("nextValueText").objectReferenceValue = nextValue;
+
+        viewSo.FindProperty("levelBar").objectReferenceValue = levelBar;
+
+        viewSo.FindProperty("selectTarget").objectReferenceValue =
+            selectTarget;
+        viewSo.FindProperty("buyButton").objectReferenceValue =
+            buyRow.GetComponent<Button>();
+        viewSo.FindProperty("buyImage").objectReferenceValue =
+            buyRow.GetComponent<Image>();
+        viewSo.FindProperty("buyCostBadge").objectReferenceValue =
+            buyRow.Find("CostBadge").GetComponent<Image>();
+        viewSo.FindProperty("buyCoinIcon").objectReferenceValue =
+            buyRow.Find("CostBadge/CoinIcon").GetComponent<Image>();
+        viewSo.FindProperty("buyLabel").objectReferenceValue =
+            buyRow.Find("LabelText").GetComponent<TextMeshProUGUI>();
+        viewSo.FindProperty("buyCost").objectReferenceValue =
+            buyRow.Find("CostBadge/CostText").GetComponent<TextMeshProUGUI>();
+
+        viewSo.FindProperty("maxedImage").objectReferenceValue = maxedImage;
+        viewSo.FindProperty("maxedLabel").objectReferenceValue =
+            maxedImage.transform.Find("LabelText")
+                .GetComponent<TextMeshProUGUI>();
+
+        viewSo.ApplyModifiedProperties();
+
+        return view;
+    }
+
+    /// <summary>
+    /// Строка «СЕЙЧАС» / «ДАЛЬШЕ»: подпись слева, значение справа.
+    /// </summary>
+    private static TextMeshProUGUI AddBonusRow(
+        Transform parent,
+        string name,
+        string label,
+        int valueSize,
+        Color valueColor)
+    {
+        RectTransform row = AddBlock(
+            parent,
+            name,
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(316f, 28f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        AddFixedHeight(row.gameObject, 28f);
+
+        TextMeshProUGUI labelText = AddText(
+            row,
+            "LabelText",
+            label,
+            16,
+            TextAlignmentOptions.MidlineLeft,
+            FontStyles.Normal,
+            UpgradesWireframeTheme.TextMuted
+        );
+
+        SetBlock(
+            labelText.rectTransform,
+            new Vector2(0f, 0.5f),
+            Vector2.zero,
+            new Vector2(120f, 28f),
+            new Vector2(0f, 0.5f)
+        );
+
+        labelText.raycastTarget = false;
+
+        TextMeshProUGUI valueText = AddText(
+            row,
+            "ValueText",
+            "+5%",
+            valueSize,
+            TextAlignmentOptions.MidlineRight,
+            FontStyles.Bold,
+            valueColor
+        );
+
+        SetBlock(
+            valueText.rectTransform,
+            new Vector2(1f, 0.5f),
+            Vector2.zero,
+            new Vector2(180f, 28f),
+            new Vector2(1f, 0.5f)
+        );
+
+        valueText.raycastTarget = false;
+
+        return valueText;
+    }
+
+    private static RectTransform BuildBuyRow(
+        Transform parent,
+        Sprite cardSprite,
+        Sprite barSprite)
+    {
+        Image buyImage = AddImage(
+            parent,
+            "BuyButton",
+            UpgradesWireframeTheme.DamageAccent,
+            cardSprite,
+            true
+        );
+
+        RectTransform row = buyImage.rectTransform;
+
+        AddFixedHeight(row.gameObject, 74f);
+
+        Button button = buyImage.gameObject.AddComponent<Button>();
+
+        button.transition = Selectable.Transition.None;
+        button.targetGraphic = buyImage;
+
+        TextMeshProUGUI label = AddText(
+            row,
+            "LabelText",
+            "УЛУЧШИТЬ",
+            23,
+            TextAlignmentOptions.MidlineLeft,
+            FontStyles.Bold,
+            Color.white
+        );
+
+        SetBlock(
+            label.rectTransform,
+            new Vector2(0f, 0.5f),
+            new Vector2(20f, 0f),
+            new Vector2(200f, 40f),
+            new Vector2(0f, 0.5f)
+        );
+
+        label.raycastTarget = false;
+
+        // Цена — самое заметное место кнопки.
+        Image badge = AddImage(
+            row,
+            "CostBadge",
+            UpgradesWireframeTheme.White(0.22f),
+            cardSprite,
+            true
+        );
+
+        SetBlock(
+            badge.rectTransform,
+            new Vector2(1f, 0.5f),
+            new Vector2(-16f, 0f),
+            new Vector2(96f, 44f),
+            new Vector2(1f, 0.5f)
+        );
+
+        badge.raycastTarget = false;
+
+        Image coinIcon = AddImage(
+            badge.transform,
+            "CoinIcon",
+            Color.white,
+            barSprite,
+            true
+        );
+
+        SetBlock(
+            coinIcon.rectTransform,
+            new Vector2(0f, 0.5f),
+            new Vector2(10f, 0f),
+            new Vector2(22f, 22f),
+            new Vector2(0f, 0.5f)
+        );
+
+        coinIcon.raycastTarget = false;
+
+        TextMeshProUGUI cost = AddText(
+            badge.transform,
+            "CostText",
+            "15",
+            24,
+            TextAlignmentOptions.MidlineRight,
+            FontStyles.Bold,
+            Color.white
+        );
+
+        SetBlock(
+            cost.rectTransform,
+            new Vector2(1f, 0.5f),
+            new Vector2(-10f, 0f),
+            new Vector2(60f, 28f),
+            new Vector2(1f, 0.5f)
+        );
+
+        cost.raycastTarget = false;
+
+        return row;
+    }
+
+    private static Image BuildMaxedRow(Transform parent, Sprite cardSprite)
+    {
+        Image maxedImage = AddImage(
+            parent,
+            "MaxedRow",
+            UpgradesWireframeTheme.SurfaceDisabled,
+            cardSprite,
+            true
+        );
+
+        RectTransform row = maxedImage.rectTransform;
+
+        AddFixedHeight(row.gameObject, 74f);
+
+        maxedImage.raycastTarget = false;
+
+        TextMeshProUGUI label = AddText(
+            row,
+            "LabelText",
+            "МАКСИМАЛЬНЫЙ УРОВЕНЬ",
+            19,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextMuted
+        );
+
+        SetFullStretch(label.rectTransform);
+
+        label.raycastTarget = false;
+
+        return maxedImage;
+    }
+
+    private static Slider AddProgressBar(
+        Transform parent,
+        string name,
+        float height,
+        Sprite sprite)
+    {
+        RectTransform rect = AddBlock(
+            parent,
+            name,
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(316f, height),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        AddFixedHeight(rect.gameObject, height);
+
+        Image track = rect.gameObject.AddComponent<Image>();
+
+        track.sprite = sprite;
+        track.type = Image.Type.Sliced;
+        track.color = UpgradesWireframeTheme.Track;
+        track.raycastTarget = false;
+
+        RectTransform fillArea = AddStretch(
+            rect,
+            "FillArea",
+            3f,
+            3f,
+            3f,
+            3f
+        );
+
+        RectTransform fill = AddStretch(
+            fillArea,
+            "Fill",
+            0f,
+            0f,
+            0f,
+            0f
+        );
+
+        // Slider тянет заливку по этой оси.
+        fill.anchorMin = new Vector2(0f, 0f);
+        fill.anchorMax = new Vector2(0f, 1f);
+        fill.offsetMin = Vector2.zero;
+        fill.offsetMax = Vector2.zero;
+
+        Image fillImage = fill.gameObject.AddComponent<Image>();
+
+        fillImage.sprite = sprite;
+        fillImage.type = Image.Type.Sliced;
+        fillImage.color = UpgradesWireframeTheme.DamageAccent;
+        fillImage.raycastTarget = false;
+
+        Slider slider = rect.gameObject.AddComponent<Slider>();
+
+        slider.transition = Selectable.Transition.None;
+        slider.interactable = false;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.fillRect = fill;
+        slider.targetGraphic = fillImage;
+        slider.value = 0f;
+
+        return slider;
+    }
+
+    // =====================================================
+    // PAGINATION
+    // =====================================================
+
+    private static void BuildArrow(
+        RectTransform parent,
+        string name,
+        string glyph,
+        bool right,
+        Sprite sprite,
+        List<Button> buttons,
+        List<Image> images)
+    {
+        Image image = AddImage(
+            parent,
+            name,
+            UpgradesWireframeTheme.Surface,
+            sprite,
+            true
+        );
+
+        RectTransform rect = image.rectTransform;
+
+        SetBlock(
+            rect,
+            right ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f),
+            new Vector2(right ? -26f : 26f, 0f),
+            new Vector2(64f, 64f),
+            right ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f)
+        );
+
+        Button button = image.gameObject.AddComponent<Button>();
+
+        button.transition = Selectable.Transition.None;
+        button.targetGraphic = image;
+
+        TextMeshProUGUI label = AddText(
+            rect,
+            "LabelText",
+            glyph,
+            34,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextSecondary
+        );
+
+        SetFullStretch(label.rectTransform);
+
+        label.raycastTarget = false;
+
+        buttons.Add(button);
+        images.Add(image);
+    }
+
+    private static GameObject BuildDotTemplate(
+        RectTransform parent,
+        Sprite circleSprite)
+    {
+        RectTransform pagination = AddBlock(
+            parent,
+            "Pagination",
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 268f),
+            new Vector2(600f, 26f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        HorizontalLayoutGroup dotsLayout =
+            pagination.gameObject.AddComponent<HorizontalLayoutGroup>();
+
+        dotsLayout.spacing = 14f;
+        dotsLayout.childAlignment = TextAnchor.MiddleCenter;
+        dotsLayout.childControlWidth = true;
+        dotsLayout.childForceExpandWidth = false;
+        dotsLayout.childControlHeight = true;
+        dotsLayout.childForceExpandHeight = false;
+
+        Image dot = AddImage(
+            pagination,
+            "DotTemplate",
+            UpgradesWireframeTheme.DotInactive,
+            circleSprite,
+            true
+        );
+
+        LayoutElement dotLayout = dot.gameObject.AddComponent<LayoutElement>();
+
+        dotLayout.preferredWidth = 12f;
+        dotLayout.preferredHeight = 12f;
+
+        Button dotButton = dot.gameObject.AddComponent<Button>();
+
+        dotButton.transition = Selectable.Transition.None;
+        dotButton.targetGraphic = dot;
+
+        dot.gameObject.SetActive(false);
+
+        return dot.gameObject;
+    }
+
+    // =====================================================
+    // BOTTOM BUTTONS
+    // =====================================================
+
+    private static Button BuildBackButton(
+        RectTransform parent,
+        Sprite cardSprite)
+    {
+        Image image = AddImage(
+            parent,
+            "BackButton",
+            UpgradesWireframeTheme.Surface,
+            cardSprite,
+            true
+        );
+
+        SetBlock(
+            image.rectTransform,
+            new Vector2(0f, 0f),
+            new Vector2(80f, 58f),
+            new Vector2(220f, 84f),
+            new Vector2(0f, 0f)
+        );
+
+        Button button = image.gameObject.AddComponent<Button>();
+
+        button.transition = Selectable.Transition.None;
+        button.targetGraphic = image;
+
+        TextMeshProUGUI label = AddText(
+            image.transform,
+            "LabelText",
+            "НАЗАД",
+            24,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            UpgradesWireframeTheme.TextSecondary
+        );
+
+        SetFullStretch(label.rectTransform);
+
+        label.raycastTarget = false;
+
+        return button;
+    }
+
+    private static (
+        Button button,
+        Image image,
+        TMP_Text cost
+    ) BuildRefreshButton(
+        RectTransform parent,
+        Sprite cardSprite,
+        Sprite barSprite)
+    {
+        Image image = AddImage(
+            parent,
+            "RefreshButton",
+            UpgradesWireframeTheme.Action,
+            cardSprite,
+            true
+        );
+
+        SetBlock(
+            image.rectTransform,
+            new Vector2(1f, 0f),
+            new Vector2(-80f, 58f),
+            new Vector2(300f, 84f),
+            new Vector2(1f, 0f)
+        );
+
+        Button button = image.gameObject.AddComponent<Button>();
+
+        button.transition = Selectable.Transition.None;
+        button.targetGraphic = image;
+
+        TextMeshProUGUI label = AddText(
+            image.transform,
+            "LabelText",
+            "ОБНОВИТЬ",
+            24,
+            TextAlignmentOptions.MidlineLeft,
+            FontStyles.Bold,
+            Color.white
+        );
+
+        SetBlock(
+            label.rectTransform,
+            new Vector2(0f, 1f),
+            new Vector2(22f, -18f),
+            new Vector2(200f, 32f),
+            new Vector2(0f, 1f)
+        );
+
+        label.raycastTarget = false;
+
+        Image coinIcon = AddImage(
+            image.transform,
+            "CoinIcon",
+            Color.white,
+            barSprite,
+            true
+        );
+
+        SetBlock(
+            coinIcon.rectTransform,
+            new Vector2(0f, 0f),
+            new Vector2(24f, 18f),
+            new Vector2(20f, 20f),
+            new Vector2(0f, 0f)
+        );
+
+        coinIcon.raycastTarget = false;
+
+        TextMeshProUGUI cost = AddText(
+            image.transform,
+            "CostText",
+            $"{RefreshCost} монет",
+            20,
+            TextAlignmentOptions.MidlineLeft,
+            FontStyles.Normal,
+            UpgradesWireframeTheme.White(0.75f)
+        );
+
+        SetBlock(
+            cost.rectTransform,
+            new Vector2(0f, 0f),
+            new Vector2(52f, 18f),
+            new Vector2(200f, 24f),
+            new Vector2(0f, 0f)
+        );
+
+        cost.raycastTarget = false;
+
+        return (button, image, cost);
     }
 
     // =====================================================
@@ -295,8 +1350,7 @@ public static class UpgradesUIBuilder
         if (panelParent == null)
             return;
 
-        var children =
-            new System.Collections.Generic.List<Transform>();
+        var children = new List<Transform>();
 
         foreach (Transform child in panelParent)
             children.Add(child);
@@ -317,7 +1371,8 @@ public static class UpgradesUIBuilder
         Button shopButton)
     {
         Button existing =
-            menuSo.FindProperty("upgradesButton").objectReferenceValue as Button;
+            menuSo.FindProperty("upgradesButton")
+                .objectReferenceValue as Button;
 
         if (existing != null)
             return existing;
@@ -325,11 +1380,10 @@ public static class UpgradesUIBuilder
         if (shopButton == null)
             return null;
 
-        GameObject buttonObject =
-            Object.Instantiate(
-                shopButton.gameObject,
-                shopButton.transform.parent
-            );
+        GameObject buttonObject = Object.Instantiate(
+            shopButton.gameObject,
+            shopButton.transform.parent
+        );
 
         buttonObject.name = "UpgradesButton";
 
@@ -351,8 +1405,7 @@ public static class UpgradesUIBuilder
 
     private static bool EnsurePlayerUpgradeApplier()
     {
-        GameObject player =
-            GameObject.FindGameObjectWithTag("Player");
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
 
         if (player == null)
             return false;
@@ -369,289 +1422,139 @@ public static class UpgradesUIBuilder
     }
 
     // =====================================================
-    // SCROLL AREA
-    // =====================================================
-
-    private static (
-        RectTransform root,
-        RectTransform content,
-        GameObject card
-    ) BuildScrollArea(
-        RectTransform panelRect,
-        float cardHeight)
-    {
-        RectTransform scrollArea = AddRect(
-            panelRect,
-            "UpgradesScrollArea",
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(24f, 84f),        // снизу: над кнопкой «Назад»
-            new Vector2(-24f, -156f)      // сверху: под шапкой
-        );
-
-        Image scrollBg = scrollArea.gameObject.AddComponent<Image>();
-        scrollBg.color = new Color(0.12f, 0.12f, 0.17f, 0.95f);
-
-        ScrollRect scrollRect =
-            scrollArea.gameObject.AddComponent<ScrollRect>();
-
-        // 1 Viewport
-        RectTransform viewport = AddRect(
-            scrollArea,
-            "Viewport",
-            Vector2.zero,
-            Vector2.one,
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        viewport.gameObject.AddComponent<RectMask2D>();
-
-        // 2 Content + вертикальный список карточек
-        RectTransform content = AddRect(
-            viewport,
-            "Content",
-            new Vector2(0f, 1f),
-            new Vector2(1f, 1f),
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        content.pivot = new Vector2(0.5f, 1f);
-
-        VerticalLayoutGroup layout =
-            content.gameObject.AddComponent<VerticalLayoutGroup>();
-
-        layout.spacing = 12f;
-        layout.childAlignment = TextAnchor.UpperCenter;
-        layout.childControlWidth = true;
-        layout.childForceExpandWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandHeight = false;
-        layout.padding = new RectOffset(12, 12, 12, 12);
-
-        ContentSizeFitter fitter =
-            content.gameObject.AddComponent<ContentSizeFitter>();
-
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-
-        // 3 Шаблон карточки
-        RectTransform cardRect =
-            BuildCardTemplate(content, cardHeight);
-
-        // 4 Полоса прокрутки
-        Scrollbar scrollbar = BuildVerticalScrollbar(scrollArea);
-
-        scrollRect.viewport = viewport;
-        scrollRect.content = content;
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-        scrollRect.verticalScrollbar = scrollbar;
-        scrollRect.verticalScrollbarVisibility =
-            ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
-        scrollRect.verticalScrollbarSpacing = 4f;
-
-        return (
-            scrollArea,
-            content,
-            cardRect.gameObject
-        );
-    }
-
-    private static RectTransform BuildCardTemplate(
-        RectTransform content,
-        float cardHeight)
-    {
-        RectTransform cardRect = AddRect(
-            content,
-            "CardTemplate",
-            new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f),
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        Image cardBg = cardRect.gameObject.AddComponent<Image>();
-        cardBg.color = new Color(0.18f, 0.18f, 0.24f, 1f);
-
-        LayoutElement cardLayout =
-            cardRect.gameObject.AddComponent<LayoutElement>();
-
-        cardLayout.preferredHeight = cardHeight;
-
-        VerticalLayoutGroup cardRows =
-            cardRect.gameObject.AddComponent<VerticalLayoutGroup>();
-
-        cardRows.spacing = 4f;
-        cardRows.childAlignment = TextAnchor.UpperLeft;
-        cardRows.childControlWidth = true;
-        cardRows.childForceExpandWidth = true;
-        cardRows.childControlHeight = true;
-        cardRows.childForceExpandHeight = false;
-        cardRows.padding = new RectOffset(18, 18, 16, 16);
-
-        AddCardText(cardRect, "Name", "Урон", 32, FontStyles.Bold, 36f);
-        AddCardText(
-            cardRect,
-            "Type",
-            "Описание параметра",
-            20,
-            FontStyles.Normal,
-            30f
-        );
-        AddCardText(
-            cardRect,
-            "Stats",
-            "Сейчас: без бонуса",
-            20,
-            FontStyles.Normal,
-            30f,
-            new Color(0.55f, 0.90f, 0.55f, 1f)
-        );
-        AddCardText(
-            cardRect,
-            "Next",
-            "Дальше: +5% к урону",
-            18,
-            FontStyles.Normal,
-            30f
-        );
-        AddCardText(
-            cardRect,
-            "Status",
-            "УРОВЕНЬ 0 / 10",
-            20,
-            FontStyles.Bold,
-            30f
-        );
-
-        BuildProgressBar(cardRect, 16f);
-
-        Button actionButton = AddButton(cardRect, "ActionButton");
-
-        RectTransform actionRect = actionButton.GetComponent<RectTransform>();
-        actionRect.anchorMin = Vector2.zero;
-        actionRect.anchorMax = Vector2.one;
-        actionRect.offsetMin = Vector2.zero;
-        actionRect.offsetMax = Vector2.zero;
-
-        LayoutElement actionLayout =
-            actionButton.gameObject.AddComponent<LayoutElement>();
-
-        actionLayout.preferredHeight = 48f;
-
-        TextMeshProUGUI actionText = AddText(
-            actionButton.transform,
-            "Text",
-            "Улучшить",
-            22,
-            TextAlignmentOptions.Center,
-            FontStyles.Bold
-        );
-
-        SetFullStretch(actionText.rectTransform);
-
-        cardRect.gameObject.SetActive(false);
-
-        return cardRect;
-    }
-
-    /// <summary>
-    /// Горизонтальная полоса прогресса уровня: Background -> Fill.
-    /// Заполняется значением slider.value в PermanentUpgradesUI.
-    /// </summary>
-    private static Slider BuildProgressBar(
-        RectTransform parent,
-        float height)
-    {
-        RectTransform sliderRect = AddRect(
-            parent,
-            "Progress",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        LayoutElement layout =
-            sliderRect.gameObject.AddComponent<LayoutElement>();
-
-        layout.preferredHeight = height;
-
-        Image background =
-            sliderRect.gameObject.AddComponent<Image>();
-
-        background.color = new Color(0.10f, 0.10f, 0.14f, 1f);
-
-        RectTransform fillArea = AddRect(
-            sliderRect,
-            "FillArea",
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(2f, 2f),
-            new Vector2(-2f, -2f)
-        );
-
-        RectTransform fill = AddRect(
-            fillArea,
-            "Fill",
-            Vector2.zero,
-            new Vector2(0f, 1f),
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        Image fillImage = fill.gameObject.AddComponent<Image>();
-        fillImage.color = new Color(0.35f, 0.70f, 0.40f, 1f);
-
-        Slider slider = sliderRect.gameObject.AddComponent<Slider>();
-
-        slider.interactable = false;
-        slider.minValue = 0f;
-        slider.maxValue = 1f;
-        slider.wholeNumbers = false;
-        slider.direction = Slider.Direction.LeftToRight;
-        slider.fillRect = fill;
-        slider.targetGraphic = fillImage;
-        slider.value = 0f;
-
-        return slider;
-    }
-
-    // =====================================================
     // HELPERS
     // =====================================================
 
-    private static void AddCardText(
-        RectTransform parent,
-        string name,
-        string content,
-        int size,
-        FontStyles style,
+    private static void AddFixedHeight(
+        GameObject target,
         float height,
-        Color? color = null)
+        float flexibleHeight = -1f)
     {
-        TextMeshProUGUI text = AddText(
-            parent,
-            name,
-            content,
-            size,
-            TextAlignmentOptions.MidlineLeft,
-            style
-        );
+        LayoutElement layout = target.GetComponent<LayoutElement>();
 
-        // TMP не реализует ILayoutElement, поэтому высоту строки
-        // задаём явно — иначе VerticalLayoutGroup схлопнет её в ноль.
-        LayoutElement layout =
-            text.gameObject.AddComponent<LayoutElement>();
+        if (layout == null)
+            layout = target.AddComponent<LayoutElement>();
 
         layout.preferredHeight = height;
 
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.color = color ?? new Color(0.92f, 0.92f, 0.92f, 1f);
+        if (flexibleHeight > 0f)
+            layout.flexibleHeight = flexibleHeight;
+    }
+
+    private static RectTransform AddBlock(
+        Transform parent,
+        string name,
+        Vector2 anchor,
+        Vector2 position,
+        Vector2 size,
+        Vector2 pivot)
+    {
+        RectTransform rect = AddRect(
+            parent,
+            name,
+            anchor,
+            anchor,
+            Vector2.zero,
+            Vector2.zero
+        );
+
+        SetBlock(rect, anchor, position, size, pivot);
+
+        return rect;
+    }
+
+    /// <summary>
+    /// Ставит существующий RectTransform по якорю: точка опоры,
+    /// позиция и размер.
+    /// </summary>
+    private static void SetBlock(
+        RectTransform rect,
+        Vector2 anchor,
+        Vector2 position,
+        Vector2 size,
+        Vector2 pivot)
+    {
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = pivot;
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+    }
+
+    /// <summary>
+    /// Растягивает элемент на весь родитель с отступами
+    /// слева, справа, снизу и сверху.
+    /// </summary>
+    private static RectTransform AddStretch(
+        Transform parent,
+        string name,
+        float left,
+        float right,
+        float bottom,
+        float top)
+    {
+        RectTransform rect = AddRect(
+            parent,
+            name,
+            Vector2.zero,
+            Vector2.one,
+            new Vector2(left, bottom),
+            new Vector2(-right, -top)
+        );
+
+        return rect;
+    }
+
+    private static RectTransform AddRect(
+        Transform parent,
+        string name,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 offsetMin,
+        Vector2 offsetMax)
+    {
+        GameObject rectObject =
+            new GameObject(name, typeof(RectTransform));
+
+        rectObject.transform.SetParent(parent, false);
+
+        RectTransform rect = rectObject.GetComponent<RectTransform>();
+
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = offsetMin;
+        rect.offsetMax = offsetMax;
+
+        return rect;
+    }
+
+    private static Image AddImage(
+        Transform parent,
+        string name,
+        Color color,
+        Sprite sprite,
+        bool sliced)
+    {
+        RectTransform rect = AddRect(
+            parent,
+            name,
+            Vector2.zero,
+            Vector2.one,
+            Vector2.zero,
+            Vector2.zero
+        );
+
+        Image image = rect.gameObject.AddComponent<Image>();
+
+        image.color = color;
+
+        if (sprite != null)
+        {
+            image.sprite = sprite;
+            image.type = sliced ? Image.Type.Sliced : Image.Type.Simple;
+        }
+
+        return image;
     }
 
     private static TextMeshProUGUI AddText(
@@ -660,7 +1563,8 @@ public static class UpgradesUIBuilder
         string content,
         int size,
         TextAlignmentOptions alignment,
-        FontStyles style)
+        FontStyles style,
+        Color color)
     {
         GameObject textObject =
             new GameObject(name, typeof(RectTransform));
@@ -677,100 +1581,11 @@ public static class UpgradesUIBuilder
         text.fontSize = size;
         text.alignment = alignment;
         text.fontStyle = style;
-        text.color = Color.white;
+        text.color = color;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.overflowMode = TextOverflowModes.Overflow;
 
         return text;
-    }
-
-    private static Button AddButton(Transform parent, string name)
-    {
-        RectTransform rect = AddRect(
-            parent,
-            name,
-            new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f),
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = new Color(0.25f, 0.55f, 0.25f, 1f);
-
-        return rect.gameObject.AddComponent<Button>();
-    }
-
-    private static Scrollbar BuildVerticalScrollbar(RectTransform parent)
-    {
-        RectTransform scrollbarRect = AddRect(
-            parent,
-            "ScrollbarVertical",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 1f),
-            new Vector2(-34f, 8f),
-            new Vector2(-12f, -8f)
-        );
-
-        scrollbarRect.pivot = new Vector2(1f, 0.5f);
-
-        Image background =
-            scrollbarRect.gameObject.AddComponent<Image>();
-
-        background.color = new Color(0.16f, 0.16f, 0.22f, 0.9f);
-
-        Scrollbar scrollbar =
-            scrollbarRect.gameObject.AddComponent<Scrollbar>();
-
-        scrollbar.direction = Scrollbar.Direction.BottomToTop;
-
-        RectTransform slidingArea = AddRect(
-            scrollbarRect,
-            "SlidingArea",
-            Vector2.zero,
-            Vector2.one,
-            Vector2.zero,
-            Vector2.zero
-        );
-
-        RectTransform handle = AddRect(
-            slidingArea,
-            "Handle",
-            new Vector2(0f, 0f),
-            new Vector2(1f, 1f),
-            new Vector2(0.12f, 0.12f),
-            new Vector2(-0.12f, -0.12f)
-        );
-
-        Image handleImage = handle.gameObject.AddComponent<Image>();
-        handleImage.color = new Color(0.55f, 0.55f, 0.60f, 0.95f);
-
-        scrollbar.targetGraphic = handleImage;
-        scrollbar.handleRect = handle;
-
-        return scrollbar;
-    }
-
-    private static RectTransform AddRect(
-        Transform parent,
-        string name,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 offsetMin,
-        Vector2 offsetMax)
-    {
-        GameObject rectObject =
-            new GameObject(name, typeof(RectTransform));
-
-        rectObject.transform.SetParent(parent, false);
-
-        RectTransform rect =
-            rectObject.GetComponent<RectTransform>();
-
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.offsetMin = offsetMin;
-        rect.offsetMax = offsetMax;
-
-        return rect;
     }
 
     private static void SetFullStretch(RectTransform rect)
@@ -779,20 +1594,6 @@ public static class UpgradesUIBuilder
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
-    }
-
-    private static void SetAnchors(
-        RectTransform rect,
-        float anchorX,
-        float anchorY,
-        Vector2 position,
-        Vector2 size)
-    {
-        rect.anchorMin = new Vector2(anchorX, anchorY);
-        rect.anchorMax = new Vector2(anchorX, anchorY);
-        rect.pivot = new Vector2(anchorX, anchorY);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = size;
     }
 }
 

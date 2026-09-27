@@ -17,11 +17,13 @@ public class StructureOcclusionFader : MonoBehaviour
     [Tooltip("Сила оттенка и лёгкого мерцания, пока блок скрывает игрока.")]
     [SerializeField] private float ghostEffectStrength = 0.35f;
 
-    private MeshRenderer meshRenderer;
+    // Рендереры ищутся во всём поддереве: у префабов-заготовок
+    // меши часто висят на дочерних объектах, а не на корне.
+    private MeshRenderer[] meshRenderers;
 
-    private Material opaqueMaterial;
-    private Material ghostMaterial;
-    private Color originalColor;
+    private Material[] opaqueMaterials;
+    private Material[] ghostMaterials;
+    private Color[] originalColors;
 
     private bool ghostActive;
     private bool requestBlocked;
@@ -31,39 +33,57 @@ public class StructureOcclusionFader : MonoBehaviour
 
     private void Awake()
     {
-        meshRenderer =
-            GetComponent<MeshRenderer>();
+        meshRenderers =
+            GetComponentsInChildren<MeshRenderer>(true);
 
-        if (meshRenderer == null)
+        if (meshRenderers == null ||
+            meshRenderers.Length == 0)
         {
             enabled = false;
             return;
         }
 
-        opaqueMaterial =
-            meshRenderer.material;
+        int count = meshRenderers.Length;
 
-        originalColor =
-            GetMaterialColor(opaqueMaterial);
+        opaqueMaterials = new Material[count];
+        ghostMaterials = new Material[count];
+        originalColors = new Color[count];
 
-        ghostMaterial =
-            new Material(opaqueMaterial)
-            {
-                name = opaqueMaterial.name + " (Ghost)"
-            };
+        for (int i = 0; i < count; i++)
+        {
+            // material создаёт копию — общий материал префаба
+            // не должен переключаться на призрачный режим.
+            opaqueMaterials[i] = meshRenderers[i].material;
 
-        MakeTransparent(ghostMaterial);
+            originalColors[i] =
+                GetMaterialColor(opaqueMaterials[i]);
 
-        SetMaterialColor(
-            ghostMaterial,
-            originalColor
-        );
+            Material ghost =
+                new Material(opaqueMaterials[i])
+                {
+                    name =
+                        opaqueMaterials[i].name +
+                        " (Ghost)"
+                };
+
+            MakeTransparent(ghost);
+
+            SetMaterialColor(ghost, originalColors[i]);
+
+            ghostMaterials[i] = ghost;
+        }
     }
 
     private void OnDestroy()
     {
-        if (ghostMaterial != null)
-            Destroy(ghostMaterial);
+        if (ghostMaterials == null)
+            return;
+
+        for (int i = 0; i < ghostMaterials.Length; i++)
+        {
+            if (ghostMaterials[i] != null)
+                Destroy(ghostMaterials[i]);
+        }
     }
 
     // Вызывает менеджер при заслонении/освобождении игрока.
@@ -82,8 +102,11 @@ public class StructureOcclusionFader : MonoBehaviour
 
     private void Update()
     {
-        if (meshRenderer == null)
+        if (meshRenderers == null ||
+            meshRenderers.Length == 0)
+        {
             return;
+        }
 
         if (pendingTimer > 0f)
         {
@@ -110,8 +133,8 @@ public class StructureOcclusionFader : MonoBehaviour
 
         if (shouldGhost && !ghostActive)
         {
-            meshRenderer.material =
-                ghostMaterial;
+            for (int i = 0; i < meshRenderers.Length; i++)
+                meshRenderers[i].sharedMaterial = ghostMaterials[i];
 
             ghostActive = true;
         }
@@ -120,8 +143,8 @@ public class StructureOcclusionFader : MonoBehaviour
             ghostActive &&
             currentAlpha >= 0.999f)
         {
-            meshRenderer.material =
-                opaqueMaterial;
+            for (int i = 0; i < meshRenderers.Length; i++)
+                meshRenderers[i].sharedMaterial = opaqueMaterials[i];
 
             ghostActive = false;
         }
@@ -142,25 +165,28 @@ public class StructureOcclusionFader : MonoBehaviour
                 Mathf.Max(1f - occludedAlpha, 0.01f)
             );
 
-        Color color =
-            Color.Lerp(
-                originalColor,
-                occludedTint,
-                ghostEffectStrength * (1f - progress)
-            );
-
         float shimmer =
             Mathf.Sin(Time.time * 8f) *
             0.04f *
             (1f - progress);
 
-        color.r += shimmer;
-        color.g += shimmer;
-        color.b += shimmer * 1.5f;
+        for (int i = 0; i < ghostMaterials.Length; i++)
+        {
+            Color color =
+                Color.Lerp(
+                    originalColors[i],
+                    occludedTint,
+                    ghostEffectStrength * (1f - progress)
+                );
 
-        color.a = currentAlpha;
+            color.r += shimmer;
+            color.g += shimmer;
+            color.b += shimmer * 1.5f;
 
-        SetMaterialColor(ghostMaterial, color);
+            color.a = currentAlpha;
+
+            SetMaterialColor(ghostMaterials[i], color);
+        }
     }
 
     private static Color GetMaterialColor(

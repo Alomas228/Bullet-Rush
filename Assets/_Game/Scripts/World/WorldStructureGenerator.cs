@@ -8,10 +8,10 @@ public class WorldStructureGenerator : MonoBehaviour
     [Tooltip("Центр арены. Если не назначен — используется позиция этого объекта.")]
     [SerializeField] private Transform center;
 
-    [Tooltip("Игрок, в котором нельзя ставить кубы. Если не назначен — ищется по тегу Player.")]
+    [Tooltip("Игрок, в котором нельзя ставить структуры. Если не назначен — ищется по тегу Player.")]
     [SerializeField] private Transform player;
 
-    [Tooltip("Запас безопасности: куб не ставятся ближе этого радиуса к игроку.")]
+    [Tooltip("Запас безопасности: структура не ставится ближе этого радиуса к игроку.")]
     [SerializeField] private float playerSafeRadius = 1.5f;
 
     [Header("Placement")]
@@ -20,35 +20,40 @@ public class WorldStructureGenerator : MonoBehaviour
     [SerializeField] private float minSpacing = 1f;
     [SerializeField] private int maxPlacementAttempts = 30;
 
+    [Header("Prefabs")]
+    [Tooltip("Префабы, которые будут спавниться вместо кубов. Для каждой структуры выбирается один случайный из списка. Пусто — фолбэк на примитивный куб.")]
+    [SerializeField] private GameObject[] structurePrefabs;
+
     [Header("Count")]
     [SerializeField] private int minStructures = 14;
     [SerializeField] private int maxStructures = 20;
 
     [Header("Sizes")]
+    [Tooltip("Размеры остаются как у кубов: габариты префаба умножаются на эти значения. 1 — авторский размер префаба.")]
     [SerializeField] private float minWidth = 1.5f;
     [SerializeField] private float maxWidth = 4f;
     [SerializeField] private float minHeight = 1f;
     [SerializeField] private float maxHeight = 6f;
 
     [Header("Look")]
-    [Tooltip("Готовые материалы. Если пусто — кубы красятся цветами из палитры.")]
+    [Tooltip("Готовые материалы. Если заданы — накладываются на все рендереры префаба. Пусто — префаб остаётся со своим материалом.")]
     [SerializeField] private Material[] materials;
-    [Tooltip("Палитра цветов для кубов, когда материалы не заданы.")]
+    [Tooltip("Палитра цветов. Используется только для фолбэк-куба, когда материалы не заданы.")]
     [SerializeField] private Color[] palette;
 
     [Tooltip("Базовое зерно генерации. 0 — случайное при запуске.")]
     [SerializeField] private int baseSeed;
 
     [Header("Spawn Animation")]
-    [Tooltip("Пауза между появлением кубов — объекты вырастают цепочкой, как исчезали при возврате в меню.")]
+    [Tooltip("Пауза между появлением структур — объекты вырастают цепочкой, как исчезали при возврате в меню.")]
     [SerializeField] private float spawnStagger = 0.05f;
-    [Tooltip("Длительность «вырастания» одного куба.")]
+    [Tooltip("Длительность «вырастания» одной структуры.")]
     [SerializeField] private float scaleInDuration = 0.25f;
     [Tooltip("Сколько структур обрабатывается за один шаг стаггера. Больше — быстрее перестройка карты между волнами.")]
     [SerializeField] private int structuresPerTick = 4;
 
     [Header("Layer")]
-    [Tooltip("Слой, на который помещаются создаваемые кубы. Должен совпадать с occlusionMask в StructureOcclusionManager. Пусто — слой не меняется.")]
+    [Tooltip("Слой, на который помещаются создаваемые структуры (включая дочерние объекты префаба). Должен совпадать с occlusionMask в StructureOcclusionManager. Пусто — слой не меняется.")]
     [SerializeField] private string structureLayerName = "World";
 
     private readonly List<GameObject> structures =
@@ -59,6 +64,11 @@ public class WorldStructureGenerator : MonoBehaviour
 
     private readonly List<float> placedClearances =
         new List<float>();
+
+    // Список префабов без пустых слотов: случайный выбор не должен
+    // упираться в null и молча подменяться кубом.
+    private GameObject[] spawnPrefabs;
+    private bool warnedMissingPrefabs;
 
     private Coroutine generateCoroutine;
     private int cachedWorldLayer = -1;
@@ -86,6 +96,10 @@ public class WorldStructureGenerator : MonoBehaviour
         if (baseSeed == 0)
             baseSeed = Random.Range(1, int.MaxValue);
 
+        spawnPrefabs = CollectPrefabs();
+
+        WarnPrefabsWithoutColliders();
+
         cachedWorldLayer =
             LayerMask.NameToLayer(structureLayerName);
 
@@ -99,6 +113,30 @@ public class WorldStructureGenerator : MonoBehaviour
         }
 
         EnsureOcclusionManager();
+    }
+
+    // Отбрасывает пустые слоты, чтобы случайный выбор всегда
+    // давал реальный префаб.
+    private GameObject[] CollectPrefabs()
+    {
+        if (structurePrefabs == null ||
+            structurePrefabs.Length == 0)
+        {
+            return null;
+        }
+
+        List<GameObject> valid =
+            new List<GameObject>(structurePrefabs.Length);
+
+        for (int i = 0; i < structurePrefabs.Length; i++)
+        {
+            if (structurePrefabs[i] != null)
+                valid.Add(structurePrefabs[i]);
+        }
+
+        return valid.Count > 0
+            ? valid.ToArray()
+            : null;
     }
 
     // Добавляет менеджер растворяющихся при заслонении блоков,
@@ -222,25 +260,28 @@ public class WorldStructureGenerator : MonoBehaviour
     }
 
     private IEnumerator FadeOutStructure(
-        GameObject cube)
+        GameObject structure)
     {
-        if (cube == null)
+        if (structure == null)
             yield break;
 
-        Collider collider =
-            cube.GetComponent<Collider>();
+        // Коллайдеры префаба часто висят на дочерних объектах,
+        // иначе исчезающая структура продолжитт блокировать пули
+        // и перемещение до конца анимации.
+        Collider[] colliders =
+            structure.GetComponentsInChildren<Collider>(true);
 
-        if (collider != null)
-            collider.enabled = false;
+        for (int i = 0; i < colliders.Length; i++)
+            colliders[i].enabled = false;
 
         Vector3 startScale =
-            cube.transform.localScale;
+            structure.transform.localScale;
 
         float timer = 0f;
 
         while (timer < scaleInDuration)
         {
-            if (cube == null)
+            if (structure == null)
                 yield break;
 
             timer += Time.unscaledDeltaTime;
@@ -252,7 +293,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
             t = Mathf.SmoothStep(0f, 1f, t);
 
-            cube.transform.localScale =
+            structure.transform.localScale =
                 Vector3.Lerp(
                     startScale,
                     Vector3.zero,
@@ -262,21 +303,21 @@ public class WorldStructureGenerator : MonoBehaviour
             yield return null;
         }
 
-        if (cube != null)
-            Destroy(cube);
+        if (structure != null)
+            Destroy(structure);
     }
 
     private IEnumerator ScaleInStructure(
-        GameObject cube,
+        GameObject structure,
         Vector3 fullScale)
     {
-        cube.transform.localScale = Vector3.zero;
+        structure.transform.localScale = Vector3.zero;
 
         float timer = 0f;
 
         while (timer < scaleInDuration)
         {
-            if (cube == null)
+            if (structure == null)
                 yield break;
 
             timer += Time.unscaledDeltaTime;
@@ -288,7 +329,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
             t = Mathf.SmoothStep(0f, 1f, t);
 
-            cube.transform.localScale =
+            structure.transform.localScale =
                 Vector3.Lerp(
                     Vector3.zero,
                     fullScale,
@@ -298,8 +339,8 @@ public class WorldStructureGenerator : MonoBehaviour
             yield return null;
         }
 
-        if (cube != null)
-            cube.transform.localScale = fullScale;
+        if (structure != null)
+            structure.transform.localScale = fullScale;
     }
 
     public void Clear()
@@ -319,6 +360,15 @@ public class WorldStructureGenerator : MonoBehaviour
         System.Random rng,
         Vector3 centerPos)
     {
+        GameObject prefab = PickPrefab(rng);
+
+        // Габариты считаются от авторасштаба префаба: у примитивного
+        // куба он равен единице, у префаба — его масштаб в проекте.
+        Vector3 baseScale =
+            prefab != null
+                ? prefab.transform.localScale
+                : Vector3.one;
+
         for (int attempt = 0;
              attempt < maxPlacementAttempts;
              attempt++)
@@ -327,8 +377,14 @@ public class WorldStructureGenerator : MonoBehaviour
             float depth = NextFloat(rng, minWidth, maxWidth);
             float height = NextFloat(rng, minHeight, maxHeight);
 
+            Vector3 scale = new Vector3(
+                width * baseScale.x,
+                height * baseScale.y,
+                depth * baseScale.z
+            );
+
             float clearance =
-                Mathf.Max(width, depth) * 0.5f +
+                Mathf.Max(scale.x, scale.z) * 0.5f +
                 minSpacing;
 
             float angle =
@@ -361,14 +417,7 @@ public class WorldStructureGenerator : MonoBehaviour
                 continue;
             }
 
-            SpawnCube(
-                centerPos,
-                hPos,
-                width,
-                depth,
-                height,
-                rng
-            );
+            SpawnStructure(prefab, hPos, scale, rng);
 
             placedPositions.Add(hPos);
             placedClearances.Add(clearance);
@@ -415,91 +464,261 @@ public class WorldStructureGenerator : MonoBehaviour
         return distance < clearance + playerSafeRadius;
     }
 
-    private void SpawnCube(
-        Vector3 centerPos,
+    // Без коллайдера префаб не блокирует ни игрока, ни пули, хотя
+    // StructureQuery ищет его по collider. Для FBX это лечится
+    // галочкой Generate Colliders в настройках импорта.
+    private void WarnPrefabsWithoutColliders()
+    {
+        if (spawnPrefabs == null)
+            return;
+
+        for (int i = 0; i < spawnPrefabs.Length; i++)
+        {
+            if (spawnPrefabs[i].GetComponentInChildren<Collider>(true) != null)
+                continue;
+
+            Debug.LogWarning(
+                $"[WorldStructureGenerator] У префаба " +
+                $"'{spawnPrefabs[i].name}' нет коллайдера — он не " +
+                "будет блокировать игрока и пули. Включи Generate " +
+                "Colliders в настройках импорта модели или добавь " +
+                "BoxCollider в префаб.",
+                spawnPrefabs[i]
+            );
+        }
+    }
+
+    // Случайный префаб из списка. null — сигнал спавнить
+    // примитивный куб вместо него.
+    private GameObject PickPrefab(System.Random rng)
+    {
+        if (spawnPrefabs == null ||
+            spawnPrefabs.Length == 0)
+        {
+            if (!warnedMissingPrefabs)
+            {
+                warnedMissingPrefabs = true;
+
+                Debug.LogWarning(
+                    "[WorldStructureGenerator] Список Structure Prefabs " +
+                    "пуст — структуры создаются примитивными кубами. " +
+                    "Заполни поле, чтобы спавнить свои префабы."
+                );
+            }
+
+            return null;
+        }
+
+        return spawnPrefabs[rng.Next(0, spawnPrefabs.Length)];
+    }
+
+    private void SpawnStructure(
+        GameObject prefab,
         Vector2 hPos,
-        float width,
-        float depth,
-        float height,
+        Vector3 scale,
         System.Random rng)
     {
-        GameObject cube =
-            GameObject.CreatePrimitive(
-                PrimitiveType.Cube
-            );
+        bool useFallbackCube = prefab == null;
 
-        cube.name = $"Structure_{structures.Count}";
+        GameObject structure =
+            useFallbackCube
+                ? GameObject.CreatePrimitive(PrimitiveType.Cube)
+                : Instantiate(prefab);
 
-        cube.AddComponent<WorldStructure>();
+        structure.name = $"Structure_{structures.Count}";
+
+        // Префаб мог прийти уже с маркером — второй WorldStructure
+        // не нужен.
+        if (structure.GetComponent<WorldStructure>() == null)
+            structure.AddComponent<WorldStructure>();
 
         if (cachedWorldLayer >= 0)
-            cube.layer = cachedWorldLayer;
+            SetLayerRecursive(structure, cachedWorldLayer);
 
-        cube.transform.SetParent(
-            transform,
-            false
-        );
+        structure.transform.SetParent(transform, false);
 
-        cube.transform.position =
-            new Vector3(
-                hPos.x,
-                groundY + height * 0.5f,
-                hPos.y
-            );
+        PlaceOnGround(structure, hPos, scale);
 
-        cube.transform.localScale =
-            new Vector3(
-                width,
-                height,
-                depth
-            );
-
-        float rotation =
-            (float)(rng.NextDouble() * 360.0);
-
-        cube.transform.localRotation =
+        structure.transform.localRotation =
             Quaternion.Euler(
                 0f,
-                rotation,
+                (float)(rng.NextDouble() * 360.0),
                 0f
             );
 
-        MeshRenderer renderer =
-            cube.GetComponent<MeshRenderer>();
+        ApplyLook(structure, rng, useFallbackCube);
 
-        if (renderer != null)
+        structures.Add(structure);
+
+        StartCoroutine(
+            ScaleInStructure(structure, scale)
+        );
+    }
+
+    // Ставит структуру на землю нижней гранью. У префабов пивот
+    // обычно в основании, а не в центре габаритов, поэтому
+    // смещение считается по реальным габаритам объекта.
+    private void PlaceOnGround(
+        GameObject structure,
+        Vector2 hPos,
+        Vector3 scale)
+    {
+        Transform instanceTransform = structure.transform;
+
+        // Поворот выставляется позже: габариты читаются в мировых
+        // координатах, и при повороте вокруг Y «раздуваются» по X/Z.
+        instanceTransform.localRotation = Quaternion.identity;
+        instanceTransform.localScale = scale;
+
+        float localBottom = GetLocalBottom(structure, scale);
+
+        instanceTransform.position =
+            new Vector3(
+                hPos.x,
+                groundY - localBottom,
+                hPos.y
+            );
+    }
+
+    // Коллайдеры — основной источник габаритов: bounds рендереров
+    // после смены масштаба могут ещё кадр отдавать прежние
+    // значения. Без коллайдеров (типично для FBX-моделей) считаем
+    // по мешам через матрицу трансформа — она обновляется сразу, —
+    // а если мешей нет, подстраховываемся половиной высоты.
+    private static float GetLocalBottom(
+        GameObject structure,
+        Vector3 scale)
+    {
+        Transform instanceTransform = structure.transform;
+
+        Bounds bounds = new Bounds();
+        bool hasBounds = false;
+
+        Collider[] colliders =
+            structure.GetComponentsInChildren<Collider>(true);
+
+        for (int i = 0; i < colliders.Length; i++)
         {
-            if (materials != null &&
-                materials.Length > 0)
-            {
-                // sharedMaterial не создаёт копию материала на каждый куб.
-                renderer.sharedMaterial =
-                    materials[
-                        rng.Next(0, materials.Length)
-                    ];
-            }
+            if (hasBounds)
+                bounds.Encapsulate(colliders[i].bounds);
             else
             {
-                EnsurePaletteMaterials();
+                bounds = colliders[i].bounds;
+                hasBounds = true;
+            }
+        }
 
-                if (paletteMaterials != null)
+        if (!hasBounds)
+        {
+            MeshFilter[] filters =
+                structure.GetComponentsInChildren<MeshFilter>(true);
+
+            for (int i = 0; i < filters.Length; i++)
+            {
+                Mesh mesh = filters[i].sharedMesh;
+
+                if (mesh == null)
+                    continue;
+
+                Matrix4x4 matrix =
+                    filters[i].transform.localToWorldMatrix;
+
+                Vector3 center =
+                    matrix.MultiplyPoint3x4(mesh.bounds.center);
+
+                Vector3 extents = Abs(
+                    matrix.MultiplyVector(mesh.bounds.extents)
+                );
+
+                Vector3 meshMin = center - extents;
+                Vector3 meshMax = center + extents;
+
+                if (!hasBounds)
                 {
-                    renderer.sharedMaterial =
-                        paletteMaterials[
-                            rng.Next(0, paletteMaterials.Length)
-                        ];
+                    bounds.SetMinMax(meshMin, meshMax);
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(meshMin);
+                    bounds.Encapsulate(meshMax);
                 }
             }
         }
 
-        structures.Add(cube);
+        return hasBounds
+            ? instanceTransform.InverseTransformPoint(bounds.min).y
+            : -0.5f * scale.y;
+    }
 
-        StartCoroutine(
-            ScaleInStructure(
-                cube,
-                cube.transform.localScale
-            )
+    private static Vector3 Abs(Vector3 value)
+    {
+        return new Vector3(
+            Mathf.Abs(value.x),
+            Mathf.Abs(value.y),
+            Mathf.Abs(value.z)
         );
+    }
+
+    private static void SetLayerRecursive(
+        GameObject target,
+        int layer)
+    {
+        target.layer = layer;
+
+        Transform targetTransform = target.transform;
+
+        for (int i = 0;
+             i < targetTransform.childCount;
+             i++)
+        {
+            SetLayerRecursive(
+                targetTransform.GetChild(i).gameObject,
+                layer
+            );
+        }
+    }
+
+    // Явные материалы накладываются на все рендереры префаба.
+    // Палитра — только для фолбэк-куба, у которого своего
+    // материала нет.
+    private void ApplyLook(
+        GameObject structure,
+        System.Random rng,
+        bool allowPalette)
+    {
+        Material material = null;
+
+        if (materials != null &&
+            materials.Length > 0)
+        {
+            // sharedMaterial не создаёт копию материала на каждый спавн.
+            material =
+                materials[
+                    rng.Next(0, materials.Length)
+                ];
+        }
+        else if (allowPalette)
+        {
+            EnsurePaletteMaterials();
+
+            if (paletteMaterials != null)
+            {
+                material =
+                    paletteMaterials[
+                        rng.Next(0, paletteMaterials.Length)
+                    ];
+            }
+        }
+
+        if (material == null)
+            return;
+
+        Renderer[] renderers =
+            structure.GetComponentsInChildren<Renderer>(true);
+
+        for (int i = 0; i < renderers.Length; i++)
+            renderers[i].sharedMaterial = material;
     }
 
     // Создаёт по одному материалу на цвет из шейдера, который
