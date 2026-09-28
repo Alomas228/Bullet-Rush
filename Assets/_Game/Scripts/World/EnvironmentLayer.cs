@@ -1,0 +1,159 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Один живой слой карты: визуальная подложка + декор.
+/// Слой чисто визуальный — коллайдеров не создаёт, физический пол
+/// остаётся у статичной арены в сцене. Поэтому во время слайда
+/// слои свободно проезжают друг сквозь друга и по игроку.
+/// </summary>
+public class EnvironmentLayer : MonoBehaviour
+{
+    /// <summary>
+    /// Высота верхней грани подложки над уровнем арены (y = 0).
+    /// Небольшой подъём убирает z-fighting с статичным полом арены,
+    /// но остаётся ниже крови (BloodPool GroundY = 0.006) и структур.
+    /// </summary>
+    public const float GroundHeight = 0.003f;
+
+    /// <summary>Толщина визуального «слоя» подложки.</summary>
+    public const float SlabThickness = 0.05f;
+
+    public GameMap Map { get; private set; }
+
+    private readonly List<Collider> stampedColliders =
+        new List<Collider>();
+
+    /// <summary>
+    /// Создаёт слой карты по адресу map. Позиция не задаётся —
+    /// расстановкой занимается контроллер (transform.position = 0).
+    /// </summary>
+    public static EnvironmentLayer Create(
+        GameMap map,
+        string rootName,
+        float groundSize)
+    {
+        GameObject root = new GameObject(rootName);
+
+        EnvironmentLayer layer =
+            root.AddComponent<EnvironmentLayer>();
+
+        layer.Build(map, groundSize);
+
+        return layer;
+    }
+
+    private void Build(GameMap map, float groundSize)
+    {
+        Map = map;
+
+        BuildGround(map, groundSize);
+
+        if (map == null)
+            return;
+
+        if (map.groundDecorPrefab != null)
+            Stamp(map.groundDecorPrefab);
+
+        if (map.environmentPrefab != null)
+            Stamp(map.environmentPrefab);
+    }
+
+    /// <summary>
+    /// Плоский «слой»-подложка во всю арену. Коллайдер примитива
+    /// удаляется: пол карты не должен участвовать в физике.
+    /// </summary>
+    private void BuildGround(
+        GameMap map,
+        float groundSize)
+    {
+        GameObject slab =
+            GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        slab.name = "Ground";
+
+        Collider[] colliders =
+            slab.GetComponents<Collider>();
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].enabled = false;
+            Destroy(colliders[i]);
+        }
+
+        slab.transform.SetParent(transform, false);
+
+        slab.transform.localScale =
+            new Vector3(
+                Mathf.Max(groundSize, 1f),
+                SlabThickness,
+                Mathf.Max(groundSize, 1f)
+            );
+
+        // Верхняя грань плиты должна быть на GroundHeight.
+        slab.transform.localPosition =
+            new Vector3(
+                0f,
+                GroundHeight - SlabThickness * 0.5f,
+                0f
+            );
+
+        Renderer renderer =
+            slab.GetComponent<Renderer>();
+
+        if (renderer != null)
+            renderer.sharedMaterial = GetGroundMaterial(map);
+    }
+
+    private static Material fallbackGroundMaterial;
+
+    private static Material GetGroundMaterial(GameMap map)
+    {
+        if (map != null && map.groundMaterial != null)
+            return map.groundMaterial;
+
+        if (fallbackGroundMaterial != null)
+            return fallbackGroundMaterial;
+
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+
+        if (shader == null)
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (shader == null)
+            shader = Shader.Find("Standard");
+
+        Material material = new Material(shader);
+
+        material.name = "Fallback Ground";
+
+        if (material.HasProperty("_BaseColor"))
+            material.SetColor("_BaseColor", new Color(0.65f, 0.65f, 0.65f));
+        else if (material.HasProperty("_Color"))
+            material.SetColor("_Color", new Color(0.65f, 0.65f, 0.65f));
+
+        fallbackGroundMaterial = material;
+
+        return material;
+    }
+
+    /// <summary>
+    /// Инстанцирует префаб как дочерний объект слоя и отключает все
+    /// коллайдеры внутри. Декор не должен блокировать игрока, пули
+    /// и не должен перехватывать лучи StructureOcclusionManager.
+    /// </summary>
+    private void Stamp(GameObject prefab)
+    {
+        GameObject instance = Instantiate(prefab, transform);
+
+        stampedColliders.Clear();
+
+        instance.GetComponentsInChildren(true, stampedColliders);
+
+        for (int i = 0; i < stampedColliders.Count; i++)
+        {
+            if (stampedColliders[i] != null)
+                stampedColliders[i].enabled = false;
+        }
+    }
+}

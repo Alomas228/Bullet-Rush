@@ -356,6 +356,26 @@ public class WorldStructureGenerator : MonoBehaviour
         placedClearances.Clear();
     }
 
+    /// <summary>
+    /// Задаёт тему структур под текущую карту: явные материалы или
+    /// палитра для фолбэк-кубов. Пустые списки — структуры остаются
+    /// в материалах своих префабов (значение по умолчанию).
+    /// Вызывается из EnvironmentController при смене карты.
+    /// </summary>
+    public void ApplyTheme(GameMap map)
+    {
+        if (map == null)
+        {
+            materials = null;
+            palette = null;
+
+            return;
+        }
+
+        materials = map.structureMaterials;
+        palette = map.structurePalette;
+    }
+
     private void TrySpawnStructure(
         System.Random rng,
         Vector3 centerPos)

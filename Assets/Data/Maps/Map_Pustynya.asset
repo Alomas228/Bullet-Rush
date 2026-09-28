@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
+  m_Name: Map_Pustynya
+  m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  mapName: "\u041F\u0443\u0441\u0442\u044B\u043D\u044F"
+  icon: {fileID: 0}
+  groundMaterial: {fileID: 2100000, guid: ee78a8945672a98478b3f61635a93115, type: 2}
+  groundDecorPrefab: {fileID: 0}
+  environmentPrefab: {fileID: 0}
+  structureMaterials: []
+  structurePalette: []
+  skyColor: {r: 0.93, g: 0.79, b: 0.58, a: 1}
+  ambientLightColor: {r: 0.6, g: 0.53, b: 0.42, a: 1}
+  fogEnabled: 1
+  fogColor: {r: 0.85, g: 0.75, b: 0.6, a: 1}
+  fogStartDistance: 40
+  fogEndDistance: 95
