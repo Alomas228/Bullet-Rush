@@ -1,0 +1,339 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39a3e21f43bab234cb3b6758afeada93, type: 3}
+  m_Name: Env_Gory
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentTheme
+  themeName: "\u0413\u043E\u0440\u044B"
+  seed: 4404
+  palette:
+  - {r: 0.34, g: 0.36, b: 0.4, a: 1}
+  - {r: 0.58, g: 0.6, b: 0.66, a: 1}
+  - {r: 0.94, g: 0.96, b: 0.97, a: 1}
+  - {r: 0.16, g: 0.32, b: 0.2, a: 1}
+  - {r: 0.22, g: 0.44, b: 0.26, a: 1}
+  - {r: 0.48, g: 0.46, b: 0.42, a: 1}
+  glowMaterial: {fileID: 2100000, guid: 3bf0f7ba8d8ba6443b0fe056ceee96ce, type: 2}
+  minCenterDistance: 11
+  maxCenterDistance: 27
+  minObstacleSpacing: 1.2
+  minDecorDistance: 12
+  maxDecorDistance: 31
+  minOutsideDistance: 52
+  maxOutsideDistance: 92
+  minOutsideSpacing: 1.5
+  insideObstacles:
+  - name: RockFormation
+    count: 6
+    scaleMin: 0.9
+    scaleMax: 1.4
+    footprint: 1
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.5, z: 0}
+      euler: {x: 0, y: 30, z: 10}
+      scale: {x: 1.2, y: 1, z: 0.9}
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0.6, y: 0.3, z: 0.25}
+      euler: {x: 0, y: -20, z: 15}
+      scale: {x: 0.7, y: 0.6, z: 0.6}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0.1, y: 0.95, z: 0.1}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.85, y: 0.12, z: 0.6}
+  - name: Boulder
+    count: 4
+    scaleMin: 0.8
+    scaleMax: 1.2
+    footprint: 0.85
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.4, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 0.8, z: 0.95}
+    - shape: 1
+      color: 1
+      glow: 0
+      position: {x: 0.4, y: 0.52, z: 0.2}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.45, y: 0.4, z: 0.4}
+    - shape: 1
+      color: 2
+      glow: 0
+      position: {x: -0.15, y: 0.62, z: 0.05}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.3, y: 0.2, z: 0.25}
+  - name: Fir
+    count: 5
+    scaleMin: 0.9
+    scaleMax: 1.3
+    footprint: 0.6
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.5, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.16, y: 1, z: 0.16}
+    - shape: 2
+      color: 3
+      glow: 0
+      position: {x: 0, y: 1.15, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.9, y: 0.55, z: 1.9}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 1.62, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.35, y: 0.5, z: 1.35}
+    - shape: 2
+      color: 3
+      glow: 0
+      position: {x: 0, y: 2.05, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.8, y: 0.45, z: 0.8}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 2.45, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.4, y: 0.4, z: 0.4}
+  - name: CaveCliff
+    count: 2
+    scaleMin: 1.2
+    scaleMax: 1.5
+    footprint: 1.2
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.9, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2, y: 1.8, z: 1.2}
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0.3, y: 0.5, z: 0.45}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.9, y: 1, z: 0.3}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 1.75, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.1, y: 0.14, z: 1.3}
+  insideDecor:
+  - name: Pebble
+    count: 5
+    scaleMin: 0.4
+    scaleMax: 0.6
+    footprint: 0.3
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 1
+      glow: 0
+      position: {x: 0, y: 0.15, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.3, z: 0.45}
+    - shape: 1
+      color: 5
+      glow: 0
+      position: {x: 0.3, y: 0.1, z: 0.15}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.3, y: 0.2, z: 0.3}
+  - name: GrassClump
+    count: 4
+    scaleMin: 0.5
+    scaleMax: 0.8
+    footprint: 0.3
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 0.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.06, y: 0.4, z: 0.06}
+    - shape: 2
+      color: 3
+      glow: 0
+      position: {x: 0.15, y: 0.18, z: 0.05}
+      euler: {x: 0, y: 0, z: 15}
+      scale: {x: 0.06, y: 0.36, z: 0.06}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: -0.12, y: 0.17, z: -0.05}
+      euler: {x: 0, y: 0, z: -18}
+      scale: {x: 0.05, y: 0.34, z: 0.05}
+  outsideObjects:
+  - name: BigPeak
+    count: 4
+    scaleMin: 1.8
+    scaleMax: 2.6
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 0
+      glow: 0
+      position: {x: 0, y: 1.5, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 3.4, y: 1.6, z: 3.4}
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 0, y: 2.45, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.4, y: 1.1, z: 2.4}
+    - shape: 2
+      color: 2
+      glow: 0
+      position: {x: 0, y: 3.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.5, y: 0.9, z: 1.5}
+    - shape: 2
+      color: 2
+      glow: 0
+      position: {x: 0, y: 3.9, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.7, y: 0.7, z: 0.7}
+  - name: SnowyPeak
+    count: 3
+    scaleMin: 2
+    scaleMax: 3
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 0, y: 2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 3.8, y: 2.2, z: 3.8}
+    - shape: 2
+      color: 2
+      glow: 0
+      position: {x: 0, y: 3.4, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.2, y: 1.6, z: 2.2}
+    - shape: 1
+      color: 2
+      glow: 0
+      position: {x: 0, y: 4.6, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.4, y: 1, z: 1.4}
+  - name: RockField
+    count: 3
+    scaleMin: 1.5
+    scaleMax: 2.2
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.6, z: 0}
+      euler: {x: 0, y: 25, z: 10}
+      scale: {x: 2.2, y: 1.2, z: 1.6}
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 1, y: 0.4, z: 0.3}
+      euler: {x: 0, y: -15, z: 15}
+      scale: {x: 1.2, y: 0.8, z: 0.9}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: -0.4, y: 1.2, z: 0.1}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 0.2, z: 0.7}
+  - name: BigFir
+    count: 3
+    scaleMin: 1.8
+    scaleMax: 2.4
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.8, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.22, y: 1.6, z: 0.22}
+    - shape: 2
+      color: 3
+      glow: 0
+      position: {x: 0, y: 1.8, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 3, y: 0.8, z: 3}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 2.55, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.2, y: 0.75, z: 2.2}
+    - shape: 2
+      color: 3
+      glow: 0
+      position: {x: 0, y: 3.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.4, y: 0.65, z: 1.4}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 3.8, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.7, y: 0.6, z: 0.7}

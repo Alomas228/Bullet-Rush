@@ -10,19 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
-  m_Name: Map_Forest
+  m_Name: Map_Les
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
   mapName: "\u041B\u0435\u0441"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: 72403f2f9497d4246952c7b703bc0898, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}
-  environmentTheme: {fileID: 0}
+  environmentTheme: {fileID: 11400000, guid: d31bebd5b9a15eb4dbbc04dd818a1682, type: 2}
   structureMaterials: []
-  structurePalette: []
+  structurePalette:
+  - {r: 0.42, g: 0.31, b: 0.2, a: 1}
+  - {r: 0.16, g: 0.42, b: 0.19, a: 1}
+  - {r: 0.3, g: 0.55, b: 0.25, a: 1}
+  - {r: 0.46, g: 0.46, b: 0.48, a: 1}
+  - {r: 0.36, g: 0.42, b: 0.27, a: 1}
+  - {r: 0.93, g: 0.84, b: 0.45, a: 1}
   skyColor: {r: 0.16, g: 0.27, b: 0.22, a: 1}
   ambientLightColor: {r: 0.22, g: 0.27, b: 0.22, a: 1}
   fogEnabled: 1
   fogColor: {r: 0.16, g: 0.22, b: 0.18, a: 1}
   fogStartDistance: 25
-  fogEndDistance: 65
+  fogEndDistance: 60

@@ -10,16 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
-  m_Name: Map_Beach
+  m_Name: Map_Plyazh
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
   mapName: "\u041F\u043B\u044F\u0436"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: 29ba719c72e54aa4f9773978a3398ade, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}
-  environmentTheme: {fileID: 0}
+  environmentTheme: {fileID: 11400000, guid: dc6a1840deb1ed74da177f8bb729de82, type: 2}
   structureMaterials: []
-  structurePalette: []
+  structurePalette:
+  - {r: 0.91, g: 0.83, b: 0.64, a: 1}
+  - {r: 0.6, g: 0.46, b: 0.27, a: 1}
+  - {r: 0.24, g: 0.52, b: 0.28, a: 1}
+  - {r: 0.58, g: 0.4, b: 0.22, a: 1}
+  - {r: 0.93, g: 0.9, b: 0.78, a: 1}
+  - {r: 0.13, g: 0.38, b: 0.6, a: 1}
+  - {r: 0.52, g: 0.45, b: 0.34, a: 1}
   skyColor: {r: 0.48, g: 0.68, b: 0.82, a: 1}
   ambientLightColor: {r: 0.5, g: 0.52, b: 0.5, a: 1}
   fogEnabled: 1

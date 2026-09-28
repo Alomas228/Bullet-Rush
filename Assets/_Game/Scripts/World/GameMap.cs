@@ -28,6 +28,10 @@ public class GameMap : ScriptableObject
     [Tooltip("Окружение вокруг арены: деревья, скалы, пальмы, звёзды. Ложится как дочерний объект слоя карты и уезжает вместе с ним. Коллайдеры отключаются автоматически.")]
     public GameObject environmentPrefab;
 
+    [Header("Environment")]
+    [Tooltip("Данные процедурного окружения: препятствия с коллайдерами и декор внутри арены, фон за её пределами. Пусто — процедурное окружение не строится.")]
+    public EnvironmentTheme environmentTheme;
+
     [Header("Structures")]
     [Tooltip("Материалы структур для WorldStructureGenerator. Пусто — структуры остаются в материалах своих префабов, либо в палитре ниже (для фолбэк-кубов).")]
     public Material[] structureMaterials;

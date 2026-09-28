@@ -1,0 +1,320 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39a3e21f43bab234cb3b6758afeada93, type: 3}
+  m_Name: Env_Pustynya
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentTheme
+  themeName: "\u041F\u0443\u0441\u0442\u044B\u043D\u044F"
+  seed: 5505
+  palette:
+  - {r: 0.9, g: 0.75, b: 0.5, a: 1}
+  - {r: 0.28, g: 0.5, b: 0.26, a: 1}
+  - {r: 0.55, g: 0.43, b: 0.31, a: 1}
+  - {r: 0.56, g: 0.48, b: 0.3, a: 1}
+  - {r: 0.92, g: 0.9, b: 0.82, a: 1}
+  - {r: 0.62, g: 0.36, b: 0.2, a: 1}
+  - {r: 0.8, g: 0.64, b: 0.4, a: 1}
+  glowMaterial: {fileID: 2100000, guid: 798732f037d2ab64e8b7d5ef528e4371, type: 2}
+  minCenterDistance: 11
+  maxCenterDistance: 27
+  minObstacleSpacing: 1.2
+  minDecorDistance: 12
+  maxDecorDistance: 31
+  minOutsideDistance: 52
+  maxOutsideDistance: 92
+  minOutsideSpacing: 1.5
+  insideObstacles:
+  - name: Cactus
+    count: 6
+    scaleMin: 0.9
+    scaleMax: 1.4
+    footprint: 0.55
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 0, y: 0.85, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.8, y: 1.7, z: 0.8}
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 0.65, y: 1, z: 0.05}
+      euler: {x: 0, y: 0, z: -25}
+      scale: {x: 0.4, y: 0.8, z: 0.4}
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: -0.6, y: 1.1, z: -0.05}
+      euler: {x: 0, y: 0, z: 20}
+      scale: {x: 0.38, y: 0.9, z: 0.38}
+    - shape: 1
+      color: 4
+      glow: 0
+      position: {x: 0, y: 1.72, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.22, y: 0.22, z: 0.22}
+  - name: DriedBush
+    count: 5
+    scaleMin: 0.8
+    scaleMax: 1.2
+    footprint: 0.5
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 3
+      glow: 0
+      position: {x: 0, y: 0.25, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.75, y: 0.5, z: 0.75}
+    - shape: 1
+      color: 3
+      glow: 0
+      position: {x: 0.38, y: 0.16, z: 0.2}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.42, y: 0.3, z: 0.42}
+    - shape: 2
+      color: 2
+      glow: 0
+      position: {x: 0, y: 0.12, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.3, y: 0.24, z: 0.3}
+  - name: Stone
+    count: 4
+    scaleMin: 0.7
+    scaleMax: 1.1
+    footprint: 0.8
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 2
+      glow: 0
+      position: {x: 0, y: 0.33, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1, y: 0.66, z: 0.9}
+    - shape: 1
+      color: 2
+      glow: 0
+      position: {x: 0.42, y: 0.24, z: 0.3}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.42, z: 0.5}
+    - shape: 1
+      color: 0
+      glow: 0
+      position: {x: -0.3, y: 0.4, z: 0.15}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.32, y: 0.26, z: 0.3}
+  - name: MesaMini
+    count: 3
+    scaleMin: 0.9
+    scaleMax: 1.2
+    footprint: 1.1
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.7, z: 0}
+      euler: {x: 0, y: 20, z: 0}
+      scale: {x: 1.2, y: 1.4, z: 1}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: -0.05, y: 1.35, z: 0.1}
+      euler: {x: 0, y: 20, z: 0}
+      scale: {x: 1.15, y: 0.14, z: 0.95}
+  - name: Bones
+    count: 2
+    scaleMin: 0.8
+    scaleMax: 1.1
+    footprint: 0.6
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 4
+      glow: 0
+      position: {x: 0, y: 0.3, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.55, y: 0.4, z: 0.45}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 0.3, z: 0.28}
+      euler: {x: 0, y: 0, z: 90}
+      scale: {x: 0.12, y: 0.6, z: 0.12}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0, y: 0.3, z: -0.18}
+      euler: {x: 0, y: 25, z: 90}
+      scale: {x: 0.1, y: 0.5, z: 0.1}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: 0.2, y: 0.16, z: 0.3}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.1, y: 0.35, z: 0.1}
+    - shape: 2
+      color: 4
+      glow: 0
+      position: {x: -0.2, y: 0.14, z: 0.25}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.1, y: 0.3, z: 0.1}
+  insideDecor:
+  - name: Dune
+    count: 4
+    scaleMin: 1.4
+    scaleMax: 1.9
+    footprint: 0.2
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.16, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.6, y: 0.32, z: 1.8}
+    - shape: 1
+      color: 6
+      glow: 0
+      position: {x: 0.35, y: 0.22, z: 0.2}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.5, y: 0.22, z: 1.1}
+  - name: StoneSmall
+    count: 3
+    scaleMin: 0.5
+    scaleMax: 0.7
+    footprint: 0.35
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 2
+      glow: 0
+      position: {x: 0, y: 0.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.6, y: 0.4, z: 0.55}
+  outsideObjects:
+  - name: Mesa
+    count: 3
+    scaleMin: 1.8
+    scaleMax: 2.6
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 1.5, z: 0}
+      euler: {x: 0, y: 30, z: 0}
+      scale: {x: 3, y: 3, z: 2.4}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: -0.15, y: 2.75, z: 0.15}
+      euler: {x: 0, y: 30, z: 0}
+      scale: {x: 3.2, y: 0.5, z: 2.7}
+  - name: BigDune
+    count: 3
+    scaleMin: 2
+    scaleMax: 3
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.3, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 5, y: 0.6, z: 3.5}
+    - shape: 1
+      color: 6
+      glow: 0
+      position: {x: 0.8, y: 0.42, z: 0.5}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 3, y: 0.45, z: 2.2}
+  - name: CactusFar
+    count: 3
+    scaleMin: 1.5
+    scaleMax: 2
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 0, y: 1.5, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.2, y: 3, z: 1.2}
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: 1, y: 1.7, z: 0.1}
+      euler: {x: 0, y: 0, z: -22}
+      scale: {x: 0.6, y: 1.4, z: 0.6}
+    - shape: 2
+      color: 1
+      glow: 0
+      position: {x: -0.9, y: 1.9, z: -0.1}
+      euler: {x: 0, y: 0, z: 18}
+      scale: {x: 0.55, y: 1.6, z: 0.55}
+  - name: RedButte
+    count: 2
+    scaleMin: 2.2
+    scaleMax: 3
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 1.5, z: 0}
+      euler: {x: 0, y: 15, z: 0}
+      scale: {x: 2.6, y: 3, z: 2}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: -0.1, y: 2.8, z: 0.1}
+      euler: {x: 0, y: 15, z: 0}
+      scale: {x: 2.8, y: 0.5, z: 2.3}

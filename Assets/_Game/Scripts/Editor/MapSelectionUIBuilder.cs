@@ -671,26 +671,13 @@ public static class MapSelectionUIBuilder
     // =====================================================
 
     /// <summary>
-    /// Находит EnvironmentController в сцене, а если его нет — создаёт
-    /// и подставляет заготовленные карты (Map_Les ... Map_Kosmos).
-    /// Пустой список не перетирает. Возвращает строку-отчёт для диалога.
+    /// Находит EnvironmentController в сцене, а если его нет — создаёт,
+    /// и всегда перепривязывает заготовленные карты (Map_Les ... Map_Kosmos),
+    /// чтобы повторы билда подхватывали обновлённые темы. Возвращает
+    /// строку-отчёт для диалога.
     /// </summary>
     private static string EnsureEnvironmentController()
     {
-        EnvironmentController environment =
-            Object.FindAnyObjectByType<EnvironmentController>();
-
-        if (environment != null)
-        {
-            EditorSceneManager.MarkSceneDirty(
-                environment.gameObject.scene
-            );
-
-            return
-                "EnvironmentController уже был в сцене — " +
-                "его карты не менялись.";
-        }
-
         var demoMaps = LoadDemoMaps();
 
         if (demoMaps.Count == 0)
@@ -704,19 +691,27 @@ public static class MapSelectionUIBuilder
                 "ArcadeSurvivor -> Create Demo Maps и повтори.";
         }
 
-        GameObject environmentObject =
-            new GameObject("EnvironmentManager");
+        EnvironmentController environment =
+            Object.FindAnyObjectByType<EnvironmentController>();
 
-        environmentObject.transform.position = Vector3.zero;
+        if (environment == null)
+        {
+            GameObject environmentObject =
+                new GameObject("EnvironmentManager");
 
-        Undo.RegisterCreatedObjectUndo(
-            environmentObject,
-            MenuPath
-        );
+            environmentObject.transform.position = Vector3.zero;
 
-        environment =
-            environmentObject.AddComponent<EnvironmentController>();
+            Undo.RegisterCreatedObjectUndo(
+                environmentObject,
+                MenuPath
+            );
 
+            environment =
+                environmentObject.AddComponent<EnvironmentController>();
+        }
+
+        // Карты перепривязываем всегда: темы и палитры могли
+        // обновиться, и повторный билд должен их подтянуть.
         SerializedObject envSo = new SerializedObject(environment);
 
         SerializedProperty mapsProperty =
@@ -736,7 +731,7 @@ public static class MapSelectionUIBuilder
             environment.gameObject.scene
         );
 
-        return $"Карт назначено: {demoMaps.Count} на новый " +
+        return $"Карт назначено: {demoMaps.Count} на " +
                "EnvironmentManager.";
     }
 
