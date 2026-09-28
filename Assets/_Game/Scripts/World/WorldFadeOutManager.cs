@@ -18,6 +18,13 @@ public class WorldFadeOutManager : MonoBehaviour
 
         fading = true;
 
+        // Числа урона лежат в общем пуле под своим канвасом, а не
+        // в сцене по одному объекту на попадание, поэтому их
+        // снятие - один вызов. Раньше здесь стоял
+        // FindObjectsByType<DamageNumber>, который на каждый
+        // переход в меню выделял массив по всем живым числам.
+        DamageNumberSystem.HideAll();
+
         List<GameObject> objects = CollectObjects();
 
         if (objects.Count == 0)
@@ -63,7 +70,6 @@ public class WorldFadeOutManager : MonoBehaviour
         CollectFrom(result, FindObjectsByType<Bullet>());
         CollectFrom(result, FindObjectsByType<WorldStructure>());
         CollectFrom(result, FindObjectsByType<BloodPool>());
-        CollectFrom(result, FindObjectsByType<DamageNumber>());
 
         return result;
     }

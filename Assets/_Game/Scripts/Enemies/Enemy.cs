@@ -16,6 +16,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] private GameObject bossAttackZonePrefab;
 
     [Header("Damage Numbers")]
+    [Tooltip("Префаб числа урона. Сам объект больше не инстанцируется на каждое попадание: DamageNumberSystem берёт его как образец вида и держит пул таких же под общим экранным канвасом.")]
     [SerializeField] private GameObject damageNumberPrefab;
 
     [Header("HP Bar")]
@@ -2179,9 +2180,9 @@ public class Enemy : MonoBehaviour
         float damage,
         bool isCritical)
     {
-        if (damageNumberPrefab == null)
-            return;
-
+        // Разброс остаётся здесь: это "где именно попало", то есть
+        // правила боя. Всё остальное (общий канвас, пул, подъём и
+        // размер) делает DamageNumberSystem.
         Vector3 randomOffset =
             new Vector3(
                 Random.Range(-0.5f, 0.5f),
@@ -2189,24 +2190,11 @@ public class Enemy : MonoBehaviour
                 Random.Range(-0.5f, 0.5f)
             );
 
-        GameObject numberObject =
-            Instantiate(
-                damageNumberPrefab,
-                transform.position +
-                randomOffset,
-                Quaternion.identity
-            );
-
-        DamageNumber damageNumber =
-            numberObject.GetComponent<DamageNumber>();
-
-        if (damageNumber != null)
-        {
-            damageNumber.Initialize(
-                damage,
-                isCritical
-            );
-        }
+        DamageNumberSystem.Spawn(
+            transform.position + randomOffset,
+            damage,
+            isCritical,
+            damageNumberPrefab);
     }
 
 

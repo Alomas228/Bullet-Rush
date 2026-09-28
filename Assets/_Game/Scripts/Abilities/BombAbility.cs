@@ -42,8 +42,18 @@ public class BombAbility : MonoBehaviour
         cooldownTimer = cooldown;
 
         Explode();
+        NotifyAbilityUsed();
 
         return true;
+    }
+
+    private void NotifyAbilityUsed()
+    {
+        RunMetrics metrics =
+            FindAnyObjectByType<RunMetrics>();
+
+        if (metrics != null)
+            metrics.OnAbilityUsed();
     }
 
     private Vector3 GetOwnerPosition()

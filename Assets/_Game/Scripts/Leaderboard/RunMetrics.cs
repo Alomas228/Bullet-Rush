@@ -47,7 +47,7 @@ public class RunMetrics : MonoBehaviour
     // =========================================================
 
     private float totalDistanceTraveled;
-    private float lastPosition;
+    private Vector3 lastPosition;
     private int totalDashDistance;
     private int movementBurstCount;
 
@@ -96,7 +96,10 @@ public class RunMetrics : MonoBehaviour
             scoreManager.OnScoreAdded += OnScoreAdded;
 
         if (comboSystem != null)
+        {
             comboSystem.OnComboChanged += OnComboChanged;
+            comboSystem.OnMultiKill += OnMultiKill;
+        }
     }
 
     private void OnDisable()
@@ -105,7 +108,10 @@ public class RunMetrics : MonoBehaviour
             scoreManager.OnScoreAdded -= OnScoreAdded;
 
         if (comboSystem != null)
+        {
             comboSystem.OnComboChanged -= OnComboChanged;
+            comboSystem.OnMultiKill -= OnMultiKill;
+        }
     }
 
     /// <summary>
@@ -116,7 +122,7 @@ public class RunMetrics : MonoBehaviour
         runStarted = true;
         runStartTime = Time.time;
         currentWaveStartTime = Time.time;
-        lastPosition = transform != null ? transform.position.x : 0f;
+        lastPosition = transform.position;
     }
 
     /// <summary>
@@ -126,19 +132,25 @@ public class RunMetrics : MonoBehaviour
     {
         if (!runStarted) return;
 
-        // Отслеживаем расстояние
-        if (transform != null)
-        {
-            float currentX = transform.position.x;
-            float delta = Mathf.Abs(currentX - lastPosition);
-            totalDistanceTraveled += delta;
-            lastPosition = currentX;
+        Transform self = transform;
 
-            // Бонус за рывки
-            if (delta > 5f) // Большой рывок
-            {
-                totalDashDistance += Mathf.RoundToInt(delta);
-            }
+        if (self == null) return;
+
+        // Игра вид сверху: игрок ходит по плоскости XZ,
+        // поэтому расстояние меряем по двум осям, а не только по X.
+        Vector3 position = self.position;
+
+        float delta = Vector2.Distance(
+            new Vector2(position.x, position.z),
+            new Vector2(lastPosition.x, lastPosition.z));
+
+        totalDistanceTraveled += delta;
+        lastPosition = position;
+
+        // Бонус за рывки
+        if (delta > 5f) // Большой рывок
+        {
+            totalDashDistance += Mathf.RoundToInt(delta);
         }
     }
 
@@ -330,7 +342,7 @@ public class RunMetrics : MonoBehaviour
         multiKillStreaks = 0;
 
         totalDistanceTraveled = 0f;
-        lastPosition = 0f;
+        lastPosition = Vector3.zero;
         totalDashDistance = 0;
     }
 }

@@ -17,6 +17,10 @@ public class GameplayHUD : MonoBehaviour
     [SerializeField] private TMP_Text comboCountText;
     [SerializeField] private TMP_Text comboMultiplierText;
 
+    [Header("Bonuses")]
+    [Tooltip("Пороги комбо и размеры бонусов. Если не назначен — ищется автоматически.")]
+    [SerializeField] private BonusSettings bonusSettings;
+
     [Header("Bonus Popups")]
     [SerializeField] private GameObject bonusPopupPrefab;
     [SerializeField] private Transform bonusPopupContainer;
@@ -30,7 +34,6 @@ public class GameplayHUD : MonoBehaviour
     private ComboSystem cachedCombo;
     private WaveManager cachedWaveManager;
     private ScoreManager cachedScoreManager;
-    private BonusSettings bonusSettings;
 
     private int lastScore;
     private int lastCombo;
@@ -51,7 +54,9 @@ public class GameplayHUD : MonoBehaviour
         cachedCombo = FindAnyObjectByType<ComboSystem>();
         cachedWaveManager = FindAnyObjectByType<WaveManager>();
         cachedScoreManager = FindAnyObjectByType<ScoreManager>();
-        bonusSettings = FindAnyObjectByType<BonusSettings>();
+
+        if (bonusSettings == null)
+            bonusSettings = FindAnyObjectByType<BonusSettings>();
 
         if (comboPanel != null)
             comboPanel.SetActive(false);

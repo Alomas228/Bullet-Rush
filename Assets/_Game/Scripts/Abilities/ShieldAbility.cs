@@ -56,8 +56,18 @@ public class ShieldAbility : MonoBehaviour
         cooldownTimer = cooldown;
 
         StartCoroutine(ShieldRoutine());
+        NotifyAbilityUsed();
 
         return true;
+    }
+
+    private void NotifyAbilityUsed()
+    {
+        RunMetrics metrics =
+            FindAnyObjectByType<RunMetrics>();
+
+        if (metrics != null)
+            metrics.OnAbilityUsed();
     }
 
     private IEnumerator ShieldRoutine()

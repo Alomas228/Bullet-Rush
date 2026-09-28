@@ -8,6 +8,10 @@ using System;
 /// </summary>
 public class GameOverLeaderboardUI : MonoBehaviour
 {
+    [Header("Root")]
+    [Tooltip("Контейнер всей панели. Показывается только на экране Game Over.")]
+    [SerializeField] private GameObject rootPanel;
+
     [Header("Rank Display")]
     [SerializeField] private GameObject rankPanel;
     [SerializeField] private TMP_Text rankText;
@@ -45,6 +49,36 @@ public class GameOverLeaderboardUI : MonoBehaviour
     private void Awake()
     {
         HideAll();
+        HideRoot();
+    }
+
+    /// <summary>
+    /// Панель результатов живёт отдельно от основного Game Over,
+    /// поэтому её видимость держим по состоянию забега.
+    /// </summary>
+    private void Update()
+    {
+        bool visible =
+            GameOverManager.Instance != null &&
+            GameOverManager.Instance.IsGameOver;
+
+        if (rootPanel != null &&
+            rootPanel.activeSelf != visible)
+        {
+            rootPanel.SetActive(visible);
+        }
+    }
+
+    private void ShowRoot()
+    {
+        if (rootPanel != null)
+            rootPanel.SetActive(true);
+    }
+
+    private void HideRoot()
+    {
+        if (rootPanel != null)
+            rootPanel.SetActive(false);
     }
 
     /// <summary>
@@ -76,6 +110,7 @@ public class GameOverLeaderboardUI : MonoBehaviour
 
         // Показываем панели
         ShowAll();
+        ShowRoot();
     }
 
     // =========================================================

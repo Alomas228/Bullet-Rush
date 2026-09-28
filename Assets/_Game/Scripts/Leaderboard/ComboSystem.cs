@@ -32,6 +32,11 @@ public class ComboSystem : MonoBehaviour
     public event System.Action<int> OnComboChanged;
     public event System.Action<int> OnMaxComboReached;
 
+    /// <summary>
+    /// Несколько убийств подряд за короткий промежуток.
+    /// </summary>
+    public event System.Action<int> OnMultiKill;
+
     private void Update()
     {
         if (comboTimer > 0f)
@@ -52,15 +57,20 @@ public class ComboSystem : MonoBehaviour
     {
         comboCount++;
         comboTimer = comboResetTime;
+
+        // Мульти-килл считаем по предыдущему убийству: если сначала
+        // обновить lastKillTime, разница всегда будет нулевой.
+        bool isMultiKill =
+            lastKillTime > 0f &&
+            comboCount > 1 &&
+            Time.time - lastKillTime < multiKillWindow;
+
         lastKillTime = Time.time;
 
         OnComboChanged?.Invoke(comboCount);
 
-        // Проверяем мульти-килл (несколько убийств за короткое время)
-        if (Time.time - lastKillTime < multiKillWindow && comboCount > 1)
-        {
-            // Это будет обработано в RunMetrics
-        }
+        if (isMultiKill)
+            OnMultiKill?.Invoke(comboCount);
 
         // Проверяем макс. комбо
         if (comboCount >= 50 && comboCount == 50)
