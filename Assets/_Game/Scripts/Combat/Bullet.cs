@@ -7,6 +7,10 @@ public class Bullet : MonoBehaviour
     [SerializeField] private float lifetime = 3f;
     [SerializeField] private float damage = 10f;
 
+    [Header("Collision")]
+    [Tooltip("Как часто пуля проверяет попадание в стену. Пуля летит по прямой, поэтому проверка на накопленном отрезке равносильна проверке каждый кадр.")]
+    [SerializeField] private float structureCheckInterval = 1f / 60f;
+
     [Header("Pierce")]
     [SerializeField] private int pierceCount = 0;
 
@@ -62,6 +66,20 @@ public class Bullet : MonoBehaviour
 
     private float lifetimeRemaining;
 
+    // Общий буфер рейкаста: попаданий вдоль отрезка пули единицы,
+    // аллокаций на кадр быть не должно. Не readonly — перерастает,
+    // если вдоль отрезка всё же оказалось больше попаданий, чем
+    // влезло: иначе RaycastNonAlloc молча выбросил бы стену из
+    // результата и пуль проскочил бы насквозь.
+    private static RaycastHit[] structureHitBuffer =
+        new RaycastHit[8];
+
+    // Точка, откуда пойдёт следующий рейкаст по стенам. Обновляется
+    // только после успешной проверки, иначе пропущенные кадры
+    // оставят зазор, через который пуль проскочит.
+    private Vector3 lastStructureCheckPosition;
+    private float structureCheckTimer;
+
     // Ключ пула (по префабу): пустой = объект живёт вне пула.
     public EntityId? PoolKey { get; internal set; }
 
@@ -98,21 +116,38 @@ public class Bullet : MonoBehaviour
             return;
         }
 
-        Vector3 previousPosition =
-            transform.position;
-
         transform.Translate(
             Vector3.forward *
             speed *
             Time.deltaTime
         );
 
+        // Проверка стен идёт не каждый кадр, а по таймеру. Пуля летит
+        // по прямой с постоянной скоростью, поэтому рейкаст от точки
+        // прошлой проверки до текущей даёт тот же ответ, что и проверка
+        // в каждом кадре, — а на 144 fps рейкастов выходит втрое меньше.
+        if (structureCheckTimer > 0f)
+        {
+            structureCheckTimer -= Time.deltaTime;
+            return;
+        }
+
+        structureCheckTimer =
+            Mathf.Max(structureCheckInterval, 0.005f);
+
         if (HitStructure(
-            previousPosition,
-            transform.position))
+                lastStructureCheckPosition,
+                transform.position))
         {
             ReturnToPool();
+            return;
         }
+
+        // Точка отсчёта двигается только после проверки: иначе
+        // отрезок перестанет покрывать путь, и пуль проскочит стену
+        // на пропущенных кадрах.
+        lastStructureCheckPosition =
+            transform.position;
     }
 
     public void ReturnToPool()
@@ -124,33 +159,82 @@ public class Bullet : MonoBehaviour
         BulletPool.Despawn(this);
     }
 
+    // Отсюда пуля продолжит полёт в следующий шаг проверки.
+    private void ResetStructureCheck()
+    {
+        structureCheckTimer = 0f;
+
+        lastStructureCheckPosition =
+            transform.position;
+    }
+
     private bool HitStructure(
         Vector3 from,
         Vector3 to)
     {
-        Vector3 direction =
+        Vector3 delta =
             to - from;
 
         float distance =
-            direction.magnitude;
+            delta.magnitude;
 
         if (distance <= 0.0001f)
             return false;
 
-        if (Physics.Raycast(
-            from,
-            direction.normalized,
-            out RaycastHit hit,
-            distance))
+        int hitCount =
+            Physics.RaycastNonAlloc(
+                from,
+                delta / distance,
+                structureHitBuffer,
+                distance);
+
+        while (hitCount == structureHitBuffer.Length)
         {
-            if (StructureQuery.IsWorldStructure(hit.collider))
-            {
-                transform.position = hit.point;
-                return true;
-            }
+            structureHitBuffer =
+                new RaycastHit[structureHitBuffer.Length * 2];
+
+            hitCount =
+                Physics.RaycastNonAlloc(
+                    from,
+                    delta / distance,
+                    structureHitBuffer,
+                    distance);
         }
 
-        return false;
+        // Порядок попаданий в буфере не гарантирован, поэтому берём
+        // ближайшую именно структуру, а не первую попавшуюся.
+        // Заодно это чинит тоннелирование: раньше Physics.Raycast
+        // возвращал лишь ближайший коллайдер, и если это был враг,
+        // проверка стен на этом кадре просто не выполнялась.
+        bool found = false;
+
+        float nearestDistance =
+            float.MaxValue;
+
+        Vector3 nearestPoint =
+            to;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = structureHitBuffer[i];
+
+            if (!StructureQuery.IsWorldStructure(hit.collider))
+                continue;
+
+            if (hit.distance >= nearestDistance)
+                continue;
+
+            nearestDistance = hit.distance;
+            nearestPoint = hit.point;
+            found = true;
+        }
+
+        if (!found)
+            return false;
+
+        transform.position = nearestPoint;
+
+        return true;
     }
 
     public void Initialize(
@@ -198,6 +282,11 @@ public class Bullet : MonoBehaviour
         enemiesHit = 0;
 
         lifetimeRemaining = lifetime;
+
+        // Пул переиспользует объект, поэтому отсчёт рейкаста по стенам
+        // надо сбросить: иначе пуля начнёт проверку от точки, где
+        // лежала прошлой стрельбой, и пролетит полкарты вслепую.
+        ResetStructureCheck();
 
         // Пул переиспользует объект: сбрасываем цель, в которую
         // рикошетная пуля уже попала.
@@ -340,7 +429,7 @@ public class Bullet : MonoBehaviour
         }
 
         Enemy enemy =
-            other.GetComponent<Enemy>();
+            ColliderKindQuery.GetEnemy(other);
 
         if (enemy == null)
             return;
@@ -576,7 +665,7 @@ public class Bullet : MonoBehaviour
         for (int i = 0; i < colliderCount; i++)
         {
             Enemy target =
-                colliders[i].GetComponent<Enemy>();
+                ColliderKindQuery.GetEnemy(colliders[i]);
 
             if (target == null ||
                 target == hitEnemy ||
@@ -681,7 +770,7 @@ public class Bullet : MonoBehaviour
                 break;
 
             Enemy target =
-                colliders[i].GetComponent<Enemy>();
+                ColliderKindQuery.GetEnemy(colliders[i]);
 
             if (target == null ||
                 target == hitEnemy ||
@@ -738,7 +827,7 @@ public class Bullet : MonoBehaviour
         for (int i = 0; i < colliderCount; i++)
         {
             Enemy target =
-                colliders[i].GetComponent<Enemy>();
+                ColliderKindQuery.GetEnemy(colliders[i]);
 
             if (target == null ||
                 target == hitEnemy ||

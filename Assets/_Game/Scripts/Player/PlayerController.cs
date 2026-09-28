@@ -505,7 +505,7 @@ public class PlayerController : MonoBehaviour
                 includeEnemies)
             {
                 Enemy enemy =
-                    obstacle.GetComponent<Enemy>();
+                    ColliderKindQuery.GetEnemy(obstacle);
 
                 if (enemy != null &&
                     !enemy.IsDead)

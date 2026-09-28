@@ -524,7 +524,7 @@ public class EnemySpawner : MonoBehaviour
         {
             Collider collider = colliders[i];
 
-            if (collider.GetComponentInParent<Enemy>() != null)
+            if (ColliderKindQuery.GetEnemy(collider) != null)
                 return false;
 
             if (StructureQuery.IsWorldStructure(collider))

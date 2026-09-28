@@ -28,7 +28,7 @@ public class KillZone : MonoBehaviour
         }
 
         Enemy enemy =
-            other.GetComponentInParent<Enemy>();
+            ColliderKindQuery.GetEnemy(other);
 
         if (enemy != null)
             enemy.Kill();

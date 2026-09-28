@@ -18,6 +18,10 @@ public class Enemy : MonoBehaviour
     [Header("Damage Numbers")]
     [SerializeField] private GameObject damageNumberPrefab;
 
+    [Header("HP Bar")]
+    [Tooltip("Вид полосы HP над мобом. Появляется после первого урона и держится до смерти моба. Настройки свои у каждого префаба.")]
+    [SerializeField] private EnemyHealthBarSettings healthBar = new EnemyHealthBarSettings();
+
     [Header("Navigation")]
     [Tooltip("Дальность проверки препятствия перед движением.")]
     [SerializeField] private float obstacleProbeDistance = 1.2f;
@@ -65,6 +69,7 @@ public class Enemy : MonoBehaviour
 
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
+    private PlayerHealth playerHealth;
 
     // Точка плавного выталкивания, к которой враг досъезжает каждый кадр.
     private Vector3 resolveSlideTarget;
@@ -122,6 +127,9 @@ public class Enemy : MonoBehaviour
     {
         if (AliveCount > 0)
             AliveCount--;
+
+        ColliderKindQuery.UnregisterEnemy(transform);
+        EnemyHealthBarSystem.Unregister(this);
     }
 
     public bool IsDead { get; private set; }
@@ -145,6 +153,27 @@ public class Enemy : MonoBehaviour
 
     public int BossPhase { get; private set; } = 1;
 
+    /// <summary>
+    /// Полоса HP этого моба. Вид задаётся на префабе, сама
+    /// система полос читает настройки отсюда.
+    /// </summary>
+    public EnemyHealthBarSettings HealthBarSettings => healthBar;
+
+    /// <summary>
+    /// Полоса HP появляется после первого урона и не прячется до
+    /// смерти моба.
+    ///
+    /// Именно флаг, а не сравнение CurrentHealth == MaxHealth:
+    /// при частом уроне (миниган, горение) здоровье на кадр
+    /// успевает вернуться к полному, и полоса мигала бы.
+    /// </summary>
+    public bool HasTakenDamage { get; private set; }
+
+    // Служебное: связь с EnemyHealthBarSystem - индекс в реестре
+    // мобов и привязанная полоса. Руками не трогать.
+    internal int HealthBarRegistryIndex = -1;
+    internal EnemyHealthBarView HealthBarView;
+
 
     // =========================================================
     // INITIALIZATION
@@ -156,6 +185,8 @@ public class Enemy : MonoBehaviour
 
         selfCollider = GetComponent<Collider>();
         cachedRigidbody = GetComponent<Rigidbody>();
+
+        ColliderKindQuery.RegisterEnemy(transform);
 
         cachedEnemyType = enemyData != null ? enemyData.EnemyType : EnemyType.Normal;
         isBoss = enemyData != null && cachedEnemyType == EnemyType.Boss;
@@ -170,6 +201,8 @@ public class Enemy : MonoBehaviour
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
 
         AliveCount++;
+
+        EnemyHealthBarSystem.Register(this);
 
         LockVerticalRigidbody();
     }
@@ -491,6 +524,10 @@ public class Enemy : MonoBehaviour
             player = playerObject.transform;
             playerCollider =
                 playerObject.GetComponentInChildren<Collider>();
+            playerHealth =
+                playerObject.GetComponentInChildren<PlayerHealth>();
+
+            ColliderKindQuery.SetPlayerRoot(playerObject.transform);
         }
     }
 
@@ -895,38 +932,22 @@ public class Enemy : MonoBehaviour
                 continue;
             }
 
-            if (StructureQuery.IsWorldStructure(nearby))
+            switch (ColliderKindQuery.GetKind(nearby))
             {
-                ResolvePenetration(
-                    ref position,
-                    nearby,
-                    1f
-                );
+                case ColliderKind.WorldStructure:
+                    ResolvePenetration(ref position, nearby, 1f);
+                    break;
 
-                continue;
-            }
+                // Игрок не должен толкаться врагами — выталкивается только враг.
+                case ColliderKind.Player:
+                    ResolvePenetration(ref position, nearby, 1f);
+                    break;
 
-            // Игрок не должен толкаться врагами — выталкивается только враг.
-            if (nearby.transform.root.CompareTag("Player"))
-            {
-                ResolvePenetration(
-                    ref position,
-                    nearby,
-                    1f
-                );
-
-                continue;
-            }
-
-            // Другой враг — расталкиваемся пополам:
-            // сосед тоже выталкивает себя своей половиной.
-            if (nearby.GetComponentInParent<Enemy>() != null)
-            {
-                ResolvePenetration(
-                    ref position,
-                    nearby,
-                    0.5f
-                );
+                // Другой враг — расталкиваемся пополам:
+                // сосед тоже выталкивает себя своей половиной.
+                case ColliderKind.Enemy:
+                    ResolvePenetration(ref position, nearby, 0.5f);
+                    break;
             }
         }
 
@@ -1096,11 +1117,18 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        PlayerHealth playerHealth =
-            player.GetComponentInChildren<PlayerHealth>();
+        PlayerHealth health = playerHealth;
 
-        if (playerHealth == null)
-            return;
+        if (health == null)
+        {
+            health =
+                player.GetComponentInChildren<PlayerHealth>();
+
+            if (health == null)
+                return;
+
+            playerHealth = health;
+        }
 
         float damage = 1f;
 
@@ -1123,7 +1151,7 @@ public class Enemy : MonoBehaviour
 
         damage *= scaledDamageMultiplier;
 
-        playerHealth.TakeDamage(damage);
+        health.TakeDamage(damage);
 
         float cooldown =
             enemyData != null
@@ -1932,6 +1960,8 @@ public class Enemy : MonoBehaviour
         if (damage <= 0f)
             return;
 
+        HasTakenDamage = true;
+
         currentHealth -= damage;
 
         SpawnDamageNumber(
@@ -2065,7 +2095,7 @@ public class Enemy : MonoBehaviour
                 break;
 
             Enemy target =
-                nearbyColliders[i].GetComponent<Enemy>();
+                ColliderKindQuery.GetEnemy(nearbyColliders[i]);
 
             if (target == null ||
                 target == this ||
@@ -2100,10 +2130,10 @@ public class Enemy : MonoBehaviour
         if (contactDamageTimer > 0f)
             return;
 
-        PlayerHealth playerHealth =
+        PlayerHealth health =
             collision.gameObject.GetComponent<PlayerHealth>();
 
-        if (playerHealth == null)
+        if (health == null)
             return;
 
         float damage = 1f;
@@ -2129,7 +2159,7 @@ public class Enemy : MonoBehaviour
 
         damage *= scaledDamageMultiplier;
 
-        playerHealth.TakeDamage(damage);
+        health.TakeDamage(damage);
 
         float cooldown =
             enemyData != null

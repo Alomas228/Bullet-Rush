@@ -95,7 +95,7 @@ public class BombAbility : MonoBehaviour
         for (int i = 0; i < hitCount; i++)
         {
             Enemy enemy =
-                hits[i].GetComponentInParent<Enemy>();
+                ColliderKindQuery.GetEnemy(hits[i]);
 
             if (enemy == null)
                 continue;
