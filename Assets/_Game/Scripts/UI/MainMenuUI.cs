@@ -31,6 +31,7 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private Button profileButton;
     [SerializeField] private Button tipsButton;
     [SerializeField] private Button equipmentButton;
+    [SerializeField] private Button mapsButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -39,6 +40,7 @@ public class MainMenuUI : MonoBehaviour
     [SerializeField] private GameObject profilePanel;
     [SerializeField] private GameObject tipsPanel;
     [SerializeField] private GameObject equipmentPanel;
+    [SerializeField] private GameObject mapsPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -83,6 +85,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (equipmentButton != null)
             equipmentButton.onClick.AddListener(OnEquipmentClicked);
+
+        if (mapsButton != null)
+            mapsButton.onClick.AddListener(OnMapsClicked);
     }
 
     private void OnEnable()
@@ -112,6 +117,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (equipmentButton != null)
             equipmentButton.onClick.RemoveListener(OnEquipmentClicked);
+
+        if (mapsButton != null)
+            mapsButton.onClick.RemoveListener(OnMapsClicked);
     }
 
     private void Start()
@@ -303,6 +311,11 @@ public class MainMenuUI : MonoBehaviour
         OpenSubPanel(equipmentPanel);
     }
 
+    private void OnMapsClicked()
+    {
+        OpenSubPanel(mapsPanel);
+    }
+
     public void OpenSubPanel(GameObject panelToShow)
     {
         CloseSubPanels();
@@ -334,6 +347,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (equipmentPanel != null)
             equipmentPanel.SetActive(false);
+
+        if (mapsPanel != null)
+            mapsPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -365,6 +381,9 @@ public class MainMenuUI : MonoBehaviour
 
         if (equipmentButton != null)
             equipmentButton.gameObject.SetActive(active);
+
+        if (mapsButton != null)
+            mapsButton.gameObject.SetActive(active);
     }
 
     private void OnPlayClicked()

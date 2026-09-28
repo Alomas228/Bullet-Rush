@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
-  m_Name: Map_Plyazh
+  m_Name: Map_Mountains
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
-  mapName: "\u041F\u043B\u044F\u0436"
+  mapName: "\u0413\u043E\u0440\u044B"
   icon: {fileID: 0}
-  groundMaterial: {fileID: 2100000, guid: 29ba719c72e54aa4f9773978a3398ade, type: 2}
+  groundMaterial: {fileID: 2100000, guid: d98fec8b07be6a648b8d02835d6a1129, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}
   structureMaterials: []
   structurePalette: []
-  skyColor: {r: 0.48, g: 0.68, b: 0.82, a: 1}
-  ambientLightColor: {r: 0.5, g: 0.52, b: 0.5, a: 1}
+  skyColor: {r: 0.62, g: 0.68, b: 0.74, a: 1}
+  ambientLightColor: {r: 0.45, g: 0.46, b: 0.5, a: 1}
   fogEnabled: 1
-  fogColor: {r: 0.55, g: 0.66, b: 0.72, a: 1}
-  fogStartDistance: 45
-  fogEndDistance: 90
+  fogColor: {r: 0.6, g: 0.64, b: 0.68, a: 1}
+  fogStartDistance: 30
+  fogEndDistance: 80

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// Хранит текущую карту и меняет её горизонтальным слайдом:
@@ -58,10 +57,6 @@ public class EnvironmentController : MonoBehaviour
 
     [Tooltip("Камера, чей фон (небо) переключается. Пусто — Camera.main.")]
     [SerializeField] private Camera environmentCamera;
-
-    [Header("Debug")]
-    [Tooltip("Переключение карт стрелками ←/→ в меню (без UI выбора). Выключи, когда появится нормальный выбор.")]
-    [SerializeField] private bool enableTestKeys = true;
 
     private EnvironmentLayer currentLayer;
 
@@ -141,31 +136,6 @@ public class EnvironmentController : MonoBehaviour
         PushThemeToGenerator();
 
         initialized = true;
-    }
-
-    private void Update()
-    {
-        if (!enableTestKeys || !initialized)
-            return;
-
-        if (Keyboard.current == null)
-            return;
-
-        GameStateManager state =
-            GameStateManager.Instance;
-
-        if (state == null ||
-            state.CurrentState != GameState.Menu ||
-            IsTransitioning)
-        {
-            return;
-        }
-
-        if (Keyboard.current.leftArrowKey.wasPressedThisFrame)
-            SwitchToPrevious();
-
-        if (Keyboard.current.rightArrowKey.wasPressedThisFrame)
-            SwitchToNext();
     }
 
     /// <summary>Следующая карта по кругу. Входит справа, старая уходит влево.</summary>
