@@ -57,7 +57,7 @@ public class EnvironmentLayer : MonoBehaviour
         // Процедурное окружение карты: препятствия с коллайдерами
         // внутри арены, мелкая декорация на подложке и фон за её
         // пределами. Строится по данным темы, уезжает вместе со слоем.
-        if (map.environmentTheme != null)
+        if (map.environmentTheme != null && map.buildThemeEnvironment)
             EnvironmentBuilder.Build(
                 map.environmentTheme,
                 transform,
@@ -69,6 +69,15 @@ public class EnvironmentLayer : MonoBehaviour
 
         if (map.environmentPrefab != null)
             Stamp(map.environmentPrefab);
+
+        // Ручной фиксированный дизайн карты. Объекты размещаются по
+        // авторским позициям и остаются на своих местах независимо
+        // от процедурной генерации.
+        if (map.fixedDecor != null)
+        {
+            for (int i = 0; i < map.fixedDecor.Length; i++)
+                StampFixed(map.fixedDecor[i]);
+        }
     }
 
     /// <summary>
@@ -157,6 +166,38 @@ public class EnvironmentLayer : MonoBehaviour
     private void Stamp(GameObject prefab)
     {
         GameObject instance = Instantiate(prefab, transform);
+
+        stampedColliders.Clear();
+
+        instance.GetComponentsInChildren(true, stampedColliders);
+
+        for (int i = 0; i < stampedColliders.Count; i++)
+        {
+            if (stampedColliders[i] != null)
+                stampedColliders[i].enabled = false;
+        }
+    }
+
+    /// <summary>
+    /// Ставит ручной объект фиксированного дизайна по сохранённой
+    /// позиции/повороту/масштабу относительно центра арены.
+    /// Коллайдеры отключаются, если в пункте не запрошен keepColliders.
+    /// </summary>
+    private void StampFixed(FixedDecorItem item)
+    {
+        if (item == null || item.prefab == null)
+            return;
+
+        GameObject instance = Instantiate(item.prefab, transform);
+
+        instance.name = item.prefab.name + " (Fixed)";
+
+        instance.transform.localPosition = item.position;
+        instance.transform.localEulerAngles = item.rotation;
+        instance.transform.localScale = item.scale;
+
+        if (item.keepColliders)
+            return;
 
         stampedColliders.Clear();
 

@@ -65,6 +65,12 @@ public static class EnvironmentBuilder
         int worldLayer =
             LayerMask.NameToLayer("World");
 
+        // Зоны расстановки:
+        //  - центральная боевая зона занята нейтральными блоками
+        //    WorldStructureGenerator — тематических объектов там нет;
+        //  - тематические объекты (препятствия и декор) живут на
+        //    периметре квадратной арены и в углах (Border/ThemeZone);
+        //  - фон — кольцо за стенами арены (OutsideZone).
         BuildList(
             rng,
             theme.insideObstacles,
@@ -74,9 +80,11 @@ public static class EnvironmentBuilder
             materials,
             theme.glowMaterial,
             worldLayer,
-            theme.minCenterDistance,
-            theme.maxCenterDistance,
-            theme.minObstacleSpacing
+            theme.minBorderHalfSize,
+            theme.maxBorderHalfSize,
+            theme.minCornerHalfSize,
+            theme.maxCornerHalfSize,
+            theme.minBorderSpacing
         );
 
         BuildList(
@@ -88,9 +96,11 @@ public static class EnvironmentBuilder
             materials,
             theme.glowMaterial,
             worldLayer,
-            theme.minDecorDistance,
-            theme.maxDecorDistance,
-            theme.minObstacleSpacing
+            theme.minBorderHalfSize,
+            theme.maxBorderHalfSize,
+            theme.minCornerHalfSize,
+            theme.maxCornerHalfSize,
+            theme.minBorderSpacing
         );
 
         BuildList(
@@ -104,6 +114,8 @@ public static class EnvironmentBuilder
             worldLayer,
             theme.minOutsideDistance,
             theme.maxOutsideDistance,
+            0f,
+            0f,
             theme.minOutsideSpacing
         );
     }
@@ -119,6 +131,8 @@ public static class EnvironmentBuilder
         int worldLayer,
         float minDistance,
         float maxDistance,
+        float cornerMin,
+        float cornerMax,
         float spacing)
     {
         if (defs == null)
@@ -128,22 +142,16 @@ public static class EnvironmentBuilder
         {
             EnvironmentObjectDef def = defs[d];
 
-            if (def == null ||
-                def.parts == null ||
+            if (def == null)
+                continue;
+
+            // Пустой рецепт — только если нет ни частей, ни модели.
+            if (def.parts == null ||
                 def.parts.Length == 0)
             {
-                continue;
+                if (def.model == null)
+                    continue;
             }
-
-            float defMin =
-                def.overrideMinRadius > 0f
-                    ? def.overrideMinRadius
-                    : minDistance;
-
-            float defMax =
-                def.overrideMaxRadius > 0f
-                    ? def.overrideMaxRadius
-                    : maxDistance;
 
             int count = Mathf.Max(def.count, 0);
 
@@ -153,8 +161,10 @@ public static class EnvironmentBuilder
                     FindSpot(
                         rng,
                         def,
-                        defMin,
-                        defMax,
+                        minDistance,
+                        maxDistance,
+                        cornerMin,
+                        cornerMax,
                         spacing
                     );
 
@@ -173,18 +183,82 @@ public static class EnvironmentBuilder
         }
     }
 
-    // Ищет свободное место в кольце. fixedPlacement ставится в точку
-    // без проверок (море, планета, луна).
+    // Ищет свободное место по способу расстановки объекта.
+    // fixedPlacement ставится в точку без проверок (море, планета).
     private static Vector2 FindSpot(
+        System.Random rng,
+        EnvironmentObjectDef def,
+        float minDistance,
+        float maxDistance,
+        float cornerMin,
+        float cornerMax,
+        float spacing)
+    {
+        if (def.fixedPlacement)
+            return def.fixedOffset;
+
+        float defMin =
+            def.overrideMinRadius > 0f
+                ? def.overrideMinRadius
+                : minDistance;
+
+        float defMax =
+            def.overrideMaxRadius > 0f
+                ? def.overrideMaxRadius
+                : maxDistance;
+
+        switch (def.placement)
+        {
+            case EnvironmentObjectPlacement.Corner:
+            {
+                float cornerEffectiveMin =
+                    def.overrideMinRadius > 0f
+                        ? def.overrideMinRadius
+                        : cornerMin;
+
+                float cornerEffectiveMax =
+                    def.overrideMaxRadius > 0f
+                        ? def.overrideMaxRadius
+                        : (cornerMax > 0f ? cornerMax : defMax);
+
+                return FindCornerSpot(
+                    rng,
+                    def,
+                    cornerEffectiveMin,
+                    cornerEffectiveMax,
+                    spacing
+                );
+            }
+
+            case EnvironmentObjectPlacement.SquareFrame:
+                return FindSpotOnFrame(
+                    rng,
+                    def,
+                    defMin,
+                    defMax,
+                    spacing
+                );
+
+            default:
+                return FindSpotInRing(
+                    rng,
+                    def,
+                    defMin,
+                    defMax,
+                    spacing
+                );
+        }
+    }
+
+    // Кольцо вокруг центра (старое поведение) — фан за стенами
+    // и совместимость с темами, где placement не задан.
+    private static Vector2 FindSpotInRing(
         System.Random rng,
         EnvironmentObjectDef def,
         float minDistance,
         float maxDistance,
         float spacing)
     {
-        if (def.fixedPlacement)
-            return def.fixedOffset;
-
         float minR = Mathf.Max(minDistance, 0f);
         float maxR = Mathf.Max(maxDistance, minR);
 
@@ -214,10 +288,134 @@ public static class EnvironmentBuilder
             }
         }
 
-        // Место не нашлось за все попытки — ставим на середине
-        // кольца и занимаем его, иначе объект молча теряется.
+        return PlaceOnFallback(
+            rng,
+            def,
+            minR,
+            (minR + maxR) * 0.5f,
+            spacing
+        );
+    }
+
+    // Периметр квадратной арены: случайная сторона и точка вдоль неё.
+    // Так рамка повторяет форму арены (референс), а не круг.
+    private static Vector2 FindSpotOnFrame(
+        System.Random rng,
+        EnvironmentObjectDef def,
+        float minHalf,
+        float maxHalf,
+        float spacing)
+    {
+        float minD = Mathf.Max(minHalf, 0f);
+        float maxD = Mathf.Max(maxHalf, minD);
+
+        for (int attempt = 0;
+             attempt < MaxPlacementAttempts;
+             attempt++)
+        {
+            float depth = NextFloat(rng, minD, maxD);
+            float lateral = NextFloat(rng, -depth, depth);
+
+            Vector2 point = SidePoint(rng.Next(0, 4), lateral, depth);
+
+            if (IsSpotFree(point, def.footprint, spacing))
+            {
+                placed.Add(point);
+                placedFootprints.Add(def.footprint);
+
+                return point;
+            }
+        }
+
+        return PlaceOnFallback(
+            rng,
+            def,
+            minD,
+            (minD + maxD) * 0.5f,
+            spacing
+        );
+    }
+
+    // Углы квадрата (±d, ±d): крупные акцентные объекты визуально
+    // замыкают рамку, как на референсе.
+    private static Vector2 FindCornerSpot(
+        System.Random rng,
+        EnvironmentObjectDef def,
+        float minHalf,
+        float maxHalf,
+        float spacing)
+    {
+        float minD = Mathf.Max(minHalf, 0f);
+        float maxD = Mathf.Max(maxHalf, minD);
+
+        for (int attempt = 0;
+             attempt < MaxPlacementAttempts;
+             attempt++)
+        {
+            float d = NextFloat(rng, minD, maxD);
+
+            float signX = rng.Next(0, 2) == 0 ? -1f : 1f;
+            float signZ = rng.Next(0, 2) == 0 ? -1f : 1f;
+
+            var point = new Vector2(
+                signX * (d + NextFloat(rng, -0.9f, 0.9f)),
+                signZ * (d + NextFloat(rng, -0.9f, 0.9f))
+            );
+
+            if (IsSpotFree(point, def.footprint, spacing))
+            {
+                placed.Add(point);
+                placedFootprints.Add(def.footprint);
+
+                return point;
+            }
+        }
+
+        return PlaceOnFallback(
+            rng,
+            def,
+            minD,
+            (minD + maxD) * 0.5f,
+            spacing
+        );
+    }
+
+    // Точка на стороне квадрата: (lateral, ±depth) или (±depth, lateral).
+    private static Vector2 SidePoint(
+        int side,
+        float lateral,
+        float depth)
+    {
+        switch (side)
+        {
+            case 0:
+                return new Vector2(lateral, depth);
+
+            case 1:
+                return new Vector2(lateral, -depth);
+
+            case 2:
+                return new Vector2(depth, lateral);
+
+            default:
+                return new Vector2(-depth, lateral);
+        }
+    }
+
+    // Место не нашлось за все попытки — ставим на середине зоны
+    // и занимаем его, иначе объект молча теряется.
+    private static Vector2 PlaceOnFallback(
+        System.Random rng,
+        EnvironmentObjectDef def,
+        float minDistance,
+        float fallbackDistance,
+        float spacing)
+    {
         float midR =
-            Mathf.Max(minR, (minR + maxR) * 0.5f);
+            Mathf.Max(
+                minDistance,
+                fallbackDistance
+            );
 
         float lastAngle =
             (float)(rng.NextDouble() * Mathf.PI * 2.0);

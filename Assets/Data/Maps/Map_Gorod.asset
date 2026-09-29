@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
+  m_Name: Map_Gorod
+  m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  mapName: "\u0413\u043E\u0440\u043E\u0434"
+  icon: {fileID: 0}
+  groundMaterial: {fileID: 2100000, guid: fad617c7c4d33f047b4a42290f1ae844, type: 2}
+  groundDecorPrefab: {fileID: 0}
+  environmentPrefab: {fileID: 0}
+  environmentTheme: {fileID: 11400000, guid: b7293c9f720b60744a66a868e4f53ff8, type: 2}
+  buildThemeEnvironment: 1
+  fixedDecor: []
+  layoutSeed: 8808
+  structureMaterials: []
+  structurePalette:
+  - {r: 0.58, g: 0.62, b: 0.66, a: 1}
+  - {r: 0.67, g: 0.71, b: 0.74, a: 1}
+  - {r: 0.77, g: 0.79, b: 0.81, a: 1}
+  skyColor: {r: 0.36, g: 0.42, b: 0.5, a: 1}
+  ambientLightColor: {r: 0.34, g: 0.36, b: 0.4, a: 1}
+  fogEnabled: 1
+  fogColor: {r: 0.3, g: 0.33, b: 0.38, a: 1}
+  fogStartDistance: 30
+  fogEndDistance: 75

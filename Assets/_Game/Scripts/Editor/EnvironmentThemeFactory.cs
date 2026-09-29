@@ -5,11 +5,11 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Генератор пяти тем окружения (Лес, Пляж, Горы, Пустыня, Космос):
-/// создаёт EnvironmentTheme-ассеты с палитрами и рецептами объектов
-/// из примитивов, назначает их на демо-карты и подкрашивает палитру
-/// структур. Повторный запуск перезаписывает данные тем (удобно при
-/// правке рецептов), не трогая ручные материалы и префабы карт.
+/// Генератор шести тем окружения (Лес, Пляж, Горы, Пустыня, Космос,
+/// Город): создаёт EnvironmentTheme-ассеты с палитрами и рецептами
+/// объектов из примитивов, назначает их на демо-карты. Повторный
+/// запуск перезаписывает данные тем (удобно при правке рецептов),
+/// не трогая ручные материалы и префабы карт.
 /// </summary>
 public static class EnvironmentThemeFactory
 {
@@ -61,6 +61,13 @@ public static class EnvironmentThemeFactory
             "Map_Kosmos", 7707
         );
 
+        CreateTheme(
+            "Env_Gorod", "Город",
+            GorodPalette, GorodGlow,
+            GorodObstacles, GorodDecor, GorodOutside,
+            "Map_Gorod", 8808
+        );
+
         // В космосе почти нет света: поднимаем ambient чуть выше,
         // иначе объекты (камни, металл) сливаются с чёрным фоном.
         GameMap kosmos =
@@ -80,7 +87,7 @@ public static class EnvironmentThemeFactory
         AssetDatabase.Refresh();
 
         Debug.Log(
-            "[EnvironmentFactory] Пять тем окружения созданы в " +
+            "[EnvironmentFactory] Шесть тем окружения созданы в " +
             Folder + " и назначены на карты."
         );
     }
@@ -120,7 +127,12 @@ public static class EnvironmentThemeFactory
             Def("FallenLog", 3, 0.9f, 1.3f, 1.0f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.28f, 0f, 0.5f, 1.6f, 0.5f, 0f, 0f, 90f),
                 Part(EnvironmentShape.Cylinder, 0, 0.3f, 0.22f, 0f, 0.4f, 0.9f, 0.4f, 0f, 0f, 150f),
-                Part(EnvironmentShape.Sphere, 4, 0.5f, 0.5f, 0.15f, 0.4f, 0.35f, 0.4f))
+                Part(EnvironmentShape.Sphere, 4, 0.5f, 0.5f, 0.15f, 0.4f, 0.35f, 0.4f)),
+            Corner(Def("CornerTree", 2, 1.8f, 2.4f, 1.3f,
+                Part(EnvironmentShape.Cylinder, 0, 0f, 1.1f, 0f, 0.7f, 2.2f, 0.7f),
+                Part(EnvironmentShape.Sphere, 1, 0f, 3.2f, 0f, 3.0f, 2.3f, 3.0f),
+                Part(EnvironmentShape.Sphere, 2, 0.9f, 2.5f, 0.6f, 1.6f, 1.3f, 1.6f),
+                Part(EnvironmentShape.Sphere, 2, -0.8f, 3.7f, -0.5f, 1.2f, 1.2f, 1.2f)))
         };
 
     private static EnvironmentObjectDef[] LesDecor =>
@@ -138,18 +150,18 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] LesOutside =>
         new[]
         {
-            Def("TallTree", 7, 1.5f, 2.3f, 0f,
+            Radial(Def("TallTree", 7, 1.5f, 2.3f, 0f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 1.5f, 0f, 0.5f, 3.0f, 0.5f),
                 Part(EnvironmentShape.Sphere, 1, 0f, 3.3f, 0f, 2.6f, 2.0f, 2.6f),
                 Part(EnvironmentShape.Sphere, 2, 0.5f, 2.5f, 0.3f, 1.2f, 1.0f, 1.2f),
-                Part(EnvironmentShape.Sphere, 2, -0.4f, 4.0f, -0.2f, 1.0f, 1.0f, 1.0f)),
-            Def("BigBush", 4, 1.4f, 2.0f, 0f,
+                Part(EnvironmentShape.Sphere, 2, -0.4f, 4.0f, -0.2f, 1.0f, 1.0f, 1.0f))),
+            Radial(Def("BigBush", 4, 1.4f, 2.0f, 0f,
                 Part(EnvironmentShape.Sphere, 1, 0f, 0.4f, 0f, 1.4f, 0.9f, 1.4f),
-                Part(EnvironmentShape.Sphere, 2, 0.35f, 0.55f, 0.15f, 0.8f, 0.7f, 0.8f)),
-            Def("RockCluster", 3, 1.5f, 2.2f, 0f,
+                Part(EnvironmentShape.Sphere, 2, 0.35f, 0.55f, 0.15f, 0.8f, 0.7f, 0.8f))),
+            Radial(Def("RockCluster", 3, 1.5f, 2.2f, 0f,
                 Part(EnvironmentShape.Sphere, 3, 0f, 0.7f, 0f, 2.2f, 1.4f, 1.9f),
                 Part(EnvironmentShape.Sphere, 3, 1.2f, 0.5f, 0.4f, 1.3f, 1.0f, 1.1f),
-                Part(EnvironmentShape.Sphere, 4, -0.8f, 0.75f, 0.3f, 0.7f, 0.5f, 0.6f))
+                Part(EnvironmentShape.Sphere, 4, -0.8f, 0.75f, 0.3f, 0.7f, 0.5f, 0.6f)))
         };
 
     // =============================================================
@@ -193,7 +205,17 @@ public static class EnvironmentThemeFactory
             Def("Driftwood", 2, 0.95f, 1.35f, 1.0f,
                 Part(EnvironmentShape.Cylinder, 6, 0f, 0.25f, 0f, 0.45f, 1.7f, 0.45f, 0f, 0f, 90f),
                 Part(EnvironmentShape.Cylinder, 6, 0.6f, 0.4f, 0.1f, 0.3f, 0.7f, 0.3f, 0f, 0f, -45f),
-                Part(EnvironmentShape.Sphere, 4, -0.5f, 0.35f, 0.2f, 0.3f, 0.25f, 0.3f))
+                Part(EnvironmentShape.Sphere, 4, -0.5f, 0.35f, 0.2f, 0.3f, 0.25f, 0.3f)),
+            Corner(Def("CornerPalm", 2, 1.9f, 2.5f, 1.3f,
+                Part(EnvironmentShape.Cylinder, 1, 0f, 1.1f, 0f, 0.5f, 2.2f, 0.5f, 0f, 0f, 6f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 0f, -90f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 60f, -90f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 120f, -90f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 180f, -90f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 240f, -90f),
+                Part(EnvironmentShape.Capsule, 2, 0f, 2.5f, 0f, 0.55f, 2.2f, 0.55f, 0f, 300f, -90f),
+                Part(EnvironmentShape.Sphere, 1, 0f, 2.47f, 0f, 0.4f, 0.4f, 0.4f),
+                Part(EnvironmentShape.Sphere, 4, 1.1f, 0.35f, 0.4f, 0.6f, 0.45f, 0.55f)))
         };
 
     private static EnvironmentObjectDef[] PlyazhDecor =>
@@ -213,7 +235,7 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] PlyazhOutside =>
         new[]
         {
-            Def("BigPalm", 6, 1.8f, 2.6f, 0f,
+            Radial(Def("BigPalm", 6, 1.8f, 2.6f, 0f,
                 Part(EnvironmentShape.Cylinder, 1, 0f, 1.3f, 0f, 0.5f, 2.6f, 0.5f, 0f, 0f, 5f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 2.9f, 0f, 0.5f, 2.2f, 0.5f, 0f, 0f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 2.9f, 0f, 0.5f, 2.2f, 0.5f, 0f, 60f, -90f),
@@ -221,24 +243,22 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Capsule, 2, 0f, 2.9f, 0f, 0.5f, 2.2f, 0.5f, 0f, 180f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 2.9f, 0f, 0.5f, 2.2f, 0.5f, 0f, 240f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 2.9f, 0f, 0.5f, 2.2f, 0.5f, 0f, 300f, -90f),
-                Part(EnvironmentShape.Sphere, 1, 0f, 2.87f, 0f, 0.32f, 0.32f, 0.32f)),
-            FixedDef("Sea", -85f, 0f,
-                Part(EnvironmentShape.Cube, 5, 0f, 0.05f, 0f, 70f, 0.3f, 220f)),
-            Def("Tower", 1, 1.0f, 1.0f, 1.4f,
+                Part(EnvironmentShape.Sphere, 1, 0f, 2.87f, 0f, 0.32f, 0.32f, 0.32f))),
+            Radial(Def("Tower", 1, 1.0f, 1.0f, 1.4f,
                 Part(EnvironmentShape.Cylinder, 6, -0.35f, 0.5f, -0.35f, 0.12f, 1.0f, 0.12f),
                 Part(EnvironmentShape.Cylinder, 6, 0.35f, 0.5f, -0.35f, 0.12f, 1.0f, 0.12f),
                 Part(EnvironmentShape.Cylinder, 6, -0.35f, 0.5f, 0.35f, 0.12f, 1.0f, 0.12f),
                 Part(EnvironmentShape.Cylinder, 6, 0.35f, 0.5f, 0.35f, 0.12f, 1.0f, 0.12f),
                 Part(EnvironmentShape.Cube, 6, 0f, 0.5f, 0f, 1.2f, 0.12f, 1.2f),
                 Part(EnvironmentShape.Cube, 4, 0f, 1.5f, 0f, 0.7f, 0.8f, 0.7f),
-                Part(EnvironmentShape.Cube, 2, 0f, 1.95f, 0f, 1.1f, 0.1f, 1.1f)),
-            Def("BigRock", 3, 1.6f, 2.2f, 0f,
+                Part(EnvironmentShape.Cube, 2, 0f, 1.95f, 0f, 1.1f, 0.1f, 1.1f))),
+            Radial(Def("BigRock", 3, 1.6f, 2.2f, 0f,
                 Part(EnvironmentShape.Sphere, 4, 0f, 0.6f, 0f, 2.2f, 1.2f, 1.8f),
                 Part(EnvironmentShape.Sphere, 4, 1.1f, 0.4f, 0.3f, 1.2f, 0.8f, 1.0f),
-                Part(EnvironmentShape.Sphere, 6, -0.7f, 0.7f, 0.2f, 0.6f, 0.4f, 0.5f)),
-            Def("DriftwoodFar", 2, 1.6f, 2.2f, 0f,
+                Part(EnvironmentShape.Sphere, 6, -0.7f, 0.7f, 0.2f, 0.6f, 0.4f, 0.5f))),
+            Radial(Def("DriftwoodFar", 2, 1.6f, 2.2f, 0f,
                 Part(EnvironmentShape.Cylinder, 6, 0f, 0.3f, 0f, 0.5f, 2.2f, 0.5f, 0f, 0f, 90f),
-                Part(EnvironmentShape.Cylinder, 6, 0.9f, 0.45f, 0.1f, 0.35f, 0.9f, 0.35f, 0f, 0f, -40f))
+                Part(EnvironmentShape.Cylinder, 6, 0.9f, 0.45f, 0.1f, 0.35f, 0.9f, 0.35f, 0f, 0f, -40f)))
         };
 
     // =============================================================
@@ -278,7 +298,12 @@ public static class EnvironmentThemeFactory
             Def("CaveCliff", 2, 1.2f, 1.5f, 1.2f,
                 Part(EnvironmentShape.Cube, 0, 0f, 0.9f, 0f, 2.0f, 1.8f, 1.2f),
                 Part(EnvironmentShape.Cube, 1, 0.3f, 0.5f, 0.45f, 0.9f, 1.0f, 0.3f),
-                Part(EnvironmentShape.Cube, 2, 0f, 1.75f, 0f, 2.1f, 0.14f, 1.3f))
+                Part(EnvironmentShape.Cube, 2, 0f, 1.75f, 0f, 2.1f, 0.14f, 1.3f)),
+            Corner(Def("CornerSpire", 2, 1.6f, 2.2f, 1.4f,
+                Part(EnvironmentShape.Cylinder, 0, 0f, 1.2f, 0f, 1.7f, 2.4f, 1.7f),
+                Part(EnvironmentShape.Cylinder, 1, 0f, 2.5f, 0f, 1.2f, 1.5f, 1.2f),
+                Part(EnvironmentShape.Cylinder, 2, 0f, 3.4f, 0f, 0.7f, 0.8f, 0.7f),
+                Part(EnvironmentShape.Cube, 1, 1.1f, 0.9f, 0.4f, 1.2f, 0.8f, 0.9f, 0f, 18f, 12f)))
         };
 
     private static EnvironmentObjectDef[] GoryDecor =>
@@ -296,25 +321,25 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] GoryOutside =>
         new[]
         {
-            Def("BigPeak", 4, 1.8f, 2.6f, 0f,
+            Radial(Def("BigPeak", 4, 1.8f, 2.6f, 0f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 1.5f, 0f, 3.4f, 1.6f, 3.4f),
                 Part(EnvironmentShape.Cylinder, 1, 0f, 2.45f, 0f, 2.4f, 1.1f, 2.4f),
                 Part(EnvironmentShape.Cylinder, 2, 0f, 3.2f, 0f, 1.5f, 0.9f, 1.5f),
-                Part(EnvironmentShape.Cylinder, 2, 0f, 3.9f, 0f, 0.7f, 0.7f, 0.7f)),
-            Def("SnowyPeak", 3, 2.0f, 3.0f, 0f,
+                Part(EnvironmentShape.Cylinder, 2, 0f, 3.9f, 0f, 0.7f, 0.7f, 0.7f))),
+            Radial(Def("SnowyPeak", 3, 2.0f, 3.0f, 0f,
                 Part(EnvironmentShape.Cylinder, 1, 0f, 2.0f, 0f, 3.8f, 2.2f, 3.8f),
                 Part(EnvironmentShape.Cylinder, 2, 0f, 3.4f, 0f, 2.2f, 1.6f, 2.2f),
-                Part(EnvironmentShape.Sphere, 2, 0f, 4.6f, 0f, 1.4f, 1.0f, 1.4f)),
-            Def("RockField", 3, 1.5f, 2.2f, 0f,
+                Part(EnvironmentShape.Sphere, 2, 0f, 4.6f, 0f, 1.4f, 1.0f, 1.4f))),
+            Radial(Def("RockField", 3, 1.5f, 2.2f, 0f,
                 Part(EnvironmentShape.Cube, 0, 0f, 0.6f, 0f, 2.2f, 1.2f, 1.6f, 0f, 25f, 10f),
                 Part(EnvironmentShape.Cube, 1, 1.0f, 0.4f, 0.3f, 1.2f, 0.8f, 0.9f, 0f, -15f, 15f),
-                Part(EnvironmentShape.Cube, 2, -0.4f, 1.2f, 0.1f, 1.0f, 0.2f, 0.7f)),
-            Def("BigFir", 3, 1.8f, 2.4f, 0f,
+                Part(EnvironmentShape.Cube, 2, -0.4f, 1.2f, 0.1f, 1.0f, 0.2f, 0.7f))),
+            Radial(Def("BigFir", 3, 1.8f, 2.4f, 0f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.8f, 0f, 0.22f, 1.6f, 0.22f),
                 Part(EnvironmentShape.Cylinder, 3, 0f, 1.8f, 0f, 3.0f, 0.8f, 3.0f),
                 Part(EnvironmentShape.Cylinder, 4, 0f, 2.55f, 0f, 2.2f, 0.75f, 2.2f),
                 Part(EnvironmentShape.Cylinder, 3, 0f, 3.2f, 0f, 1.4f, 0.65f, 1.4f),
-                Part(EnvironmentShape.Cylinder, 4, 0f, 3.8f, 0f, 0.7f, 0.6f, 0.7f))
+                Part(EnvironmentShape.Cylinder, 4, 0f, 3.8f, 0f, 0.7f, 0.6f, 0.7f)))
         };
 
     // =============================================================
@@ -359,7 +384,11 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Cylinder, 4, 0f, 0.3f, 0.28f, 0.12f, 0.6f, 0.12f, 0f, 0f, 90f),
                 Part(EnvironmentShape.Cylinder, 4, 0f, 0.3f, -0.18f, 0.1f, 0.5f, 0.1f, 0f, 25f, 90f),
                 Part(EnvironmentShape.Cylinder, 4, 0.2f, 0.16f, 0.3f, 0.1f, 0.35f, 0.1f),
-                Part(EnvironmentShape.Cylinder, 4, -0.2f, 0.14f, 0.25f, 0.1f, 0.3f, 0.1f))
+                Part(EnvironmentShape.Cylinder, 4, -0.2f, 0.14f, 0.25f, 0.1f, 0.3f, 0.1f)),
+            Corner(Def("CornerButte", 2, 1.7f, 2.3f, 1.4f,
+                Part(EnvironmentShape.Cube, 5, 0f, 1.3f, 0f, 2.6f, 2.6f, 2.0f, 0f, 22f, 0f),
+                Part(EnvironmentShape.Cube, 0, -0.15f, 2.4f, 0.15f, 2.8f, 0.5f, 2.3f, 0f, 22f, 0f),
+                Part(EnvironmentShape.Cube, 2, 0.9f, 0.9f, 0.5f, 1.1f, 1.1f, 0.9f, 0f, 12f, -10f)))
         };
 
     private static EnvironmentObjectDef[] PustynyaDecor =>
@@ -375,19 +404,19 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] PustynyaOutside =>
         new[]
         {
-            Def("Mesa", 3, 1.8f, 2.6f, 0f,
+            Radial(Def("Mesa", 3, 1.8f, 2.6f, 0f,
                 Part(EnvironmentShape.Cube, 5, 0f, 1.5f, 0f, 3.0f, 3.0f, 2.4f, 0f, 30f, 0f),
-                Part(EnvironmentShape.Cube, 0, -0.15f, 2.75f, 0.15f, 3.2f, 0.5f, 2.7f, 0f, 30f, 0f)),
-            Def("BigDune", 3, 2.0f, 3.0f, 0f,
+                Part(EnvironmentShape.Cube, 0, -0.15f, 2.75f, 0.15f, 3.2f, 0.5f, 2.7f, 0f, 30f, 0f))),
+            Radial(Def("BigDune", 3, 2.0f, 3.0f, 0f,
                 Part(EnvironmentShape.Sphere, 0, 0f, 0.3f, 0f, 5.0f, 0.6f, 3.5f),
-                Part(EnvironmentShape.Sphere, 6, 0.8f, 0.42f, 0.5f, 3.0f, 0.45f, 2.2f)),
-            Def("CactusFar", 3, 1.5f, 2.0f, 0f,
+                Part(EnvironmentShape.Sphere, 6, 0.8f, 0.42f, 0.5f, 3.0f, 0.45f, 2.2f))),
+            Radial(Def("CactusFar", 3, 1.5f, 2.0f, 0f,
                 Part(EnvironmentShape.Cylinder, 1, 0f, 1.5f, 0f, 1.2f, 3.0f, 1.2f),
                 Part(EnvironmentShape.Cylinder, 1, 1.0f, 1.7f, 0.1f, 0.6f, 1.4f, 0.6f, 0f, 0f, -22f),
-                Part(EnvironmentShape.Cylinder, 1, -0.9f, 1.9f, -0.1f, 0.55f, 1.6f, 0.55f, 0f, 0f, 18f)),
-            Def("RedButte", 2, 2.2f, 3.0f, 0f,
+                Part(EnvironmentShape.Cylinder, 1, -0.9f, 1.9f, -0.1f, 0.55f, 1.6f, 0.55f, 0f, 0f, 18f))),
+            Radial(Def("RedButte", 2, 2.2f, 3.0f, 0f,
                 Part(EnvironmentShape.Cube, 5, 0f, 1.5f, 0f, 2.6f, 3.0f, 2.0f, 0f, 15f, 0f),
-                Part(EnvironmentShape.Cube, 0, -0.1f, 2.8f, 0.1f, 2.8f, 0.5f, 2.3f, 0f, 15f, 0f))
+                Part(EnvironmentShape.Cube, 0, -0.1f, 2.8f, 0.1f, 2.8f, 0.5f, 2.3f, 0f, 15f, 0f)))
         };
 
     // =============================================================
@@ -427,7 +456,11 @@ public static class EnvironmentThemeFactory
             Def("Debris", 3, 0.8f, 1.2f, 0.7f,
                 Part(EnvironmentShape.Cube, 1, 0f, 0.25f, 0f, 0.9f, 0.5f, 0.7f),
                 Part(EnvironmentShape.Cube, 0, 0.4f, 0.35f, 0.15f, 0.4f, 0.3f, 0.4f, 0f, 30f, 15f),
-                Part(EnvironmentShape.Cylinder, 1, -0.5f, 0.3f, 0.1f, 0.2f, 0.5f, 0.2f, 0f, 0f, 60f))
+                Part(EnvironmentShape.Cylinder, 1, -0.5f, 0.3f, 0.1f, 0.2f, 0.5f, 0.2f, 0f, 0f, 60f)),
+            Corner(Def("CornerAsteroid", 2, 1.7f, 2.4f, 1.4f,
+                Part(EnvironmentShape.Sphere, 3, 0f, 1.2f, 0f, 2.4f, 1.8f, 2.2f),
+                Part(EnvironmentShape.Sphere, 3, 1.6f, 0.9f, 0.6f, 1.4f, 1.1f, 1.3f),
+                Part(EnvironmentShape.Sphere, 2, -1.2f, 1.4f, -0.5f, 0.8f, 0.8f, 0.8f, 0f, 0f, 0f, true)))
         };
 
     private static EnvironmentObjectDef[] KosmosDecor =>
@@ -456,10 +489,96 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Cylinder, 0, -1.4f, 1.0f, 0.2f, 0.5f, 1.2f, 0.5f, 0f, 0f, 100f),
                 Part(EnvironmentShape.Cube, 4, -0.75f, 1.6f, 0.25f, 0.18f, 0.1f, 0.2f, 0f, 0f, 0f, true),
                 Part(EnvironmentShape.Cube, 7, 0.1f, 2.2f, 0.1f, 0.24f, 0.12f, 0.14f, 0f, 0f, 0f, true)),
-            Def("DarkRock", 3, 1.5f, 2.2f, 0f,
+            Radial(Def("DarkRock", 3, 1.5f, 2.2f, 0f,
                 Part(EnvironmentShape.Sphere, 3, 0f, 0.7f, 0f, 2.4f, 1.4f, 2.0f),
                 Part(EnvironmentShape.Sphere, 3, 1.2f, 0.5f, 0.5f, 1.3f, 1.0f, 1.1f),
-                Part(EnvironmentShape.Sphere, 2, -0.9f, 0.8f, 0.4f, 0.35f, 0.35f, 0.35f, 0f, 0f, 0f, true))
+                Part(EnvironmentShape.Sphere, 2, -0.9f, 0.8f, 0.4f, 0.35f, 0.35f, 0.35f, 0f, 0f, 0f, true)))
+        };
+
+    // =============================================================
+    // ГОРОД
+    // =============================================================
+
+    private static readonly Color[] GorodPalette =
+    {
+        new Color(0.28f, 0.29f, 0.31f), // 0 асфальт
+        new Color(0.52f, 0.52f, 0.54f), // 1 бетон
+        new Color(0.18f, 0.22f, 0.30f), // 2 тёмное стекло
+        new Color(0.53f, 0.31f, 0.24f), // 3 кирпич
+        new Color(1.00f, 0.85f, 0.50f), // 4 тёплый свет окон
+        new Color(0.40f, 0.42f, 0.46f), // 5 металл
+        new Color(0.30f, 0.47f, 0.28f), // 6 зелень
+        new Color(0.30f, 0.75f, 0.90f)  // 7 неон
+    };
+
+    private static readonly Color GorodGlow =
+        new Color(1.00f, 0.85f, 0.50f);
+
+    private static EnvironmentObjectDef[] GorodObstacles =>
+        new[]
+        {
+            Def("Container", 2, 0.9f, 1.2f, 1.0f,
+                Part(EnvironmentShape.Cube, 5, 0f, 0.5f, 0f, 1.6f, 1.0f, 1.1f),
+                Part(EnvironmentShape.Cube, 0, 0f, 0.9f, 0.02f, 1.65f, 0.08f, 1.15f),
+                Part(EnvironmentShape.Cube, 4, 0f, 0.5f, 0.58f, 1.6f, 0.1f, 0.05f, 0f, 0f, 0f, true)),
+            Def("LowWall", 3, 1.0f, 1.3f, 1.2f,
+                Part(EnvironmentShape.Cube, 1, 0f, 0.4f, 0f, 2.2f, 0.8f, 0.4f),
+                Part(EnvironmentShape.Cube, 5, 0f, 0.8f, 0f, 2.26f, 0.06f, 0.46f),
+                Part(EnvironmentShape.Cube, 3, 0f, 0.5f, 0.24f, 0.3f, 0.5f, 0.06f)),
+            Def("Car", 2, 1.0f, 1.3f, 1.1f,
+                Part(EnvironmentShape.Cube, 5, 0f, 0.3f, 0f, 1.7f, 0.5f, 0.9f),
+                Part(EnvironmentShape.Cube, 2, -0.1f, 0.62f, 0f, 0.9f, 0.4f, 0.8f),
+                Part(EnvironmentShape.Cube, 0, -0.55f, 0.55f, 0f, 0.5f, 0.55f, 0.7f),
+                Part(EnvironmentShape.Cube, 4, 0.15f, 0.35f, 0.47f, 0.4f, 0.12f, 0.08f, 0f, 0f, 0f, true)),
+            Corner(Def("CornerSkyscraper", 2, 1.6f, 2.1f, 1.6f,
+                Part(EnvironmentShape.Cube, 0, 0f, 1.6f, 0f, 2.2f, 3.2f, 2.0f),
+                Part(EnvironmentShape.Cube, 1, 0f, 3.3f, 0f, 1.7f, 1.4f, 1.5f),
+                Part(EnvironmentShape.Cube, 5, 0f, 4.15f, 0f, 1.1f, 0.5f, 1.0f),
+                Part(EnvironmentShape.Cube, 2, 0f, 2.1f, 1.03f, 1.9f, 2.2f, 0.12f),
+                Part(EnvironmentShape.Cube, 2, 0f, 2.1f, -1.03f, 1.9f, 2.2f, 0.12f),
+                Part(EnvironmentShape.Cube, 4, 0.6f, 1.9f, 1.07f, 0.4f, 0.14f, 0.04f, 0f, 0f, 0f, true),
+                Part(EnvironmentShape.Cube, 4, -0.7f, 2.6f, 1.07f, 0.4f, 0.14f, 0.06f, 0f, 0f, 0f, true),
+                Part(EnvironmentShape.Cube, 4, 0.2f, 3.6f, 0.79f, 0.5f, 0.16f, 0.05f, 0f, 0f, 0f, true)))
+        };
+
+    private static EnvironmentObjectDef[] GorodDecor =>
+        new[]
+        {
+            Def("StreetLamp", 3, 1.0f, 1.3f, 0.4f,
+                Part(EnvironmentShape.Cylinder, 5, 0f, 1.4f, 0f, 0.12f, 2.8f, 0.12f),
+                Part(EnvironmentShape.Cube, 4, 0f, 2.85f, 0f, 0.1f, 0.1f, 0.5f, 0f, 0f, 0f, true)),
+            Def("Bush", 4, 0.6f, 0.9f, 0.5f,
+                Part(EnvironmentShape.Sphere, 6, 0f, 0.25f, 0f, 0.7f, 0.5f, 0.7f),
+                Part(EnvironmentShape.Sphere, 6, 0.3f, 0.4f, 0.1f, 0.4f, 0.35f, 0.4f)),
+            Def("Bench", 2, 1.0f, 1.2f, 0.9f,
+                Part(EnvironmentShape.Cube, 6, 0f, 0.4f, 0f, 1.4f, 0.1f, 0.4f),
+                Part(EnvironmentShape.Cube, 1, 0f, 0.58f, 0.18f, 0.3f, 0.35f, 0.4f),
+                Part(EnvironmentShape.Cylinder, 5, -0.6f, 0.2f, 0.1f, 0.07f, 0.4f, 0.07f),
+                Part(EnvironmentShape.Cylinder, 5, 0.6f, 0.2f, -0.1f, 0.07f, 0.4f, 0.07f)),
+            Def("Hydrant", 2, 0.8f, 1.0f, 0.4f,
+                Part(EnvironmentShape.Cylinder, 5, 0f, 0.25f, 0f, 0.18f, 0.5f, 0.18f),
+                Part(EnvironmentShape.Cylinder, 0, 0f, 0.5f, 0f, 0.24f, 0.08f, 0.24f),
+                Part(EnvironmentShape.Cylinder, 5, 0f, 0.25f, 0.16f, 0.06f, 0.3f, 0.06f))
+        };
+
+    private static EnvironmentObjectDef[] GorodOutside =>
+        new[]
+        {
+            Radial(Def("TowerBlock", 4, 1.6f, 2.2f, 0f,
+                Part(EnvironmentShape.Cube, 0, 0f, 1.8f, 0f, 2.4f, 3.6f, 1.8f),
+                Part(EnvironmentShape.Cube, 2, 0f, 1.8f, 0.92f, 2.3f, 3.5f, 0.1f),
+                Part(EnvironmentShape.Cube, 2, 0f, 1.8f, -0.92f, 2.3f, 3.5f, 0.1f),
+                Part(EnvironmentShape.Cube, 4, 0f, 2.4f, 0.95f, 1.8f, 0.12f, 0.05f, 0f, 0f, 0f, true),
+                Part(EnvironmentShape.Cube, 4, 0f, 3.3f, 0.95f, 1.2f, 0.12f, 0.05f, 0f, 0f, 0f, true))),
+            Radial(Def("OfficeBuilding", 3, 1.5f, 2.0f, 0f,
+                Part(EnvironmentShape.Cube, 1, 0f, 1.2f, 0f, 2.6f, 2.4f, 1.6f),
+                Part(EnvironmentShape.Cube, 2, 0f, 1.2f, 0.82f, 2.5f, 2.3f, 0.08f),
+                Part(EnvironmentShape.Cube, 2, 0f, 1.2f, -0.82f, 2.5f, 2.3f, 0.08f),
+                Part(EnvironmentShape.Cube, 4, 0.5f, 1.6f, 0.84f, 0.5f, 0.14f, 0.04f, 0f, 0f, 0f, true),
+                Part(EnvironmentShape.Cube, 4, -0.6f, 2.3f, 0.84f, 0.5f, 0.14f, 0.04f, 0f, 0f, 0f, true))),
+            FixedDef("Highway", 0f, 95f,
+                Part(EnvironmentShape.Cube, 0, 0f, 0.1f, 0f, 300f, 0.2f, 12f),
+                Part(EnvironmentShape.Cube, 7, 0f, 0.21f, 0f, 300f, 0.02f, 0.2f, 0f, 0f, 0f, true))
         };
 
     // =============================================================
@@ -533,6 +652,9 @@ public static class EnvironmentThemeFactory
         def.overrideMinRadius = minRadius;
         def.overrideMaxRadius = maxRadius;
 
+        def.placement =
+            EnvironmentObjectPlacement.RadialRing;
+
         return def;
     }
 
@@ -548,6 +670,39 @@ public static class EnvironmentThemeFactory
         def.fixedPlacement = true;
         def.fixedOffset =
             new Vector2(offsetX, offsetZ);
+
+        def.placement =
+            EnvironmentObjectPlacement.RadialRing;
+
+        return def;
+    }
+
+    /// <summary>Деф по умолчанию (Def) расставляется SquareFrame по периметру — уже по умолчанию. </summary>
+    private static EnvironmentObjectDef Frame(
+        EnvironmentObjectDef def)
+    {
+        def.placement =
+            EnvironmentObjectPlacement.SquareFrame;
+
+        return def;
+    }
+
+    /// <summary>Крупные акцентные объекты в углах квадратной арены.</summary>
+    private static EnvironmentObjectDef Corner(
+        EnvironmentObjectDef def)
+    {
+        def.placement =
+            EnvironmentObjectPlacement.Corner;
+
+        return def;
+    }
+
+    /// <summary>Фон за стенами — кольцо вокруг арены (RadialRing).</summary>
+    private static EnvironmentObjectDef Radial(
+        EnvironmentObjectDef def)
+    {
+        def.placement =
+            EnvironmentObjectPlacement.RadialRing;
 
         return def;
     }
@@ -607,10 +762,8 @@ public static class EnvironmentThemeFactory
 
         map.environmentTheme = theme;
 
-        // Палитра структур под биом: фолбэк-кубы волн красятся
-        // в цвета окружения, а не в серый.
-        map.structurePalette = palette;
-
+        // Палитра структур карте НЕ назначается: нейтральные блоки
+        // арены — общий серый слой для всех биомов (см. MapFactoryMenu).
         EditorUtility.SetDirty(map);
     }
 

@@ -12,6 +12,23 @@ public enum EnvironmentShape
 }
 
 /// <summary>
+/// Способ расстановки объекта окружения. Тематическое окружение
+/// живёт у краёв арены, а центральная боевая зона занята общими
+/// нейтральными блоками (WorldStructureGenerator).
+/// </summary>
+public enum EnvironmentObjectPlacement
+{
+    /// <summary>Кольцо вокруг центра (старое поведение) — для совместимости.</summary>
+    RadialRing = 0,
+
+    /// <summary>Рамка вдоль краёв квадратной арены (периметр).</summary>
+    SquareFrame = 1,
+
+    /// <summary>Углы арены: крупные акцентные объекты.</summary>
+    Corner = 2
+}
+
+/// <summary>
 /// Одна часть собираемого объекта: примитив с положением, поворотом
 /// и масштабом относительно основания объекта (y = 0 — пол арены).
 /// </summary>
@@ -49,6 +66,10 @@ public class EnvironmentObjectDef
 
     [Tooltip("Сколько экземпляров расставить.")]
     public int count = 1;
+
+    [Tooltip("Способ расстановки: SquareFrame — периметр арены, Corner — крупные акценты в углах, RadialRing — старое кольцо вокруг центра.")]
+    public EnvironmentObjectPlacement placement =
+        EnvironmentObjectPlacement.SquareFrame;
 
     [Tooltip("Общий масштаб объекта (мин). Умножается на каждую часть.")]
     public float scaleMin = 1f;
@@ -128,6 +149,22 @@ public class EnvironmentTheme : ScriptableObject
 
     [Tooltip("Зазор между объектами фона.")]
     public float minOutsideSpacing = 1.5f;
+
+    [Header("Border Placement")]
+    [Tooltip("Внутренняя полуширина тематической рамки (квадрат). Объекты SquareFrame стоят по периметру от этой дистанции до стен (±50). Оставь зазор к зоне нейтральных блоков (по умолчанию блоки до ±32).")]
+    public float minBorderHalfSize = 34f;
+
+    [Tooltip("Внешняя полуширина тематической рамки. Не заходи за стены арены (максимум 50).")]
+    public float maxBorderHalfSize = 49f;
+
+    [Tooltip("Угловая зона: внутренний радиус — от этой дистанции по осям ставятся крупные акцентные объекты (Corner).")]
+    public float minCornerHalfSize = 46f;
+
+    [Tooltip("Угловая зона: внешний радиус (не заходи за стены).")]
+    public float maxCornerHalfSize = 49f;
+
+    [Tooltip("Зазор между тематическими объектами рамки.")]
+    public float minBorderSpacing = 1.5f;
 
     [Header("Objects")]
     [Tooltip("Препятствия внутри арены: с коллайдерами, блокируют игрока/врагов/пули, растворяются при заслоне камеры.")]

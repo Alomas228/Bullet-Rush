@@ -4,9 +4,10 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Быстрый старт для системы карт: создаёт пять GameMap-ассетов
-/// (лес, пляж, горы, пустыня, космос) с заготовленными цветами
-/// неба/тумана и плоскими материалами подложек.
+/// Быстрый старт для системы карт: создаёт шесть GameMap-ассетов
+/// (лес, пляж, горы, пустыня, космос, город) с заготовленными цветами
+/// неба/тумана, плоскими материалами подложек, нейтральной серой
+/// палитрой блоков арены и стабильными layoutSeed.
 ///
 /// Это заглушки для проверки механики слайда: настоящие текстуры,
 /// декор и материалы подставляются потом в инспекторе. Повторный
@@ -16,6 +17,17 @@ public static class MapFactoryMenu
 {
     private const string Folder = "Assets/Data/Maps";
     private const string MaterialsFolder = "Assets/Data/Maps/Materials";
+
+    /// <summary>
+    /// Нейтральные серые блоки боевой зоны — общий слой для всех карт.
+    /// Совпадает с фолбэком WorldStructureGenerator.NeutralBlockColors.
+    /// </summary>
+    private static readonly Color[] NeutralBlockPalette =
+    {
+        new Color(0.58f, 0.62f, 0.66f),
+        new Color(0.67f, 0.71f, 0.74f),
+        new Color(0.77f, 0.79f, 0.81f)
+    };
 
     [MenuItem("ArcadeSurvivor/Create Demo Maps")]
     public static void CreateDemoMaps()
@@ -30,7 +42,8 @@ public static class MapFactoryMenu
             true,
             new Color(0.16f, 0.22f, 0.18f),
             25f, 60f,
-            new Color(0.24f, 0.31f, 0.20f)
+            new Color(0.24f, 0.31f, 0.20f),
+            3101
         );
 
         CreateMap(
@@ -40,7 +53,8 @@ public static class MapFactoryMenu
             true,
             new Color(0.55f, 0.66f, 0.72f),
             45f, 90f,
-            new Color(0.83f, 0.76f, 0.58f)
+            new Color(0.83f, 0.76f, 0.58f),
+            2202
         );
 
         CreateMap(
@@ -50,7 +64,8 @@ public static class MapFactoryMenu
             true,
             new Color(0.60f, 0.64f, 0.68f),
             30f, 80f,
-            new Color(0.45f, 0.47f, 0.50f)
+            new Color(0.45f, 0.47f, 0.50f),
+            4404
         );
 
         CreateMap(
@@ -60,7 +75,8 @@ public static class MapFactoryMenu
             true,
             new Color(0.85f, 0.75f, 0.60f),
             40f, 95f,
-            new Color(0.87f, 0.71f, 0.44f)
+            new Color(0.87f, 0.71f, 0.44f),
+            5505
         );
 
         CreateMap(
@@ -70,14 +86,26 @@ public static class MapFactoryMenu
             false,
             new Color(0.01f, 0.01f, 0.04f),
             0f, 0f,
-            new Color(0.12f, 0.12f, 0.16f)
+            new Color(0.12f, 0.12f, 0.16f),
+            7707
+        );
+
+        CreateMap(
+            "Map_Gorod", "Город",
+            new Color(0.36f, 0.42f, 0.50f),
+            new Color(0.34f, 0.36f, 0.40f),
+            true,
+            new Color(0.30f, 0.33f, 0.38f),
+            30f, 75f,
+            new Color(0.30f, 0.31f, 0.33f),
+            8808
         );
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
         Debug.Log(
-            "[MapFactory] Пять заготовок карт созданы в " +
+            "[MapFactory] Шесть заготовок карт созданы в " +
             Folder + ". Назначь их в EnvironmentController."
         );
     }
@@ -91,7 +119,8 @@ public static class MapFactoryMenu
         Color fogColor,
         float fogStart,
         float fogEnd,
-        Color groundColor)
+        Color groundColor,
+        int layoutSeed)
     {
         string path = Folder + "/" + assetName + ".asset";
 
@@ -119,6 +148,13 @@ public static class MapFactoryMenu
         map.fogColor = fogColor;
         map.fogStartDistance = fogStart;
         map.fogEndDistance = fogEnd;
+
+        // Блоки боевой зоны нейтральные — единый слой всех карт,
+        // независимо от темы окружения.
+        map.structurePalette = NeutralBlockPalette;
+
+        // Геометрия арены стабильна для конкретной карты.
+        map.layoutSeed = layoutSeed;
 
         EditorUtility.SetDirty(map);
     }

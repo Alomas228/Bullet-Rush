@@ -14,21 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
   mapName: "\u041B\u0435\u0441"
   icon: {fileID: 0}
-  groundMaterial: {fileID: 2100000, guid: 72403f2f9497d4246952c7b703bc0898, type: 2}
+  groundMaterial: {fileID: 2100000, guid: 2ad2ac89c43f8bb40ac8c167a99eaad6, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}
   environmentTheme: {fileID: 11400000, guid: d31bebd5b9a15eb4dbbc04dd818a1682, type: 2}
+  buildThemeEnvironment: 1
+  fixedDecor:
+  - prefab: {fileID: 4186967400244600867, guid: 1fd5f65eb5070024ab29ba6902f98149, type: 3}
+    position: {x: 0, y: -0.8, z: 0}
+    rotation: {x: -0, y: 0, z: 0}
+    scale: {x: 25, y: 25, z: 25}
+    keepColliders: 0
+  layoutSeed: 3101
   structureMaterials: []
   structurePalette:
-  - {r: 0.42, g: 0.31, b: 0.2, a: 1}
-  - {r: 0.16, g: 0.42, b: 0.19, a: 1}
-  - {r: 0.3, g: 0.55, b: 0.25, a: 1}
-  - {r: 0.46, g: 0.46, b: 0.48, a: 1}
-  - {r: 0.36, g: 0.42, b: 0.27, a: 1}
-  - {r: 0.93, g: 0.84, b: 0.45, a: 1}
+  - {r: 0.58, g: 0.62, b: 0.66, a: 1}
+  - {r: 0.67, g: 0.71, b: 0.74, a: 1}
+  - {r: 0.77, g: 0.79, b: 0.81, a: 1}
   skyColor: {r: 0.16, g: 0.27, b: 0.22, a: 1}
   ambientLightColor: {r: 0.22, g: 0.27, b: 0.22, a: 1}
   fogEnabled: 1
   fogColor: {r: 0.16, g: 0.22, b: 0.18, a: 1}
-  fogStartDistance: 25
-  fogEndDistance: 60
+  fogStartDistance: 59.5
+  fogEndDistance: 122.7

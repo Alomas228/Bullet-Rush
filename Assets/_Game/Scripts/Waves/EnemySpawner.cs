@@ -62,6 +62,13 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private float arenaEdgeMin = 0.85f;
     [Tooltip("Дальняя граница кольца спауна у края арены (доля радиуса).")]
     [SerializeField] private float arenaEdgeMax = 0.95f;
+
+    [Tooltip("Полуширина квадратной арены: враги не спавнятся за её пределами (0 — без ограничения). Стены арены на ±50.")]
+    [SerializeField] private float arenaHalfSize = 50f;
+
+    [Tooltip("Запас от стен арены при квадратном ограничении спауна.")]
+    [SerializeField] private float arenaWallMargin = 1f;
+
     [Tooltip("Минимальный угол между врагами одного приёма, чтобы они не слипались (градусы).")]
     [SerializeField] private float minAngularSeparation = 18f;
 
@@ -388,6 +395,10 @@ public class EnemySpawner : MonoBehaviour
                         Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                     );
 
+                // Не выходить за квадратные границы игровой арены
+                // (стены на ±50), даже если кольцо спауна расширено.
+                candidate = ClampToArena(candidate);
+
                 if (pass <= 1)
                 {
                     float distanceToPlayer =
@@ -448,11 +459,32 @@ public class EnemySpawner : MonoBehaviour
                     Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                 );
 
+            candidate = ClampToArena(candidate);
+
             if (IsSpawnPositionFree(candidate))
                 return candidate;
         }
 
         return arenaCenter + Vector3.forward * minRadius;
+    }
+
+    // Враги не должны появляться за пределами игровой арены:
+    // точка прижимается к квадратным стенам ±(arenaHalfSize - запас).
+    private Vector3 ClampToArena(Vector3 position)
+    {
+        if (arenaHalfSize <= 0f)
+            return position;
+
+        float limit =
+            Mathf.Max(
+                arenaHalfSize - arenaWallMargin,
+                0f
+            );
+
+        position.x = Mathf.Clamp(position.x, -limit, limit);
+        position.z = Mathf.Clamp(position.z, -limit, limit);
+
+        return position;
     }
 
     // Углы одного приёма держим на равном удалении, чтобы враги
@@ -707,6 +739,8 @@ public class EnemySpawner : MonoBehaviour
 
             desired.y = player.position.y;
 
+            desired = ClampToArena(desired);
+
             if (!IsSpawnPositionFree(desired) &&
                 !TryGetFreePositionAround(desired, out desired))
             {
@@ -763,6 +797,8 @@ public class EnemySpawner : MonoBehaviour
                     player.position.y,
                     Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                 );
+
+            candidate = ClampToArena(candidate);
 
             if (!IsSpawnPositionFree(candidate) &&
                 !TryGetFreePositionAround(candidate, out candidate))

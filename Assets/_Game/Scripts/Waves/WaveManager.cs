@@ -48,9 +48,13 @@ public class WaveManager : MonoBehaviour
     private bool gameStarted;
     private bool waveCompleteShown;
 
-    // Для какой волны мир уже сгенерирован — чтобы не перестраивать
-    // арену заново, если она была подготовлена во время обучения.
-    private int generatedWorldWave = -1;
+    // Для какого seed карты мир уже сгенерирован — чтобы не
+    // перестраивать арену заново между волнами (геометрия карты
+    // стабильна внутри забега) и не дублировать подготовку во время
+    // обучения.
+    private int generatedMapSeed = -1;
+
+    private EnvironmentController cachedEnvironment;
 
     private void Start()
     {
@@ -65,6 +69,9 @@ public class WaveManager : MonoBehaviour
                 gameObject.AddComponent<WaveEventDirector>();
 
         eventDirector.Initialize(enemySpawner, waveUI);
+
+        cachedEnvironment =
+            FindAnyObjectByType<EnvironmentController>();
 
         if (GameStateManager.Instance != null)
         {
@@ -98,7 +105,7 @@ public class WaveManager : MonoBehaviour
             waveActive = false;
             waitingForNextWave = false;
             waveCompleteShown = false;
-            generatedWorldWave = -1;
+            generatedMapSeed = -1;
             StopAllCoroutines();
 
             if (eventDirector != null)
@@ -254,15 +261,37 @@ public class WaveManager : MonoBehaviour
 
     /// <summary>
     /// Строит арену для первой волны заранее — во время обучения,
-    /// чтобы игрок сражался не на пустом поле.
+    /// чтобы игрок сражался не на пустом поле. Геометрия привязана
+    /// к текущей карте (GenerateForMap), а не к номеру волны.
     /// </summary>
     public void PrepareTutorialWorld()
     {
         if (worldGenerator == null)
             return;
 
-        worldGenerator.GenerateForWave(1);
-        generatedWorldWave = 1;
+        int mapSeed = GetCurrentMapSeed();
+
+        worldGenerator.GenerateForMap(mapSeed);
+        generatedMapSeed = mapSeed;
+    }
+
+    // Seed геометрии арены берётся из текущей карты: стабильная
+    // конфигурация блоков для каждого биома.
+    private int GetCurrentMapSeed()
+    {
+        if (cachedEnvironment == null)
+            cachedEnvironment =
+                FindAnyObjectByType<EnvironmentController>();
+
+        if (cachedEnvironment != null &&
+            cachedEnvironment.CurrentMap != null)
+        {
+            return cachedEnvironment.CurrentMap.layoutSeed;
+        }
+
+        return worldGenerator != null
+            ? worldGenerator.BaseSeed
+            : -1;
     }
 
     private IEnumerator StartWaveSequence()
@@ -277,13 +306,18 @@ public class WaveManager : MonoBehaviour
 
         SwitchToMainMusic();
 
-        // Мир может быть уже построен во время обучения —
-        // тогда волну 1 не перестраиваем заново.
-        if (worldGenerator != null &&
-            generatedWorldWave != CurrentWave)
+        // Мир строится один раз под карту и остаётся стабильным на
+        // весь забег (референс: одна арена с фиксированным набором
+        // препятствий). Перестраивание только при смене карты.
+        if (worldGenerator != null)
         {
-            worldGenerator.GenerateForWave(CurrentWave);
-            generatedWorldWave = CurrentWave;
+            int mapSeed = GetCurrentMapSeed();
+
+            if (generatedMapSeed != mapSeed)
+            {
+                worldGenerator.GenerateForMap(mapSeed);
+                generatedMapSeed = mapSeed;
+            }
         }
 
         if (waveUI != null)

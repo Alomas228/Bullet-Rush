@@ -32,9 +32,15 @@ MonoBehaviour:
   minOutsideDistance: 52
   maxOutsideDistance: 92
   minOutsideSpacing: 1.5
+  minBorderHalfSize: 34
+  maxBorderHalfSize: 49
+  minCornerHalfSize: 46
+  maxCornerHalfSize: 49
+  minBorderSpacing: 1.5
   insideObstacles:
   - name: Asteroid
     count: 5
+    placement: 1
     scaleMin: 0.8
     scaleMax: 1.3
     footprint: 0.9
@@ -61,8 +67,10 @@ MonoBehaviour:
       position: {x: -0.45, y: 0.55, z: 0.3}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.28, y: 0.28, z: 0.28}
+    model: {fileID: 0}
   - name: BrokenPanel
     count: 3
+    placement: 1
     scaleMin: 0.9
     scaleMax: 1.3
     footprint: 0.8
@@ -89,8 +97,10 @@ MonoBehaviour:
       position: {x: -0.55, y: 0.34, z: 0.2}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.16, y: 0.1, z: 0.16}
+    model: {fileID: 0}
   - name: CrystalShard
     count: 4
+    placement: 1
     scaleMin: 0.7
     scaleMax: 1.1
     footprint: 0.5
@@ -117,8 +127,10 @@ MonoBehaviour:
       position: {x: 0.4, y: 0.3, z: -0.3}
       euler: {x: -12, y: -30, z: 20}
       scale: {x: 0.2, y: 0.7, z: 0.2}
+    model: {fileID: 0}
   - name: Debris
     count: 3
+    placement: 1
     scaleMin: 0.8
     scaleMax: 1.2
     footprint: 0.7
@@ -145,9 +157,41 @@ MonoBehaviour:
       position: {x: -0.5, y: 0.3, z: 0.1}
       euler: {x: 0, y: 0, z: 60}
       scale: {x: 0.2, y: 0.5, z: 0.2}
+    model: {fileID: 0}
+  - name: CornerAsteroid
+    count: 2
+    placement: 2
+    scaleMin: 1.7
+    scaleMax: 2.4
+    footprint: 1.4
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 3
+      glow: 0
+      position: {x: 0, y: 1.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.4, y: 1.8, z: 2.2}
+    - shape: 1
+      color: 3
+      glow: 0
+      position: {x: 1.6, y: 0.9, z: 0.6}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.4, y: 1.1, z: 1.3}
+    - shape: 1
+      color: 2
+      glow: 1
+      position: {x: -1.2, y: 1.4, z: -0.5}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.8, y: 0.8, z: 0.8}
+    model: {fileID: 0}
   insideDecor:
   - name: SparkleShard
     count: 4
+    placement: 1
     scaleMin: 0.4
     scaleMax: 0.7
     footprint: 0.3
@@ -168,8 +212,10 @@ MonoBehaviour:
       position: {x: 0.15, y: 0.15, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.12, y: 0.08, z: 0.12}
+    model: {fileID: 0}
   - name: PipeGlow
     count: 3
+    placement: 1
     scaleMin: 0.5
     scaleMax: 0.8
     footprint: 0.35
@@ -190,9 +236,11 @@ MonoBehaviour:
       position: {x: 0, y: 0.28, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.18, y: 0.1, z: 0.18}
+    model: {fileID: 0}
   outsideObjects:
   - name: Stars
     count: 16
+    placement: 0
     scaleMin: 0.8
     scaleMax: 1.3
     footprint: 0
@@ -207,8 +255,10 @@ MonoBehaviour:
       position: {x: 0, y: 1.6, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.22, y: 0.1, z: 0.22}
+    model: {fileID: 0}
   - name: Planet
     count: 1
+    placement: 0
     scaleMin: 1
     scaleMax: 1
     footprint: 0
@@ -223,8 +273,10 @@ MonoBehaviour:
       position: {x: 0, y: 6, z: 0}
       euler: {x: 0, y: 60, z: 0}
       scale: {x: 40, y: 40, z: 40}
+    model: {fileID: 0}
   - name: Moon
     count: 1
+    placement: 0
     scaleMin: 1
     scaleMax: 1
     footprint: 0
@@ -245,8 +297,10 @@ MonoBehaviour:
       position: {x: 3, y: 3.5, z: 1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 4, y: 4, z: 4}
+    model: {fileID: 0}
   - name: StationWreck
     count: 2
+    placement: 1
     scaleMin: 1
     scaleMax: 1.5
     footprint: 0
@@ -279,8 +333,10 @@ MonoBehaviour:
       position: {x: 0.1, y: 2.2, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.24, y: 0.12, z: 0.14}
+    model: {fileID: 0}
   - name: DarkRock
     count: 3
+    placement: 0
     scaleMin: 1.5
     scaleMax: 2.2
     footprint: 0
@@ -307,3 +363,4 @@ MonoBehaviour:
       position: {x: -0.9, y: 0.8, z: 0.4}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.35, y: 0.35, z: 0.35}
+    model: {fileID: 0}

@@ -47,7 +47,8 @@ public static class MapSelectionUIBuilder
         "Map_Plyazh",
         "Map_Gory",
         "Map_Pustynya",
-        "Map_Kosmos"
+        "Map_Kosmos",
+        "Map_Gorod"
     };
 
     [MenuItem(MenuPath)]
@@ -672,9 +673,9 @@ public static class MapSelectionUIBuilder
 
     /// <summary>
     /// Находит EnvironmentController в сцене, а если его нет — создаёт,
-    /// и всегда перепривязывает заготовленные карты (Map_Les ... Map_Kosmos),
-    /// чтобы повторы билда подхватывали обновлённые темы. Возвращает
-    /// строку-отчёт для диалога.
+    /// и всегда перепривязывает заготовленные карты (Map_Les ...
+    /// Map_Gorod), чтобы повторы билда подхватывали обновлённые темы.
+    /// Возвращает строку-отчёт для диалога.
     /// </summary>
     private static string EnsureEnvironmentController()
     {

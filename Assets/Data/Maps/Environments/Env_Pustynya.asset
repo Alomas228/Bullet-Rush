@@ -31,9 +31,15 @@ MonoBehaviour:
   minOutsideDistance: 52
   maxOutsideDistance: 92
   minOutsideSpacing: 1.5
+  minBorderHalfSize: 34
+  maxBorderHalfSize: 49
+  minCornerHalfSize: 46
+  maxCornerHalfSize: 49
+  minBorderSpacing: 1.5
   insideObstacles:
   - name: Cactus
     count: 6
+    placement: 1
     scaleMin: 0.9
     scaleMax: 1.4
     footprint: 0.55
@@ -66,8 +72,10 @@ MonoBehaviour:
       position: {x: 0, y: 1.72, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.22, y: 0.22, z: 0.22}
+    model: {fileID: 2675000528879147073, guid: 6eadc511c05b8784b8e72f064a27a94a, type: 3}
   - name: DriedBush
     count: 5
+    placement: 1
     scaleMin: 0.8
     scaleMax: 1.2
     footprint: 0.5
@@ -94,8 +102,10 @@ MonoBehaviour:
       position: {x: 0, y: 0.12, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.3, y: 0.24, z: 0.3}
+    model: {fileID: 3921943830052555729, guid: 5319f46cc9ccd3e4595ddbd2fc4bbb1a, type: 3}
   - name: Stone
     count: 4
+    placement: 1
     scaleMin: 0.7
     scaleMax: 1.1
     footprint: 0.8
@@ -122,8 +132,10 @@ MonoBehaviour:
       position: {x: -0.3, y: 0.4, z: 0.15}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.32, y: 0.26, z: 0.3}
+    model: {fileID: 3673753396315076356, guid: de3c7e9799374294aba5c04a2f2bdcf6, type: 3}
   - name: MesaMini
     count: 3
+    placement: 1
     scaleMin: 0.9
     scaleMax: 1.2
     footprint: 1.1
@@ -144,8 +156,10 @@ MonoBehaviour:
       position: {x: -0.05, y: 1.35, z: 0.1}
       euler: {x: 0, y: 20, z: 0}
       scale: {x: 1.15, y: 0.14, z: 0.95}
+    model: {fileID: 6985995585027052279, guid: f1536b56e56e2184fba3acafa38c6ba3, type: 3}
   - name: Bones
     count: 2
+    placement: 1
     scaleMin: 0.8
     scaleMax: 1.1
     footprint: 0.6
@@ -184,9 +198,41 @@ MonoBehaviour:
       position: {x: -0.2, y: 0.14, z: 0.25}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.1, y: 0.3, z: 0.1}
+    model: {fileID: 3401574932286519950, guid: daf6a2c032b22224c9e82161be29f7b0, type: 3}
+  - name: CornerButte
+    count: 2
+    placement: 2
+    scaleMin: 1.7
+    scaleMax: 2.3
+    footprint: 1.4
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 1.3, z: 0}
+      euler: {x: 0, y: 22, z: 0}
+      scale: {x: 2.6, y: 2.6, z: 2}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: -0.15, y: 2.4, z: 0.15}
+      euler: {x: 0, y: 22, z: 0}
+      scale: {x: 2.8, y: 0.5, z: 2.3}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0.9, y: 0.9, z: 0.5}
+      euler: {x: 0, y: 12, z: -10}
+      scale: {x: 1.1, y: 1.1, z: 0.9}
+    model: {fileID: 0}
   insideDecor:
   - name: Dune
     count: 4
+    placement: 1
     scaleMin: 1.4
     scaleMax: 1.9
     footprint: 0.2
@@ -207,8 +253,10 @@ MonoBehaviour:
       position: {x: 0.35, y: 0.22, z: 0.2}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 1.5, y: 0.22, z: 1.1}
+    model: {fileID: 0}
   - name: StoneSmall
     count: 3
+    placement: 1
     scaleMin: 0.5
     scaleMax: 0.7
     footprint: 0.35
@@ -223,9 +271,11 @@ MonoBehaviour:
       position: {x: 0, y: 0.2, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.6, y: 0.4, z: 0.55}
+    model: {fileID: 0}
   outsideObjects:
   - name: Mesa
     count: 3
+    placement: 0
     scaleMin: 1.8
     scaleMax: 2.6
     footprint: 0
@@ -246,8 +296,10 @@ MonoBehaviour:
       position: {x: -0.15, y: 2.75, z: 0.15}
       euler: {x: 0, y: 30, z: 0}
       scale: {x: 3.2, y: 0.5, z: 2.7}
+    model: {fileID: 6985995585027052279, guid: f1536b56e56e2184fba3acafa38c6ba3, type: 3}
   - name: BigDune
     count: 3
+    placement: 0
     scaleMin: 2
     scaleMax: 3
     footprint: 0
@@ -268,8 +320,10 @@ MonoBehaviour:
       position: {x: 0.8, y: 0.42, z: 0.5}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 3, y: 0.45, z: 2.2}
+    model: {fileID: 6985995585027052279, guid: f1536b56e56e2184fba3acafa38c6ba3, type: 3}
   - name: CactusFar
     count: 3
+    placement: 0
     scaleMin: 1.5
     scaleMax: 2
     footprint: 0
@@ -296,8 +350,10 @@ MonoBehaviour:
       position: {x: -0.9, y: 1.9, z: -0.1}
       euler: {x: 0, y: 0, z: 18}
       scale: {x: 0.55, y: 1.6, z: 0.55}
+    model: {fileID: 2675000528879147073, guid: 6eadc511c05b8784b8e72f064a27a94a, type: 3}
   - name: RedButte
     count: 2
+    placement: 0
     scaleMin: 2.2
     scaleMax: 3
     footprint: 0
@@ -318,3 +374,4 @@ MonoBehaviour:
       position: {x: -0.1, y: 2.8, z: 0.1}
       euler: {x: 0, y: 15, z: 0}
       scale: {x: 2.8, y: 0.5, z: 2.3}
+    model: {fileID: 790115765816298476, guid: 7611e2b6510c2de41bcf1ff99afce6fe, type: 3}

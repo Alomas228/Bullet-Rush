@@ -1,0 +1,420 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39a3e21f43bab234cb3b6758afeada93, type: 3}
+  m_Name: Env_Gorod
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentTheme
+  themeName: "\u0413\u043E\u0440\u043E\u0434"
+  seed: 8808
+  palette:
+  - {r: 0.28, g: 0.29, b: 0.31, a: 1}
+  - {r: 0.52, g: 0.52, b: 0.54, a: 1}
+  - {r: 0.18, g: 0.22, b: 0.3, a: 1}
+  - {r: 0.53, g: 0.31, b: 0.24, a: 1}
+  - {r: 1, g: 0.85, b: 0.5, a: 1}
+  - {r: 0.4, g: 0.42, b: 0.46, a: 1}
+  - {r: 0.3, g: 0.47, b: 0.28, a: 1}
+  - {r: 0.3, g: 0.75, b: 0.9, a: 1}
+  glowMaterial: {fileID: 2100000, guid: 403d72770aba52d4b975f9dcdeed3d15, type: 2}
+  minCenterDistance: 11
+  maxCenterDistance: 27
+  minObstacleSpacing: 1.2
+  minDecorDistance: 12
+  maxDecorDistance: 31
+  minOutsideDistance: 52
+  maxOutsideDistance: 92
+  minOutsideSpacing: 1.5
+  minBorderHalfSize: 34
+  maxBorderHalfSize: 49
+  minCornerHalfSize: 46
+  maxCornerHalfSize: 49
+  minBorderSpacing: 1.5
+  insideObstacles:
+  - name: Container
+    count: 2
+    placement: 1
+    scaleMin: 0.9
+    scaleMax: 1.2
+    footprint: 1
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.5, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.6, y: 1, z: 1.1}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.9, z: 0.02}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.65, y: 0.08, z: 1.15}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0, y: 0.5, z: 0.58}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.6, y: 0.1, z: 0.05}
+    model: {fileID: 0}
+  - name: LowWall
+    count: 3
+    placement: 1
+    scaleMin: 1
+    scaleMax: 1.3
+    footprint: 1.2
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0, y: 0.4, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.2, y: 0.8, z: 0.4}
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.8, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.26, y: 0.06, z: 0.46}
+    - shape: 0
+      color: 3
+      glow: 0
+      position: {x: 0, y: 0.5, z: 0.24}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.3, y: 0.5, z: 0.06}
+    model: {fileID: 0}
+  - name: Car
+    count: 2
+    placement: 1
+    scaleMin: 1
+    scaleMax: 1.3
+    footprint: 1.1
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.3, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.7, y: 0.5, z: 0.9}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: -0.1, y: 0.62, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.9, y: 0.4, z: 0.8}
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: -0.55, y: 0.55, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.55, z: 0.7}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0.15, y: 0.35, z: 0.47}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.4, y: 0.12, z: 0.08}
+    model: {fileID: 0}
+  - name: CornerSkyscraper
+    count: 2
+    placement: 2
+    scaleMin: 1.6
+    scaleMax: 2.1
+    footprint: 1.6
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 1.6, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.2, y: 3.2, z: 2}
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0, y: 3.3, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.7, y: 1.4, z: 1.5}
+    - shape: 0
+      color: 5
+      glow: 0
+      position: {x: 0, y: 4.15, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.1, y: 0.5, z: 1}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 2.1, z: 1.03}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.9, y: 2.2, z: 0.12}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 2.1, z: -1.03}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.9, y: 2.2, z: 0.12}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0.6, y: 1.9, z: 1.07}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.4, y: 0.14, z: 0.04}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: -0.7, y: 2.6, z: 1.07}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.4, y: 0.14, z: 0.06}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0.2, y: 3.6, z: 0.79}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.16, z: 0.05}
+    model: {fileID: 0}
+  insideDecor:
+  - name: StreetLamp
+    count: 3
+    placement: 1
+    scaleMin: 1
+    scaleMax: 1.3
+    footprint: 0.4
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 5
+      glow: 0
+      position: {x: 0, y: 1.4, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.12, y: 2.8, z: 0.12}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0, y: 2.85, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.1, y: 0.1, z: 0.5}
+    model: {fileID: 0}
+  - name: Bush
+    count: 4
+    placement: 1
+    scaleMin: 0.6
+    scaleMax: 0.9
+    footprint: 0.5
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 1
+      color: 6
+      glow: 0
+      position: {x: 0, y: 0.25, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.7, y: 0.5, z: 0.7}
+    - shape: 1
+      color: 6
+      glow: 0
+      position: {x: 0.3, y: 0.4, z: 0.1}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.4, y: 0.35, z: 0.4}
+    model: {fileID: 0}
+  - name: Bench
+    count: 2
+    placement: 1
+    scaleMin: 1
+    scaleMax: 1.2
+    footprint: 0.9
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 6
+      glow: 0
+      position: {x: 0, y: 0.4, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.4, y: 0.1, z: 0.4}
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0, y: 0.58, z: 0.18}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.3, y: 0.35, z: 0.4}
+    - shape: 2
+      color: 5
+      glow: 0
+      position: {x: -0.6, y: 0.2, z: 0.1}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.07, y: 0.4, z: 0.07}
+    - shape: 2
+      color: 5
+      glow: 0
+      position: {x: 0.6, y: 0.2, z: -0.1}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.07, y: 0.4, z: 0.07}
+    model: {fileID: 0}
+  - name: Hydrant
+    count: 2
+    placement: 1
+    scaleMin: 0.8
+    scaleMax: 1
+    footprint: 0.4
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 2
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.25, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.18, y: 0.5, z: 0.18}
+    - shape: 2
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.5, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.24, y: 0.08, z: 0.24}
+    - shape: 2
+      color: 5
+      glow: 0
+      position: {x: 0, y: 0.25, z: 0.16}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.06, y: 0.3, z: 0.06}
+    model: {fileID: 0}
+  outsideObjects:
+  - name: TowerBlock
+    count: 4
+    placement: 0
+    scaleMin: 1.6
+    scaleMax: 2.2
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 1.8, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.4, y: 3.6, z: 1.8}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 1.8, z: 0.92}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.3, y: 3.5, z: 0.1}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 1.8, z: -0.92}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.3, y: 3.5, z: 0.1}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0, y: 2.4, z: 0.95}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.8, y: 0.12, z: 0.05}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0, y: 3.3, z: 0.95}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 1.2, y: 0.12, z: 0.05}
+    model: {fileID: 0}
+  - name: OfficeBuilding
+    count: 3
+    placement: 0
+    scaleMin: 1.5
+    scaleMax: 2
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 0
+    fixedOffset: {x: 0, y: 0}
+    parts:
+    - shape: 0
+      color: 1
+      glow: 0
+      position: {x: 0, y: 1.2, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.6, y: 2.4, z: 1.6}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 1.2, z: 0.82}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.5, y: 2.3, z: 0.08}
+    - shape: 0
+      color: 2
+      glow: 0
+      position: {x: 0, y: 1.2, z: -0.82}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 2.5, y: 2.3, z: 0.08}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: 0.5, y: 1.6, z: 0.84}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.14, z: 0.04}
+    - shape: 0
+      color: 4
+      glow: 1
+      position: {x: -0.6, y: 2.3, z: 0.84}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 0.5, y: 0.14, z: 0.04}
+    model: {fileID: 0}
+  - name: Highway
+    count: 1
+    placement: 0
+    scaleMin: 1
+    scaleMax: 1
+    footprint: 0
+    overrideMinRadius: 0
+    overrideMaxRadius: 0
+    fixedPlacement: 1
+    fixedOffset: {x: 0, y: 95}
+    parts:
+    - shape: 0
+      color: 0
+      glow: 0
+      position: {x: 0, y: 0.1, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 300, y: 0.2, z: 12}
+    - shape: 0
+      color: 7
+      glow: 1
+      position: {x: 0, y: 0.21, z: 0}
+      euler: {x: 0, y: 0, z: 0}
+      scale: {x: 300, y: 0.02, z: 0.2}
+    model: {fileID: 0}

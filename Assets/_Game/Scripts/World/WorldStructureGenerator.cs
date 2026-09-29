@@ -15,18 +15,35 @@ public class WorldStructureGenerator : MonoBehaviour
     [SerializeField] private float playerSafeRadius = 1.5f;
 
     [Header("Placement")]
+    [Tooltip("Радиус кольца спавна: используется врагами (EnemySpawner) как граница боевой зоны, а не предел блоков.")]
     [SerializeField] private float arenaRadius = 30f;
-    [SerializeField] private float minDistanceFromCenter = 4f;
+
+    [Tooltip("Безопасная центральная зона: ближе этого радиуса к центру блоки не ставятся — игрок стартует на свободном центре.")]
+    [SerializeField] private float minDistanceFromCenter = 7f;
+
+    [Tooltip("Минимальный зазор между блоками (в дополнение к половинным габаритам).")]
     [SerializeField] private float minSpacing = 1f;
+
+    [Tooltip("Сколько попыток стоит найти свободное место под один блок.")]
     [SerializeField] private int maxPlacementAttempts = 30;
+
+    [Header("Square Arena")]
+    [Tooltip("Расставлять блоки по квадратной арене (равномерно по площади), а не кольцом. Референс: карта квадратная, блоки по всей боевой зоне.")]
+    [SerializeField] private bool useSquarePlacement = true;
+
+    [Tooltip("Полуширина квадрата расстановки блоков. Стены арены на ±50; держи меньше, чтобы блоки не стояли вплотную к стенам.")]
+    [SerializeField] private float structureHalfSize = 32f;
 
     [Header("Prefabs")]
     [Tooltip("Префабы, которые будут спавниться вместо кубов. Для каждой структуры выбирается один случайный из списка. Пусто — фолбэк на примитивный куб.")]
     [SerializeField] private GameObject[] structurePrefabs;
 
     [Header("Count")]
-    [SerializeField] private int minStructures = 14;
-    [SerializeField] private int maxStructures = 20;
+    [Tooltip("Меньше блоков-препятствий в арене (мин).")]
+    [SerializeField] private int minStructures = 25;
+
+    [Tooltip("Больше блоков-препятствий в арене (макс).")]
+    [SerializeField] private int maxStructures = 40;
 
     [Header("Sizes")]
     [Tooltip("Размеры остаются как у кубов: габариты префаба умножаются на эти значения. 1 — авторский размер префаба.")]
@@ -91,6 +108,9 @@ public class WorldStructureGenerator : MonoBehaviour
     public float ArenaRadius =>
         arenaRadius;
 
+    public int BaseSeed =>
+        baseSeed;
+
     private void Awake()
     {
         if (baseSeed == 0)
@@ -147,7 +167,30 @@ public class WorldStructureGenerator : MonoBehaviour
             gameObject.AddComponent<StructureOcclusionManager>();
     }
 
+    public void GenerateForMap(int mapSeed)
+    {
+        BeginGeneration(
+            new System.Random(mapSeed * 31 + 97)
+        );
+    }
+
+    /// <summary>
+    /// Легаси-вход для волн. Стабильная геометрия карты строится
+    /// через <see cref="GenerateForMap"/>, где seed зависит от карты,
+    /// а не от номера волны. Метод сохранён, чтобы не ломать
+    /// внешние вызовы (обучение и т.п.), но больше не используется
+    /// для перестройки арены между волнами.
+    /// </summary>
     public void GenerateForWave(int wave)
+    {
+        BeginGeneration(
+            new System.Random(baseSeed * 31 + wave * 131)
+        );
+    }
+
+    // Общий вход обеих генераций: гасит текущий корутин, ищет игрока
+    // и считает количество блоков по параметрам инспектора.
+    private void BeginGeneration(System.Random rng)
     {
         if (generateCoroutine != null)
             StopCoroutine(generateCoroutine);
@@ -167,11 +210,6 @@ public class WorldStructureGenerator : MonoBehaviour
                 : transform.position;
 
         groundY = centerPos.y;
-
-        System.Random rng =
-            new System.Random(
-                baseSeed * 31 + wave * 131
-            );
 
         int count =
             rng.Next(
@@ -407,29 +445,51 @@ public class WorldStructureGenerator : MonoBehaviour
                 Mathf.Max(scale.x, scale.z) * 0.5f +
                 minSpacing;
 
-            float angle =
-                (float)(rng.NextDouble() * Mathf.PI * 2.0);
+            Vector2 hPos;
 
-            float distance =
-                NextFloat(
-                    rng,
-                    minDistanceFromCenter,
-                    arenaRadius
+            if (useSquarePlacement)
+            {
+                // Квадрат: равномерно по боевой площади арены,
+                // а не кольцом — как на референсе.
+                float half = Mathf.Max(structureHalfSize, 1f);
+
+                hPos = new Vector2(
+                    NextFloat(rng, -half, half),
+                    NextFloat(rng, -half, half)
                 );
+            }
+            else
+            {
+                float angle =
+                    (float)(rng.NextDouble() * Mathf.PI * 2.0);
 
-            Vector2 offset =
-                new Vector2(
-                    Mathf.Cos(angle),
-                    Mathf.Sin(angle)
-                ) *
-                distance;
+                float distance =
+                    NextFloat(
+                        rng,
+                        minDistanceFromCenter,
+                        arenaRadius
+                    );
 
-            Vector2 hPos =
+                hPos =
+                    new Vector2(
+                        Mathf.Cos(angle),
+                        Mathf.Sin(angle)
+                    ) *
+                    distance;
+            }
+
+            hPos +=
                 new Vector2(
                     centerPos.x,
                     centerPos.z
-                ) +
-                offset;
+                );
+
+            // Свободный центр арены: безопасная зона старта игрока.
+            if ((hPos - new Vector2(centerPos.x, centerPos.z)).magnitude <
+                minDistanceFromCenter)
+            {
+                continue;
+            }
 
             if (IsTooCloseToPlayer(hPos, clearance) ||
                 !IsPositionFree(hPos, clearance))
@@ -741,11 +801,22 @@ public class WorldStructureGenerator : MonoBehaviour
             renderers[i].sharedMaterial = material;
     }
 
-    // Создаёт по одному материалу на цвет из шейдера, который
+    // Нейтральные серые блоки: игровые препятствия одни для всех карт
+    // и не должны перекрашиваться в цвета темы (только если палитра
+    // карты явно задана в её полях structures).
+    private static readonly Color[] NeutralBlockColors =
+    {
+        new Color(0.58f, 0.62f, 0.66f, 1f),
+        new Color(0.67f, 0.71f, 0.74f, 1f),
+        new Color(0.77f, 0.79f, 0.81f, 1f)
+    };
+
+    // Создаёт по одному материалу на цвет: явная палитра карты —
+    // или нейтральные серые кубы, когда палитра не задана (референс:
+    // блоки арены одинаковые на всех картах). Шейдер берём тот, что
     // гарантированно попадает в билд (в отличие от Default-Material,
     // который CreatePrimitive вешает в редакторе, но чей шейдер
-    // вырезается из собранной игры). Если палитра пуста — берёт
-    // нейтральный серый, чтобы кубы не были магентовыми.
+    // вырезается из собранной игры).
     private void EnsurePaletteMaterials()
     {
         if (paletteMaterials != null)
@@ -760,10 +831,7 @@ public class WorldStructureGenerator : MonoBehaviour
             (palette != null &&
              palette.Length > 0)
                 ? palette
-                : new[]
-                {
-                    new Color(0.7f, 0.7f, 0.7f, 1f)
-                };
+                : NeutralBlockColors;
 
         paletteMaterials =
             new Material[colors.Length];

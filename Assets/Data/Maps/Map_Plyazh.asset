@@ -18,15 +18,19 @@ MonoBehaviour:
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}
   environmentTheme: {fileID: 11400000, guid: dc6a1840deb1ed74da177f8bb729de82, type: 2}
+  buildThemeEnvironment: 1
+  fixedDecor:
+  - prefab: {fileID: 4186967400244600867, guid: ef7d2cf6f9583f6438ab497c39ac11b9, type: 3}
+    position: {x: 0, y: -0.02, z: 0}
+    rotation: {x: -0, y: 0, z: 0}
+    scale: {x: 25, y: 1, z: 25}
+    keepColliders: 0
+  layoutSeed: 2202
   structureMaterials: []
   structurePalette:
-  - {r: 0.91, g: 0.83, b: 0.64, a: 1}
-  - {r: 0.6, g: 0.46, b: 0.27, a: 1}
-  - {r: 0.24, g: 0.52, b: 0.28, a: 1}
-  - {r: 0.58, g: 0.4, b: 0.22, a: 1}
-  - {r: 0.93, g: 0.9, b: 0.78, a: 1}
-  - {r: 0.13, g: 0.38, b: 0.6, a: 1}
-  - {r: 0.52, g: 0.45, b: 0.34, a: 1}
+  - {r: 0.58, g: 0.62, b: 0.66, a: 1}
+  - {r: 0.67, g: 0.71, b: 0.74, a: 1}
+  - {r: 0.77, g: 0.79, b: 0.81, a: 1}
   skyColor: {r: 0.48, g: 0.68, b: 0.82, a: 1}
   ambientLightColor: {r: 0.5, g: 0.52, b: 0.5, a: 1}
   fogEnabled: 1
