@@ -24,6 +24,7 @@ MonoBehaviour:
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1
+  knockbackResistance: 0.35
   waveHealthPercent: 0.15
   waveDamagePercent: 0.05
   waveScorePercent: 0.1

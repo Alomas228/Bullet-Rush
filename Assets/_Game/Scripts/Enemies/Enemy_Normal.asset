@@ -17,6 +17,7 @@ MonoBehaviour:
   moveSpeed: 2
   contactDamage: 1
   damageCooldown: 1
+  knockbackResistance: 0
   waveHealthPercent: 0.15
   waveDamagePercent: 0.05
   waveScorePercent: 0.1

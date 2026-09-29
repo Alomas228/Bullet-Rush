@@ -14,6 +14,10 @@ public class Bullet : MonoBehaviour
     [Header("Pierce")]
     [SerializeField] private int pierceCount = 0;
 
+    [Header("Knockback")]
+    [Tooltip("Сила отдачи от попадания (ед/с). Насколько моб устойчив к ней — задаёт EnemyData: у босса, элиты и танка отдачи нет совсем.")]
+    [SerializeField] private float knockbackForce = 2.5f;
+
     [Header("Burn")]
     [SerializeField] private float burnDamagePerSecond = 0f;
     [SerializeField] private float burnDuration = 0f;
@@ -448,6 +452,18 @@ public class Bullet : MonoBehaviour
             damage,
             isCritical
         );
+
+        // Отдача: моб сбавляет разгон и чуть отходит назад.
+        // Мёртвому она не нужна, а выбитый из толка моб уехал бы
+        // уже без своей воли.
+        if (knockbackForce > 0f &&
+            !enemy.IsDead)
+        {
+            enemy.ApplyKnockback(
+                transform.forward,
+                knockbackForce
+            );
+        }
 
         // ============================================
         // IMPACT VFX

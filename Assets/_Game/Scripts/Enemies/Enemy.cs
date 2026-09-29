@@ -41,6 +41,17 @@ public class Enemy : MonoBehaviour
     [Tooltip("Сколько кадров подряд путь должен быть свободен, чтобы выйти из обхода и довернуть за угол.")]
     [SerializeField] private int clearFramesToExit = 3;
 
+    [Header("Knockback")]
+    [Tooltip("Насколько попадание сбивает моба с разгона: 0 — не сбивает совсем, 1 — почти полная остановка. Действует в связке с сопротивлением из EnemyData.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float knockbackSlowdown = 0.75f;
+    [Tooltip("С какой скоростью моб возвращается к обычному бегу после попадания. Больше — разгоняется быстрее.")]
+    [SerializeField] private float knockbackRecovery = 6f;
+    [Tooltip("Как быстро гаснет сама отдача. Больше — короче откат назад, меньше — длиннее и мягче.")]
+    [SerializeField] private float knockbackDamping = 9f;
+    [Tooltip("Потолок скорости отдачи: залп из десятка пуль не должен уносить моба через полкарты.")]
+    [SerializeField] private float knockbackMaxSpeed = 3f;
+
     [Header("Performance")]
     [Tooltip("Как часто обновлять дорогую проверку обхода препятствий.")]
     [SerializeField] private float navigationUpdateInterval = 0.05f;
@@ -67,6 +78,14 @@ public class Enemy : MonoBehaviour
     private float dashTimer;
     private float dashRemainingTime;
     private Vector3 dashDirection;
+
+    // Отдача от попадания. Это не смещение и не импульс физики,
+    // а скорость, которую каждый кадр добавляем к позиции и
+    // экспоненциально гасим. Разгон при этом умножается на
+    // knockbackSpeedScale, поэтому моб не улетает, а сначала
+    // сбавляет, потом снова разгоняется к игроку.
+    private Vector3 knockbackVelocity;
+    private float knockbackSpeedScale = 1f;
 
     private Collider selfCollider;
     private Rigidbody cachedRigidbody;
@@ -348,6 +367,8 @@ public class Enemy : MonoBehaviour
         {
             MoveTowardsPlayer();
 
+            ApplyKnockbackMotion();
+
             ApplyResolveSlide();
 
             TryApplyContactDamage();
@@ -390,6 +411,8 @@ public class Enemy : MonoBehaviour
                 MoveTowardsPlayer();
                 break;
         }
+
+        ApplyKnockbackMotion();
 
         ApplyResolveSlide();
 
@@ -568,9 +591,10 @@ public class Enemy : MonoBehaviour
         }
 
         float speed =
-            enemyData != null
+            (enemyData != null
                 ? enemyData.MoveSpeed
-                : 2f;
+                : 2f) *
+            knockbackSpeedScale;
 
         Vector3 moveDirection;
 
@@ -655,10 +679,11 @@ public class Enemy : MonoBehaviour
         }
 
         float dashSpeed =
-            enemyData != null
+            (enemyData != null
                 ? enemyData.MoveSpeed *
                   enemyData.DashSpeedMultiplier
-                : 14f;
+                : 14f) *
+            knockbackSpeedScale;
 
         transform.position +=
             dashDirection *
@@ -692,6 +717,116 @@ public class Enemy : MonoBehaviour
                 targetRotation,
                 rotationSpeed * Time.deltaTime
             );
+    }
+
+
+    // =========================================================
+    // KNOCKBACK
+    // =========================================================
+
+    /// <summary>
+    /// Реакция на попадание. Моб не телепортируется: удар
+    /// добавляет к его позиции скорость, которая каждый кадр
+    /// экспоненциально гаснет, и разом сбивает разгон. Поэтому
+    /// движение читается как «задел — сбавил — снова побежал»,
+    /// а не как короткий рывок телепортом.
+    ///
+    /// Сила приходит от попадания (см. Bullet), а насколько моб
+    /// устойчив к ней — из его EnemyData: у босса, элиты и
+    /// танка сопротивление равно 1, и попадание не двигает их
+    /// вообще.
+    /// </summary>
+    public void ApplyKnockback(
+        Vector3 direction,
+        float force)
+    {
+        if (IsDead)
+            return;
+
+        if (force <= 0f)
+            return;
+
+        float resistance =
+            GetKnockbackResistance();
+
+        // Иммунный моб не должен дёрнуться даже на пиксель:
+        // заметное смещение выдало бы «неотталкиваемость».
+        if (resistance >= 1f)
+            return;
+
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude <= 0.0001f)
+            return;
+
+        knockbackVelocity +=
+            direction.normalized *
+            force *
+            (1f - resistance);
+
+        // Потолок держит залп дробовика: десяток пуль за кадр
+        // складывается в скорость, уносящую моб через полкарты.
+        float maxSpeed =
+            Mathf.Max(knockbackMaxSpeed, 0.01f);
+
+        if (knockbackVelocity.sqrMagnitude > maxSpeed * maxSpeed)
+            knockbackVelocity =
+                knockbackVelocity.normalized * maxSpeed;
+
+        // Минимум, а не присваивание: пока моб не разогнался
+        // обратно, новое попадание не должно его разгонять.
+        knockbackSpeedScale =
+            Mathf.Min(
+                knockbackSpeedScale,
+                1f - (1f - resistance) * knockbackSlowdown
+            );
+    }
+
+    // Погашение отдачи и возврат разгона. Идёт после поведения,
+    // но до разрешения пересечений и скольжения по игроку —
+    // тогда оба доезжают поверх отдачи, а не срезают её.
+    private void ApplyKnockbackMotion()
+    {
+        float deltaTime = Time.deltaTime;
+
+        if (knockbackSpeedScale < 1f)
+        {
+            // Экспонента, а не линейный возврат: разгон
+            // набирается мягко, без рывка на последнем кадре.
+            knockbackSpeedScale = Mathf.Lerp(
+                knockbackSpeedScale,
+                1f,
+                1f - Mathf.Exp(-knockbackRecovery * deltaTime)
+            );
+
+            if (knockbackSpeedScale > 0.999f)
+                knockbackSpeedScale = 1f;
+        }
+
+        if (knockbackVelocity.sqrMagnitude <= 0.000001f)
+        {
+            knockbackVelocity = Vector3.zero;
+            return;
+        }
+
+        transform.position +=
+            knockbackVelocity *
+            deltaTime;
+
+        knockbackVelocity = Vector3.Lerp(
+            knockbackVelocity,
+            Vector3.zero,
+            1f - Mathf.Exp(-knockbackDamping * deltaTime)
+        );
+    }
+
+    // Без данных считаем моба неотталкиваемым: дефолт должен
+    // быть безопасным, а не «сдвинуть не на что».
+    private float GetKnockbackResistance()
+    {
+        return enemyData != null
+            ? enemyData.KnockbackResistance
+            : 1f;
     }
 
 
@@ -1518,7 +1653,9 @@ public class Enemy : MonoBehaviour
 
         desired.Normalize();
 
-        float speed = GetBossMoveSpeed();
+        float speed =
+            GetBossMoveSpeed() *
+            knockbackSpeedScale;
 
         Vector3 moveDirection;
 

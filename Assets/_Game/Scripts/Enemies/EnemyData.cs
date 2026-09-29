@@ -75,6 +75,11 @@ public class EnemyData : ScriptableObject
     [Tooltip("Урон каждого снаряда взрыва при смерти.")]
     [SerializeField] private float deathExplosionDamage = 6f;
 
+    [Header("Knockback")]
+    [Tooltip("Устойчивость к отталкиванию: 0 — отлетает от попадания полностью, 1 — не двигается совсем (босс, элита, танк).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float knockbackResistance = 0.5f;
+
     [Header("Wave Scaling")]
     [Tooltip("Percent of max health added per wave. Wave 1 = no bonus.")]
     [SerializeField] private float waveHealthPercent = 0.15f;
@@ -164,6 +169,9 @@ public class EnemyData : ScriptableObject
         Mathf.Max(deathExplosionDamage, 0f);
 
     public int ScoreValue => scoreValue;
+
+    public float KnockbackResistance =>
+        Mathf.Clamp01(knockbackResistance);
 
     public float WaveHealthPercent =>
         Mathf.Max(waveHealthPercent, 0f);

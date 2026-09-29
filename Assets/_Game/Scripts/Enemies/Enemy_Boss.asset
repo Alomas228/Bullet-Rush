@@ -27,6 +27,7 @@ MonoBehaviour:
   abilityCooldown: 5
   summonCooldown: 8
   summonCount: 3
+  knockbackResistance: 1
   waveHealthPercent: 0.15
   waveDamagePercent: 0.05
   waveScorePercent: 0.1

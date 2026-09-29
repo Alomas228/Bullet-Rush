@@ -157,6 +157,7 @@ MonoBehaviour:
   lifetime: 3
   damage: 1
   pierceCount: 0
+  knockbackForce: 2.5
   burnDamagePerSecond: 0
   burnDuration: 0
   burnTickInterval: 0.5
