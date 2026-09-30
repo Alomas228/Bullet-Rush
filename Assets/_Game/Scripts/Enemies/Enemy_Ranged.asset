@@ -29,3 +29,13 @@ MonoBehaviour:
   waveDamagePercent: 0.05
   waveScorePercent: 0.1
   scoreValue: 20
+  preferredDistance: 6
+  retreatDistance: 3.5
+  retreatSpeedScale: 0.9
+  repositionInterval: 2.2
+  repositionArcDegrees: 60
+  attackTelegraph: 0.45
+  attackTelegraphCrouch: 0.18
+  supportAttackRateMultiplier: 1
+  variantChance: 0.15
+  variantMinWave: 5

@@ -481,6 +481,34 @@ public class HazardZone : MonoBehaviour
             flashSphere.gameObject.SetActive(false);
     }
 
+    // Материалы зоны создаются в рантайме, поэтому Destroy(gameObject)
+// их не убирает — без этого каждый каст элиты и каждая опасная
+// зона волны оставляли бы в памяти три материала навсегда.
+private void OnDestroy()
+    {
+        DestroyMaterial(fillMaterial);
+        DestroyMaterial(borderMaterial);
+        DestroyMaterial(flashMaterial);
+
+        fillMaterial = null;
+        borderMaterial = null;
+        flashMaterial = null;
+    }
+
+    private void DestroyMaterial(Material mat)
+    {
+        if (mat == null)
+            return;
+
+        if (Application.isPlaying)
+        {
+            Destroy(mat);
+            return;
+        }
+
+        DestroyImmediate(mat);
+    }
+
     private void SetMaterialColor(Material mat, Color color)
     {
         if (mat.HasProperty("_BaseColor"))

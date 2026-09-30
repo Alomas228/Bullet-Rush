@@ -29,3 +29,13 @@ MonoBehaviour:
   waveDamagePercent: 0.05
   waveScorePercent: 0.1
   scoreValue: 15
+  dashWarningTime: 0.4
+  dashMinRange: 2.5
+  dashTelegraphCrouch: 0.3
+  dashWindupSpeedScale: 0.25
+  flankAngle: 22
+  flankRetargetInterval: 1.6
+  interceptLead: 0.55
+  maxInterceptDistance: 2.5
+  variantChance: 0.15
+  variantMinWave: 4

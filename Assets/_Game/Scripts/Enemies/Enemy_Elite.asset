@@ -32,3 +32,7 @@ MonoBehaviour:
   waveDamagePercent: 0.05
   waveScorePercent: 0.1
   scoreValue: 75
+  flankAngle: 0
+  abilityDpsMultiplier: 1
+  variantChance: 0.2
+  variantMinWave: 7

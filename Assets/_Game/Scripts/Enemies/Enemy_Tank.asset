@@ -29,3 +29,9 @@ MonoBehaviour:
   waveDamagePercent: 0.05
   waveScorePercent: 0.1
   scoreValue: 40
+  supportRadius: 5.5
+  braceRange: 3.4
+  allySearchInterval: 0.5
+  supportAttackRateMultiplier: 0.72
+  variantChance: 0.12
+  variantMinWave: 6

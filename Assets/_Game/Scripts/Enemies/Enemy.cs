@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class Enemy : MonoBehaviour
 {
@@ -61,6 +62,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float resolveSlideSpeed = 6f;
     [Tooltip("Как часто проверять линию огня у дальних врагов.")]
     [SerializeField] private float lineOfSightCheckInterval = 0.10f;
+    [Tooltip("Как часто дальник пересматривает, есть ли рядом танк, который его прикрывает.")]
+    [SerializeField] private float supportCheckInterval = 0.25f;
 
     private float currentHealth;
 
@@ -78,6 +81,84 @@ public class Enemy : MonoBehaviour
     private float dashTimer;
     private float dashRemainingTime;
     private Vector3 dashDirection;
+
+    // Замах перед рывком. Без него быстрый враг просто разгоняется
+    // без предупреждения, и реакция выглядит как «моб сам по себе
+    // ускорился». Здесь это честное окно, за которое игрок успевает
+    // отойти или поставить между собой препятствие.
+    private bool dashWindup;
+    private float dashWindupRemainingTime;
+    private float dashWindupTotalTime;
+    private Vector3 dashWindupDirection;
+
+    // Роль и редкий вариант. Сами роли не хранятся в ассете: это
+    // честные множители поверх EnemyData, которые двигают поведение,
+    // а не характеристики (никакой накрутки HP).
+    private EnemyVariant variant = EnemyVariant.None;
+    private float moveSpeedMultiplier = 1f;
+    private float flankAngle;
+    private float flankRetargetInterval = 1.6f;
+    private float interceptLead;
+    private float maxInterceptDistance;
+    private float flankTimer;
+    private int flankSide = 1;
+    private float flankAmount = 1f;
+    private float dashCooldownMultiplier = 1f;
+    private float dashRange = 6f;
+    private float dashWindupSpeedScale = 0.25f;
+    private float dashTelegraphCrouch = 0.3f;
+
+    // Дальник: держит дистанцию, отходит, переставляется, телеграфирует выстрел.
+    private float preferredDistance;
+    private float retreatDistance;
+    private float retreatSpeedScale = 0.9f;
+    private float repositionInterval = 2.2f;
+    private float repositionArcDegrees = 60f;
+    private float attackTelegraphCrouch = 0.18f;
+    private float rangedAttackRateMultiplier = 1f;
+    private float repositionTimer;
+    private Vector3 repositionTarget;
+    private bool hasRepositionTarget;
+    private bool attackTelegraphActive;
+    private float attackTelegraphRemainingTime;
+    private float attackTelegraphTotalTime;
+    private float supportCheckTimer;
+    private bool hasTankSupport;
+    private float tankSupportAttackRateMultiplier = 1f;
+
+    // Танк: ищет ближайшего дальника и встаёт между ним и игроком.
+    private float supportRadius;
+    private float braceRange;
+    private float allySearchInterval = 0.5f;
+    private float allySearchTimer;
+    private Enemy escortedAlly;
+
+    // Элита: базовая волна уходит от игрока, агрессивный вариант — под него.
+    private float abilityCooldownMultiplier = 1f;
+    private float abilityDpsMultiplier = 1f;
+    private bool abilityTargetsPlayerPosition;
+
+    private PlayerController playerController;
+
+    // Живые враги одним списком. Нужен дальникам и танкам, чтобы
+    // находить друг друга (экран и поддержка), и не делает лишних
+    // FindObject каждый кадр. Обход идёт раз в 0.2-0.5 секунды.
+    private static readonly List<Enemy> aliveEnemies =
+        new List<Enemy>(128);
+
+    // PropertyBlock не трогает общий материал, поэтому подкраска
+    // варианта не течёт на всех мобов этого типа в сцене.
+    private static readonly int BaseColorId =
+        Shader.PropertyToID("_BaseColor");
+
+    private static readonly int LegacyColorId =
+        Shader.PropertyToID("_Color");
+
+    private int aliveRegistryIndex = -1;
+
+    private Vector3 baseScale = Vector3.one;
+    private Renderer variantRenderer;
+    private MaterialPropertyBlock variantPropertyBlock;
 
     // Отдача от попадания. Это не смещение и не импульс физики,
     // а скорость, которую каждый кадр добавляем к позиции и
@@ -141,12 +222,17 @@ public class Enemy : MonoBehaviour
     private static void ResetStaticState()
     {
         AliveCount = 0;
+
+        if (aliveEnemies != null)
+            aliveEnemies.Clear();
     }
 
     private void OnDestroy()
     {
         if (AliveCount > 0)
             AliveCount--;
+
+        UnregisterAlive();
 
         ColliderKindQuery.UnregisterEnemy(transform);
         EnemyHealthBarSystem.Unregister(this);
@@ -172,6 +258,11 @@ public class Enemy : MonoBehaviour
     public int SpawnWave => currentWave;
 
     public int BossPhase { get; private set; } = 1;
+
+    /// <summary>
+    /// Редкий вариант этого моба. None — обычный моб без выкрутки.
+    /// </summary>
+    public EnemyVariant Variant => variant;
 
     /// <summary>
     /// Полоса HP этого моба. Вид задаётся на префабе, сама
@@ -222,9 +313,64 @@ public class Enemy : MonoBehaviour
 
         AliveCount++;
 
+        RegisterAlive();
+
         EnemyHealthBarSystem.Register(this);
 
         LockVerticalRigidbody();
+
+        CacheVisualSetup();
+    }
+
+    // Всё, что нужно поведению, но не характеристики: базовый
+    // масштаб (телеграфы приседают и возвращают его назад), рендерер
+    // для подкраски редкого варианта и контроллер игрока для перехвата.
+    private void CacheVisualSetup()
+    {
+        baseScale = transform.localScale;
+
+        variantRenderer = GetComponentInChildren<MeshRenderer>();
+
+        if (player == null)
+            return;
+
+        playerController =
+            player.GetComponentInParent<PlayerController>();
+    }
+
+    private void RegisterAlive()
+    {
+        if (aliveRegistryIndex >= 0)
+            return;
+
+        aliveRegistryIndex = aliveEnemies.Count;
+
+        aliveEnemies.Add(this);
+    }
+
+    // Удаление свапом с последним элементом: список живых врагов
+    // может перебирать кто угодно в этом же кадре, поэтому список
+    // не должен «съезжать» и оставлять пустые элементы.
+    private void UnregisterAlive()
+    {
+        int index = aliveRegistryIndex;
+
+        if (index < 0)
+            return;
+
+        aliveRegistryIndex = -1;
+
+        int lastIndex = aliveEnemies.Count - 1;
+
+        if (index < lastIndex)
+        {
+            Enemy moved = aliveEnemies[lastIndex];
+
+            aliveEnemies[index] = moved;
+            moved.aliveRegistryIndex = index;
+        }
+
+        aliveEnemies.RemoveAt(lastIndex);
     }
 
     // Враги двигаются через transform (скрипт), а не через физику.
@@ -258,11 +404,325 @@ public class Enemy : MonoBehaviour
             cachedRigidbody.angularVelocity = Vector3.zero;
     }
 
-    public void Initialize(int wave)
+    /// <summary>
+    /// Спавн моба. Модификатор волны приходит сюда только как
+    /// контекст: сама система волн не трогается, моб лишь усиливает
+    /// уже существующую роль в рамках уже существующего модификатора.
+    /// </summary>
+    public void Initialize(
+        int wave,
+        WaveModifier modifier = WaveModifier.None)
     {
         currentWave = Mathf.Max(wave, 1);
 
+        CacheRoleParameters();
+
+        RollVariant();
+
+        ApplyVariantTuning();
+
+        ApplyModifierRoleContext(modifier);
+
         ApplyWaveScaling();
+
+        ApplyFirstCastGrace();
+    }
+
+    // Копия нужных ролевых чисел в поля моба. EnemyData — общий
+    // ассет, поэтому множить и менять его нельзя: так вариант или
+    // модификатор волны изменили бы всех мобов этого типа сразу.
+    private void CacheRoleParameters()
+    {
+        moveSpeedMultiplier = 1f;
+        flankAngle = 0f;
+        interceptLead = 0f;
+        maxInterceptDistance = 0f;
+        dashCooldownMultiplier = 1f;
+        dashRange = 6f;
+        dashWindupSpeedScale = 0.25f;
+        dashTelegraphCrouch = 0.3f;
+
+        preferredDistance = 0f;
+        retreatDistance = 0f;
+        retreatSpeedScale = 0.9f;
+        repositionInterval = 2.2f;
+        repositionArcDegrees = 60f;
+        attackTelegraphCrouch = 0.18f;
+        rangedAttackRateMultiplier = 1f;
+
+        supportRadius = 0f;
+        braceRange = 0f;
+        allySearchInterval = 0.5f;
+
+        abilityCooldownMultiplier = 1f;
+        abilityDpsMultiplier = 1f;
+        abilityTargetsPlayerPosition = false;
+
+        supportCheckTimer = 0f;
+        hasTankSupport = false;
+        tankSupportAttackRateMultiplier = 1f;
+
+        hasRepositionTarget = false;
+        attackTelegraphActive = false;
+        dashWindup = false;
+
+        if (enemyData == null)
+            return;
+
+        flankAngle = enemyData.FlankAngle;
+        flankRetargetInterval = enemyData.FlankRetargetInterval;
+        interceptLead = enemyData.InterceptLead;
+        maxInterceptDistance = enemyData.MaxInterceptDistance;
+
+        dashRange = enemyData.DashRange;
+        dashWindupSpeedScale = enemyData.DashWindupSpeedScale;
+        dashTelegraphCrouch = enemyData.DashTelegraphCrouch;
+
+        preferredDistance = enemyData.PreferredDistance;
+        retreatDistance = enemyData.RetreatDistance;
+        retreatSpeedScale = enemyData.RetreatSpeedScale;
+        repositionInterval = enemyData.RepositionInterval;
+        repositionArcDegrees = enemyData.RepositionArcDegrees;
+        attackTelegraphCrouch = enemyData.AttackTelegraphCrouch;
+
+        supportRadius = enemyData.SupportRadius;
+        braceRange = enemyData.BraceRange;
+        allySearchInterval = enemyData.AllySearchInterval;
+
+        abilityDpsMultiplier = enemyData.AbilityDpsMultiplier;
+    }
+
+    // Вариант один раз за жизнь моба. Шанс и минимальную волну
+    // берём из его же EnemyData, боссу варианты не выпадают.
+    private void RollVariant()
+    {
+        variant = EnemyVariant.None;
+
+        if (enemyData == null || isBoss)
+            return;
+
+        if (enemyData.VariantChance <= 0f)
+            return;
+
+        if (currentWave < enemyData.VariantMinWave)
+            return;
+
+        if (Random.value > enemyData.VariantChance)
+            return;
+
+        switch (cachedEnemyType)
+        {
+            case EnemyType.Fast:
+                variant = EnemyVariant.Charger;
+                break;
+
+            case EnemyType.Ranged:
+                variant = EnemyVariant.Mobile;
+                break;
+
+            case EnemyType.Tank:
+                variant = EnemyVariant.Bulwark;
+                break;
+
+            case EnemyType.Elite:
+                variant = EnemyVariant.Aggressive;
+                break;
+
+            default:
+                return;
+        }
+
+        ApplyVariantTint();
+    }
+
+    // Вариант меняет поведение теми же ручками, что и обычный моб:
+    // тот же рывок, та же дистанция, та же зона. Ни одна из них не
+    // трогает HP, поэтому «страшный» враг остаётся честно убиваемым.
+    private void ApplyVariantTuning()
+    {
+        switch (variant)
+        {
+            case EnemyVariant.Charger:
+                // Рывок с более длинным разбегом, но и с более
+                // коротким замахом: чаще, но всё ещё читаемо.
+                dashRange *= 1.3f;
+                dashCooldownMultiplier *= 0.55f;
+                dashWindupSpeedScale *= 0.6f;
+                interceptLead *= 1.25f;
+                flankAngle = Mathf.Max(flankAngle, 18f);
+                break;
+
+            case EnemyVariant.Mobile:
+                // Держится ближе и ходит по кругу шире.
+                preferredDistance *= 0.8f;
+                retreatDistance *= 0.8f;
+                repositionInterval *= 0.55f;
+                repositionArcDegrees *= 1.5f;
+                rangedAttackRateMultiplier *= 0.85f;
+                break;
+
+            case EnemyVariant.Bulwark:
+                // Шире экран и встаёт насмерть, а не продавливает.
+                supportRadius *= 1.5f;
+                braceRange *= 1.3f;
+                break;
+
+            case EnemyVariant.Aggressive:
+                // Зона уходит под игрока, каст чаще, сам быстрее.
+                abilityTargetsPlayerPosition = true;
+                abilityCooldownMultiplier *= 0.7f;
+                abilityDpsMultiplier *= 1.2f;
+                moveSpeedMultiplier *= 1.25f;
+                break;
+        }
+    }
+
+    // Редкий вариант должен читаться до того, как игрок поймёт по
+    // поведению, что моб особенный. Подкраска идёт через
+    // MaterialPropertyBlock: общий материал префаба не меняется, и
+    // у обычных мобов остаётся ровно ноль дополнительной работы.
+    private void ApplyVariantTint()
+    {
+        if (variantRenderer == null)
+            return;
+
+        Material material = variantRenderer.sharedMaterial;
+
+        if (material == null)
+            return;
+
+        Color baseColor = Color.white;
+
+        if (material.HasProperty(BaseColorId))
+        {
+            baseColor = material.GetColor(BaseColorId);
+        }
+        else if (material.HasProperty(LegacyColorId))
+        {
+            baseColor = material.GetColor(LegacyColorId);
+        }
+
+        Color tint = GetVariantTint(variant);
+
+        Color tinted = new Color(
+            baseColor.r * tint.r,
+            baseColor.g * tint.g,
+            baseColor.b * tint.b,
+            baseColor.a
+        );
+
+        if (variantPropertyBlock == null)
+            variantPropertyBlock = new MaterialPropertyBlock();
+
+        variantRenderer.GetPropertyBlock(variantPropertyBlock);
+
+        variantPropertyBlock.SetColor(BaseColorId, tinted);
+        variantPropertyBlock.SetColor(LegacyColorId, tinted);
+
+        variantRenderer.SetPropertyBlock(variantPropertyBlock);
+    }
+
+    private static Color GetVariantTint(EnemyVariant target)
+    {
+        switch (target)
+        {
+            case EnemyVariant.Charger:
+                return new Color(1.3f, 0.82f, 0.55f);
+
+            case EnemyVariant.Mobile:
+                return new Color(0.7f, 1.1f, 1.3f);
+
+            case EnemyVariant.Bulwark:
+                return new Color(0.78f, 0.88f, 1.35f);
+
+            case EnemyVariant.Aggressive:
+                return new Color(1.4f, 0.6f, 0.55f);
+
+            default:
+                return Color.white;
+        }
+    }
+
+    // Модификаторы волн уже есть и уже выбирают, кого и сколько
+    // ставить. Здесь они только усиливают роль, чтобы волна
+    // «Рывок» реально читалась как быстрые, «Засада» — как заход
+    // с флангов, а «Стальная стена» — как плотная связка танка и
+    // дальника. Новых модификаторов и составов не добавляется.
+    private void ApplyModifierRoleContext(WaveModifier modifier)
+    {
+        if (!modifier.Has(WaveModifier.FastAssault) &&
+            !modifier.Has(WaveModifier.RangedAssault) &&
+            !modifier.Has(WaveModifier.Ambush) &&
+            !modifier.Has(WaveModifier.DangerZone) &&
+            !modifier.Has(WaveModifier.EliteHunt) &&
+            !modifier.Has(WaveModifier.LastStand))
+        {
+            return;
+        }
+
+        switch (cachedEnemyType)
+        {
+            case EnemyType.Fast:
+                if (modifier.Has(WaveModifier.FastAssault))
+                {
+                    dashCooldownMultiplier *= 0.8f;
+                    interceptLead *= 1.35f;
+                    flankAngle *= 1.25f;
+                }
+
+                if (modifier.Has(WaveModifier.Ambush))
+                    flankAngle *= 1.4f;
+
+                break;
+
+            case EnemyType.Ranged:
+                if (modifier.Has(WaveModifier.RangedAssault))
+                {
+                    repositionInterval *= 0.6f;
+                    repositionArcDegrees *= 1.2f;
+                }
+
+                if (modifier.Has(WaveModifier.DangerZone))
+                    preferredDistance += 1.5f;
+
+                break;
+
+            case EnemyType.Tank:
+                if (modifier.Has(WaveModifier.LastStand))
+                {
+                    supportRadius *= 1.3f;
+                    braceRange *= 1.2f;
+                }
+
+                break;
+
+            case EnemyType.Elite:
+                if (modifier.Has(WaveModifier.EliteHunt))
+                    abilityCooldownMultiplier *= 0.75f;
+
+                break;
+        }
+    }
+
+    // Элита без подготовки успевала кастовать зону ещё не дойдя до
+    // игрока. Первый каст откладываем так, чтобы игрок сначала
+    // увидел её и успело отойти — дальше ритм уже честный, с
+    // предупреждением перед уроном.
+    private void ApplyFirstCastGrace()
+    {
+        if (cachedEnemyType != EnemyType.Elite ||
+            enemyData == null)
+        {
+            return;
+        }
+
+        float grace =
+            Mathf.Max(
+                enemyData.AbilityWarning + 0.6f,
+                enemyData.AbilityCooldown * 0.5f
+            );
+
+        abilityTimer = grace * abilityCooldownMultiplier;
     }
 
     private void ApplyWaveScaling()
@@ -389,6 +849,10 @@ public class Enemy : MonoBehaviour
                 HandleFastBehaviour();
                 break;
 
+            case EnemyType.Tank:
+                HandleTankBehaviour();
+                break;
+
             case EnemyType.Elite:
                 HandleEliteBehaviour();
                 break;
@@ -457,6 +921,18 @@ public class Enemy : MonoBehaviour
 
         if (dashTimer > 0f)
             dashTimer -= deltaTime;
+
+        if (flankTimer > 0f)
+            flankTimer -= deltaTime;
+
+        if (repositionTimer > 0f)
+            repositionTimer -= deltaTime;
+
+        if (supportCheckTimer > 0f)
+            supportCheckTimer -= deltaTime;
+
+        if (allySearchTimer > 0f)
+            allySearchTimer -= deltaTime;
 
         UpdateDoT(deltaTime);
     }
@@ -580,9 +1056,16 @@ public class Enemy : MonoBehaviour
                 ? Mathf.Sqrt(desired.sqrMagnitude)
                 : 0f;
 
-        desired.Normalize();
+        // Перехват меняет только точку, куда бьёт рывок: он
+        // целится туда, куда игрок доедет, а не туда, где стоит.
+        Vector3 facing = desired;
 
-        TryStartDash(desired, distanceToPlayer);
+        if (distanceToPlayer > 0f)
+            facing = GetInterceptDirection(desired, distanceToPlayer);
+        else
+            facing.Normalize();
+
+        TryStartDash(facing, distanceToPlayer);
 
         if (isDashing)
         {
@@ -590,17 +1073,35 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        ApplyFlank(ref facing);
+
+        MoveInDirection(facing, 1f);
+    }
+
+    // Единственное место, где моб реально двигается по своей
+    // воле. Кэш направления и таймеры разрешения пересечений — те
+    // же, что были раньше, просто вынесены сюда, потому что теперь
+    // по направлению идут все роли, а не только преследование.
+    private void MoveInDirection(
+        Vector3 direction,
+        float speedScale)
+    {
+        if (direction.sqrMagnitude <= 0.0001f)
+            return;
+
         float speed =
             (enemyData != null
                 ? enemyData.MoveSpeed
                 : 2f) *
+            moveSpeedMultiplier *
+            speedScale *
             knockbackSpeedScale;
 
         Vector3 moveDirection;
 
         if (!hasCachedMoveDirection || navigationTimer <= 0f)
         {
-            moveDirection = AvoidObstacles(desired);
+            moveDirection = AvoidObstacles(direction);
             cachedMoveDirection = moveDirection;
             hasCachedMoveDirection = true;
             navigationTimer = Mathf.Max(navigationUpdateInterval, 0.01f);
@@ -624,14 +1125,90 @@ public class Enemy : MonoBehaviour
         RotateTowards(moveDirection);
     }
 
+    // Подход не в лоб, а с небольшим уходом в сторону. Без этого
+    // толпа слипается в одну линию и выглядит одним мобом: игрок
+    // видит одну цель вместо нескольких. Угол и сторона выбираются
+    // раз в flankRetargetInterval, иначе моб дёргается на месте.
+    private void ApplyFlank(ref Vector3 direction)
+    {
+        if (flankAngle <= 0.5f)
+            return;
+
+        if (flankTimer <= 0f)
+        {
+            flankTimer = flankRetargetInterval;
+
+            flankSide = Random.value < 0.5f ? -1 : 1;
+
+            flankAmount = Random.Range(0.4f, 1f);
+
+            // Смена стороны обязана сбросить кэш иначе до него ещё
+            // доедут старым курсом.
+            hasCachedMoveDirection = false;
+        }
+
+        Vector3 lateral = GetLateral(direction, flankSide);
+
+        // Slerp между двумя единичными векторами идёт ровно по углу,
+        // поэтому flankAngle градусов и даёт столько же градусов
+        // отклонения от прямой линии.
+        direction = Vector3.Slerp(
+            direction,
+            lateral,
+            Mathf.Clamp01(
+                flankAngle * flankAmount / 90f
+            )
+        );
+    }
+
+    // Перехват: быстрый враг целится не в текущую точку игрока,
+    // а в точку впереди по его вектору бега. Из-за этого нельзя
+    // просто бежать от него по прямой — выход вбок сбивает
+    // предсказание. Смещение ограничено, чтобы моб не улетал за
+    // угол и не «срезал» через стену.
+    private Vector3 GetInterceptDirection(
+        Vector3 toPlayer,
+        float distance)
+    {
+        if (interceptLead <= 0.01f ||
+            playerController == null)
+        {
+            return toPlayer.normalized;
+        }
+
+        Vector3 lead = playerController.PlanarVelocity * interceptLead;
+
+        lead.y = 0f;
+
+        float limit = Mathf.Min(
+            Mathf.Max(maxInterceptDistance, 0f),
+            distance
+        );
+
+        if (lead.sqrMagnitude > limit * limit)
+            lead = lead.normalized * limit;
+
+        Vector3 aimed = player.position + lead;
+
+        Vector3 direction = aimed - transform.position;
+
+        direction.y = 0f;
+
+        return direction.sqrMagnitude > 0.0001f
+            ? direction.normalized
+            : toPlayer.normalized;
+    }
+
 
     // =========================================================
     // FAST DASH
     // =========================================================
 
-    // Быстрые враги не просто гонятся — вблизи бросаются рывком.
-    // Преследование ведёт MoveTowardsPlayer, рывок берёт на себя
-    // движение до конца длительности.
+    // // Быстрые враги не просто гонятся — вблизи бросаются рывком.
+    // Схема теперь трёхшаговая: замах (враг приседает, его видно,
+    // линия огня по нему честная), рывок, перезарядка. Раньше рывок
+    // начинался мгновенно, и реакция выглядела как «моб просто
+    // ускорился», за которую игрок не отвечает.
     private void HandleFastBehaviour()
     {
         if (isDashing)
@@ -640,14 +1217,73 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        if (dashWindup)
+        {
+            HandleDashWindup();
+            return;
+        }
+
         MoveTowardsPlayer();
+    }
+
+    // Замах: продолжаем следить за игроком (рывок пойдёт туда, куда
+    // он окажется), но двигаемся втрое медленнее и приседаем.
+    // Это и есть честное окно реакции: моб опасен, но его видно и
+    // от него можно уйти.
+    private void HandleDashWindup()
+    {
+        if (player != null)
+        {
+            Vector3 toPlayer =
+                player.position - transform.position;
+
+            toPlayer.y = 0f;
+
+            if (toPlayer.sqrMagnitude > 0.01f)
+                dashWindupDirection = toPlayer.normalized;
+        }
+
+        dashWindupRemainingTime -= Time.deltaTime;
+
+        ApplyCrouchPose(
+            dashWindupRemainingTime,
+            dashWindupTotalTime,
+            dashTelegraphCrouch
+        );
+
+        if (dashWindupRemainingTime > 0f)
+        {
+            MoveInDirection(
+                dashWindupDirection,
+                dashWindupSpeedScale
+            );
+
+            return;
+        }
+
+        dashWindup = false;
+        transform.localScale = baseScale;
+
+        isDashing = true;
+        dashDirection = dashWindupDirection;
+
+        dashRemainingTime =
+            enemyData != null
+                ? enemyData.DashDuration
+                : 0.25f;
+
+        dashTimer =
+            dashCooldownMultiplier *
+            (enemyData != null
+                ? enemyData.DashCooldown
+                : 2.8f);
     }
 
     private void TryStartDash(
         Vector3 direction,
         float distanceToPlayer)
     {
-        if (isDashing)
+        if (isDashing || dashWindup)
             return;
 
         if (cachedEnemyType != EnemyType.Fast)
@@ -659,13 +1295,30 @@ public class Enemy : MonoBehaviour
         if (dashTimer > 0f)
             return;
 
-        if (distanceToPlayer > enemyData.DashRange)
+        if (distanceToPlayer > dashRange)
             return;
 
-        isDashing = true;
-        dashDirection = direction;
-        dashRemainingTime = enemyData.DashDuration;
-        dashTimer = enemyData.DashCooldown;
+        // Вплотную рывок не нужен: там и так работает контактный
+        // урон, а телеграф на таком расстоянии не читается.
+        if (distanceToPlayer < enemyData.DashMinRange)
+            return;
+
+        dashWindup = true;
+
+        dashWindupDirection = direction;
+
+        dashWindupTotalTime = enemyData.DashWarningTime;
+
+        dashWindupRemainingTime = dashWindupTotalTime;
+
+        if (dashWindupTotalTime <= 0f)
+        {
+            dashWindup = false;
+            isDashing = true;
+            dashDirection = direction;
+            dashRemainingTime = enemyData.DashDuration;
+            dashTimer = dashCooldownMultiplier * enemyData.DashCooldown;
+        }
     }
 
     private void ApplyDash()
@@ -677,6 +1330,7 @@ public class Enemy : MonoBehaviour
             isDashing = false;
             return;
         }
+
 
         float dashSpeed =
             (enemyData != null
@@ -717,6 +1371,26 @@ public class Enemy : MonoBehaviour
                 targetRotation,
                 rotationSpeed * Time.deltaTime
             );
+    }
+
+    // Телеграф через масштаб: замах виден даже в углу экрана и
+    // даже если моб за стеной. Только transform, без VFX и без
+    // аллокаций — масштаб возвращается к базовому, когда замах
+    // закончился.
+    private void ApplyCrouchPose(
+        float remaining,
+        float total,
+        float amount)
+    {
+        if (total <= 0f || amount <= 0f)
+            return;
+
+        float progress =
+            Mathf.Clamp01(remaining / total);
+
+        transform.localScale =
+            baseScale *
+            (1f - amount * progress);
     }
 
 
@@ -1385,6 +2059,10 @@ public class Enemy : MonoBehaviour
     // RANGED
     // =========================================================
 
+    // Дальник больше не «встал и стреляет». Он держит дистанцию,
+    // отходит, если к нему подошли, переставляется по кругу, когда
+    // ему удобно стоять, и телеграфирует каждый выстрел. Всё решает
+    // позиция, а не урон: цифры у него прежние.
     private void HandleRangedBehaviour()
     {
         Vector3 direction =
@@ -1400,38 +2078,474 @@ public class Enemy : MonoBehaviour
 
         direction.Normalize();
 
-        RotateTowards(direction);
+        UpdateCachedLineOfSight();
 
-        if (distance > enemyData.AttackRange)
+        // Замах: стоим, целимся, не двигаемся. Это и есть окно,
+        // в котором игрок успевает разорвать линию огня.
+        if (attackTelegraphActive)
         {
-            MoveTowardsPlayer();
+            RotateTowards(direction);
+
+            HandleAttackTelegraph();
+
             return;
         }
 
-        if (lineOfSightTimer <= 0f)
+        if (attackTimer <= 0f &&
+            cachedLineOfSight &&
+            distance <= enemyData.AttackRange &&
+            distance >= retreatDistance)
         {
-            cachedLineOfSight = HasLineOfSightToPlayer();
-            lineOfSightTimer = Mathf.Max(lineOfSightCheckInterval, 0.05f);
-        }
+            StartAttackTelegraph();
 
-        if (!cachedLineOfSight)
-        {
-            // Стена между врагом и игроком: подходим, пока не откроется линия огня
-            MoveTowardsPlayer();
             return;
         }
 
-        if (attackTimer <= 0f)
+        HandleRangedPositioning(direction, distance);
+    }
+
+    private void UpdateCachedLineOfSight()
+    {
+        if (lineOfSightTimer > 0f)
+            return;
+
+        cachedLineOfSight = HasLineOfSightToPlayer();
+
+        lineOfSightTimer =
+            Mathf.Max(lineOfSightCheckInterval, 0.05f);
+    }
+
+    private void StartAttackTelegraph()
+    {
+        float telegraph = enemyData.AttackTelegraph;
+
+        attackTelegraphActive = true;
+
+        attackTelegraphTotalTime = telegraph;
+
+        attackTelegraphRemainingTime = telegraph;
+
+        if (telegraph <= 0f)
+            HandleAttackTelegraph();
+    }
+
+    private void HandleAttackTelegraph()
+    {
+        if (attackTelegraphTotalTime > 0f)
         {
-            ShootFanAtPlayer(
-                enemyData.ProjectileDamage * scaledDamageMultiplier,
-                enemyData.ProjectileSpeed
+            attackTelegraphRemainingTime -= Time.deltaTime;
+
+            ApplyCrouchPose(
+                attackTelegraphRemainingTime,
+                attackTelegraphTotalTime,
+                attackTelegraphCrouch
             );
 
-            attackTimer =
-                enemyData.AttackRate;
+            if (attackTelegraphRemainingTime > 0f)
+                return;
         }
+
+        attackTelegraphActive = false;
+
+        transform.localScale = baseScale;
+
+        ShootFanAtPlayer(
+            enemyData.ProjectileDamage * scaledDamageMultiplier,
+            enemyData.ProjectileSpeed
+        );
+
+        attackTimer = GetRangedAttackInterval();
+
+        // После выстрела обязательно переставляемся: иначе
+        // дальник превращается в стационарную мишень, в которую
+        // просто вбивают издалека.
+        repositionTimer = Mathf.Max(repositionInterval, 0.2f);
+
+        hasRepositionTarget = false;
     }
+
+    // Порядок именно такой: безопасность (не подпускать вплотную)
+    // важнее перестановки, поэтому отход и сближение отменяют
+    // начатую перестановку, а не ждут её конца.
+    private void HandleRangedPositioning(
+        Vector3 direction,
+        float distance)
+    {
+        if (!cachedLineOfSight)
+        {
+            // Стена между врагом и игроком: подходим, пока не
+            // откроется линия огня. Иначе он просто стоит за
+            // препятствием и ждёт, когда игрок сам подойдёт.
+            ClearReposition();
+            MoveTowardsPlayer();
+
+            return;
+        }
+
+        if (distance < retreatDistance)
+        {
+            ClearReposition();
+
+            MoveInDirection(
+                -direction,
+                retreatSpeedScale
+            );
+
+            // Отступая, держим моб развёрнутым к игроку: иначе
+            // он выглядит как убегающий, а не отступающий с
+            // оружием наготове.
+            RotateTowards(direction);
+
+            return;
+        }
+
+        if (distance > preferredDistance)
+        {
+            ClearReposition();
+
+            MoveInDirection(direction, 1f);
+
+            return;
+        }
+
+        if (hasRepositionTarget)
+        {
+            Vector3 toTarget =
+                repositionTarget - transform.position;
+
+            toTarget.y = 0f;
+
+            if (toTarget.sqrMagnitude > 0.25f)
+            {
+                MoveInDirection(
+                    toTarget.normalized,
+                    1f
+                );
+
+                return;
+            }
+
+            hasRepositionTarget = false;
+        }
+
+        if (repositionTimer <= 0f)
+            StartReposition(direction);
+    }
+
+
+    private void ClearReposition()
+    {
+        if (!hasRepositionTarget &&
+            repositionTimer <= 0f)
+        {
+            return;
+        }
+
+        hasRepositionTarget = false;
+
+        repositionTimer = 0f;
+
+        hasCachedMoveDirection = false;
+    }
+
+    // Перестановка = точка на кольце вокруг игрока. Сторона и дуга
+    // случайны, поэтому два дальника не встают в одну точку. Одна
+    // проверка луча отсекает вариант «упереться в стену».
+    private void StartReposition(Vector3 toPlayer)
+    {
+        hasRepositionTarget = false;
+        hasCachedMoveDirection = false;
+
+        if (player == null)
+            return;
+
+        int side = Random.value < 0.5f ? -1 : 1;
+
+        Vector3 target = GetRepositionTarget(
+            toPlayer,
+            side
+        );
+
+        if (IsRepositionBlocked(target))
+        {
+            target = GetRepositionTarget(
+                toPlayer,
+                -side
+            );
+        }
+
+        if (IsRepositionBlocked(target))
+            return;
+
+        repositionTarget = target;
+        hasRepositionTarget = true;
+
+        repositionTimer = Mathf.Max(repositionInterval, 0.2f);
+    }
+
+    private Vector3 GetRepositionTarget(
+        Vector3 toPlayer,
+        int side)
+    {
+        Vector3 lateral = GetLateral(toPlayer, side);
+
+        // Дуга между «назад от игрока» и «вбок»: чем больше угол,
+        // тем дальше уход в сторону, тем меньше моб стоит спиной.
+        Vector3 arcDirection = Vector3.Slerp(
+            -toPlayer,
+            lateral,
+            Mathf.Clamp01(
+                repositionArcDegrees / 90f
+            )
+        );
+
+        Vector3 target =
+            player.position +
+            arcDirection * preferredDistance;
+
+        target.y = transform.position.y;
+
+        return target;
+    }
+
+    private bool IsRepositionBlocked(Vector3 target)
+    {
+        Vector3 toTarget =
+            target - transform.position;
+
+        toTarget.y = 0f;
+
+        float distance = toTarget.magnitude;
+
+        if (distance <= 0.01f)
+            return false;
+
+        Vector3 origin =
+            transform.position +
+            Vector3.up * rayHeight;
+
+        return HasStructureBlocking(
+            origin,
+            toTarget / distance,
+            distance
+        );
+    }
+
+    // Танк рядом = дальник опаснее: тот же урон, но окно между
+    // выстрелами меньше. Проверка кэшируется, обход списка живых
+    // врагов идёт 4 раза в секунду, а не каждый кадр.
+    private float GetRangedAttackInterval()
+    {
+        float interval =
+            enemyData.AttackRate *
+            rangedAttackRateMultiplier;
+
+        if (HasNearbyTankSupport())
+        {
+            interval *= tankSupportAttackRateMultiplier;
+        }
+
+        return Mathf.Max(interval, 0.4f);
+    }
+
+    private bool HasNearbyTankSupport()
+    {
+        if (supportCheckTimer > 0f)
+            return hasTankSupport;
+
+        supportCheckTimer =
+            Mathf.Max(supportCheckInterval, 0.05f);
+
+        hasTankSupport = false;
+
+        if (player == null)
+            return false;
+
+        Vector3 origin = transform.position;
+
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            Enemy ally = aliveEnemies[i];
+
+            if (ally == null ||
+                ally.IsDead ||
+                ally == this)
+            {
+                continue;
+            }
+
+            if (ally.cachedEnemyType != EnemyType.Tank)
+                continue;
+
+            float radius = ally.EffectiveSupportRadius;
+
+            if (radius <= 0.05f)
+                continue;
+
+            Vector3 offset =
+                ally.transform.position - origin;
+
+            offset.y = 0f;
+
+            if (offset.sqrMagnitude > radius * radius)
+                continue;
+
+            hasTankSupport = true;
+
+            tankSupportAttackRateMultiplier =
+                ally.enemyData != null
+                    ? ally.enemyData.SupportAttackRateMultiplier
+                    : 1f;
+
+            break;
+        }
+
+        return hasTankSupport;
+    }
+
+
+    // =========================================================
+    // TANK
+    // =========================================================
+
+    // Танк больше не идёт «просто в лоб». Он выбирает, кого
+    // экранировать, и встаёт между игроком и ближайшим дальником.
+    // Там, где экранировать некого и игрок подошёл вплотную, он
+    // упирается на месте и давит контактом. Это и есть тактическая
+    // задача: либо сначала убрать танка, либо пробиться к дальнику
+    // через его корпус.
+    private void HandleTankBehaviour()
+    {
+        Vector3 direction =
+            player.position - transform.position;
+
+        direction.y = 0f;
+
+        float distance =
+            direction.magnitude;
+
+        if (distance <= 0.01f)
+            return;
+
+        direction.Normalize();
+
+        // Упёрся: не протискивается вплотную, но и не отступает.
+        // Игрок может обойти, а если полезет вблизь — получит
+        // контактный урон.
+        if (braceRange > 0.1f && distance <= braceRange)
+        {
+            hasCachedMoveDirection = false;
+
+            RotateTowards(direction);
+
+            return;
+        }
+
+        Vector3 target = GetTankTarget();
+
+        Vector3 toTarget = target - transform.position;
+
+        toTarget.y = 0f;
+
+        if (toTarget.sqrMagnitude <= 0.04f)
+        {
+            hasCachedMoveDirection = false;
+
+            RotateTowards(direction);
+
+            return;
+        }
+
+        MoveInDirection(
+            toTarget.normalized,
+            1f
+        );
+    }
+
+    private Vector3 GetTankTarget()
+    {
+        if (player == null)
+            return transform.position;
+
+        if (braceRange <= 0.1f)
+            return player.position;
+
+        if (allySearchTimer <= 0f)
+        {
+            allySearchTimer =
+                Mathf.Max(allySearchInterval, 0.05f);
+
+            escortedAlly = FindAllyToScreen();
+        }
+
+        if (escortedAlly == null ||
+            escortedAlly.IsDead)
+        {
+            escortedAlly = null;
+
+            return player.position;
+        }
+
+        // Точка перед союзником на линии «союзник — игрок».
+        // Танк встаёт туда и закрывает дальника корпусом.
+        Vector3 toPlayer =
+            player.position -
+            escortedAlly.transform.position;
+
+        toPlayer.y = 0f;
+
+        if (toPlayer.sqrMagnitude <= 0.01f)
+            return player.position;
+
+        return escortedAlly.transform.position +
+            toPlayer.normalized * braceRange;
+    }
+
+    private Enemy FindAllyToScreen()
+    {
+        if (supportRadius <= 0.1f)
+            return null;
+
+        Vector3 origin = transform.position;
+
+        float bestSqr = supportRadius * supportRadius;
+
+        Enemy best = null;
+
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            Enemy ally = aliveEnemies[i];
+
+            if (ally == null ||
+                ally == this ||
+                ally.IsDead)
+            {
+                continue;
+            }
+
+            if (ally.cachedEnemyType != EnemyType.Ranged)
+                continue;
+
+            Vector3 offset =
+                ally.transform.position - origin;
+
+            offset.y = 0f;
+
+            float sqr = offset.sqrMagnitude;
+
+            if (sqr >= bestSqr)
+                continue;
+
+            bestSqr = sqr;
+            best = ally;
+        }
+
+        return best;
+    }
+
+    // Радиус, который дальник видит снаружи: уже с учётом варианта.
+    internal float EffectiveSupportRadius =>
+        supportRadius;
 
 
     // =========================================================
@@ -1442,30 +2556,35 @@ public class Enemy : MonoBehaviour
     {
         MoveTowardsPlayer();
 
-        if (abilityTimer <= 0f)
-        {
-            EliteAbility();
+        if (abilityTimer > 0f)
+            return;
 
-            if (enemyData != null)
-            {
-                abilityTimer =
-                    enemyData.AbilityCooldown;
-            }
-        }
+        EliteAbility();
+
+        abilityTimer =
+            enemyData.AbilityCooldown *
+            abilityCooldownMultiplier;
     }
 
+    // Базовая элита бьёт зоной вокруг себя: это честно для
+    // ближнего боя и заставляет держать дистанцию. Агрессивный
+    // вариант ставит зону туда, где игрок был в момент каста —
+    // с тем же предупреждением, но теперь от неё нужно уходить
+    // каждый каст, а не только в первый.
     private void EliteAbility()
     {
         if (enemyData == null)
             return;
 
-        // Вместо пассивного хилинга — зона шока вокруг элиты:
-        // нельзя стоять рядом и дожигать её с руки.
+        Vector3 center =
+            abilityTargetsPlayerPosition && player != null
+                ? player.position
+                : transform.position;
+
         GameObject zoneObject =
             new GameObject("Elite_Shockwave");
 
-        zoneObject.transform.position =
-            transform.position;
+        zoneObject.transform.position = center;
 
         zoneObject.transform.rotation =
             Quaternion.identity;
@@ -1476,7 +2595,7 @@ public class Enemy : MonoBehaviour
         zone.Initialize(
             enemyData.AbilityWarning,
             enemyData.AbilityRadius,
-            enemyData.AbilityDps,
+            enemyData.AbilityDps * abilityDpsMultiplier,
             enemyData.AbilityDuration,
             1.35f
         );

@@ -256,6 +256,30 @@ public class PlayerController : MonoBehaviour
 
     public bool IsDashing => dashTimer > 0f;
 
+    /// <summary>
+    /// Плоская скорость игрока в мировых единицах за секунду.
+    /// Нужна быстрым врагам, чтобы целиться не в текущую точку,
+    /// а в упреждение: побежал от рывка по прямой — попал, ушёл
+    /// вбок — промах. Свойство простое и не аллоцирует: это
+    /// масштабированный вектор направления ввода.
+    ///
+    /// Во время рывка игрока скорость выше, и здесь она не учтена:
+    /// упреждение считается по обычному бегу, поэтому быстрый
+    /// враг никогда не ставит «идеальный» выстрел в рывок.
+    /// </summary>
+    public Vector3 PlanarVelocity
+    {
+        get
+        {
+            float speed =
+                playerStats != null
+                    ? playerStats.MoveSpeed
+                    : moveSpeed;
+
+            return movement * speed;
+        }
+    }
+
     public float DashCooldownRemaining => dashCooldownTimer;
 
     public float DashCooldown => dashCooldown;

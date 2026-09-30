@@ -712,7 +712,7 @@ public class EnemySpawner : MonoBehaviour
         Enemy enemy = enemyObject.GetComponent<Enemy>();
 
         if (enemy != null)
-            enemy.Initialize(wave);
+            enemy.Initialize(wave, currentWaveModifier);
     }
 
     // =========================================================
@@ -1143,7 +1143,7 @@ public class EnemySpawner : MonoBehaviour
         Enemy enemy = enemyObject.GetComponent<Enemy>();
 
         if (enemy != null)
-            enemy.Initialize(CurrentWave);
+            enemy.Initialize(CurrentWave, currentWaveModifier);
 
         return enemy;
     }

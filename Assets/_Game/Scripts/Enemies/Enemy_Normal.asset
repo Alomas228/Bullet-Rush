@@ -22,3 +22,12 @@ MonoBehaviour:
   waveDamagePercent: 0.05
   waveScorePercent: 0.1
   scoreValue: 10
+  enemyType: 0
+  attackRange: 8
+  attackRate: 1.5
+  projectileDamage: 5
+  projectileSpeed: 8
+  damageMultiplier: 1
+  healthMultiplier: 1
+  flankAngle: 12
+  flankRetargetInterval: 2.2
