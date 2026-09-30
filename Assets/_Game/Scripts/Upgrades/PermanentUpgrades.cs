@@ -23,6 +23,12 @@ public static class PermanentUpgrades
 {
     private const string PrefsKey = "ArcadeSurvivor.PermanentUpgrades";
 
+    /// <summary>
+    /// Префикс блока постоянных улучшений в таблице переводов.
+    /// Ключи вида «damage» живут как «stat_upg.damage.name».
+    /// </summary>
+    private const string LangPrefix = "stat_upg.";
+
     /// <summary>Сколько уровней у каждого параметра.</summary>
     public const int MaxLevel = 10;
 
@@ -55,18 +61,27 @@ public static class PermanentUpgrades
         /// </summary>
         public string Key;
 
-        public string Name => Lang.Get(Key + ".name");
+        public string Name => Lang.Get(LangKey(".name"));
 
-        public string Description => Lang.Get(Key + ".desc");
+        public string Description => Lang.Get(LangKey(".desc"));
 
         /// <summary>Шаблон итогового бонуса, {0} — значение.</summary>
-        public string Format => Lang.Get(Key + ".format");
+        public string Format => Lang.Get(LangKey(".format"));
 
         /// <summary>
         /// Короткий шаблон без названия параметра — для карточки,
         /// где значение стоит рядом со стрелкой.
         /// </summary>
-        public string ShortFormat => Lang.Get(Key + ".short");
+        public string ShortFormat => Lang.Get(LangKey(".short"));
+
+        /// <summary>
+        /// Собирает полный ключ перевода. Раньше здесь стояло
+        /// просто Key + суффикс, из-за чего панель постоянных
+        /// улучшений показывала игроку сами ключи («damage.name»)
+        /// вместо названий — все тексты меню были сломаны.
+        /// </summary>
+        private string LangKey(string suffix) =>
+            LangPrefix + Key + suffix;
 
         public ValueMode Mode;
 

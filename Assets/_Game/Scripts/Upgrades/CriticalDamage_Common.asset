@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: CriticalDamage_Common
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: +50% Crit Damage
+  langKey: crit_damage
+  upgradeName: Crit Power
   description: Increase damage of critical hits
   type: 8
   rarity: 0
-  percentValue: 0.5
+  percentValue: 0.25
+  maxStacks: 3
   weaponData: {fileID: 0}

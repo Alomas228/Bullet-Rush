@@ -87,7 +87,7 @@ public class UpgradeUI : MonoBehaviour
                 if (cards[i].NameText != null)
                 {
                     cards[i].NameText.text =
-                        upgrade.LocalizedName;
+                        BuildCardTitle(upgrade);
 
                     // Цвет названия = редкость (об этом говорит обучение).
                     cards[i].NameText.color =
@@ -97,7 +97,7 @@ public class UpgradeUI : MonoBehaviour
                 if (cards[i].DescriptionText != null)
                 {
                     cards[i].DescriptionText.text =
-                        upgrade.LocalizedDescription;
+                        BuildCardDescription(upgrade);
                 }
             }
             else
@@ -139,6 +139,71 @@ public class UpgradeUI : MonoBehaviour
 
             Time.timeScale = 1f;
             Hide();
+        }
+    }
+
+    /// <summary>
+    /// Заголовок карточки с номером уровня: «Горение II». Без
+    /// номера повторный уровень выглядит как то же самое
+    /// улучшение, и непонятно, брать его или нет. Оружие
+    /// уровней не имеет.
+    /// </summary>
+    private static string BuildCardTitle(UpgradeData upgrade)
+    {
+        string name = upgrade.LocalizedName;
+
+        int nextLevel = GetNextLevel(upgrade);
+
+        if (nextLevel <= 1)
+            return name;
+
+        return name + " " + ToRomanNumeral(nextLevel);
+    }
+
+    /// <summary>
+    /// Описание с явным «уровень N из M». Числа в описании
+    /// эффектов намеренно не указаны: они суммируются от уровня к
+    /// уровню и в тексте устаревают, из-за чего карточка обещает
+    /// одно, а работает другое.
+    /// </summary>
+    private static string BuildCardDescription(UpgradeData upgrade)
+    {
+        string description = upgrade.LocalizedDescription;
+
+        int nextLevel = GetNextLevel(upgrade);
+        int maxLevel = GetMaxLevel(upgrade);
+
+        if (maxLevel <= 1)
+            return description;
+
+        return description + "\n" + Lang.Get(
+            "runup.level_of",
+            nextLevel,
+            maxLevel
+        );
+    }
+
+    private static int GetNextLevel(UpgradeData upgrade) =>
+        UpgradeManager.Instance.GetStacks(upgrade) + 1;
+
+    private static int GetMaxLevel(UpgradeData upgrade) =>
+        UpgradeManager.Instance.GetMaxStacks(upgrade);
+
+    private static string ToRomanNumeral(int value)
+    {
+        switch (value)
+        {
+            case 2:
+                return "II";
+
+            case 3:
+                return "III";
+
+            case 4:
+                return "IV";
+
+            default:
+                return value.ToString();
         }
     }
 

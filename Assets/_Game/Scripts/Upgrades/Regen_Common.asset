@@ -12,10 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: Regen_Common
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: +0.5 HP/s Regen
+  langKey: regen
+  upgradeName: Regen
   description: Regenerate health over time
   type: 9
   rarity: 0
   percentValue: 0.1
+  maxStacks: 3
   weaponData: {fileID: 0}
   effectData: {fileID: 0}

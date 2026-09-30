@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: Pierce_Common
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: +1 Pierce
-  description: Bullets pass through one additional enemy
+  langKey: pierce
+  upgradeName: Pierce
+  description: Bullets pass through more enemies
   type: 11
   rarity: 0
   percentValue: 1
+  maxStacks: 2
   weaponData: {fileID: 0}

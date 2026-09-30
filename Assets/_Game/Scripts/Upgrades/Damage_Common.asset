@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: Damage_Common
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: +10% Damage
+  langKey: damage
+  upgradeName: Damage
   description: Increase weapon damage
   type: 0
   rarity: 0
   percentValue: 0.1
+  maxStacks: 4
   weaponData: {fileID: 0}

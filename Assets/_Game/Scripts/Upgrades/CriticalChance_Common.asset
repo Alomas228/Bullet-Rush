@@ -12,9 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95aefc17e38db7f489288b24481fb047, type: 3}
   m_Name: CriticalChance_Common
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeData
-  upgradeName: +5% Crit Chance
+  langKey: crit_chance
+  upgradeName: Crit Chance
   description: Increase chance to critically hit
   type: 7
   rarity: 0
   percentValue: 0.05
+  maxStacks: 4
   weaponData: {fileID: 0}

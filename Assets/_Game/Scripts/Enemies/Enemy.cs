@@ -251,6 +251,14 @@ public class Enemy : MonoBehaviour
     private float bleedRemainingTime;
     private float bleedTickInterval;
     private float bleedTickTimer;
+    private int bleedStacks;
+
+    /// <summary>
+    /// Сколько раз кровотечение складывается на одном враге.
+    /// Без потолка быстрая стрельба разгоняла бы DoT в
+    /// произвольные значения.
+    /// </summary>
+    private const int MaxBleedStacks = 4;
 
     // Количество живых врагов в сцене. Позволяет волновому
     // менеджеру обходиться без FindGameObjectsWithTag каждый кадр.
@@ -1063,6 +1071,7 @@ public class Enemy : MonoBehaviour
             if (bleedRemainingTime <= 0f)
             {
                 bleedActive = false;
+                bleedStacks = 0;
             }
             else
             {
@@ -3515,7 +3524,15 @@ public class Enemy : MonoBehaviour
             damagePerSecond * tickInterval;
         burnRemainingTime = duration;
         burnTickInterval = tickInterval;
-        burnTickTimer = tickInterval;
+
+        // Таймер тика сбрасывается только при первом поджоге.
+        // Раньше он обнулялся на каждом попадании, и оружие с
+        // частой стрельбой (выстрел каждые 0.18 с против тика в
+        // 0.5 с) перезаписывало таймер быстрее, чем тот успевал
+        // дойти до нуля: горение висело, а урона не наносило.
+        if (!burnActive)
+            burnTickTimer = tickInterval;
+
         burnActive = true;
     }
 
@@ -3542,11 +3559,23 @@ public class Enemy : MonoBehaviour
                 0.05f
             );
 
+        // Кровотечение копится, а не перезаписывается: серия
+        // попаданий складывает урон, иначе оно было бы обычным
+        // вторым горением. Потолок не даёт стаку DoT уйти в
+        // бесконечность на дробнозарядном оружии.
+        if (bleedStacks < MaxBleedStacks)
+            bleedStacks++;
+
         bleedDamagePerTick =
-            damagePerSecond * tickInterval;
+            damagePerSecond * tickInterval * bleedStacks;
         bleedRemainingTime = duration;
         bleedTickInterval = tickInterval;
-        bleedTickTimer = tickInterval;
+
+        // Как и с горением, таймер тика сбрасывается только при
+        // первом наложении, иначе быстрая стрельба гасит урон.
+        if (!bleedActive)
+            bleedTickTimer = tickInterval;
+
         bleedActive = true;
     }
 
@@ -3715,10 +3744,17 @@ public class Enemy : MonoBehaviour
         SpawnBloodPool();
         SpawnLoot();
 
+        // Горение переносится на соседей до сброса флагов: это
+        // единственная награда за то, что врага убили огнём, и она
+        // отличает горение от кровотечения, которое просто тикает.
+        if (burnActive)
+            RunUpgrades.Instance?.SpreadBurn(transform.position);
+
         PlayEnemyDeathSound();
 
         burnActive = false;
         bleedActive = false;
+        bleedStacks = 0;
 
         // ============================================
         // LEADERBOARD METRICS

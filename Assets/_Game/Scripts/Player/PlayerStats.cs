@@ -19,7 +19,12 @@ public class PlayerStats : MonoBehaviour
     [SerializeField] private float criticalDamageMultiplier = 2f;
 
     [Header("Projectile")]
-    [SerializeField] private int bonusProjectiles;
+    // Доля, на которую умножается число снарядов оружия.
+    // Раньше здесь была плоская прибавка: "+1 снаряд" на однозарядном
+    // оружии — это ровно +100% урона за выстрел, и четыре стака
+    // давали +400% к урону, а к нему прибавлялись crit и статусы.
+    // Процент ограничен потолком снарядов в Weapon.FireVolley.
+    [SerializeField] private float projectileCountPercent;
 
     [SerializeField] private int bonusPierce;
 
@@ -51,8 +56,8 @@ public class PlayerStats : MonoBehaviour
     public float ScoreMultiplier =>
         Mathf.Max(scoreMultiplier, 0f);
 
-    public int BonusProjectiles =>
-        Mathf.Max(bonusProjectiles, 0);
+    public float ProjectileCountPercent =>
+        Mathf.Max(projectileCountPercent, 0f);
 
     public int BonusPierce =>
         Mathf.Max(bonusPierce, 0);
@@ -140,12 +145,17 @@ public class PlayerStats : MonoBehaviour
     // PROJECTILE COUNT
     // =========================================================
 
-    public void AddProjectileCount(float amount)
+    /// <summary>
+    /// Прибавляет процент к числу снарядов. Само округление и потолок
+    /// применяются в Weapon, потому что зависят от базового числа
+    /// снарядов конкретного оружия.
+    /// </summary>
+    public void AddProjectileCountPercent(float percent)
     {
-        bonusProjectiles += Mathf.RoundToInt(amount);
+        projectileCountPercent += percent;
 
-        bonusProjectiles =
-            Mathf.Max(bonusProjectiles, 0);
+        projectileCountPercent =
+            Mathf.Max(projectileCountPercent, 0f);
     }
 
     // =========================================================

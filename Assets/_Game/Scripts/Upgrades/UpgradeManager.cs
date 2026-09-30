@@ -45,6 +45,23 @@ public class UpgradeManager : MonoBehaviour
     [Header("Selection")]
     [SerializeField] private int choicesCount = 3;
 
+    [Tooltip(
+        "Во сколько раз чаще предлагается уже взятое улучшение. " +
+        "Это то, из-за чего карточки перестают быть случайными: " +
+        "если игрок дважды брал горение, скорее всего он строит " +
+        "билд на горении, и третий уровень тому и подтверждение."
+    )]
+    [Min(1f)]
+    [SerializeField] private float takenAffinity = 1.6f;
+
+    [Tooltip(
+        "Штраф за повтор того же улуччения, что и на прошлой волне. " +
+        "Без него три карточки подряд могли быть одним и тем же — " +
+        "выбор перестаёт быть выбором."
+    )]
+    [Range(0f, 1f)]
+    [SerializeField] private float repeatPenalty = 0.15f;
+
     [Header("Weapon Drop")]
     [Range(0f, 1f)]
     [SerializeField] private float weaponDropChance = 0.20f;
@@ -54,6 +71,17 @@ public class UpgradeManager : MonoBehaviour
 
     private List<UpgradeData> runtimeWeaponUpgrades =
         new List<UpgradeData>();
+
+    // Сколько раз за текущий забег взято каждое улучшение.
+    // Раньше выбор ничем не помнился, поэтому лимита не существовало
+    // и улучшение с математическим множителем можно было брать
+    // на каждой волне.
+    private readonly Dictionary<UpgradeData, int> takenStacks =
+        new Dictionary<UpgradeData, int>();
+
+    private UpgradeData lastTaken;
+    private bool subscribed;
+    private bool runStarted;
 
     public IReadOnlyList<UpgradeData> CurrentChoices =>
         currentChoices;
@@ -88,17 +116,133 @@ public class UpgradeManager : MonoBehaviour
         Instance = this;
     }
 
+    private void Start()
+    {
+        // В сцене ссылка на RunUpgrades пустая, она добиралась
+        // лениво, только когда игрок впервые брал эффект. Из-за
+        // этого обучение, где окно выбора открывается вне волны,
+        // могло применить эффект раньше, чем компонент появился.
+        EnsureRunUpgrades();
+
+        // Сцена может стартовать сразу в игре, а может прийти из
+        // меню. В обоих случаях первый забег должен быть чистым.
+        if (GameStateManager.Instance == null)
+            return;
+
+        GameStateManager.Instance.OnGameStateChanged +=
+            HandleStateChanged;
+
+        subscribed = true;
+
+        if (GameStateManager.Instance.CurrentState ==
+            GameState.Playing)
+        {
+            BeginRun();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (subscribed && GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.OnGameStateChanged -=
+                HandleStateChanged;
+
+            subscribed = false;
+        }
+    }
+
+    private void HandleStateChanged(GameState state)
+    {
+        if (state == GameState.Playing)
+        {
+            BeginRun();
+            return;
+        }
+
+        if (state == GameState.Menu)
+            ResetRunStacks();
+    }
+
+    /// <summary>
+    /// Чистит память о выборах перед новым забегом. Статы игрока и
+    /// компонент RunUpgrades живут на префабе и перезапускаются
+    /// вместе с игроком — здесь нужны только счётчики стеков.
+    /// </summary>
+    private void BeginRun()
+    {
+        if (runStarted)
+            return;
+
+        runStarted = true;
+
+        ResetRunStacks();
+    }
+
+    private void ResetRunStacks()
+    {
+        runStarted = false;
+
+        takenStacks.Clear();
+
+        lastTaken = null;
+    }
+
+    /// <summary>
+    /// Сколько раз улучшение уже взято в этом забеге.
+    /// Оружие из дропа в счёт не идёт: оно каждый раз новое.
+    /// </summary>
+    public int GetStacks(UpgradeData upgrade)
+    {
+        if (upgrade == null)
+            return 0;
+
+        if (takenStacks.TryGetValue(upgrade, out int stacks))
+            return stacks;
+
+        return 0;
+    }
+
+    public int GetMaxStacks(UpgradeData upgrade) =>
+        upgrade != null
+            ? upgrade.MaxStacks
+            : 0;
+
+    public bool IsMaxed(UpgradeData upgrade) =>
+        upgrade != null &&
+        GetStacks(upgrade) >= GetMaxStacks(upgrade);
+
+    /// <summary>
+    /// Стоит ли вообще показывать это улучшение игроку. Отсеивает
+    /// уже прокачанное до лимита и то, что не может сработать
+    /// с текущим оружием.
+    /// </summary>
+    public bool IsUsable(UpgradeData upgrade) =>
+        upgrade != null &&
+        !IsMaxed(upgrade) &&
+        IsUsefulForCurrentWeapon(upgrade);
+
     public void GenerateChoices()
     {
         ClearPreviousChoices();
 
-        if (availableUpgrades.Count == 0)
-        {
-            Debug.LogWarning(
-                "UpgradeManager: no normal upgrades available."
-            );
+        List<UpgradeData> pool = BuildValidPool();
 
-            return;
+        if (pool.Count == 0)
+        {
+            // Пул исчерпан. Молча закрывать окно нельзя: панель
+            // осталась бы висеть с нулём кнопок и забег встал бы
+            // навсегда. Поэтому снимаем только лимит стаков.
+            pool = BuildPoolIgnoringStacks();
+
+            if (pool.Count == 0)
+            {
+                Debug.LogWarning(
+                    "UpgradeManager: нет доступных улучшений."
+                );
+
+                return;
+            }
         }
 
         bool weaponDrop =
@@ -107,7 +251,7 @@ public class UpgradeManager : MonoBehaviour
 
         if (weaponDrop)
         {
-            GenerateChoicesWithWeapon();
+            GenerateChoicesWithWeapon(pool);
 
             Debug.Log(
                 "WEAPON DROP! A weapon appeared in upgrade choices."
@@ -115,7 +259,7 @@ public class UpgradeManager : MonoBehaviour
         }
         else
         {
-            GenerateNormalChoices();
+            GenerateNormalChoices(pool);
 
             Debug.Log(
                 "No weapon this wave. Normal upgrades generated."
@@ -128,34 +272,100 @@ public class UpgradeManager : MonoBehaviour
         {
             Debug.Log(
                 $"{upgrade.UpgradeName} " +
-                $"[{upgrade.Rarity}]"
+                $"[{upgrade.Rarity}] " +
+                $"уровень {GetStacks(upgrade) + 1}/" +
+                $"{GetMaxStacks(upgrade)}"
             );
         }
     }
 
-    private void GenerateNormalChoices()
+    /// <summary>
+    /// Пул, из которого игрок реально может выбирать: без пустых
+    /// ассетов, без прокачанного до лимита и без бессмысленного
+    /// для текущего ствола.
+    /// </summary>
+    private List<UpgradeData> BuildValidPool()
     {
-        List<UpgradeData> pool =
-            new List<UpgradeData>(availableUpgrades);
+        var pool = new List<UpgradeData>(availableUpgrades.Count);
 
-        int count =
-            Mathf.Min(
-                choicesCount,
-                pool.Count
-            );
-
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < availableUpgrades.Count; i++)
         {
-            UpgradeData selected =
-                PickWeighted(pool);
-
-            currentChoices.Add(selected);
-
-            pool.Remove(selected);
+            if (IsUsable(availableUpgrades[i]))
+                pool.Add(availableUpgrades[i]);
         }
+
+        return pool;
     }
 
-    private void GenerateChoicesWithWeapon()
+    private List<UpgradeData> BuildPoolIgnoringStacks()
+    {
+        var pool = new List<UpgradeData>(availableUpgrades.Count);
+
+        for (int i = 0; i < availableUpgrades.Count; i++)
+        {
+            UpgradeData candidate = availableUpgrades[i];
+
+            if (candidate == null)
+                continue;
+
+            if (!IsUsefulForCurrentWeapon(candidate))
+                continue;
+
+            pool.Add(candidate);
+        }
+
+        return pool;
+    }
+
+    /// <summary>
+    /// Убирает улучшения, которые с текущим оружием ничего не
+    /// меняют. Сейчас такой случай один: Projectile Count у
+    /// дробовика, который уже упёрся в потолок снарядов. Раньше
+    /// карточка продолжала выпадать и обещать «+70%», хотя число
+    /// снарядов уже не менялось.
+    /// </summary>
+    private bool IsUsefulForCurrentWeapon(UpgradeData upgrade)
+    {
+        WeaponData current =
+            weapon != null
+                ? weapon.Data
+                : null;
+
+        if (current == null)
+            return true;
+
+        if (upgrade.Type != UpgradeType.ProjectileCount)
+            return true;
+
+        int baseCount =
+            Mathf.Max(current.ProjectileCount, 1);
+
+        float percent =
+            playerStats != null
+                ? playerStats.ProjectileCountPercent
+                : 0f;
+
+        int now =
+            WeaponData.ResolveProjectileCount(
+                baseCount,
+                percent
+            );
+
+        int next =
+            WeaponData.ResolveProjectileCount(
+                baseCount,
+                percent + upgrade.PercentValue
+            );
+
+        return next > now;
+    }
+
+    private void GenerateNormalChoices(List<UpgradeData> pool)
+    {
+        FillChoiceSlots(pool, choicesCount);
+    }
+
+    private void GenerateChoicesWithWeapon(List<UpgradeData> pool)
     {
         WeaponData selectedWeapon =
             GetRandomWeapon();
@@ -178,23 +388,47 @@ public class UpgradeManager : MonoBehaviour
             );
         }
 
-        List<UpgradeData> pool =
-            new List<UpgradeData>(availableUpgrades);
+        FillChoiceSlots(
+            pool,
+            choicesCount - currentChoices.Count
+        );
+    }
 
-        int normalChoices =
-            choicesCount -
-            currentChoices.Count;
+    /// <summary>
+    /// Заполняет слоты выбора. Первый слот отдаётся свежему
+    /// улучшению, если в пуле ещё есть ни разу не взятое: именно
+    /// оно превращает три карточки из лотереи в выбор
+    /// направления, а остальные слоты позволяют углубить то,
+    /// что уже начато.
+    /// </summary>
+    private void FillChoiceSlots(
+        List<UpgradeData> pool,
+        int slotCount)
+    {
+        if (pool == null || pool.Count == 0)
+            return;
 
         int count =
             Mathf.Min(
-                normalChoices,
+                slotCount,
                 pool.Count
             );
 
+        bool freshPlaced = false;
+
         for (int i = 0; i < count; i++)
         {
+            bool wantFresh =
+                !freshPlaced && HasFreshUpgrade(pool);
+
             UpgradeData selected =
-                PickWeighted(pool);
+                PickWeighted(pool, wantFresh);
+
+            if (selected == null)
+                break;
+
+            if (GetStacks(selected) == 0)
+                freshPlaced = true;
 
             currentChoices.Add(selected);
 
@@ -202,91 +436,150 @@ public class UpgradeManager : MonoBehaviour
         }
     }
 
+    private bool HasFreshUpgrade(List<UpgradeData> pool)
+    {
+        for (int i = 0; i < pool.Count; i++)
+        {
+            if (GetStacks(pool[i]) == 0)
+                return true;
+        }
+
+        return false;
+    }
+
     private WeaponData GetRandomWeapon()
     {
-        if (availableWeapons.Count == 0)
-            return null;
-
-        int totalWeight = 0;
+        // Уже купленное оружие не предлагаем: карточка с ним
+        // ничего не даёт, выбор тратится впустую. Стартовое
+        // оружие бесплатное, поэтому IsOwned всегда истинно и
+        // выпадать не будет.
+        List<WeaponData> candidates =
+            new List<WeaponData>(availableWeapons.Count);
 
         foreach (WeaponData weapon in availableWeapons)
         {
             if (weapon == null)
                 continue;
 
+            if (EquipmentManager.IsOwned(weapon))
+                continue;
+
+            candidates.Add(weapon);
+        }
+
+        if (candidates.Count == 0)
+            return null;
+
+        int totalWeight = 0;
+
+        foreach (WeaponData weapon in candidates)
+        {
             totalWeight += GetRarityWeight(weapon.Rarity);
         }
 
         if (totalWeight <= 0)
         {
-            return availableWeapons[
-                Random.Range(0, availableWeapons.Count)
+            return candidates[
+                Random.Range(0, candidates.Count)
             ];
         }
 
         int roll =
             Random.Range(0, totalWeight);
 
-        foreach (WeaponData weapon in availableWeapons)
+        foreach (WeaponData weapon in candidates)
         {
-            if (weapon == null)
-                continue;
-
             roll -= GetRarityWeight(weapon.Rarity);
 
             if (roll < 0)
                 return weapon;
         }
 
-        return availableWeapons[availableWeapons.Count - 1];
+        return candidates[candidates.Count - 1];
     }
 
     /// <summary>
-    /// Случайный элемент пула, взвешенный по редкости:
-    /// чем выше редкость, тем реже выпадает.
+    /// Случайный элемент пула, взвешенный по редкости и по
+    /// состоянию билда: уже взятое улучшение выпадает чаще
+    /// (значит, его берут осознанно), а только что взятое —
+    /// заметно реже. При onlyFresh берётся лишь то, что игрок
+    /// ещё не пробовал.
     /// </summary>
     private UpgradeData PickWeighted(
-        List<UpgradeData> pool)
+        List<UpgradeData> pool,
+        bool onlyFresh)
     {
         if (pool == null || pool.Count == 0)
             return null;
 
-        int totalWeight = 0;
+        UpgradeData picked =
+            PickWeightedCore(pool, onlyFresh);
+
+        // Свежих не нашлось — значит, билд уже собран и
+        // оставшиеся слоты нужно долить любым доступным.
+        if (picked == null && onlyFresh)
+            picked = PickWeightedCore(pool, false);
+
+        return picked;
+    }
+
+    private UpgradeData PickWeightedCore(
+        List<UpgradeData> pool,
+        bool onlyFresh)
+    {
+        float totalWeight = 0f;
 
         for (int i = 0; i < pool.Count; i++)
         {
-            UpgradeData candidate = pool[i];
-
-            if (candidate == null)
-                continue;
-
-            totalWeight += GetRarityWeight(candidate.Rarity);
+            totalWeight += GetChoiceWeight(
+                pool[i],
+                onlyFresh
+            );
         }
 
-        if (totalWeight <= 0)
+        if (totalWeight <= 0f)
         {
             return pool[
                 Random.Range(0, pool.Count)
             ];
         }
 
-        int roll =
-            Random.Range(0, totalWeight);
+        float roll = Random.Range(0f, totalWeight);
 
         for (int i = 0; i < pool.Count; i++)
         {
             UpgradeData candidate = pool[i];
 
-            if (candidate == null)
-                continue;
+            roll -= GetChoiceWeight(candidate, onlyFresh);
 
-            roll -= GetRarityWeight(candidate.Rarity);
-
-            if (roll < 0)
+            if (roll < 0f)
                 return candidate;
         }
 
         return pool[pool.Count - 1];
+    }
+
+    private float GetChoiceWeight(
+        UpgradeData upgrade,
+        bool onlyFresh)
+    {
+        if (upgrade == null)
+            return 0f;
+
+        int stacks = GetStacks(upgrade);
+
+        if (onlyFresh && stacks > 0)
+            return 0f;
+
+        float weight = GetRarityWeight(upgrade.Rarity);
+
+        if (stacks > 0)
+            weight *= takenAffinity;
+
+        if (upgrade == lastTaken)
+            weight *= repeatPenalty;
+
+        return weight;
     }
 
     private int GetRarityWeight(Rarity rarity)
@@ -311,13 +604,39 @@ public class UpgradeManager : MonoBehaviour
 
         ApplyUpgrade(selected);
 
+        RegisterPick(selected);
+
         PlayUpgradePickSound();
 
         Debug.Log(
             $"Player chose: " +
             $"{selected.UpgradeName} " +
-            $"[{selected.Rarity}]"
+            $"[{selected.Rarity}] " +
+            $"уровень {GetStacks(selected)}/" +
+            $"{GetMaxStacks(selected)}"
         );
+    }
+
+    /// <summary>
+    /// Запоминает выбор, чтобы он влиял и на дальнейшие выдачи,
+    /// и на счётчик уровня в карточке.
+    /// </summary>
+    private void RegisterPick(UpgradeData upgrade)
+    {
+        if (upgrade == null)
+            return;
+
+        // Оружие из дропа создаётся в рантайме и каждый раз новое,
+        // поэтому счётчики стаков по нему не ведём. Иначе штраф за
+        // повтор съедал бы настоящее улучшение, выбранное следом.
+        if (!availableUpgrades.Contains(upgrade))
+            return;
+
+        takenStacks.TryGetValue(upgrade, out int stacks);
+
+        takenStacks[upgrade] = stacks + 1;
+
+        lastTaken = upgrade;
     }
 
     public void ApplyUpgrade(UpgradeData upgrade)
@@ -421,7 +740,10 @@ public class UpgradeManager : MonoBehaviour
 
                 if (playerStats != null)
                 {
-                    playerStats.AddProjectileCount(
+                    // Процент, а не «+1 снаряд»: у однозарядного
+                    // ствола прибавка одного снаряда удваивала урон
+                    // залпа. Само число считает Weapon.
+                    playerStats.AddProjectileCountPercent(
                         upgrade.PercentValue
                     );
                 }
@@ -669,6 +991,14 @@ public class UpgradeManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (subscribed && GameStateManager.Instance != null)
+        {
+            GameStateManager.Instance.OnGameStateChanged -=
+                HandleStateChanged;
+
+            subscribed = false;
+        }
+
         foreach (UpgradeData upgrade in runtimeWeaponUpgrades)
         {
             if (upgrade != null)

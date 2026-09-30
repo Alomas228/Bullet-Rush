@@ -6,6 +6,19 @@ using UnityEngine;
 /// </summary>
 public class RunUpgrades : MonoBehaviour
 {
+    /// <summary>
+    /// Доступ напрямую, без поиска по сцене. Нужен врагам: при
+    /// смерти горящего они переносят горение на соседей.
+    /// </summary>
+    public static RunUpgrades Instance { get; private set; }
+
+    /// <summary>
+    /// Сколько целей горения можно поджечь за один кадр. Смерть
+    /// толпы из тридцати врагов иначе превратилась бы в тридцать
+    /// запросов физики в одном кадре.
+    /// </summary>
+    private const int MaxBurnSpreadsPerFrame = 3;
+
     // =========================================================
     // BURNING ROUNDS
     // =========================================================
@@ -16,6 +29,8 @@ public class RunUpgrades : MonoBehaviour
     [SerializeField] private float runBurnDamage;
     [SerializeField] private float runBurnDuration;
     [SerializeField] private float runBurnTickInterval = 0.5f;
+    [SerializeField] private int runBurnSpreadTargets;
+    [SerializeField] private float runBurnSpreadRadius;
 
     // =========================================================
     // EXPLOSIVE ROUNDS
@@ -74,6 +89,8 @@ public class RunUpgrades : MonoBehaviour
     public float RunBurnDamage => runBurnDamage;
     public float RunBurnDuration => runBurnDuration;
     public float RunBurnTickInterval => Mathf.Max(runBurnTickInterval, 0.05f);
+    public int RunBurnSpreadTargets => Mathf.Max(runBurnSpreadTargets, 0);
+    public float RunBurnSpreadRadius => runBurnSpreadRadius;
 
     public float ExplosionRadius => explosionRadius;
     public float ExplosionDamage => explosionDamage;
@@ -96,6 +113,10 @@ public class RunUpgrades : MonoBehaviour
     public float RicochetDamageMultiplier => ricochetDamageMultiplier;
 
     public bool HasBurn => runBurnChance > 0f;
+    public bool HasBurnSpread =>
+        HasBurn &&
+        RunBurnSpreadTargets > 0 &&
+        RunBurnSpreadRadius > 0f;
     public bool HasExplosion => explosionRadius > 0f && explosionDamage > 0f;
     public bool HasBleed => bleedChance > 0f;
     public bool HasLifesteal => lifestealPercent > 0f;
@@ -115,6 +136,66 @@ public class RunUpgrades : MonoBehaviour
         runBurnDamage += data.Damage;
         runBurnDuration += data.Duration;
         runBurnTickInterval = Mathf.Max(runBurnTickInterval, data.TickInterval);
+
+        // Радиус и число целей не складываются, а берутся по
+        // максимуму: дополнительный уровень горения усиливает
+        // урон и время, а не раздувает область до размера карты.
+        runBurnSpreadTargets =
+            Mathf.Max(runBurnSpreadTargets, data.SpreadTargets);
+        runBurnSpreadRadius =
+            Mathf.Max(runBurnSpreadRadius, data.SpreadRadius);
+    }
+
+    /// <summary>
+    /// Переносит горение с погибшего врага на ближайших живых.
+    /// Шанс не проверяется: враг и так уже горел, то есть попадание
+    /// горения уже сработало — проверка была бы вторым броском.
+    /// Поиск идёт через переиспользуемый буфер StructureQuery,
+    /// число поджогов на кадр ограничено бюджетом.
+    /// </summary>
+    public void SpreadBurn(Vector3 position)
+    {
+        if (!HasBurnSpread)
+            return;
+
+        if (Time.frameCount != spreadBudgetFrame)
+        {
+            spreadBudgetFrame = Time.frameCount;
+            spreadBudget = MaxBurnSpreadsPerFrame;
+        }
+
+        if (spreadBudget <= 0)
+            return;
+
+        spreadBudget--;
+
+        Collider[] colliders = StructureQuery.OverlapSphere(
+            position,
+            RunBurnSpreadRadius,
+            out int found
+        );
+
+        if (colliders == null)
+            return;
+
+        int spread = 0;
+
+        for (int i = 0; i < found && spread < RunBurnSpreadTargets; i++)
+        {
+            Enemy target =
+                ColliderKindQuery.GetEnemy(colliders[i]);
+
+            if (target == null || target.IsDead)
+                continue;
+
+            target.ApplyBurn(
+                RunBurnDamage,
+                RunBurnDuration,
+                RunBurnTickInterval
+            );
+
+            spread++;
+        }
     }
 
     public void AddExplosion(ExplosionEffectData data)
@@ -171,6 +252,23 @@ public class RunUpgrades : MonoBehaviour
     // RESET
     // =========================================================
 
+    private int spreadBudgetFrame = -1;
+    private int spreadBudget;
+
+    private void Awake()
+    {
+        // Оружие и UpgradeManager умеют добавлять этот компонент
+        // сами, поэтому дубликат нужно гасить, иначе эффекты
+        // копились бы в двух местах.
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this);
+            return;
+        }
+
+        Instance = this;
+    }
+
     /// <summary>
     /// Гарантирует чистый старт забега. Вызывается при создании
     /// игрока, поэтому пережить прошлый забег эффекты не могут.
@@ -180,12 +278,20 @@ public class RunUpgrades : MonoBehaviour
         ResetAll();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     public void ResetAll()
     {
         runBurnChance = 0f;
         runBurnDamage = 0f;
         runBurnDuration = 0f;
         runBurnTickInterval = 0.5f;
+        runBurnSpreadTargets = 0;
+        runBurnSpreadRadius = 0f;
 
         explosionRadius = 0f;
         explosionDamage = 0f;

@@ -228,6 +228,57 @@ public static class Tables
             { "upg.level_static", "УРОВЕНЬ 1 / 10" },
             { "upg.desc_static", "Увеличивает урон всего оружия." },
 
+            // ---------- Улучшения за забег ----------
+            { "runup.level_of", "Уровень {0} из {1}" },
+
+            { "runup.crit_chance.name", "Шанс крита" },
+            { "runup.crit_chance.desc", "Шанс критического удара растёт на {0} за уровень." },
+
+            { "runup.crit_damage.name", "Сила крита" },
+            { "runup.crit_damage.desc", "Множитель урона критического удара растёт на {0} за уровень." },
+
+            { "runup.damage.name", "Урон" },
+            { "runup.damage.desc", "Урон всего оружия растёт на {0} за уровень." },
+
+            { "runup.fire_rate.name", "Скорострельность" },
+            { "runup.fire_rate.desc", "Скорострельность растёт на {0} за уровень." },
+
+            { "runup.max_health.name", "Запас здоровья" },
+            { "runup.max_health.desc", "Максимальное здоровье растёт на {0} за уровень." },
+
+            { "runup.move_speed.name", "Скорость бега" },
+            { "runup.move_speed.desc", "Скорость передвижения растёт на {0} за уровень." },
+
+            { "runup.pierce.name", "Пробитие" },
+            { "runup.pierce.desc", "Снаряды пробивают на {0} врагов больше." },
+
+            { "runup.projectile_count.name", "Снаряды" },
+            { "runup.projectile_count.desc", "Число снарядов за выстрел растёт на {0} за уровень. У дробовиков есть потолок." },
+
+            { "runup.projectile_speed.name", "Скорость снарядов" },
+            { "runup.projectile_speed.desc", "Скорость снарядов растёт на {0} за уровень." },
+
+            { "runup.regen.name", "Регенерация" },
+            { "runup.regen.desc", "Здоровье восстанавливается на {0} в секунду." },
+
+            { "runup.burning.name", "Горение" },
+            { "runup.burning.desc", "Попадания поджигают врага. С уровнем растут шанс, урон и время горения. Смерть горящего врага поджигает соседей." },
+
+            { "runup.bleeding.name", "Кровотечение" },
+            { "runup.bleeding.desc", "Попащения вызывают кровотечение. Пока кровь идёт, каждое новое попадание складывает урон." },
+
+            { "runup.ricochet.name", "Рикошет" },
+            { "runup.ricochet.desc", "Снаряды иногда отскакивают и ищут новую цель. С уровнем растут шанс, число отскоков и радиус поиска." },
+
+            { "runup.lifesteal.name", "Вампиризм" },
+            { "runup.lifesteal.desc", "Возвращает вам {0} нанесённого урона здоровьем." },
+
+            { "runup.explosion.name", "Взрывные снаряды" },
+            { "runup.explosion.desc", "Попадания взрываются и задевают соседей. С уровнем растут урон и радиус взрыва." },
+
+            { "runup.chain_lightning.name", "Цепная молния" },
+            { "runup.chain_lightning.desc", "Попадания бьют молнией по соседним целям. С уровнем растут шанс, урон и число целей." },
+
             // ---------- Снаряжение ----------
             { "eq.title", "СНАРЯЖЕНИЕ" },
             { "eq.subtitle", "Собери боевой набор" },
@@ -563,6 +614,57 @@ public static class Tables
             { "upg.level_static", "SEVİYE 1 / 10" },
             { "upg.desc_static", "Tüm silahların hasarını artırır." },
 
+            // ---------- Koşu yükseltmeleri ----------
+            { "runup.level_of", "Seviye {0} / {1}" },
+
+            { "runup.crit_chance.name", "Kritik Şansı" },
+            { "runup.crit_chance.desc", "Kritik vuruş şansı her seviyede {0} artar." },
+
+            { "runup.crit_damage.name", "Kritik Gücü" },
+            { "runup.crit_damage.desc", "Kritik vuruşun hasar çarpanı her seviyede {0} artar." },
+
+            { "runup.damage.name", "Hasar" },
+            { "runup.damage.desc", "Tüm silahların hasarı her seviyede {0} artar." },
+
+            { "runup.fire_rate.name", "Atış Hızı" },
+            { "runup.fire_rate.desc", "Atış hızı her seviyede {0} artar." },
+
+            { "runup.max_health.name", "Can Rezervi" },
+            { "runup.max_health.desc", "Maksimum can her seviyede {0} artar." },
+
+            { "runup.move_speed.name", "Koşu Hızı" },
+            { "runup.move_speed.desc", "Hareket hızı her seviyede {0} artar." },
+
+            { "runup.pierce.name", "Delme" },
+            { "runup.pierce.desc", "Mermiler {0} düşman daha fazla deler." },
+
+            { "runup.projectile_count.name", "Mermi Sayısı" },
+            { "runup.projectile_count.desc", "Atış başına mermi sayısı her seviyede {0} artar. Pompalı silahlarda bir tavan vardır." },
+
+            { "runup.projectile_speed.name", "Mermi Hızı" },
+            { "runup.projectile_speed.desc", "Mermi hızı her seviyede {0} artar." },
+
+            { "runup.regen.name", "Can Yenileme" },
+            { "runup.regen.desc", "Can saniyede {0} yenilenir." },
+
+            { "runup.burning.name", "Yakma" },
+            { "runup.burning.desc", "İsabetler düşmanı tutuşturur. Seviye arttıkça şans, hasar ve süre büyür. Yanan düşman ölünce çevresini de tutuşturur." },
+
+            { "runup.bleeding.name", "Kanama" },
+            { "runup.bleeding.desc", "İsabetler kanama başlatır. Süre bitene kadar her yeni isabet hasarı üst üste bindirir." },
+
+            { "runup.ricochet.name", "Sekme" },
+            { "runup.ricochet.desc", "Mermiler bazen sekirip yeni hedef arar. Seviye arttıkça şans, sekme sayısı ve arama yarıçapı büyür." },
+
+            { "runup.lifesteal.name", "Vampirizm" },
+            { "runup.lifesteal.desc", "Verilen hasarın {0} kadarını can olarak geri verir." },
+
+            { "runup.explosion.name", "Patlayıcı Mermiler" },
+            { "runup.explosion.desc", "İsabetler patlar ve yanındakilere değer. Seviye arttıkça hasar ve patlama yarıçapı büyür." },
+
+            { "runup.chain_lightning.name", "Zincirleme Yıldırım" },
+            { "runup.chain_lightning.desc", "İsabetler yanındaki hedeflere yıldırım indirir. Seviye arttıkça şans, hasar ve hedef sayısı büyür." },
+
             // ---------- Teçhizat ----------
             { "eq.title", "TEÇHİZAT" },
             { "eq.subtitle", "Savaş teçhizatını topla" },
@@ -897,6 +999,57 @@ public static class Tables
             { "upg.dash_marker", "—" },
             { "upg.level_static", "LEVEL 1 / 10" },
             { "upg.desc_static", "Increases the damage of all weapons." },
+
+            // ---------- Run upgrades ----------
+            { "runup.level_of", "Level {0} / {1}" },
+
+            { "runup.crit_chance.name", "Crit Chance" },
+            { "runup.crit_chance.desc", "Critical hit chance grows by {0} per level." },
+
+            { "runup.crit_damage.name", "Crit Power" },
+            { "runup.crit_damage.desc", "Critical hit damage multiplier grows by {0} per level." },
+
+            { "runup.damage.name", "Damage" },
+            { "runup.damage.desc", "Damage of all weapons grows by {0} per level." },
+
+            { "runup.fire_rate.name", "Fire Rate" },
+            { "runup.fire_rate.desc", "Fire rate grows by {0} per level." },
+
+            { "runup.max_health.name", "Health Pool" },
+            { "runup.max_health.desc", "Max health grows by {0} per level." },
+
+            { "runup.move_speed.name", "Run Speed" },
+            { "runup.move_speed.desc", "Move speed grows by {0} per level." },
+
+            { "runup.pierce.name", "Pierce" },
+            { "runup.pierce.desc", "Bullets pierce {0} more enemies." },
+
+            { "runup.projectile_count.name", "Projectile Count" },
+            { "runup.projectile_count.desc", "Bullets per shot grow by {0} per level. Shotguns have a hard cap." },
+
+            { "runup.projectile_speed.name", "Projectile Speed" },
+            { "runup.projectile_speed.desc", "Projectile speed grows by {0} per level." },
+
+            { "runup.regen.name", "Regeneration" },
+            { "runup.regen.desc", "Restores {0} health per second." },
+
+            { "runup.burning.name", "Burning" },
+            { "runup.burning.desc", "Hits set enemies on fire. Each level raises chance, burn damage and duration. A burning enemy that dies ignites its neighbours." },
+
+            { "runup.bleeding.name", "Bleeding" },
+            { "runup.bleeding.desc", "Hits cause bleeding. Every new hit adds to the damage while the bleed lasts." },
+
+            { "runup.ricochet.name", "Ricochet" },
+            { "runup.ricochet.desc", "Bullets sometimes bounce and look for a new target. Each level raises chance, bounces and search radius." },
+
+            { "runup.lifesteal.name", "Lifesteal" },
+            { "runup.lifesteal.desc", "Returns {0} of dealt damage to you as health." },
+
+            { "runup.explosion.name", "Explosive Rounds" },
+            { "runup.explosion.desc", "Hits explode and hit nearby enemies. Each level raises damage and blast radius." },
+
+            { "runup.chain_lightning.name", "Chain Lightning" },
+            { "runup.chain_lightning.desc", "Hits arc lightning to nearby enemies. Each level raises chance, damage and target count." },
 
             // ---------- Equipment ----------
             { "eq.title", "EQUIPMENT" },

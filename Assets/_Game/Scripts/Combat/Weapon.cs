@@ -43,6 +43,13 @@ public class Weapon : MonoBehaviour
     public float FireCooldownRemaining =>
         Mathf.Max(fireTimer, 0f);
 
+    /// <summary>
+    /// Текущий ствол. Нужен UpgradeManager, чтобы не предлагать
+    /// бессмысленные улучшения — например Projectile Count
+    /// дробовику, который упирается в потолок снарядов.
+    /// </summary>
+    public WeaponData Data => weaponData;
+
     public float FireCooldownMax
     {
         get
@@ -397,13 +404,7 @@ public class Weapon : MonoBehaviour
             return;
         }
 
-        int projectileCount =
-            Mathf.Max(
-                weaponData.ProjectileCount,
-                1
-            ) + GetBonusProjectiles();
-
-        for (int i = 0; i < projectileCount; i++)
+        for (int i = 0; i < GetProjectileCount(); i++)
         {
             FireProjectile(firePoint);
         }
@@ -411,6 +412,32 @@ public class Weapon : MonoBehaviour
         ApplyRecoil(firePoint);
 
         ApplyFireShake();
+    }
+
+    /// <summary>
+    /// Сколько снарядов уходит за один выстрел.
+    ///
+    /// Бонус Projectile Count — процентный, а не «+1 снаряд»:
+    /// у однозарядного оружия прибавка одного снаряда удваивала
+    /// урон залпа, а не «немного усиливала» его. Формула и потолок
+    /// живут в WeaponData, чтобы фильтр карточек считал ровно то же
+    /// самое число.
+    /// </summary>
+    private int GetProjectileCount()
+    {
+        int baseCount =
+            Mathf.Max(
+                weaponData.ProjectileCount,
+                1
+            );
+
+        if (playerStats == null)
+            return baseCount;
+
+        return WeaponData.ResolveProjectileCount(
+            baseCount,
+            playerStats.ProjectileCountPercent
+        );
     }
 
     private void ApplyFireShake()
@@ -741,14 +768,6 @@ public class Weapon : MonoBehaviour
             return 0;
 
         return playerStats.BonusPierce;
-    }
-
-    private int GetBonusProjectiles()
-    {
-        if (playerStats == null)
-            return 0;
-
-        return playerStats.BonusProjectiles;
     }
 
     private float GetProjectileSpeedMultiplier()

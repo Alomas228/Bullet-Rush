@@ -6,6 +6,53 @@ using UnityEngine;
 )]
 public class WeaponData : ScriptableObject
 {
+    /// <summary>
+    /// Потолок снарядов за выстрел, который даёт улучшение Projectile
+    /// Count. Нужен потому, что процентный бонус сам по себе
+    /// умножается: без потолка четыре стака превращали однозарядное
+    /// оружие в залп из четырёх пуль, а каждое попадание ещё и
+    /// множило горение, кровотечение, взрыв и рикошет.
+    /// Потолок равен максимуму уровней Projectile Count, поэтому
+    /// однозарядный ствол растёт как 2 → 3 → 4, а дробовик берёт
+    /// один-два уровня и карточка у него потом исчезает.
+    /// Базовая стрельба потолком не урезается — потолок всегда не
+    /// меньше базового числа снарядов.
+    /// </summary>
+    public const int MaxBonusProjectilesPerShot = 4;
+
+    /// <summary>
+    /// Сколько снарядов выстрелит оружие при заданном процентном
+    /// бонусе. Формула одна и для выстрела, и для фильтра выдачи
+    /// карточек, иначе «+снаряды» продолжит предлагаться там, где
+    /// число уже упирается в потолок.
+    ///
+    /// Процент округляется вверх: иначе бонус однозарядному стволу
+    /// не дал бы вообще ничего. Потолок не опускается ниже базового
+    /// значения, поэтому дробовик не теряет свои штатные снаряды.
+    /// </summary>
+    public static int ResolveProjectileCount(
+        int baseCount,
+        float percentBonus)
+    {
+        int baseValue = Mathf.Max(baseCount, 1);
+
+        if (percentBonus <= 0f)
+            return baseValue;
+
+        int ceiling = Mathf.Max(
+            baseValue,
+            MaxBonusProjectilesPerShot
+        );
+
+        return Mathf.Clamp(
+            Mathf.CeilToInt(
+                baseValue * (1f + percentBonus)
+            ),
+            baseValue,
+            ceiling
+        );
+    }
+
     [Header("Identity")]
     [Tooltip(
         "Ключ перевода без префикса .name/.desc — например " +
