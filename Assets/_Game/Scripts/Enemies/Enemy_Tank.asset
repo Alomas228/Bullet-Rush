@@ -31,7 +31,10 @@ MonoBehaviour:
   scoreValue: 40
   supportRadius: 5.5
   braceRange: 3.4
+  braceStopScale: 0.9
   allySearchInterval: 0.5
+  allyRevengeRadius: 7
+  allyRevengeTime: 2.5
   supportAttackRateMultiplier: 0.72
   variantChance: 0.12
   variantMinWave: 6

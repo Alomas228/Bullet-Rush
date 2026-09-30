@@ -117,10 +117,17 @@ public class EnemyData : ScriptableObject
     [Header("Support (Tank)")]
     [Tooltip("Радиус, в котором танк считает дальника «своим» и встаёт между ним и игроком. 0 = танк не экранирует союзников.")]
     [SerializeField] private float supportRadius = 0f;
-    [Tooltip("Насколько танк упирается, когда игрок рядом: держит позицию и давит контактом вместо того, чтобы протискиваться вплотную.")]
+    [Tooltip("Насколько далеко перед экранируемым дальником танк встаёт (в метрах). Это экран, а не дистанция боя.")]
     [SerializeField] private float braceRange = 0f;
+    [Tooltip("Доля от СОБСТВЕННОЙ дальности контактного урона, на которой танк встаёт и держит позицию. 0 = не встаёт, идёт в лоб. Держим долей, а не метрами: иначе можно выставить остановку дальше собственного урона и танк станет безобидным.")]
+    [Range(0f, 1.2f)]
+    [SerializeField] private float braceStopScale = 0f;
     [Tooltip("Как часто танк пересматривает, кого именно он сейчас экранирует.")]
     [SerializeField] private float allySearchInterval = 0.5f;
+    [Tooltip("Радиус, в котором моб замечает гибель союзника по своей роли (0 = не реагирует).")]
+    [SerializeField] private float allyRevengeRadius = 0f;
+    [Tooltip("Сколько секунд моб бросает свою позицию и идёт в точку гибели союзника.")]
+    [SerializeField] private float allyRevengeTime = 2.5f;
     [Tooltip("Пока рядом стоит танк, дальник стреляет чаще. Ниже 1 = опаснее, 1 = без эффекта.")]
     [Range(0.4f, 1.5f)]
     [SerializeField] private float supportAttackRateMultiplier = 1f;
@@ -278,8 +285,17 @@ public class EnemyData : ScriptableObject
     public float BraceRange =>
         Mathf.Max(braceRange, 0f);
 
+    public float BraceStopScale =>
+        Mathf.Max(braceStopScale, 0f);
+
     public float AllySearchInterval =>
         Mathf.Max(allySearchInterval, 0.05f);
+
+    public float AllyRevengeRadius =>
+        Mathf.Max(allyRevengeRadius, 0f);
+
+    public float AllyRevengeTime =>
+        Mathf.Max(allyRevengeTime, 0f);
 
     public float SupportAttackRateMultiplier =>
         Mathf.Clamp(supportAttackRateMultiplier, 0.4f, 1.5f);

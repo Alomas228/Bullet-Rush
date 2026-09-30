@@ -37,5 +37,7 @@ MonoBehaviour:
   attackTelegraph: 0.45
   attackTelegraphCrouch: 0.18
   supportAttackRateMultiplier: 1
+  allyRevengeRadius: 6
+  allyRevengeTime: 2.5
   variantChance: 0.15
   variantMinWave: 5

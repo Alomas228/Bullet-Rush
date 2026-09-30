@@ -128,10 +128,28 @@ public class Enemy : MonoBehaviour
 
     // Танк: ищет ближайшего дальника и встаёт между ним и игроком.
     private float supportRadius;
+
+    // Два разных расстояния, и их важно не путать:
+    // braceRange — насколько далеко перед СОЮЗНИКОМ встать (экран);
+    // braceStopRange — на каком расстоянии от ИГРОКА остановиться.
     private float braceRange;
+    private float braceStopRange;
     private float allySearchInterval = 0.5f;
     private float allySearchTimer;
     private Enemy escortedAlly;
+
+    // Приоритет цели. В игре с одним игроком выбирать «кого бить»
+    // не из чего, поэтому приоритет выражен иначе: моб, у которого
+    // есть роль в связке, на гибели союзника по этой роли бросает
+    // свою позицию и идёт в ту точку. Это единственный выбор цели,
+    // который тут вообще возможен, и он честно читается: убили
+    // дальника — танк отошёл от экрана и пошёл туда.
+    private float allyRevengeRadius;
+    private float allyRevengeTime = 2.5f;
+    private float revengeTimer;
+    private Vector3 revengePosition;
+    private EnemyType roleAllyType = EnemyType.Boss;
+    private bool hasRoleAllyType;
 
     // Элита: базовая волна уходит от игрока, агрессивный вариант — под него.
     private float abilityCooldownMultiplier = 1f;
@@ -145,6 +163,26 @@ public class Enemy : MonoBehaviour
     // FindObject каждый кадр. Обход идёт раз в 0.2-0.5 секунды.
     private static readonly List<Enemy> aliveEnemies =
         new List<Enemy>(128);
+
+    // Павшие мобы. Живой реестр выше нужен, чтобы найти союзника,
+    // а этот — чтобы узнать, что союзника только что убили. И то и
+    // другое держится на тех же тиках, что уже были (2-4 Гц), без
+    // нового поиска по сцене.
+    private struct FallenAlly
+    {
+        public Vector3 position;
+        public float time;
+        public EnemyType type;
+    }
+
+        private static readonly List<FallenAlly> fallenEnemies =
+        new List<FallenAlly>(32);
+
+    // Сколько секунд павший союзник ещё «значим» для мобов, которые
+    // на него реагируют. Дольше держать не нужно: за это время
+    // волна всё равно дойдёт до следующей точки, и моб вернётся
+    // в роль раньше, чем список успит заполниться.
+    private const float fallenMemoryTime = 3f;
 
     // PropertyBlock не трогает общий материал, поэтому подкраска
     // варианта не течёт на всех мобов этого типа в сцене.
@@ -225,6 +263,9 @@ public class Enemy : MonoBehaviour
 
         if (aliveEnemies != null)
             aliveEnemies.Clear();
+
+        if (fallenEnemies != null)
+            fallenEnemies.Clear();
     }
 
     private void OnDestroy()
@@ -425,6 +466,8 @@ public class Enemy : MonoBehaviour
 
         ApplyWaveScaling();
 
+        CacheRoleAllyType();
+
         ApplyFirstCastGrace();
     }
 
@@ -452,7 +495,11 @@ public class Enemy : MonoBehaviour
 
         supportRadius = 0f;
         braceRange = 0f;
+        braceStopRange = 0f;
         allySearchInterval = 0.5f;
+        allyRevengeRadius = 0f;
+        allyRevengeTime = 2.5f;
+        revengeTimer = 0f;
 
         abilityCooldownMultiplier = 1f;
         abilityDpsMultiplier = 1f;
@@ -487,9 +534,47 @@ public class Enemy : MonoBehaviour
 
         supportRadius = enemyData.SupportRadius;
         braceRange = enemyData.BraceRange;
+
+        // Остановка выводится из собственной дальности урона танка,
+        // а не задаётся в метрах. Раньше тут стояли 3.4 м, а контактный
+        // урон танка достаёт до 2.06 м: танк останавливался дальше
+        // собственного радиуса и становился безобидным, пока игрок
+        // сам не подходил. Доля от GetContactRange() исключает такую
+        // рассинхронизацию по построению.
+        braceStopRange =
+            GetContactRange() * enemyData.BraceStopScale;
+
         allySearchInterval = enemyData.AllySearchInterval;
 
+        allyRevengeRadius = enemyData.AllyRevengeRadius;
+        allyRevengeTime = enemyData.AllyRevengeTime;
+
         abilityDpsMultiplier = enemyData.AbilityDpsMultiplier;
+    }
+
+    // У кого есть «свой» союзник по роли, тот на его гибель
+    // реагирует. Танк держит экран для дальника — значит и потеря
+    // дальника его касается. Дальник прячется за танком — тоже.
+    // Остальным типам (Normal, Fast, Elite, Boss) союзника по роли
+    // нет, поэтому и приоритета цели у них нет.
+    private void CacheRoleAllyType()
+    {
+        hasRoleAllyType = true;
+
+        switch (cachedEnemyType)
+        {
+            case EnemyType.Tank:
+                roleAllyType = EnemyType.Ranged;
+                break;
+
+            case EnemyType.Ranged:
+                roleAllyType = EnemyType.Tank;
+                break;
+
+            default:
+                hasRoleAllyType = false;
+                break;
+        }
     }
 
     // Вариант один раз за жизнь моба. Шанс и минимальную волну
@@ -563,6 +648,9 @@ public class Enemy : MonoBehaviour
 
             case EnemyVariant.Bulwark:
                 // Шире экран и встаёт насмерть, а не продавливает.
+                // Умножается именно экран (дистанция до игрока
+                // остаётся собственной дальностью урона), иначе
+                // вариант снова встал бы вне своего радиуса.
                 supportRadius *= 1.5f;
                 braceRange *= 1.3f;
                 break;
@@ -693,7 +781,6 @@ public class Enemy : MonoBehaviour
                     supportRadius *= 1.3f;
                     braceRange *= 1.2f;
                 }
-
                 break;
 
             case EnemyType.Elite:
@@ -933,6 +1020,9 @@ public class Enemy : MonoBehaviour
 
         if (allySearchTimer > 0f)
             allySearchTimer -= deltaTime;
+
+        if (revengeTimer > 0f)
+            revengeTimer -= deltaTime;
 
         UpdateDoT(deltaTime);
     }
@@ -2056,6 +2146,123 @@ public class Enemy : MonoBehaviour
 
 
     // =========================================================
+    // TARGET PRIORITY
+    // =========================================================
+
+    // Павший моб запоминает точку своей смерти. Список короткий и
+    // чистится по времени прямо во время обхода, поэтому он не
+    // растёт и не требует отдельного прохода.
+    private static void RegisterFallenAlly(
+        Vector3 position,
+        EnemyType type)
+    {
+        fallenEnemies.Add(
+            new FallenAlly
+            {
+                position = position,
+                time = Time.time,
+                type = type
+            }
+        );
+    }
+
+    // Проверка идёт на тех же тиках, что и поиск живого союзника:
+    // 2 Гц у танка, 4 Гц у дальника. Перебора по кадру нет.
+    private void CheckFallenRoleAlly()
+    {
+        if (!hasRoleAllyType ||
+            allyRevengeRadius <= 0.1f ||
+            revengeTimer > 0f)
+        {
+            return;
+        }
+
+        if (!TryFindFallenRoleAlly(out Vector3 position))
+            return;
+
+        revengePosition = position;
+
+        revengeTimer = allyRevengeTime;
+
+        // Пока моб шёл на точку, кэш направления мог остаться от
+        // прежней задачи (экран/дистанция).
+        hasCachedMoveDirection = false;
+    }
+
+    private bool TryFindFallenRoleAlly(
+        out Vector3 position)
+    {
+        position = transform.position;
+
+        Vector3 origin = transform.position;
+
+        float limit = allyRevengeRadius * allyRevengeRadius;
+
+        float now = Time.time;
+
+        bool found = false;
+
+        for (int i = fallenEnemies.Count - 1; i >= 0; i--)
+        {
+            FallenAlly fallen = fallenEnemies[i];
+
+            // Обход с конца: устаревшие записи сразу удаляются,
+            // и индексы при удалении не «уезжают».
+            if (now - fallen.time > fallenMemoryTime)
+            {
+                fallenEnemies.RemoveAt(i);
+                continue;
+            }
+
+            if (fallen.type != roleAllyType)
+                continue;
+
+            Vector3 offset = fallen.position - origin;
+
+            offset.y = 0f;
+
+            float sqr = offset.sqrMagnitude;
+
+            if (sqr > limit)
+                continue;
+
+            position = fallen.position;
+            limit = sqr;
+
+            found = true;
+        }
+
+        return found;
+    }
+
+    // Пока идёт «добивание», обычная роль молчит: упора нет,
+    // дистанции нет, перестановки нет, выстрела нет. Это и есть
+    // плата за потерянного союзника — позиция была дороже, чем
+    // труп, и теперь игрок может её отыграть.
+    private void HandleRoleRevenge()
+    {
+        Vector3 toPosition = revengePosition - transform.position;
+
+        toPosition.y = 0f;
+
+        if (toPosition.sqrMagnitude > 0.09f)
+        {
+            MoveInDirection(
+                toPosition.normalized,
+                1f
+            );
+
+            return;
+        }
+
+        // Дошли — и сразу обратно в роль.
+        revengeTimer = 0f;
+
+        hasCachedMoveDirection = false;
+    }
+
+
+    // =========================================================
     // RANGED
     // =========================================================
 
@@ -2079,6 +2286,17 @@ public class Enemy : MonoBehaviour
         direction.Normalize();
 
         UpdateCachedLineOfSight();
+
+        UpdateSupportContext();
+
+        // Приоритет цели важнее роли: упал танк — дистанция
+        // забыта, идём туда. Заодно это единственное окно, когда
+        // дальник не стреляет.
+        if (revengeTimer > 0f)
+        {
+            HandleRoleRevenge();
+            return;
+        }
 
         // Замах: стоим, целимся, не двигаемся. Это и есть окно,
         // в котором игрок успевает разорвать линию огня.
@@ -2348,18 +2566,24 @@ public class Enemy : MonoBehaviour
         return Mathf.Max(interval, 0.4f);
     }
 
-    private bool HasNearbyTankSupport()
+    // Контекст связки дальника: есть ли рядом танк и не упал ли
+    // тот, кто его прикрывал. Общий тик 4 Гц на оба вопроса, и
+    // он не зависит от того, успел ли дальник выстрелить.
+    private void UpdateSupportContext()
     {
         if (supportCheckTimer > 0f)
-            return hasTankSupport;
+            return;
 
         supportCheckTimer =
             Mathf.Max(supportCheckInterval, 0.05f);
 
         hasTankSupport = false;
+        tankSupportAttackRateMultiplier = 1f;
+
+        CheckFallenRoleAlly();
 
         if (player == null)
-            return false;
+            return;
 
         Vector3 origin = transform.position;
 
@@ -2399,7 +2623,10 @@ public class Enemy : MonoBehaviour
 
             break;
         }
+    }
 
+    private bool HasNearbyTankSupport()
+    {
         return hasTankSupport;
     }
 
@@ -2429,10 +2656,18 @@ public class Enemy : MonoBehaviour
 
         direction.Normalize();
 
+        // Приоритет цели важнее роли: упал дальник — экран забыт.
+        if (revengeTimer > 0f)
+        {
+            HandleRoleRevenge();
+            return;
+        }
+
         // Упёрся: не протискивается вплотную, но и не отступает.
-        // Игрок может обойти, а если полезет вблизь — получит
-        // контактный урон.
-        if (braceRange > 0.1f && distance <= braceRange)
+        // Останавливается на braceStopRange, который по построению
+        // меньше его собственной дальности урона, поэтому бьёт сам,
+        // без всякой подсказки игроку «подойди поближе».
+        if (braceStopRange > 0.01f && distance <= braceStopRange)
         {
             hasCachedMoveDirection = false;
 
@@ -2469,13 +2704,14 @@ public class Enemy : MonoBehaviour
 
         if (braceRange <= 0.1f)
             return player.position;
-
         if (allySearchTimer <= 0f)
         {
             allySearchTimer =
                 Mathf.Max(allySearchInterval, 0.05f);
 
             escortedAlly = FindAllyToScreen();
+
+            CheckFallenRoleAlly();
         }
 
         if (escortedAlly == null ||
@@ -3469,6 +3705,11 @@ public class Enemy : MonoBehaviour
             return;
 
         IsDead = true;
+
+        // Босс в список павших не идёт: его смерть и так
+        // заканчивает волну, и трогать его поведение не нужно.
+        if (!isBoss)
+            RegisterFallenAlly(transform.position, cachedEnemyType);
 
         SpawnDeathExplosion();
         SpawnBloodPool();
