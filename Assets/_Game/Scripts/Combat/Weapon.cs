@@ -15,6 +15,14 @@ public class Weapon : MonoBehaviour
     // строится процедурно (см. VfxFactory.SpawnTracer).
     [SerializeField] private GameObject tracerPrefab;
 
+    [Header("Test Override")]
+    [Tooltip(
+        "Тестовый префаб оружия. Если задан, визуал всегда берётся " +
+        "из него — независимо от WeaponData и выбора в панели " +
+        "снаряжения. Пусто = обычное поведение."
+    )]
+    [SerializeField] private GameObject testVisualOverride;
+
     private PlayerStats playerStats;
     private PlayerController playerController;
     private CameraFollow cachedCamera;
@@ -634,16 +642,22 @@ public class Weapon : MonoBehaviour
         if (weaponVisualRoot == null)
             return;
 
-        if (weaponData == null)
-            return;
+        GameObject weaponPrefab =
+            testVisualOverride;
+
+        if (weaponPrefab == null)
+        {
+            if (weaponData == null)
+                return;
+
+            weaponPrefab =
+                weaponData.WeaponPrefab;
+        }
 
         foreach (Transform child in weaponVisualRoot)
         {
             child.gameObject.SetActive(false);
         }
-
-        GameObject weaponPrefab =
-            weaponData.WeaponPrefab;
 
         if (weaponPrefab == null)
             return;
@@ -694,7 +708,11 @@ public class Weapon : MonoBehaviour
             }
         }
 
-        return null;
+        // У префаба оружия может не быть FirePoint — стреляем
+        // из точки крепления оружия.
+        cachedFirePoint = weaponVisualRoot;
+
+        return cachedFirePoint;
     }
 
     // =========================================================

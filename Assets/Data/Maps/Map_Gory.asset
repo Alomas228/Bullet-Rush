@@ -50,11 +50,6 @@ MonoBehaviour:
     rotation: {x: -0, y: 0, z: 0}
     scale: {x: 2, y: 1, z: 2}
     keepColliders: 0
-  - prefab: {fileID: 7016032703882981433, guid: a99372904ea261f49ad7091ba3d44878, type: 3}
-    position: {x: -60.99614, y: -0.00000028840395, z: 30.463055}
-    rotation: {x: -0, y: 0, z: 0}
-    scale: {x: 20, y: 1, z: 20}
-    keepColliders: 0
   layoutSeed: 4404
   structureMaterials: []
   structurePalette:
