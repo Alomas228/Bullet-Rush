@@ -100,17 +100,11 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private bool stepCompleteSound = true;
 
     [Header("Texts")]
-    [SerializeField] private string killOneText = "УБЕЙ ЕГО!";
-    [SerializeField] private string mobsStepText =
-        "БЫСТРЫЕ НАБЕГАЮТ, СТРЕЛКИ БЬЮТ ИЗДАЛЕКА.\n" +
-        "НЕ СТОЙ НА МЕСТЕ!";
-    [SerializeField] private string dodgeText =
-        "УКЛОНЯЙСЯ ОТ СНАРЯДОВ!";
-    [SerializeField] private string upgradeHintText =
-        "ТЕПЕРЬ ВЫБЕРИ ОДНО УЛУЧШЕНИЕ — ОНО УСИЛИТ ТЕБЯ В ЭТОМ ЗАБЕГЕ.\n" +
-        "ЦВЕТ НАЗВАНИЯ = РЕДКОСТЬ:\n" +
-        "СЕРЫЙ — ОБЫЧНОЕ · ЗЕЛЁНЫЙ — НЕОБЫЧНОЕ · СИНИЙ — РЕДКОЕ\n" +
-        "ФИОЛЕТОВЫЙ — ЭПИЧЕСКОЕ · ОРАНЖЕВЫЙ — ЛЕГЕНДАРНОЕ";
+    [Tooltip("Ключи переводов вида {tut.kill_one}. Разворачиваются в язык, определённый при запуске.")]
+    [SerializeField] private string killOneText = "{tut.kill_one}";
+    [SerializeField] private string mobsStepText = "{tut.mobs}";
+    [SerializeField] private string dodgeText = "{tut.dodge}";
+    [SerializeField] private string upgradeHintText = "{tut.upgrade}";
 
     /// <summary>True — обучение прямо сейчас идёт.</summary>
     public bool IsRunning { get; private set; }
@@ -830,7 +824,7 @@ public class TutorialManager : MonoBehaviour
             return;
 
         objectiveText.text =
-            string.IsNullOrEmpty(text) ? string.Empty : text;
+            string.IsNullOrEmpty(text) ? string.Empty : LangBinder.ResolveKey(text);
 
         if (!objectiveText.gameObject.activeSelf)
             objectiveText.gameObject.SetActive(true);
@@ -842,7 +836,7 @@ public class TutorialManager : MonoBehaviour
             return;
 
         progressText.text =
-            $"ШАГ {step}/{TotalSteps}";
+            Lang.Get("tut.step", step, TotalSteps);
 
         if (!progressText.gameObject.activeSelf)
             progressText.gameObject.SetActive(true);

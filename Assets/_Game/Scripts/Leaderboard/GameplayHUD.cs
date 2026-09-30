@@ -201,22 +201,34 @@ public class GameplayHUD : MonoBehaviour
         // Проверяем каждый порог
         if (combo >= bonusSettings.comboThreshold50 && lastThreshold < 50)
         {
-            cachedScoreManager.AddBonus(bonusSettings.comboBonus50, "Комбо 50x");
+            cachedScoreManager.AddBonus(
+                bonusSettings.comboBonus50,
+                Lang.Get("bonus.combo50")
+            );
             cachedCombo.SetLastComboThresholdReached(50);
         }
         else if (combo >= bonusSettings.comboThreshold30 && lastThreshold < 30)
         {
-            cachedScoreManager.AddBonus(bonusSettings.comboBonus30, "Комбо 30x");
+            cachedScoreManager.AddBonus(
+                bonusSettings.comboBonus30,
+                Lang.Get("bonus.combo30")
+            );
             cachedCombo.SetLastComboThresholdReached(30);
         }
         else if (combo >= bonusSettings.comboThreshold20 && lastThreshold < 20)
         {
-            cachedScoreManager.AddBonus(bonusSettings.comboBonus20, "Комбо 20x");
+            cachedScoreManager.AddBonus(
+                bonusSettings.comboBonus20,
+                Lang.Get("bonus.combo20")
+            );
             cachedCombo.SetLastComboThresholdReached(20);
         }
         else if (combo >= bonusSettings.comboThreshold10 && lastThreshold < 10)
         {
-            cachedScoreManager.AddBonus(bonusSettings.comboBonus10, "Комбо 10x");
+            cachedScoreManager.AddBonus(
+                bonusSettings.comboBonus10,
+                Lang.Get("bonus.combo10")
+            );
             cachedCombo.SetLastComboThresholdReached(10);
         }
     }

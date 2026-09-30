@@ -46,9 +46,10 @@ public class LeaderboardUI : MonoBehaviour
     [SerializeField] private float autoLineSpacing = 1f;
 
     [Header("Loading / Empty")]
-    [SerializeField] private string loadingText = "LOADING...";
-    [SerializeField] private string emptyText = "LEADERBOARD IS EMPTY";
-    [SerializeField] private string noAuthText = "SIGN IN TO SEE YOUR RANK";
+    [Tooltip("Ключи переводов вида {lb.loading}. Разворачиваются в язык, определённый при запуске.")]
+    [SerializeField] private string loadingText = "{lb.loading}";
+    [SerializeField] private string emptyText = "{lb.empty}";
+    [SerializeField] private string noAuthText = "{lb.no_auth}";
 
     private bool ready;
     private Coroutine refreshRoutine;
@@ -115,7 +116,7 @@ public class LeaderboardUI : MonoBehaviour
 
         if (YandexGameManager.Instance == null || !ready)
         {
-            leaderboardText.text = loadingText;
+            leaderboardText.text = LangBinder.ResolveKey(loadingText);
             return;
         }
 
@@ -174,7 +175,7 @@ public class LeaderboardUI : MonoBehaviour
     private string Render(LBData lb)
     {
         if (lb == null || lb.players == null || lb.players.Length == 0)
-            return emptyText;
+            return LangBinder.ResolveKey(emptyText);
 
         var sorted = lb.players
             .Where(player => player != null && !string.IsNullOrEmpty(player.name))
@@ -182,7 +183,7 @@ public class LeaderboardUI : MonoBehaviour
             .ToList();
 
         if (sorted.Count == 0)
-            return emptyText;
+            return LangBinder.ResolveKey(emptyText);
 
         StringBuilder sb = new StringBuilder();
 
@@ -190,13 +191,13 @@ public class LeaderboardUI : MonoBehaviour
         {
             string name = LBMethods.AnonymousName(sorted[i].name);
 
-            sb.AppendLine($"{i + 1}. {name}  -  {sorted[i].score}");
+            sb.AppendLine(Lang.Get("lb.row", i + 1, name, sorted[i].score));
         }
 
         if (!YandexGameManager.Instance.IsAuthorized)
         {
             sb.AppendLine();
-            sb.AppendLine(noAuthText);
+            sb.AppendLine(LangBinder.ResolveKey(noAuthText));
         }
 
         return sb.ToString();
@@ -205,7 +206,7 @@ public class LeaderboardUI : MonoBehaviour
     private void SetText(string text)
     {
         if (leaderboardText != null)
-            leaderboardText.text = text;
+            leaderboardText.text = LangBinder.ResolveKey(text);
     }
 
     // =========================================================

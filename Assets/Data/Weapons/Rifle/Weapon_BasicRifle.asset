@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 579c3da4ad054a64e9338f72af3470a3, type: 3}
   m_Name: Weapon_BasicRifle
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  langKey: basic_rifle
   weaponName: Basic Rifle
   description: "\u041D\u0430\u0434\u0451\u0436\u043D\u0430\u044F \u0432\u0438\u043D\u0442\u043E\u0432\u043A\u0430
     \u0434\u043B\u044F \u0432\u044B\u0436\u0438\u0432\u0430\u043D\u0438\u044F. \u0411\u0430\u043B\u0430\u043D\u0441

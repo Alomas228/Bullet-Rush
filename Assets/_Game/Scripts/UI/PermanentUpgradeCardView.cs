@@ -123,8 +123,11 @@ public class PermanentUpgradeCardView : MonoBehaviour
 
         if (levelText != null)
         {
-            levelText.text =
-                $"УРОВЕНЬ {level} / {PermanentUpgrades.MaxLevel}";
+            levelText.text = Lang.Get(
+                "upg.level",
+                level,
+                PermanentUpgrades.MaxLevel
+            );
         }
 
         // Это прогресс уровня улучшения, а не опыт игрока.
@@ -144,7 +147,7 @@ public class PermanentUpgradeCardView : MonoBehaviour
         if (nextValueText != null)
         {
             nextValueText.text = maxed
-                ? "—"
+                ? Lang.Get("upg.dash_marker")
                 : PermanentUpgrades.FormatLevelNext(Stat);
         }
 
@@ -152,13 +155,13 @@ public class PermanentUpgradeCardView : MonoBehaviour
         SetActiveSafe(maxedImage, maxed);
 
         if (maxedLabel != null)
-            maxedLabel.text = "МАКСИМАЛЬНЫЙ УРОВЕНЬ";
+            maxedLabel.text = Lang.Get("upg.maxed");
 
         if (maxed)
             return;
 
         if (buyLabel != null)
-            buyLabel.text = "УЛУЧШИТЬ";
+            buyLabel.text = Lang.Get("upg.buy");
 
         if (buyCost != null)
             buyCost.text = cost.ToString();

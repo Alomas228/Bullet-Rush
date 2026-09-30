@@ -532,13 +532,13 @@ public class WaveManager : MonoBehaviour
         switch (archetype)
         {
             case WaveArchetype.Swarm:
-                return "РОЙ";
+                return Lang.Get("wave.archetype_swarm");
 
             case WaveArchetype.Siege:
-                return "ОСАДА";
+                return Lang.Get("wave.archetype_siege");
 
             case WaveArchetype.Hunt:
-                return "ВЫЛАЗКА";
+                return Lang.Get("wave.archetype_hunt");
 
             default:
                 return null;

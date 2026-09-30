@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 // Случайные события посреди волны: вынуждают игрока двигаться,
@@ -217,7 +217,7 @@ public class WaveEventDirector : MonoBehaviour
             );
         }
 
-        ShowBanner("ЗАСАДА!");
+        ShowBanner(Lang.Get("wave.event_ambush"));
     }
 
     private void RunRush(int wave)
@@ -238,7 +238,7 @@ public class WaveEventDirector : MonoBehaviour
             );
         }
 
-        ShowBanner("РЫВОК!");
+        ShowBanner(Lang.Get("wave.event_surge"));
     }
 
     private void SpawnDangerZone()
@@ -280,7 +280,7 @@ public class WaveEventDirector : MonoBehaviour
             zoneGrowMultiplier
         );
 
-        ShowBanner("ОПАСНОСТЬ!");
+        ShowBanner(Lang.Get("wave.event_danger"));
     }
 
     private void ShowBanner(string label)

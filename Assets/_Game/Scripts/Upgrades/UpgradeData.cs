@@ -37,6 +37,38 @@ public class UpgradeData : ScriptableObject
 
     public UpgradeEffectData EffectData => effectData;
 
+    /// <summary>
+    /// Имя на языке игрока. Улучшение-оружие наследует перевод
+    /// описания из WeaponData, остальные используют своё поле.
+    /// </summary>
+    public string LocalizedName
+    {
+        get
+        {
+            if (weaponData != null && type == UpgradeType.Weapon)
+                return weaponData.LocalizedName;
+
+            return upgradeName;
+        }
+    }
+
+    /// <summary>Описание на языке игрока.</summary>
+    public string LocalizedDescription
+    {
+        get
+        {
+            if (weaponData != null && type == UpgradeType.Weapon)
+                return weaponData.LocalizedDescription;
+
+            return description;
+        }
+    }
+
+    /// <summary>
+    /// Заполняет поля из ассета оружия. Текст сохраняется в ассете,
+    /// но показывается игроку через локализованные свойства выше —
+    /// иначе смена языка не подхватилась бы без пересоздания карточки.
+    /// </summary>
     public void InitializeWeapon(WeaponData data)
     {
         if (data == null)

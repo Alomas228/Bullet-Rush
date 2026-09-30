@@ -37,8 +37,18 @@ public class FixedDecorItem
 public class GameMap : ScriptableObject
 {
     [Header("Identity")]
+    [Tooltip(
+        "Ключ перевода без префикса — например \"les\" для ключа " +
+        "map.les. Пусто — используется поле «Название карты»."
+    )]
+    public string langKey;
+
     [Tooltip("Название карты для карточек выбора.")]
     public string mapName;
+
+    /// <summary>Название карты на языке игрока.</summary>
+    public string LocalizedName =>
+        Lang.GetOr("map." + langKey, mapName);
 
     [Tooltip("Иконка для карточек выбора карты.")]
     public Sprite icon;

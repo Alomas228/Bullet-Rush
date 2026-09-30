@@ -17,6 +17,13 @@ using UnityEngine;
 public class ClothingData : ScriptableObject
 {
     [Header("Identity")]
+    [Tooltip(
+        "Ключ перевода без префиксов .name/.desc — например " +
+        "\"camo\" для ключей clo.camo.name. " +
+        "Пусто — используется текст из полей ниже."
+    )]
+    [SerializeField] private string langKey;
+
     [SerializeField] private string clothingName;
 
     [TextArea]
@@ -39,6 +46,14 @@ public class ClothingData : ScriptableObject
     public string ClothingName => clothingName;
 
     public string Description => description;
+
+    /// <summary>Имя на языке игрока; без перевода — имя из ассета.</summary>
+    public string LocalizedName =>
+        Lang.GetOr("clo." + langKey + ".name", clothingName);
+
+    /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
+    public string LocalizedDescription =>
+        Lang.GetOr("clo." + langKey + ".desc", description);
 
     public int UnlockLevel =>
         Mathf.Max(unlockLevel, 1);

@@ -489,7 +489,7 @@ public static class EquipmentUIBuilder
         TextMeshProUGUI title = AddText(
             topBar,
             "TitleText",
-            "СНАРЯЖЕНИЕ",
+            "{eq.title}",
             52,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -507,7 +507,7 @@ public static class EquipmentUIBuilder
         TextMeshProUGUI subtitle = AddText(
             topBar,
             "SubtitleText",
-            "Собери боевой набор",
+            "{eq.subtitle}",
             26,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
@@ -544,7 +544,7 @@ public static class EquipmentUIBuilder
         TextMeshProUGUI level = AddText(
             levelChip,
             "LevelText",
-            "УР. 1",
+            "{eq.level_chip_static}",
             26,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -690,7 +690,7 @@ public static class EquipmentUIBuilder
             TextMeshProUGUI value = AddText(
                 surface.transform,
                 "ValueText",
-                "не выбрано",
+                "{eq.empty_slot}",
                 18,
                 TextAlignmentOptions.Top,
                 FontStyles.Normal,
@@ -973,7 +973,7 @@ public static class EquipmentUIBuilder
         typeText = AddText(
             wash.transform,
             "TypeText",
-            "Винтовка",
+            "{eq.type_rifle}",
             17,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -1020,7 +1020,7 @@ public static class EquipmentUIBuilder
         rarityText = AddText(
             row,
             "RarityText",
-            "Обычное",
+            "{rarity.common}",
             17,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -1052,7 +1052,7 @@ public static class EquipmentUIBuilder
         TMP_Text text = AddText(
             image.transform,
             "StateText",
-            "НЕ КУПЛЕНО",
+            "{eq.state_not_owned}",
             16,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -1096,7 +1096,7 @@ public static class EquipmentUIBuilder
         TMP_Text label = AddText(
             image.transform,
             "LabelText",
-            "КУПИТЬ",
+            "{eq.action_buy}",
             22,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -1376,7 +1376,7 @@ public static class EquipmentUIBuilder
         TMP_Text text = AddText(
             surface.transform,
             "Text",
-            "В этой категории пока нет предметов.",
+            "{eq.empty_state}",
             22,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
@@ -1420,7 +1420,7 @@ public static class EquipmentUIBuilder
         TextMeshProUGUI label = AddText(
             image.transform,
             "LabelText",
-            "НАЗАД",
+            "{eq.back}",
             24,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -1498,7 +1498,7 @@ public static class EquipmentUIBuilder
             buttonObject.GetComponentInChildren<TextMeshProUGUI>(true);
 
         if (label != null)
-            label.text = "Снаряжение";
+            label.text = "{menu.equipment}";
 
         Button button = buttonObject.GetComponent<Button>();
 

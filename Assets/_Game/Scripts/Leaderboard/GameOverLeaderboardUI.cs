@@ -141,12 +141,12 @@ public class GameOverLeaderboardUI : MonoBehaviour
     {
         switch (rank)
         {
-            case "S+": return "PERFECT RUN";
-            case "S": return "LEGENDARY";
-            case "A": return "EXCELLENT";
-            case "B": return "GREAT";
-            case "C": return "GOOD";
-            default: return "TRY AGAIN";
+            case "S+": return Lang.Get("rank.s_plus");
+            case "S": return Lang.Get("rank.s");
+            case "A": return Lang.Get("rank.a");
+            case "B": return Lang.Get("rank.b");
+            case "C": return Lang.Get("rank.c");
+            default: return Lang.Get("rank.f");
         }
     }
 
@@ -170,13 +170,13 @@ public class GameOverLeaderboardUI : MonoBehaviour
     private void ShowScores(RunResult result)
     {
         if (baseScoreText != null)
-            baseScoreText.text = $"Score: {result.score:N0}";
+            baseScoreText.text = Lang.Get("results.score", result.score.ToString("N0"));
 
         if (styleBonusText != null)
-            styleBonusText.text = $"+Style Bonus: {result.styleBonus:N0}";
+            styleBonusText.text = Lang.Get("results.style_bonus", result.styleBonus.ToString("N0"));
 
         if (finalScoreText != null)
-            finalScoreText.text = $"Total: {result.finalScore:N0}";
+            finalScoreText.text = Lang.Get("results.total", result.finalScore.ToString("N0"));
     }
 
     // =========================================================
@@ -189,31 +189,31 @@ public class GameOverLeaderboardUI : MonoBehaviour
             statsPanel.SetActive(true);
 
         if (killsText != null)
-            killsText.text = $"Kills: {metrics.Kills}";
+            killsText.text = Lang.Get("stat.kills", metrics.Kills);
 
         if (wavesText != null)
-            wavesText.text = $"Waves: {result.wavesCleared}";
+            wavesText.text = Lang.Get("stat.waves", result.wavesCleared);
 
         if (runTimeText != null)
-            runTimeText.text = $"Time: {FormatTime(metrics.RunTime)}";
+            runTimeText.text = Lang.Get("stat.time", FormatTime(metrics.RunTime));
 
         if (maxComboText != null)
-            maxComboText.text = $"Max Combo: {metrics.MaxCombo}";
+            maxComboText.text = Lang.Get("stat.max_combo", metrics.MaxCombo);
 
         if (perfectWavesText != null)
-            perfectWavesText.text = $"Perfect Waves: {metrics.PerfectWaves}";
+            perfectWavesText.text = Lang.Get("stat.perfect_waves", metrics.PerfectWaves);
 
         if (criticalHitsText != null)
-            criticalHitsText.text = $"Critical Hits: {metrics.CriticalHits}";
+            criticalHitsText.text = Lang.Get("stat.critical_hits", metrics.CriticalHits);
 
         if (abilitiesUsedText != null)
-            abilitiesUsedText.text = $"Abilities Used: {metrics.AbilitiesUsed}";
+            abilitiesUsedText.text = Lang.Get("stat.abilities_used", metrics.AbilitiesUsed);
 
         if (dashDodgesText != null)
-            dashDodgesText.text = $"Dash Dodges: {metrics.DashDodges}";
+            dashDodgesText.text = Lang.Get("stat.dash_dodges", metrics.DashDodges);
 
         if (multiKillStreaksText != null)
-            multiKillStreaksText.text = $"Multi-Kills: {metrics.MultiKillStreaks}";
+            multiKillStreaksText.text = Lang.Get("stat.multi_kills", metrics.MultiKillStreaks);
     }
 
     private void ShowSpeedStats(RunMetrics metrics)
@@ -222,19 +222,19 @@ public class GameOverLeaderboardUI : MonoBehaviour
             speedPanel.SetActive(true);
 
         if (avgKillTimeText != null)
-            avgKillTimeText.text = $"Avg Kill Time: {FormatTime(metrics.AverageKillTime)}";
+            avgKillTimeText.text = Lang.Get("stat.avg_kill_time", FormatTime(metrics.AverageKillTime));
 
         if (fastestKillTimeText != null)
-            fastestKillTimeText.text = $"Fastest Kill: {FormatTime(metrics.FastestKillTime)}";
+            fastestKillTimeText.text = Lang.Get("stat.fastest_kill", FormatTime(metrics.FastestKillTime));
 
         if (timeToFirstKillText != null)
-            timeToFirstKillText.text = $"Time to First Kill: {FormatTime(metrics.TimeToFirstKill)}";
+            timeToFirstKillText.text = Lang.Get("stat.time_to_first_kill", FormatTime(metrics.TimeToFirstKill));
 
         if (timeToFirstBossText != null)
-            timeToFirstBossText.text = $"Time to First Boss: {FormatTime(metrics.TimeToFirstBoss)}";
+            timeToFirstBossText.text = Lang.Get("stat.time_to_first_boss", FormatTime(metrics.TimeToFirstBoss));
 
         if (bestWaveClearTimeText != null)
-            bestWaveClearTimeText.text = $"Best Wave Clear: {FormatTime(metrics.BestWaveClearTime)}";
+            bestWaveClearTimeText.text = Lang.Get("stat.best_wave_clear", FormatTime(metrics.BestWaveClearTime));
     }
 
     private void ShowStyleStats(RunMetrics metrics)
@@ -248,7 +248,7 @@ public class GameOverLeaderboardUI : MonoBehaviour
             if (metrics.TotalDamageTaken > 0f)
                 efficiency = metrics.TotalDamageDealt / metrics.TotalDamageTaken;
 
-            damageEfficiencyText.text = $"Damage Efficiency: {efficiency:F1}x";
+            damageEfficiencyText.text = Lang.Get("stat.damage_efficiency", efficiency.ToString("F1"));
         }
     }
 
@@ -259,7 +259,7 @@ public class GameOverLeaderboardUI : MonoBehaviour
     private string FormatTime(float seconds)
     {
         if (seconds <= 0f || seconds == float.MaxValue)
-            return "--:--";
+            return Lang.Get("stat.no_time");
 
         TimeSpan ts = TimeSpan.FromSeconds(seconds);
         return $"{ts.Minutes:D2}:{ts.Seconds:D2}";

@@ -7,6 +7,13 @@ using UnityEngine;
 public class WeaponData : ScriptableObject
 {
     [Header("Identity")]
+    [Tooltip(
+        "Ключ перевода без префикса .name/.desc — например " +
+        "\"basic_rifle\" для ключей wpn.basic_rifle.desc. " +
+        "Пусто — используется текст из полей ниже."
+    )]
+    [SerializeField] private string langKey;
+
     [SerializeField] private string weaponName;
 
     [TextArea]
@@ -83,6 +90,14 @@ public class WeaponData : ScriptableObject
     public string WeaponName => weaponName;
 
     public string Description => description;
+
+    /// <summary>Имя на языке игрока; без перевода — имя из ассета.</summary>
+    public string LocalizedName =>
+        Lang.GetOr("wpn." + langKey + ".name", weaponName);
+
+    /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
+    public string LocalizedDescription =>
+        Lang.GetOr("wpn." + langKey + ".desc", description);
 
     public WeaponType WeaponType => weaponType;
 

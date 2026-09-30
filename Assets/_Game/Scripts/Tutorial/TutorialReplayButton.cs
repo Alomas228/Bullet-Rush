@@ -39,8 +39,7 @@ public class TutorialReplayButton : MonoBehaviour
         if (statusText == null)
             return;
 
-        statusText.text =
-            "Обучение сброшено — начнётся при следующем нажатии «Играть»";
+        statusText.text = Lang.Get("menu.tutorial_reset");
 
         statusText.color = statusColor;
     }

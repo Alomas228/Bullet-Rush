@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 
-public class MainMenuUI : MonoBehaviour
+public class MainMenuUI : MonoBehaviour, ILangRefreshable
 {
     public static event System.Action OnMenuAppeared;
 
@@ -93,6 +93,16 @@ public class MainMenuUI : MonoBehaviour
     private void OnEnable()
     {
         EnsureSubscribed();
+    }
+
+    /// <summary>
+    /// Перерисовывает подписи, которые скрипт собрал сам:
+    /// после смены языка в открытом меню они остались бы
+    /// на старом языке до перезагрузки сцены.
+    /// </summary>
+    public void RefreshLang()
+    {
+        RefreshPlayerDisplay();
     }
 
     private void OnDestroy()
@@ -196,13 +206,15 @@ public class MainMenuUI : MonoBehaviour
             return;
 
         if (playerLevelText != null)
-            playerLevelText.text = $"LEVEL {xp.GetPlayerLevel()}";
+            playerLevelText.text = Lang.Get("menu.level", xp.GetPlayerLevel());
 
         if (playerXpText != null)
         {
-            playerXpText.text =
-                $"{xp.GlobalXPInCurrentLevel} / " +
-                $"{xp.GlobalXPNeededForNextLevel} XP";
+            playerXpText.text = Lang.Get(
+                "menu.xp",
+                xp.GlobalXPInCurrentLevel,
+                xp.GlobalXPNeededForNextLevel
+            );
         }
 
         if (xpProgressBar != null)

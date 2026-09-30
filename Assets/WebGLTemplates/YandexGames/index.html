@@ -45,6 +45,7 @@
                 <div id="unity-progress-bar-full"></div>
             </div>
             <div class="spinner"></div>
+            <div id="unity-loading-text">Загрузка</div>
         </div>
     </div>
 
@@ -76,6 +77,7 @@
         const progressBarEmpty = document.querySelector("#unity-progress-bar-empty");
         const progressBarFull = document.querySelector("#unity-progress-bar-full");
         const spinner = document.querySelector('.spinner');
+        const loadingText = document.querySelector("#unity-loading-text");
 
         const canFullscreen = (function () {
             for (const key of [
@@ -104,9 +106,10 @@
         loadingCover.style.background = "url('Images/background.png') center / cover";
         loadingCover.style.display = "";
 
-        let StartUnityInstance;
+let StartUnityInstance;
         let ygGameInstance = null;
         let ysdk = null;
+        let ysdkLang = '';
         let initYSDK = false;
         let initSDKMessageSent = false;
         let initGame = false;
@@ -269,9 +272,60 @@
             }
         }
 
-        function IsYandexSDKAvailable() {
+function IsYandexSDKAvailable() {
             return typeof YaGames !== "undefined" && typeof YaGames.init === "function";
         }
+
+        // Автоопределение языка через SDK Яндекс Игр.
+        // Код языка читается из environment.i18n.lang сразу после
+        // YaGames.init() — до старта Unity, чтобы текст загрузки
+        // уже был на языке игрока (требования п. 2.14).
+        function CaptureLanguage() {
+            try {
+                if (ysdk && ysdk.environment && ysdk.environment.i18n)
+                    ysdkLang = String(ysdk.environment.i18n.lang || '');
+            } catch (e) {
+                console.warn('i18n: не удалось прочитать environment.i18n.lang', e);
+            }
+
+            // Локальная отладка и кеш браузера без SDK:
+            // откатываемся на язык браузера.
+            if (!ysdkLang)
+                ysdkLang = String(navigator.language || '');
+
+            document.documentElement.lang = ysdkLang;
+            window.ysdkLang = ysdkLang;
+
+            ApplyLoadingText(ysdkLang);
+
+            if (ysdkLang)
+                LogStyledMessage('I18N is used: ' + ysdkLang);
+            else
+                LogStyledMessage('I18N is not used');
+        }
+
+        // Текст загрузки на языке игрока. Набор и резервные правила
+        // те же, что в Lang.Resolve: be, kk, uk, uz → русский,
+        // tr → турецкий, всё остальное → английский.
+        const LOADING_TEXTS = {
+            ru: 'Загрузка',
+            be: 'Загрузка',
+            kk: 'Загрузка',
+            uk: 'Загрузка',
+            uz: 'Загрузка',
+            tr: 'Yükleniyor',
+            en: 'Loading'
+        };
+
+        function ApplyLoadingText(raw) {
+            if (!loadingText)
+                return;
+
+            const code = String(raw || '').toLowerCase().split(/[-_]/)[0];
+
+            loadingText.textContent = LOADING_TEXTS[code] || LOADING_TEXTS.en;
+        }
+
 
         function SendInitSDKComplete() {
             if (!initYSDK || ygGameInstance == null || initSDKMessageSent)
@@ -314,13 +368,21 @@
             console.log('%c' + message, style);
         }
 
-        async function InitYSDK() {
+async function InitYSDK() {
             try {
-                if (IsLocalHost()) return;
+                // Локальная отслеживания: SDK всё равно недоступен,
+                // язык берём из браузера, чтобы Unity стартовала
+                // с осмысленным текстом.
+                if (IsLocalHost()) {
+                    CaptureLanguage();
+                    return;
+                }
 
                 ysdk = await YaGames.init();
                 ysdk.on('game_api_pause', PauseCallback);
                 ysdk.on('game_api_resume', ResumeCallback);
+
+                CaptureLanguage();
 
                 // Additional init0 modules
 
@@ -337,6 +399,7 @@
 
             } catch (e) {
                 console.error('CRASH Initialization SDK: ', e);
+                CaptureLanguage();
             }
 
             if (!IsLocalHost() && !syncInit)

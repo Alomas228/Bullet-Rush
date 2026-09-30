@@ -26,7 +26,7 @@ using UnityEngine.UI;
 /// Состояние покупок и выбора живёт в EquipmentManager
 /// (PlayerPrefs), здесь только отображение.
 /// </summary>
-public class EquipmentUI : MonoBehaviour
+public class EquipmentUI : MonoBehaviour, ILangRefreshable
 {
     /// <summary>
     /// Сколько карточек помещается на страницу. Задаётся ассетом
@@ -90,9 +90,10 @@ public class EquipmentUI : MonoBehaviour
     /// <summary>
     /// Что показывать в подписи вкладки, когда ничего не надето.
     /// Спрашиваем у EquipmentManager, чтобы не дублировать его
-    /// форматирование.
+    /// форматирование. Значение по умолчанию — ключ перевода,
+    /// он разворачивается в язык, определённый при запуске.
     /// </summary>
-    [SerializeField] private string emptySlotLabel = "не выбрано";
+    [SerializeField] private string emptySlotLabel = "{eq.empty_slot}";
 
     private sealed class WeaponEntry
     {
@@ -140,6 +141,19 @@ public class EquipmentUI : MonoBehaviour
     private void OnDisable()
     {
         Unsubscribe();
+    }
+
+    /// <summary>
+    /// Перерисовывает вкладки и карточки на новом языке.
+    /// Refresh() пересобирает подписи из текущих данных и не
+    /// трогает снаряжение и прогресс, поэтому вызывается безопасно.
+    /// </summary>
+    public void RefreshLang()
+    {
+        if (!built)
+            return;
+
+        Refresh();
     }
 
     // =====================================================
@@ -350,7 +364,7 @@ public class EquipmentUI : MonoBehaviour
             coinsText.text = coins.ToString();
 
         if (levelText != null)
-            levelText.text = $"УР. {level}";
+            levelText.text = Lang.Get("eq.level_chip", level);
 
         ShowTab();
         RefreshTabValues();
@@ -383,7 +397,7 @@ public class EquipmentUI : MonoBehaviour
             return;
 
         text.text = string.IsNullOrEmpty(value)
-            ? emptySlotLabel
+            ? LangBinder.ResolveKey(emptySlotLabel)
             : value;
     }
 
@@ -448,8 +462,7 @@ public class EquipmentUI : MonoBehaviour
 
         if (emptyStateText != null && count == 0)
         {
-            emptyStateText.text =
-                "В этой категории пока нет предметов.";
+            emptyStateText.text = Lang.Get("eq.empty_state");
         }
 
         UpdatePagination(page, pageCount);
@@ -464,17 +477,22 @@ public class EquipmentUI : MonoBehaviour
     {
         if (!card.Unlocked)
         {
-            card.State = $"ОТКРОЕТСЯ НА УРОВНЕ {card.UnlockLevel}";
+            card.State = Lang.Get(
+                "eq.state_locked_level",
+                card.UnlockLevel
+            );
             return;
         }
 
         if (!card.Owned)
         {
-            card.State = "НЕ КУПЛЕНО";
+            card.State = Lang.Get("eq.state_not_owned");
             return;
         }
 
-        card.State = card.Equipped ? "СНАРЯЖЕНО" : "КУПЛЕНО";
+        card.State = card.Equipped
+            ? Lang.Get("eq.state_equipped")
+            : Lang.Get("eq.state_owned");
     }
 
     private void UpdatePagination(int page, int pageCount)
@@ -505,8 +523,8 @@ public class EquipmentUI : MonoBehaviour
         if (pageCounterText != null)
         {
             pageCounterText.text = pageCount > 0
-                ? $"{page + 1:00} / {pageCount:00}"
-                : "—";
+                ? Lang.Get("eq.page_counter", page + 1, pageCount)
+                : Lang.Get("upg.dash_marker");
         }
 
         RebuildDots(pageCount);
@@ -782,7 +800,7 @@ public class EquipmentUI : MonoBehaviour
         return new EquipmentCardData
         {
             Weapon = data,
-            Name = data.WeaponName,
+            Name = data.LocalizedName,
             TypeLabel = WeaponTypeLabel(data.WeaponType),
             RarityLabel = RarityLabel(data.Rarity),
             Stats = FormatWeapon(data),
@@ -798,12 +816,12 @@ public class EquipmentUI : MonoBehaviour
         return new EquipmentCardData
         {
             Ability = data,
-            Name = data.AbilityName,
+            Name = data.LocalizedName,
             TypeLabel = AbilityKindLabel(data.Kind),
             RarityLabel = string.Empty,
-            Stats = string.IsNullOrEmpty(data.Stats)
-                ? data.Description
-                : data.Stats,
+            Stats = string.IsNullOrEmpty(data.LocalizedStats)
+                ? data.LocalizedDescription
+                : data.LocalizedStats,
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.AbilityAccent,
@@ -816,10 +834,10 @@ public class EquipmentUI : MonoBehaviour
         return new EquipmentCardData
         {
             Clothing = data,
-            Name = data.ClothingName,
-            TypeLabel = "Одежда",
+            Name = data.LocalizedName,
+            TypeLabel = Lang.Get("eq.clothing_type"),
             RarityLabel = string.Empty,
-            Stats = data.Description,
+            Stats = data.LocalizedDescription,
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.ClothingAccent,
@@ -988,13 +1006,13 @@ public class EquipmentUI : MonoBehaviour
         switch (type)
         {
             case WeaponType.Rifle:
-                return "Винтовка";
+                return Lang.Get("eq.type_rifle");
 
             case WeaponType.Shotgun:
-                return "Дробовик";
+                return Lang.Get("eq.type_shotgun");
 
             case WeaponType.SMG:
-                return "Пистолет-пулемёт";
+                return Lang.Get("eq.type_smg");
 
             default:
                 return type.ToString();
@@ -1006,10 +1024,10 @@ public class EquipmentUI : MonoBehaviour
         switch (kind)
         {
             case AbilityKind.Bomb:
-                return "Бомба [E]";
+                return Lang.Get("eq.ability_bomb");
 
             case AbilityKind.Shield:
-                return "Щит [Q]";
+                return Lang.Get("eq.ability_shield");
 
             default:
                 return kind.ToString();
@@ -1021,19 +1039,19 @@ public class EquipmentUI : MonoBehaviour
         switch (rarity)
         {
             case Rarity.Common:
-                return "Обычное";
+                return Lang.Get("rarity.common");
 
             case Rarity.Uncommon:
-                return "Необычное";
+                return Lang.Get("rarity.uncommon");
 
             case Rarity.Rare:
-                return "Редкое";
+                return Lang.Get("rarity.rare");
 
             case Rarity.Epic:
-                return "Эпическое";
+                return Lang.Get("rarity.epic");
 
             case Rarity.Legendary:
-                return "Легендарное";
+                return Lang.Get("rarity.legendary");
 
             default:
                 return rarity.ToString();
@@ -1048,34 +1066,60 @@ public class EquipmentUI : MonoBehaviour
     {
         var lines = new List<string>
         {
-            $"Урон: {data.Damage:0.#}",
-            $"Темп: {data.FireRate:0.#}/с"
+            Lang.Get("eq.stat_damage", Num(data.Damage)),
+            Lang.Get("eq.stat_firerate", Num(data.FireRate))
         };
 
         if (data.ProjectileCount > 1)
-            lines.Add($"Снарядов: {data.ProjectileCount}");
+        {
+            lines.Add(
+                Lang.Get("eq.stat_projectiles", data.ProjectileCount)
+            );
+        }
 
         if (data.PierceCount > 0)
-            lines.Add($"Пробитие: {data.PierceCount}");
+        {
+            lines.Add(
+                Lang.Get("eq.stat_pierce", data.PierceCount)
+            );
+        }
 
         if (data.IsBurstWeapon)
-            lines.Add($"Очередь: {data.ShotsPerBurst}");
+        {
+            lines.Add(
+                Lang.Get("eq.stat_burst", data.ShotsPerBurst)
+            );
+        }
 
         if (data.CriticalChanceBonus > 0f)
         {
             lines.Add(
-                $"Крит: +{data.CriticalChanceBonus * 100f:0.#}%"
+                Lang.Get(
+                    "eq.stat_crit",
+                    Num(data.CriticalChanceBonus * 100f)
+                )
             );
         }
 
         if (data.ScoreBonusPercent > 0f)
         {
             lines.Add(
-                $"Очки: +{data.ScoreBonusPercent:0.#}%"
+                Lang.Get("eq.stat_score", Num(data.ScoreBonusPercent))
             );
         }
 
         return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// Число без локальных разделителей: точка в любом языке.
+    /// </summary>
+    private static string Num(float value)
+    {
+        return value.ToString(
+            "0.#",
+            System.Globalization.CultureInfo.InvariantCulture
+        );
     }
 
     // =====================================================

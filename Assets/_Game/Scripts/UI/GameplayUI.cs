@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class GameplayUI : MonoBehaviour
+public class GameplayUI : MonoBehaviour, ILangRefreshable
 {
     [Header("References")]
     [SerializeField] private PlayerHealth playerHealth;
@@ -27,6 +27,18 @@ public class GameplayUI : MonoBehaviour
     private int cachedScore = int.MinValue;
     private int cachedWave = int.MinValue;
     private int cachedCoins = int.MinValue;
+
+    /// <summary>
+    /// Сбрасывает кэши, чтобы Update перерисовал подписи на новом
+    /// языке. Значения не меняются, поэтому без сброса текст остался
+    /// бы на старом языке до следующего изменения счёта или волны.
+    /// </summary>
+    public void RefreshLang()
+    {
+        cachedScore = int.MinValue;
+        cachedWave = int.MinValue;
+        cachedCoins = int.MinValue;
+    }
 
     private void OnEnable()
     {
@@ -130,7 +142,7 @@ public class GameplayUI : MonoBehaviour
             {
                 cachedScore = score;
 
-                scoreText.text = $"SCORE: {score}";
+                scoreText.text = Lang.Get("hud.score", score);
             }
         }
 
@@ -145,7 +157,7 @@ public class GameplayUI : MonoBehaviour
                 // WAVE: 0 выглядит багом — во время обучения волны ещё нет.
                 waveText.text =
                     wave > 0
-                        ? $"WAVE: {wave}"
+                        ? Lang.Get("hud.wave", wave)
                         : string.Empty;
             }
         }

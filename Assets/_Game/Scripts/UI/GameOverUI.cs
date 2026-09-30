@@ -117,7 +117,7 @@ public class GameOverUI : MonoBehaviour
         gameOverPanel.SetActive(true);
 
         if (scoreText != null && ScoreManager.Instance != null)
-            scoreText.text = $"Score: {ScoreManager.Instance.Score}";
+            scoreText.text = Lang.Get("menu.score", ScoreManager.Instance.Score);
 
         if (waveText != null)
         {
@@ -125,14 +125,22 @@ public class GameOverUI : MonoBehaviour
                 FindAnyObjectByType<WaveManager>();
 
             if (waveManager != null)
-                waveText.text = $"Wave Reached: {waveManager.CurrentWave}";
+            {
+                waveText.text = Lang.Get(
+                    "menu.wave_reached",
+                    waveManager.CurrentWave
+                );
+            }
         }
 
         if (killsText != null && ScoreManager.Instance != null)
-            killsText.text = $"Kills: {ScoreManager.Instance.Kills}";
+            killsText.text = Lang.Get("menu.kills", ScoreManager.Instance.Kills);
 
         if (coinsText != null && XpManager.Instance != null)
-            coinsText.text = $"Coins Earned: {XpManager.Instance.RunCoins}";
+            coinsText.text = Lang.Get(
+                "menu.coins_earned",
+                XpManager.Instance.RunCoins
+            );
 
         ShowPlayerProgression();
         SetupRewardedButtons();
@@ -146,7 +154,7 @@ public class GameOverUI : MonoBehaviour
             return;
 
         if (playerXpText != null)
-            playerXpText.text = $"Player XP +{xp.LastRunReward}";
+            playerXpText.text = Lang.Get("menu.player_xp", xp.LastRunReward);
 
         if (levelUpText != null)
         {
@@ -156,9 +164,11 @@ public class GameOverUI : MonoBehaviour
 
             if (xp.LevelsGainedLastRun > 0)
             {
-                levelUpText.text =
-                    $"LEVEL {xp.LastLevelBeforeGrant} -> " +
-                    $"LEVEL {xp.GetPlayerLevel()}";
+                levelUpText.text = Lang.Get(
+                    "menu.level_up",
+                    xp.LastLevelBeforeGrant,
+                    xp.GetPlayerLevel()
+                );
             }
         }
 
@@ -219,11 +229,14 @@ public class GameOverUI : MonoBehaviour
             Mathf.Max(levelEndXp - levelStartXp, 1);
 
         if (levelText != null)
-            levelText.text = $"LEVEL {level}";
+            levelText.text = Lang.Get("over.level", level);
 
         if (xpProgressText != null)
-            xpProgressText.text =
-                $"{xpInLevel} / {neededInLevel} XP";
+            xpProgressText.text = Lang.Get(
+                "over.xp_progress",
+                xpInLevel,
+                neededInLevel
+            );
 
         if (xpProgressBar != null)
             xpProgressBar.value =
@@ -236,7 +249,8 @@ public class GameOverUI : MonoBehaviour
         {
             doubleCoinsButton =
                 CreateRewardedButton(
-                    "x2 COINS",
+                    "Btn_X2Coins",
+                    Lang.Get("over.x2_coins"),
                     OnDoubleCoinsClicked,
                     1
                 );
@@ -246,7 +260,8 @@ public class GameOverUI : MonoBehaviour
         {
             reviveButton =
                 CreateRewardedButton(
-                    "REVIVE",
+                    "Btn_Revive",
+                    Lang.Get("over.revive"),
                     OnReviveClicked,
                     2
                 );
@@ -266,6 +281,7 @@ public class GameOverUI : MonoBehaviour
     }
 
     private Button CreateRewardedButton(
+        string objectName,
         string label,
         UnityEngine.Events.UnityAction onClick,
         int positionIndex)
@@ -281,7 +297,7 @@ public class GameOverUI : MonoBehaviour
         Button clone =
             Instantiate(source, source.transform.parent);
 
-        clone.name = "Btn_" + label.Replace(" ", "_");
+        clone.name = objectName;
         clone.onClick.RemoveAllListeners();
 
         TMP_Text tmpText =
@@ -346,7 +362,10 @@ public class GameOverUI : MonoBehaviour
         xp.AddCoins(xp.RunCoins);
 
         if (coinsText != null)
-            coinsText.text = $"Coins Earned: {xp.RunCoins}";
+            coinsText.text = Lang.Get(
+                "menu.coins_earned",
+                xp.RunCoins
+            );
     }
 
     private void OnReviveClicked()

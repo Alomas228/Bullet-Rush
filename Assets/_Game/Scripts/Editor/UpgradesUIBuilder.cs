@@ -451,7 +451,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI title = AddText(
             topBar,
             "TitleText",
-            "УЛУЧШЕНИЯ",
+            "{upg.title}",
             52,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -469,7 +469,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI subtitle = AddText(
             topBar,
             "SubtitleText",
-            "Усиль своего героя",
+            "{upg.subtitle}",
             26,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
@@ -660,7 +660,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI categoryText = AddText(
             iconArea.transform,
             "CategoryText",
-            "УРОН",
+            "{cat.damage}",
             17,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -681,7 +681,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI nameText = AddText(
             face,
             "NameText",
-            "УРОН",
+            "{cat.damage}",
             30,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -695,7 +695,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI descriptionText = AddText(
             face,
             "DescriptionText",
-            "Увеличивает урон всего оружия.",
+            "{upg.desc_static}",
             19,
             TextAlignmentOptions.Top,
             FontStyles.Normal,
@@ -712,7 +712,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI levelText = AddText(
             face,
             "LevelText",
-            "УРОВЕНЬ 1 / 10",
+            "{upg.level_static}",
             21,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -734,7 +734,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI currentValue = AddBonusRow(
             face,
             "CurrentRow",
-            "СЕЙЧАС",
+            "{upg.current}",
             26,
             UpgradesWireframeTheme.DamageAccent
         );
@@ -742,7 +742,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI nextValue = AddBonusRow(
             face,
             "NextRow",
-            "ДАЛЬШЕ",
+            "{upg.next}",
             22,
             UpgradesWireframeTheme.TextSecondary
         );
@@ -918,7 +918,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI label = AddText(
             row,
             "LabelText",
-            "УЛУЧШИТЬ",
+            "{upg.buy}",
             23,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -1014,7 +1014,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI label = AddText(
             row,
             "LabelText",
-            "МАКСИМАЛЬНЫЙ УРОВЕНЬ",
+            "{upg.maxed}",
             19,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -1230,7 +1230,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI label = AddText(
             image.transform,
             "LabelText",
-            "НАЗАД",
+            "{upg.back}",
             24,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -1277,7 +1277,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI label = AddText(
             image.transform,
             "LabelText",
-            "ОБНОВИТЬ",
+            "{upg.refresh}",
             24,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
@@ -1315,7 +1315,7 @@ public static class UpgradesUIBuilder
         TextMeshProUGUI cost = AddText(
             image.transform,
             "CostText",
-            $"{RefreshCost} монет",
+            "{upg.refresh_cost}",
             20,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Normal,
@@ -1393,7 +1393,7 @@ public static class UpgradesUIBuilder
             buttonObject.GetComponentInChildren<TextMeshProUGUI>(true);
 
         if (label != null)
-            label.text = "Улучшения";
+            label.text = "{upg.title}";
 
         Button button = buttonObject.GetComponent<Button>();
 

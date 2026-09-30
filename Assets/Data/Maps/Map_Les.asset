@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
   m_Name: Map_Les
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  langKey: les
   mapName: "\u041B\u0435\u0441"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: 2ad2ac89c43f8bb40ac8c167a99eaad6, type: 2}

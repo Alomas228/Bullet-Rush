@@ -92,7 +92,7 @@ public class DamageNumber : MonoBehaviour
             Mathf.RoundToInt(damage).ToString();
 
         if (isCritical)
-            damageText.text = "CRIT " + damageText.text;
+            damageText.text = Lang.Get("hud.crit") + damageText.text;
 
         this.isCritical = isCritical;
 

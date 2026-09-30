@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
   m_Name: Map_Plyazh
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  langKey: plyazh
   mapName: "\u041F\u043B\u044F\u0436"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: 29ba719c72e54aa4f9773978a3398ade, type: 2}

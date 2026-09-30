@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f708192a3b4c5d6e7f800, type: 3}
   m_Name: Clothing_Camo
   m_EditorClassIdentifier: Assembly-CSharp::ClothingData
+  langKey: camo
   clothingName: Камуфляж
   description: Почти сливается с окружением. Почти.
   unlockLevel: 8

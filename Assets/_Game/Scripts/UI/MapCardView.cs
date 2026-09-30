@@ -87,9 +87,9 @@ public class MapCardView : MonoBehaviour
 
         if (nameText != null)
         {
-            nameText.text = string.IsNullOrEmpty(map.mapName)
+            nameText.text = string.IsNullOrEmpty(map.LocalizedName)
                 ? map.name
-                : map.mapName;
+                : map.LocalizedName;
 
             // На тёмной земле (космос) — светлый текст, иначе тёмный.
             float luminance =

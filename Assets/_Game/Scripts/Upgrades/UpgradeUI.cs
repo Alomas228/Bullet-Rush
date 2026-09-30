@@ -87,7 +87,7 @@ public class UpgradeUI : MonoBehaviour
                 if (cards[i].NameText != null)
                 {
                     cards[i].NameText.text =
-                        upgrade.UpgradeName;
+                        upgrade.LocalizedName;
 
                     // Цвет названия = редкость (об этом говорит обучение).
                     cards[i].NameText.color =
@@ -97,7 +97,7 @@ public class UpgradeUI : MonoBehaviour
                 if (cards[i].DescriptionText != null)
                 {
                     cards[i].DescriptionText.text =
-                        upgrade.Description;
+                        upgrade.LocalizedDescription;
                 }
             }
             else

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
   m_Name: Map_Gory
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  langKey: gory
   mapName: "\u0413\u043E\u0440\u044B"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: e91a9f3952ffafc4790796a099d06b46, type: 2}

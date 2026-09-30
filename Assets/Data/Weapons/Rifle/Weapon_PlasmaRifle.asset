@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 579c3da4ad054a64e9338f72af3470a3, type: 3}
   m_Name: Weapon_PlasmaRifle
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  langKey: plasma_rifle
   weaponName: Plasma Rifle
   description: "\u0421\u0442\u0440\u0435\u043B\u044F\u0435\u0442 \u0440\u0430\u0441\u043A\u0430\u043B\u0451\u043D\u043D\u043E\u0439
     \u043F\u043B\u0430\u0437\u043C\u043E\u0439, \u043F\u0440\u043E\u0436\u0438\u0433\u0430\u044E\u0449\u0435\u0439

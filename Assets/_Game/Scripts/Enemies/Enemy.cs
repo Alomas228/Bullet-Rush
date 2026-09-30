@@ -2386,7 +2386,7 @@ public class Enemy : MonoBehaviour
         {
             ScoreManager.Instance.IncrementKills();
             ScoreManager.Instance.AddScore(
-                Mathf.RoundToInt(baseScore), "Убийство врага"
+                Mathf.RoundToInt(baseScore), Lang.Get("bonus.enemy_kill")
             );
         }
 

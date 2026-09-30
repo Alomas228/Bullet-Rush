@@ -93,10 +93,12 @@ public class BossHealthBar : MonoBehaviour
             healthSlider.value = healthPercent;
         }
 
+        string bossLabel = Lang.Get("hud.boss");
+
         if (bossNameText != null &&
-            bossNameText.text != "BOSS")
+            bossNameText.text != bossLabel)
         {
-            bossNameText.text = "BOSS";
+            bossNameText.text = bossLabel;
         }
     }
 

@@ -20,7 +20,7 @@ using UnityEngine.UI;
 /// это заглушка механики, порядок карточек после обновления
 /// меняется случайно.
 /// </summary>
-public class PermanentUpgradesUI : MonoBehaviour
+public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
 {
     /// <summary>Сколько карточек помещается на экран.</summary>
     public const int CardsPerPage = 4;
@@ -101,6 +101,20 @@ public class PermanentUpgradesUI : MonoBehaviour
     private void OnDisable()
     {
         Unsubscribe();
+    }
+
+    /// <summary>
+    /// Перерисовывает карточки и цену обновления на новом языке.
+    /// Refresh() только пересобирает подписи из текущих данных
+    /// и не меняет состояние панели, поэтому безопасно вызывать
+    /// прямо во время игры.
+    /// </summary>
+    public void RefreshLang()
+    {
+        if (!built)
+            return;
+
+        Refresh();
     }
 
     private void OnDestroy()
@@ -251,7 +265,7 @@ public class PermanentUpgradesUI : MonoBehaviour
         }
 
         if (refreshCostText != null)
-            refreshCostText.text = $"{refreshCost} монет";
+            refreshCostText.text = Lang.Get("upg.refresh_cost", refreshCost);
     }
 
     private void ShowPage()

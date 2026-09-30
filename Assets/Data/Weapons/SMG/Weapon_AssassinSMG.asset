@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 579c3da4ad054a64e9338f72af3470a3, type: 3}
   m_Name: Weapon_AssassinSMG
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  langKey: assassin_smg
   weaponName: Assassin SMG
   description: "\u0423\u0431\u0438\u0439\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439
     \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441 \u0445\u0438\u0440\u0443\u0440\u0433\u0438\u0447\u0435\u0441\u043A\u043E\u0439

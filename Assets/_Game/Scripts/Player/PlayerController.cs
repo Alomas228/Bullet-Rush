@@ -329,7 +329,10 @@ public class PlayerController : MonoBehaviour
         if (sm != null &&
             bonusSettings != null)
         {
-            sm.AddBonus(bonusSettings.dashDodgeBonus, "Dash Dodge");
+            sm.AddBonus(
+                bonusSettings.dashDodgeBonus,
+                Lang.Get("bonus.dash_dodge")
+            );
         }
     }
 

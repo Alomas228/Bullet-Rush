@@ -23,6 +23,13 @@ public enum AbilityKind
 public class AbilityData : ScriptableObject
 {
     [Header("Identity")]
+    [Tooltip(
+        "Ключ перевода без префиксов .name/.desc/.stats — например " +
+        "\"bomb\" для ключей abi.bomb.name. " +
+        "Пусто — используется текст из полей ниже."
+    )]
+    [SerializeField] private string langKey;
+
     [SerializeField] private string abilityName;
 
     [TextArea]
@@ -53,6 +60,18 @@ public class AbilityData : ScriptableObject
     public string AbilityName => abilityName;
 
     public string Description => description;
+
+    /// <summary>Имя на языке игрока; без перевода — имя из ассета.</summary>
+    public string LocalizedName =>
+        Lang.GetOr("abi." + langKey + ".name", abilityName);
+
+    /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
+    public string LocalizedDescription =>
+        Lang.GetOr("abi." + langKey + ".desc", description);
+
+    /// <summary>Строка характеристик на языке игрока.</summary>
+    public string LocalizedStats =>
+        Lang.GetOr("abi." + langKey + ".stats", stats);
 
     public AbilityKind Kind => kind;
 

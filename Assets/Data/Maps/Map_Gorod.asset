@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92973370bf0eb4842945fbecb4969cc6, type: 3}
   m_Name: Map_Gorod
   m_EditorClassIdentifier: Assembly-CSharp::GameMap
+  langKey: gorod
   mapName: "\u0413\u043E\u0440\u043E\u0434"
   icon: {fileID: 0}
   groundMaterial: {fileID: 2100000, guid: fad617c7c4d33f047b4a42290f1ae844, type: 2}

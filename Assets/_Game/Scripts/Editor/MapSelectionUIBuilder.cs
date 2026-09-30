@@ -305,7 +305,7 @@ public static class MapSelectionUIBuilder
         TextMeshProUGUI title = AddText(
             panelRect,
             "TitleText",
-            "ВЫБОР КАРТЫ",
+            "{maps.title}",
             44,
             TextAlignmentOptions.Left,
             FontStyles.Bold,
@@ -325,7 +325,7 @@ public static class MapSelectionUIBuilder
         TextMeshProUGUI subtitle = AddText(
             panelRect,
             "SubtitleText",
-            "Мир уедет и приедет новый — арена та же, механики те же",
+            "{maps.subtitle}",
             24,
             TextAlignmentOptions.Left,
             FontStyles.Normal,
@@ -442,10 +442,12 @@ public static class MapSelectionUIBuilder
 
         icon.raycastTarget = false;
 
+        // Плейсхолдер: реальное название подставляет MapCardView
+        // из GameMap.LocalizedName уже в рантайме.
         TextMeshProUGUI nameText = AddText(
             cardRect,
             "NameText",
-            $"Карта {index + 1}",
+            $"#{index + 1}",
             28,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -484,7 +486,7 @@ public static class MapSelectionUIBuilder
         TextMeshProUGUI chipLabel = AddText(
             chip.transform,
             "LabelText",
-            "ВЫБРАНО",
+            "{maps.selected}",
             20,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -653,7 +655,7 @@ public static class MapSelectionUIBuilder
         TextMeshProUGUI label = AddText(
             image.transform,
             "LabelText",
-            "НАЗАД",
+            "{maps.back}",
             24,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
@@ -790,7 +792,7 @@ public static class MapSelectionUIBuilder
             buttonObject.GetComponentInChildren<TextMeshProUGUI>(true);
 
         if (label != null)
-            label.text = "Карты";
+            label.text = "{menu.maps}";
 
         Button button = buttonObject.GetComponent<Button>();
 

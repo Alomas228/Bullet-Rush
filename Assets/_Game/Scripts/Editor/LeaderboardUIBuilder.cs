@@ -676,7 +676,7 @@ public static class LeaderboardUIBuilder
             TextAlignmentOptions.Center,
             CaptionColor,
             FontStyles.Bold
-        ).text = "COMBO";
+        ).text = "{lb.combo}";
 
         TextMeshProUGUI comboCountText = CreateText(
             comboPanel.transform,

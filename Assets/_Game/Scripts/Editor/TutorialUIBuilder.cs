@@ -184,7 +184,7 @@ public static class TutorialUIBuilder
         TextMeshProUGUI skipText =
             skipLabel.AddComponent<TextMeshProUGUI>();
 
-        skipText.text = "ПРОПУСТИТЬ";
+        skipText.text = "{tut.skip}";
         skipText.font = font;
         skipText.fontSize = 30f;
         skipText.fontStyle = FontStyles.Bold;
@@ -342,7 +342,7 @@ public static class TutorialUIBuilder
         TextMeshProUGUI label =
             labelObject.AddComponent<TextMeshProUGUI>();
 
-        label.text = "ПРОЙТИ ОБУЧЕНИЕ ЗАНОВО";
+        label.text = "{menu.tutorial_replay}";
         label.font = font;
         label.fontSize = 26f;
         label.fontStyle = FontStyles.Bold;

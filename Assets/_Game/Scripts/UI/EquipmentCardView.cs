@@ -134,22 +134,26 @@ public class EquipmentCardView : MonoBehaviour
 
         if (!data.Unlocked)
         {
-            label = "ЗАКРЫТО";
+            label = Lang.Get("eq.action_locked");
             interactable = false;
         }
         else if (!data.Owned)
         {
-            label = "КУПИТЬ";
+            label = Lang.Get("eq.action_buy");
             interactable = coins >= data.Price;
         }
         else if (data.Toggles)
         {
-            label = data.Equipped ? "СНЯТЬ" : "СНАРЯДИТЬ";
+            label = data.Equipped
+                ? Lang.Get("eq.action_unequip")
+                : Lang.Get("eq.action_equip");
             interactable = true;
         }
         else
         {
-            label = data.Equipped ? "СНАРЯЖЕНО" : "СНАРЯДИТЬ";
+            label = data.Equipped
+                ? Lang.Get("eq.state_equipped")
+                : Lang.Get("eq.action_equip");
             interactable = !data.Equipped;
         }
 
@@ -181,7 +185,7 @@ public class EquipmentCardView : MonoBehaviour
 
         if (!data.Unlocked)
         {
-            text = $"УР. {data.UnlockLevel}";
+            text = Lang.Get("eq.level_chip", data.UnlockLevel);
             background = PriceBlocked;
         }
         else if (!data.Owned)
@@ -193,7 +197,7 @@ public class EquipmentCardView : MonoBehaviour
         }
         else
         {
-            text = "—";
+            text = Lang.Get("upg.dash_marker");
             background = PriceBlocked;
         }
 

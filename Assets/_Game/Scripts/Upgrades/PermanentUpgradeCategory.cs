@@ -43,16 +43,16 @@ public static class PermanentUpgradeCategories
         switch (category)
         {
             case PermanentUpgradeCategory.Damage:
-                return "УРОН";
+                return Lang.Get("cat.damage");
 
             case PermanentUpgradeCategory.Health:
-                return "ЗДОРОВЬЕ";
+                return Lang.Get("cat.health");
 
             case PermanentUpgradeCategory.Speed:
-                return "СКОРОСТЬ";
+                return Lang.Get("cat.speed");
 
             default:
-                return "КРИТ. ШАНС";
+                return Lang.Get("cat.critical");
         }
     }
 }
