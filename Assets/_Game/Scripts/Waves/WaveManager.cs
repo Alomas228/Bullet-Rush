@@ -26,16 +26,25 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float bossSpawnInDuration = 1.2f;
 
     [Header("Timing")]
-    [SerializeField] private float waveDisplayTime = 1.5f;
-    [SerializeField] private float prepareTime = 1.5f;
-    [SerializeField] private float countdownStepTime = 1f;
+    [Tooltip("Баннер «WAVE N» обычной волны. Короткий: за ним сразу идёт бой, без «подготовки» и отсчёта.")]
+    [SerializeField] private float waveDisplayTime = 0.75f;
+    [Tooltip("Заставка первой волны — вступление в забег, поэтому чуть дольше обычного.")]
+    [SerializeField] private float firstWaveDisplayTime = 1f;
+    [Tooltip("Заставка перед боссом. Должна ощущаться как отдельный момент.")]
+    [SerializeField] private float bossWaveDisplayTime = 1.6f;
+    [Tooltip("Экран «ПОДГОТОВКА». Показывается только на первой волне и перед боссом.")]
+    [SerializeField] private float prepareTime = 0.5f;
+    [Tooltip("Длительность одной цифры отсчёта. Тоже только первая волна и босс.")]
+    [SerializeField] private float countdownStepTime = 0.6f;
     [Tooltip("Пауза между «WAVE COMPLETE» и окном выбора улучшения.")]
-    [SerializeField] private float waveCompleteDisplayTime = 1.2f;
+    [SerializeField] private float waveCompleteDisplayTime = 0.6f;
+    [Tooltip("Та же пауза после победы над боссом — кульминация забега, её можно подержать дольше.")]
+    [SerializeField] private float bossWaveCompleteDisplayTime = 1.4f;
     [Tooltip("Пауза после выбора улучшения перед началом следующей волны.")]
-    [SerializeField] private float postUpgradeDelay = 0.8f;
+    [SerializeField] private float postUpgradeDelay = 0.35f;
 
     [Header("Structure Sync")]
-    [Tooltip("Пауза после завершения генерации структур перед спавном врагов. Даёт структурам секунду-другую до конца вырасти.")]
+    [Tooltip("Пауза после генерации структур перед спавном врагов. Даёт структурам дорасти. Тратится только когда арена реально перестраивается — между волнами она уже готова.")]
     [SerializeField] private float structureSpawnBuffer = 1f;
 
     public int CurrentWave { get; private set; }
@@ -185,7 +194,11 @@ public class WaveManager : MonoBehaviour
 
     private IEnumerator ShowUpgradeAfterWaveComplete()
     {
-        yield return new WaitForSeconds(waveCompleteDisplayTime);
+        yield return new WaitForSeconds(
+            IsBossWave(CurrentWave)
+                ? bossWaveCompleteDisplayTime
+                : waveCompleteDisplayTime
+        );
 
         if (upgradeUI != null)
         {
@@ -309,6 +322,8 @@ public class WaveManager : MonoBehaviour
         // Мир строится один раз под карту и остаётся стабильным на
         // весь забег (референс: одна арена с фиксированным набором
         // препятствий). Перестраивание только при смене карты.
+        bool worldRegenerated = false;
+
         if (worldGenerator != null)
         {
             int mapSeed = GetCurrentMapSeed();
@@ -317,8 +332,15 @@ public class WaveManager : MonoBehaviour
             {
                 worldGenerator.GenerateForMap(mapSeed);
                 generatedMapSeed = mapSeed;
+                worldRegenerated = true;
             }
         }
+
+        // Отсчёт 3-2-1 и «подготовка» нужны только там, где игрок
+        // ждёт начала забега или готовится к боссу. Обычная волна
+        // получает короткий баннер и стартует сразу.
+        bool isFirstWave = CurrentWave <= 1;
+        bool isBossWave = IsBossWave(CurrentWave);
 
         if (waveUI != null)
             waveUI.ShowWave(
@@ -326,7 +348,31 @@ public class WaveManager : MonoBehaviour
                 GetArchetypeSubtitle(currentArchetype)
             );
 
-        yield return new WaitForSeconds(waveDisplayTime);
+        if (!isFirstWave && !isBossWave)
+        {
+            yield return new WaitForSeconds(
+                waveDisplayTime
+            );
+
+            if (waveUI != null)
+                waveUI.Hide();
+
+            yield return WaitForWorldReady(
+                worldRegenerated
+            );
+
+            SpawnCurrentWave();
+
+            waveActive = true;
+
+            yield break;
+        }
+
+        yield return new WaitForSeconds(
+            isBossWave
+                ? bossWaveDisplayTime
+                : firstWaveDisplayTime
+        );
 
         if (waveUI != null)
             waveUI.ShowPrepare();
@@ -357,10 +403,21 @@ public class WaveManager : MonoBehaviour
         if (waveUI != null)
             waveUI.Hide();
 
-        yield return new WaitForSeconds(
-            structureSpawnBuffer
+        yield return WaitForWorldReady(
+            worldRegenerated
         );
 
+        SpawnCurrentWave();
+
+        waveActive = true;
+    }
+
+    // Структурам нужно время только после реальной генерации —
+    // тогда блоки ещё дорастают. Если арена уже собрана (обычный
+    // случай между волнами), ждать нечего и ждать не нужно.
+    private IEnumerator WaitForWorldReady(
+        bool worldRegenerated)
+    {
         if (worldGenerator != null)
         {
             while (worldGenerator.IsGenerating)
@@ -369,9 +426,18 @@ public class WaveManager : MonoBehaviour
             }
         }
 
-        SpawnCurrentWave();
+        if (worldRegenerated && structureSpawnBuffer > 0f)
+        {
+            yield return new WaitForSeconds(
+                structureSpawnBuffer
+            );
+        }
+    }
 
-        waveActive = true;
+    private bool IsBossWave(int wave)
+    {
+        return bossWaveInterval > 0 &&
+               wave % bossWaveInterval == 0;
     }
 
     private IEnumerator StartNextWaveAfterDelay()
@@ -403,7 +469,7 @@ public class WaveManager : MonoBehaviour
         // Босс-волна начинает «материализацию» сразу после каунтдауна.
         // События посреди босс-волны не запускаем — у босса и так
         // есть прислуга и способности.
-        if (CurrentWave % bossWaveInterval == 0)
+        if (IsBossWave(CurrentWave))
         {
             SpawnBossWave();
 
