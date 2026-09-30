@@ -26,6 +26,7 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
     private float cachedHealth = float.NaN;
     private int cachedScore = int.MinValue;
     private int cachedWave = int.MinValue;
+    private int cachedWaveLeft = int.MinValue;
     private int cachedCoins = int.MinValue;
 
     /// <summary>
@@ -37,6 +38,7 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
     {
         cachedScore = int.MinValue;
         cachedWave = int.MinValue;
+        cachedWaveLeft = int.MinValue;
         cachedCoins = int.MinValue;
     }
 
@@ -149,15 +151,20 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
         if (waveManager != null && waveText != null)
         {
             int wave = waveManager.CurrentWave;
+            int left = waveManager.EnemiesLeft;
 
-            if (wave != cachedWave)
+            // Обновляем и по смене волны, и по числу оставшихся:
+            // счётчик обязан реагировать на убийства, иначе он
+            // показывает только стартовое число и быстро врёт.
+            if (wave != cachedWave || left != cachedWaveLeft)
             {
                 cachedWave = wave;
+                cachedWaveLeft = left;
 
                 // WAVE: 0 выглядит багом — во время обучения волны ещё нет.
                 waveText.text =
                     wave > 0
-                        ? Lang.Get("hud.wave", wave)
+                        ? Lang.Get("hud.wave_left", wave, left)
                         : string.Empty;
             }
         }

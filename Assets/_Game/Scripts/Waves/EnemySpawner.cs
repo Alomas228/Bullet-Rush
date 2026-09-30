@@ -57,6 +57,54 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("Множитель интервала для «Вылазки».")]
     [SerializeField] private float huntIntervalMultiplier = 0.9f;
 
+    [Header("Pacing Guards")]
+    [Tooltip("Сколько врагов может одновременно находиться на арене. Очередь волны ждёт, пока игрок расчистит поле: без этого предел задаёт только количество в очереди, и на длинных волнах мобы копятся быстрее, чем игрок их убивает.")]
+    [SerializeField] private int maxAliveEnemies = 38;
+    [Tooltip("Сколько секунд очередь готова ждать, прежде чем выпустить приём всё равно. Страховка от бесконечной волны, если с поля никто не уходит.")]
+    [SerializeField] private float aliveCapWaitLimit = 4f;
+
+    [Header("Elite Reveal (Hunt)")]
+    [Tooltip("С какой доли волны выпущенного элита выходит на сцену. Пока охота не началась, игрок жерёт обычных врагов и не понимает, куда бежать.")]
+    [Range(0f, 0.9f)]
+    [SerializeField] private float eliteRevealFraction = 0.4f;
+    [Tooltip("Минимум секунд до появления элиты, даже если доля уже набрана.")]
+    [SerializeField] private float eliteRevealMinDelay = 4f;
+    [Tooltip("Сколько элит выходит за волну на первой охоте и дальше по одной за каждые четыре волны.")]
+    [SerializeField] private int baseEliteCount = 1;
+    [SerializeField] private int eliteCountPerWaves = 4;
+    [SerializeField] private int maxEliteCount = 3;
+
+    [Header("Last Stand")]
+    [Tooltip("Размер финальной пачки «последнего рубежа». Маленькая: её задача — последняя мини-решающая задача, а не вторая волна.")]
+    [SerializeField] private int lastStandBaseCount = 3;
+    [Tooltip("Сколько волн на одну дополнительного сильного врага в финальной пачке.")]
+    [SerializeField] private int lastStandCountPerWaves = 3;
+    [SerializeField] private int lastStandMaxCount = 8;
+    [Tooltip("Пауза перед финальной пачкой — игрок успевает выдохнуть и увидеть, что бой почти закончен.")]
+    [SerializeField] private float lastStandDelay = 2.2f;
+
+    [Header("Ambush Spawn Lanes")]
+    [Tooltip("Сколько направлений выхода чередуется между приёмами волны.")]
+    [SerializeField] private int ambushLaneCount = 3;
+    [Tooltip("Разброс внутри направления (градусы). Больше — волна приходит «широкой полосой», меньше — плотным клином.")]
+    [SerializeField] private float ambushLaneJitter = 22f;
+    [Tooltip("Шаг между направлениями, если направлений больше трёх (градусы). При трёх — ровно 120°.")]
+    [SerializeField] private float ambushLaneStep = 120f;
+
+    [Header("Modifier Weights")]
+    [Tooltip("Шанс, что «Навал бегунов» заставит конкретного врага быть быстрым.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float fastAssaultWeight = 0.45f;
+    [Tooltip("Шанс, что «Залп дальников» заставит конкретного врага быть дальником.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float rangedAssaultWeight = 0.45f;
+    [Tooltip("Шанс, что «Заход с флангов» добавит бегуна к приёму — волна идёт плотнее и с рывками.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float ambushFastWeight = 0.3f;
+    [Tooltip("Шанс дальника на волне с опасными зонами: зона давит на позицию, снаряд — на внимание.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float dangerZoneRangedWeight = 0.2f;
+
     [Header("Arena Edge Spawning")]
     [Tooltip("Ближняя граница кольца спауна у края арены (доля радиуса).")]
     [SerializeField] private float arenaEdgeMin = 0.85f;
@@ -83,6 +131,13 @@ public class EnemySpawner : MonoBehaviour
     public WaveArchetype CurrentArchetype { get; set; } =
         WaveArchetype.Standard;
 
+    // Сколько врагов очередь волны ещё выпустит. Считается вместе с
+    // отложенной элитой и финальной пачкой «последнего рубежа», иначе
+    // счётчик «осталось» на HUD врал бы в обе стороны: показывал бы
+    // ноль при ещё не вышедшей элите и зависал на пачке, которую
+    // игрок уже не видит.
+    public int PendingSpawnCount { get; private set; }
+
     // Пока true — волна считается «идущей»: очередь спавна ещё не исчерпана.
     // Нужно менеджеру волн, чтобы не завершать волну, пока враги только едут.
     public bool IsSpawning { get; private set; }
@@ -90,6 +145,19 @@ public class EnemySpawner : MonoBehaviour
     // Архетип, под который спавнятся враги текущей волны.
     private WaveArchetype currentWaveArchetype =
         WaveArchetype.Standard;
+
+    private WaveModifier currentWaveModifier =
+        WaveModifier.None;
+
+    // Индекс текущего «направления выхода» для волны с заходом
+    // с флангов: каждый приём смещается на следующее направление,
+    // поэтому волна физически «обходит» игрока по кольцу.
+    private int currentLaneIndex;
+
+    // Стартовое направление волны с заходом с флангов — одно на
+    // всю волну, чтобы чередование полос читалось как система, а не
+    // как шум.
+    private float waveLaneBaseAngle;
 
     private Coroutine spawnQueueCoroutine;
 
@@ -130,17 +198,22 @@ public class EnemySpawner : MonoBehaviour
         int enemyCount,
         int wave,
         WaveArchetype archetype =
-            WaveArchetype.Standard)
+            WaveArchetype.Standard,
+        WaveModifier modifier =
+            WaveModifier.None)
     {
         StopSpawnQueue();
 
         CurrentArchetype = archetype;
         currentWaveArchetype = archetype;
+        currentWaveModifier = modifier;
+        currentLaneIndex = 0;
+        waveLaneBaseAngle = Random.Range(0f, 360f);
         spawnedPositions.Clear();
 
         IsSpawning = enemyCount > 0;
         spawnQueueCoroutine = StartCoroutine(
-            SpawnWaveRoutine(enemyCount, wave, archetype)
+            SpawnWaveRoutine(enemyCount, wave, archetype, modifier)
         );
     }
 
@@ -154,27 +227,53 @@ public class EnemySpawner : MonoBehaviour
 
         spawnedPositions.Clear();
         batchAngles.Clear();
+        PendingSpawnCount = 0;
         IsSpawning = false;
     }
 
     public void SetManualSpawning(bool active)
     {
         IsSpawning = active;
+
+        // Ручной спавн (босс и его прислуга) не ведёт очередь:
+        // сколько там будет врагов, решает сценарий, а не спавнер.
+        if (active)
+            PendingSpawnCount = 0;
+    }
+
+    public int MaxAliveEnemies =>
+        Mathf.Max(maxAliveEnemies, 1);
+
+    // События посреди волны идут мимо очереди, поэтому потолок живых
+    // врагов сам по себе их не касается: без этой проверки засада
+    // поверх полной арены добавляет ещё десяток поверх и так
+    // предельной нагрузки, и волна становится нечестной, а не сложной.
+    // Опасные зоны живых врагов не добавляют, но накрывают арену
+    // вокруг игрока, поэтому для них считается та же величина.
+    public bool HasRoomForEvent(int plannedCount)
+    {
+        return
+            Enemy.AliveCount +
+            Mathf.Max(plannedCount, 0) <=
+            MaxAliveEnemies;
     }
 
     // Волна не вываливается за один кадр, а «вытекает» приёмами:
     // щуп → регулярные порции → паузы. Так у игрока есть время
     // среагировать на каждый выход, а не паника от 20 врагов разом.
-    // Архетип правит и размером порций, и частотой приёмов.
+    // Архетип правит и размером порций, и частотой приёмов,
+    // модификатор — темпом и порядком появления врагов.
     private IEnumerator SpawnWaveRoutine(
         int enemyCount,
         int wave,
-        WaveArchetype archetype)
+        WaveArchetype archetype,
+        WaveModifier modifier)
     {
         int remaining = Mathf.Max(enemyCount, 0);
         bool firstBatch = true;
 
         currentWaveArchetype = archetype;
+        currentWaveModifier = modifier;
 
         // Давление волны растёт с её номером: порции крупнее,
         // паузы между ними короче. Скорость роста настраивается
@@ -213,47 +312,313 @@ public class EnemySpawner : MonoBehaviour
                 GetIntervalMultiplier(archetype)
             );
 
-        // «Вылазка» гарантированно выводит одну элиту первой порцией.
-        bool elitePending =
-            archetype == WaveArchetype.Hunt &&
-            wave >= 7;
+        int lastStandCount =
+            GetLastStandCount(modifier, wave);
+
+        int elitePending =
+            GetEliteCountForWave(modifier, wave);
+
+        int lastStandPending = lastStandCount;
+
+        PendingSpawnCount = remaining + elitePending + lastStandPending;
+
+        float elapsed = 0f;
 
         while (remaining > 0)
         {
+            yield return WaitForFieldRoom();
+
+            if (ShouldRevealElites(
+                    modifier,
+                    elitePending,
+                    elapsed,
+                    remaining,
+                    enemyCount))
+            {
+                int eliteCount = elitePending;
+                elitePending = 0;
+
+                PendingSpawnCount -= eliteCount;
+
+                SpawnEliteWave(wave, eliteCount);
+
+                yield return new WaitForSeconds(
+                    effectiveInterval
+                );
+
+                elapsed += effectiveInterval;
+            }
+
             int batchSize = firstBatch
                 ? Mathf.Min(firstBatchSize, remaining)
                 : Mathf.Min(effectiveBatchSize, remaining);
             firstBatch = false;
 
+            // С заходом с фланга приём не раздувается: широкая пачка
+            // перестаёт читаться как один фронт и просто
+            // разбрасывается по кольцу. Узкий приём зато и сменяет
+            // направление чаще — волна обходит игрока сторонами.
+            if (modifier.Has(WaveModifier.Ambush))
+            {
+                batchSize = Mathf.Min(
+                    batchSize,
+                    Mathf.Max(ambushLaneCount, 1) * 2
+                );
+            }
+
             batchAngles.Clear();
 
             for (int i = 0; i < batchSize; i++)
             {
-                if (elitePending)
-                {
-                    SpawnEnemy(wave, elitePrefab);
-                    elitePending = false;
-                }
-                else
-                {
-                    SpawnEnemy(wave);
-                }
+                SpawnEnemy(
+                    wave,
+                    null,
+                    GetLaneAngleForSlot(i, batchSize)
+                );
 
                 remaining--;
+                PendingSpawnCount--;
 
                 if (remaining <= 0)
                     break;
 
                 if (spawnStagger > 0f)
+                {
+                    elapsed += spawnStagger;
                     yield return new WaitForSeconds(spawnStagger);
+                }
             }
 
+            // Смена «направления выхода» — только между приёмами,
+            // иначе приём расползётся по кольцу и перестанет читаться
+            // как одна волна с одного фланга.
+            currentLaneIndex++;
+
             if (remaining > 0 && effectiveInterval > 0f)
+            {
+                elapsed += effectiveInterval;
                 yield return new WaitForSeconds(effectiveInterval);
+            }
+        }
+
+        // Охота не должна закончиться, пока элита ещё не вышла:
+        // иначе игрок убьёт обычных, увидит «конец волны» и получит
+        // элиту в следующей — уже без нужды идти к ней.
+        if (elitePending > 0)
+        {
+            yield return WaitForEliteRevealWindow(elapsed);
+
+            PendingSpawnCount -= elitePending;
+
+            SpawnEliteWave(wave, elitePending);
+            elitePending = 0;
+        }
+
+        // Финальная пачка идёт строго внутри очереди спавна. Если
+        // выпустить её отдельным сценарием, IsSpawning уже снялся бы,
+        // волна объявилась бы законченной, и игрок увидел бы врагов,
+        // которых бой уже не ждёт.
+        if (lastStandPending > 0)
+        {
+            if (lastStandDelay > 0f)
+                yield return new WaitForSeconds(lastStandDelay);
+
+            yield return WaitForFieldRoom();
+
+            PendingSpawnCount -= lastStandPending;
+
+            SpawnLastStand(wave, lastStandPending);
+
+            lastStandPending = 0;
         }
 
         spawnQueueCoroutine = null;
         IsSpawning = false;
+    }
+
+    // Очередь ждёт, пока на поле появится место. Ожидание конечное:
+    // если с арены никто не уходит, волна всё равно должна
+    // продвинуться, иначе она не закончится никогда.
+    private IEnumerator WaitForFieldRoom()
+    {
+        int cap = Mathf.Max(maxAliveEnemies, 1);
+
+        if (Enemy.AliveCount < cap)
+            yield break;
+
+        float waited = 0f;
+        float limit = Mathf.Max(aliveCapWaitLimit, 0.1f);
+
+        while (Enemy.AliveCount >= cap && waited < limit)
+        {
+            waited += Time.deltaTime;
+
+            yield return null;
+        }
+    }
+
+    // =========================================================
+    // ELITE REVEAL (HUNT)
+    // =========================================================
+
+    private int GetEliteCountForWave(
+        WaveModifier modifier,
+        int wave)
+    {
+        // Без акцента «охота на элиту» обычная «Вылазка» оставляет
+        // элиту в общей взвешенной смеси — там она часть фона, а не
+        // цель. Охота делает её отдельной задачей.
+        bool huntActive =
+            modifier.Has(WaveModifier.EliteHunt);
+
+        if (!huntActive)
+            return 0;
+
+        if (elitePrefab == null || wave < 7)
+            return 0;
+
+        int extra =
+            Mathf.Max(wave - 7, 0) /
+            Mathf.Max(eliteCountPerWaves, 1);
+
+        return Mathf.Clamp(
+            baseEliteCount + extra,
+            1,
+            Mathf.Max(maxEliteCount, 1)
+        );
+    }
+
+    // Элита выходит не сразу: сначала игрок съедает обычных врагов,
+    // привыкает к темпу волны, и только потом получает цель, которую
+    // надо найти и решить, когда подходить.
+    private bool ShouldRevealElites(
+        WaveModifier modifier,
+        int elitePending,
+        float elapsed,
+        int remaining,
+        int total)
+    {
+        if (elitePending <= 0)
+            return false;
+
+        if (elapsed < eliteRevealMinDelay)
+            return false;
+
+        int totalForFraction =
+            Mathf.Max(total, 1);
+
+        float released =
+            1f -
+            (remaining / (float)totalForFraction);
+
+        return released >= eliteRevealFraction;
+    }
+
+    private IEnumerator WaitForEliteRevealWindow(float elapsed)
+    {
+        // Даже на короткой волне элита не должна выскакивать в тот же
+        // кадр, что и последний обычный враг: нужен хоть минимальный
+        // шанс её заметить.
+        float missing =
+            eliteRevealMinDelay -
+            elapsed;
+
+        if (missing > 0f)
+            yield return new WaitForSeconds(missing);
+    }
+
+    // Элиты выходят одной группой, но через обычный поиск свободной
+    // точки у края арены — поэтому не слипаются в одну точку и
+    // появляются с тем же «материализованием», что и остальные враги.
+    private void SpawnEliteWave(
+        int wave,
+        int count)
+    {
+        batchAngles.Clear();
+
+        for (int i = 0; i < count; i++)
+            SpawnEnemy(wave, elitePrefab);
+    }
+
+    // =========================================================
+    // LAST STAND
+    // =========================================================
+
+    private int GetLastStandCount(
+        WaveModifier modifier,
+        int wave)
+    {
+        if (!modifier.Has(WaveModifier.LastStand))
+            return 0;
+
+        // Финальная пачка — только когда в игре уже появились типы,
+        // из которых есть что выбрать. Иначе она была бы шайкой
+        // обычных врагов без следа.
+        if (wave < 4 || tankPrefab == null && rangedPrefab == null)
+            return 0;
+
+        int extra =
+            Mathf.Max(wave - 4, 0) /
+            Mathf.Max(lastStandCountPerWaves, 1);
+
+        return Mathf.Clamp(
+            lastStandBaseCount + extra,
+            1,
+            Mathf.Max(lastStandMaxCount, 1)
+        );
+    }
+
+    // Пачка из сильных типов: танк, дальник и обычный. Роль не в том,
+    // чтобы «страшнее», а в том, чтобы игрок последние секунды волны
+    // решал, кого бить первым.
+    private void SpawnLastStand(
+        int wave,
+        int count)
+    {
+        batchAngles.Clear();
+
+        for (int i = 0; i < count; i++)
+        {
+            SpawnEnemyAtPosition(
+                PickLastStandType(wave),
+                GetArenaEdgeSpawnPosition()
+            );
+        }
+    }
+
+    private EnemyType PickLastStandType(int wave)
+    {
+        int totalWeight = 0;
+
+        if (normalPrefab != null)
+            totalWeight += 2;
+
+        if (wave >= 4 && tankPrefab != null)
+            totalWeight += 3;
+
+        if (wave >= 3 && rangedPrefab != null)
+            totalWeight += 3;
+
+        if (totalWeight <= 0)
+            return EnemyType.Normal;
+
+        int roll = Random.Range(0, totalWeight);
+
+        if (normalPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return EnemyType.Normal;
+        }
+
+        if (wave >= 4 && tankPrefab != null)
+        {
+            roll -= 3;
+            if (roll < 0)
+                return EnemyType.Tank;
+        }
+
+        return EnemyType.Ranged;
     }
 
     private float GetBatchSizeMultiplier(
@@ -296,7 +661,8 @@ public class EnemySpawner : MonoBehaviour
 
     private void SpawnEnemy(
         int wave,
-        GameObject forcedPrefab = null)
+        GameObject forcedPrefab = null,
+        float preferredAngle = -1f)
     {
         if (player == null)
         {
@@ -321,7 +687,9 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        if (!TryGetWaveSpawnPosition(out Vector3 spawnPosition))
+        if (!TryGetWaveSpawnPosition(
+                preferredAngle,
+                out Vector3 spawnPosition))
         {
             Debug.LogWarning(
                 "EnemySpawner: Could not find a free spawn position."
@@ -351,11 +719,83 @@ public class EnemySpawner : MonoBehaviour
     // SPAWN POSITIONS
     // =========================================================
 
+    // Обычный приём берёт случайный угол по всему кольцу. Приём волны с
+    // акцентом «заход с флангов» вместо этого раскладывается вдоль
+    // полосы выхода, а полоса меняется от приёма к приёму: волна
+    // приходит попеременно с разных сторон, и «переждать» её в одном
+    // углу больше нельзя.
+    private float GetLaneAngleForSlot(
+        int slotInBatch,
+        int batchSize)
+    {
+        if (!currentWaveModifier.Has(WaveModifier.Ambush))
+            return -1f;
+
+        int lanes =
+            Mathf.Max(ambushLaneCount, 1);
+
+        if (lanes <= 1)
+            return -1f;
+
+        float step =
+            lanes == 3
+                ? ambushLaneStep
+                : 360f / lanes;
+
+        int lane =
+            PositiveMod(currentLaneIndex, lanes);
+
+        // Стартовое направление выбирается один раз на волну. Если
+        // брать случайный базовый угол для каждого приёма, полосы
+        // разъезжаются и «заход с флангов» превращается в обычный
+        // случайный спавн, то есть в обычную волну.
+        float center =
+            waveLaneBaseAngle +
+            lane * step +
+            Random.Range(
+                -ambushLaneJitter,
+                ambushLaneJitter
+            );
+
+        // Враги одного приёма раскладываются линией вдоль полосы.
+        // Случайный угол здесь не годится: проверка минимального
+        // угла между соседями отбрасывала бы большую часть попыток,
+        // и приём вырождался бы в одного-двух мобов за раз.
+        //
+        // Шаг обязан быть не меньше minAngularSeparation, а не
+        // «чуть меньше». Проверка отбрасывает угол, если он ближе
+        // этого порога к уже занятому, и повторные попытки берут тот
+        // же угол: при шаге меньше порога приём не проходит целиком
+        // и не спавнится ни одного врага.
+        float spacing =
+            Mathf.Max(minAngularSeparation, 12f);
+
+        float offset =
+            (slotInBatch - (batchSize - 1) * 0.5f) *
+            spacing;
+
+        return Mathf.Repeat(center + offset, 360f);
+    }
+
+    private static int PositiveMod(int value, int modulus)
+    {
+        int result = value % modulus;
+
+        return result < 0
+            ? result + modulus
+            : result;
+    }
+
     // Кольцо спауна лежит у края арены, а не вокруг игрока.
     // Три прохода по строгости, чтобы враги гарантированно заспавнились
     // даже если игрок встал у стены: 0 — вне экрана + дистанция до игрока,
     // 1 — без проверки экрана, 2 — только кольцо арены и соседство.
+    //
+    // preferredAngle >= 0 — враг обязан выйти из этого направления:
+    // повторные попытки поиска свободной точки не имеют права
+    // разбрасывать приём по всему кольцу.
     private bool TryGetWaveSpawnPosition(
+        float preferredAngle,
         out Vector3 spawnPosition)
     {
         Vector3 arenaCenter = GetArenaCenter();
@@ -371,7 +811,9 @@ public class EnemySpawner : MonoBehaviour
                  attempt++)
             {
                 float angle =
-                    Random.Range(0f, 360f);
+                    preferredAngle >= 0f
+                        ? preferredAngle
+                        : Random.Range(0f, 360f);
 
                 if (!IsAngleSeparated(angle))
                     continue;
@@ -710,21 +1152,69 @@ public class EnemySpawner : MonoBehaviour
     // MID-WAVE EVENTS (Ambush / Rush)
     // =========================================================
 
-    // Внезапная «осада» с близкой дистанции: кольцо быстрых врагов
-    // вокруг игрока. Работает через общего спасвнера, чтобы враги
-    // корректно инициализировались и уважали структуры.
+    // Засада: волна уже на игроке и приходит сразу со всех сторон.
+    // Отличие от «Рывка» — в дистанции и составе: враги появляются
+    // вплотную (игрок уже в бою) и вперемешку, а не одним типом с
+    // дальнего фланга. Задача события — заставить отойти, а не
+    // выбирать, кого бить первым.
+    // Пошаговая версия. Пачка, материализующаяся в один кадр, не
+    // читается: игрок не успевает ни уклониться, ни выбрать цель,
+    // а урон прилетает сразу из восьми сторон. Шаг в 0.1с при
+    // длительности появления 0.35с даёт узнаваемый фронт.
     public void SpawnAmbush(
         int count,
         float minDistance,
-        float maxDistance)
+        float maxDistance,
+        bool allowRanged = true,
+        float stagger = 0f)
     {
-        if (player == null)
+        if (player == null || count <= 0)
             return;
+
+        StartCoroutine(
+            SpawnAmbushRoutine(
+                count,
+                minDistance,
+                maxDistance,
+                allowRanged,
+                stagger
+            )
+        );
+    }
+
+    private IEnumerator SpawnAmbushRoutine(
+        int count,
+        float minDistance,
+        float maxDistance,
+        bool allowRanged,
+        float stagger)
+    {
+        // Кольцо строится до старта, иначе каждый враг брал бы
+        // новый случайный старт и половина кольца выходила бы
+        // с одного бока.
+        float startAngle = Random.Range(0f, 360f);
 
         for (int i = 0; i < count; i++)
         {
+            if (stagger > 0f &&
+                i > 0)
+            {
+                yield return new WaitForSeconds(stagger);
+            }
+
+            // Если за время шага игрок вышел из боя или начался
+            // откат — не доспавниваем остаток: кольцо вокруг уже
+            // не имеет смысла.
+            if (player == null)
+                yield break;
+
             float angle =
-                Random.Range(0f, 360f);
+                Mathf.Repeat(
+                    startAngle +
+                    (float)i / count * 360f +
+                    Random.Range(-12f, 12f),
+                    360f
+                );
 
             float radius =
                 Random.Range(minDistance, maxDistance);
@@ -747,23 +1237,51 @@ public class EnemySpawner : MonoBehaviour
                 continue;
             }
 
-            EnemyType type =
-                CurrentWave >= 2
-                    ? EnemyType.Fast
-                    : EnemyType.Normal;
-
-            SpawnEnemyAtPosition(type, desired);
+            SpawnEnemyAtPosition(
+                PickAmbushType(allowRanged),
+                desired
+            );
         }
     }
 
-    // Стенда с одного фланга: куча быстрых врагов из узкой дуги у края
-    // арены. Игрок вынужден сместиться, а не стоять на месте.
+    // Смесь внутри засады: быстрые давят, обычные держат кольцо,
+    // дальник бьёт с закрытого фланга. Если дальник ещё не открыт
+    // по номеру волны, роли просто делятся между двумя типами.
+    private EnemyType PickAmbushType(
+        bool allowRanged)
+    {
+        bool canDash = CurrentWave >= 2 && fastPrefab != null;
+
+        bool canShoot =
+            allowRanged &&
+            CurrentWave >= 3 &&
+            rangedPrefab != null;
+
+        if (!canDash)
+            return EnemyType.Normal;
+
+        if (canShoot && Random.value < 0.25f)
+            return EnemyType.Ranged;
+
+        return Random.value < 0.7f
+            ? EnemyType.Fast
+            : EnemyType.Normal;
+    }
+
+    // Стенда с одного фланга: только быстрые, с самого края арены и
+    // из узкой дуги. Отличие от «Засады» — в дистанции и ритме: пачка
+    // приходит волнами с одного направления, и игрок успевает занять
+    // позицию напротив фланга, а не убегать от кольца.
+    // centerAngle >= 0 держит направление между волнами пачки —
+    // иначе две волны пришли бы с разных сторон и событие
+    // превратилось бы в засаду.
     public void SpawnRushPack(
         int count,
         float arcDegrees,
-        int wave)
+        int wave,
+        float centerAngle = -1f)
     {
-        if (player == null)
+        if (player == null || count <= 0)
             return;
 
         Vector3 arenaCenter = GetArenaCenter();
@@ -774,8 +1292,8 @@ public class EnemySpawner : MonoBehaviour
         float maxRadius =
             GetArenaRadius() * arenaEdgeMax;
 
-        float centerAngle =
-            Random.Range(0f, 360f);
+        if (centerAngle < 0f)
+            centerAngle = Random.Range(0f, 360f);
 
         float halfArc =
             Mathf.Clamp(arcDegrees, 10f, 180f) *
@@ -857,6 +1375,12 @@ public class EnemySpawner : MonoBehaviour
     private GameObject GetEnemyPrefabForWave(
         int wave)
     {
+        // Модификатор не добавляет новых типов — он перекачивает
+        // часть существующих ролей в конкретный тип. Поэтому волна
+        // выглядит и ощущается иначе, а пул врагов остаётся прежним.
+        if (TryGetModifierPrefab(wave, out GameObject forced))
+            return forced;
+
         switch (currentWaveArchetype)
         {
             case WaveArchetype.Swarm:
@@ -871,6 +1395,54 @@ public class EnemySpawner : MonoBehaviour
             default:
                 return GetStandardPrefabForWave(wave);
         }
+    }
+
+    // Акцент волны решает, кого выбить из роли. Шансы небольшие:
+    // модификатор должен менять характер волны, а не превращать её
+    // в «восемьдесят процентов дальников».
+    private bool TryGetModifierPrefab(
+        int wave,
+        out GameObject prefab)
+    {
+        prefab = null;
+
+        if (currentWaveModifier.Has(WaveModifier.FastAssault) &&
+            wave >= 2 &&
+            fastPrefab != null &&
+            Random.value < fastAssaultWeight)
+        {
+            prefab = fastPrefab;
+            return true;
+        }
+
+        if (currentWaveModifier.Has(WaveModifier.RangedAssault) &&
+            wave >= 3 &&
+            rangedPrefab != null &&
+            Random.value < rangedAssaultWeight)
+        {
+            prefab = rangedPrefab;
+            return true;
+        }
+
+        if (currentWaveModifier.Has(WaveModifier.Ambush) &&
+            wave >= 2 &&
+            fastPrefab != null &&
+            Random.value < ambushFastWeight)
+        {
+            prefab = fastPrefab;
+            return true;
+        }
+
+        if (currentWaveModifier.Has(WaveModifier.DangerZone) &&
+            wave >= 3 &&
+            rangedPrefab != null &&
+            Random.value < dangerZoneRangedWeight)
+        {
+            prefab = rangedPrefab;
+            return true;
+        }
+
+        return false;
     }
 
     // Сбалансированная смесь всех типов.
@@ -1044,10 +1616,15 @@ public class EnemySpawner : MonoBehaviour
     }
 
     // «Вылазка»: элита впереди под прикрытием обычных.
-    // Гарантированная элита заводится отдельно в SpawnWaveRoutine.
+    // При акценте «охота на элиту» элита выводится отдельной
+    // задачей, поэтому из общей смеси она убирается — иначе охоту
+    // портит случайная элита в общей толпе, и цель теряется.
     private GameObject GetHuntPrefabForWave(
         int wave)
     {
+        bool huntActive =
+            currentWaveModifier.Has(WaveModifier.EliteHunt);
+
         int totalWeight = 0;
 
         if (normalPrefab != null)
@@ -1062,7 +1639,7 @@ public class EnemySpawner : MonoBehaviour
         if (wave >= 4 && tankPrefab != null)
             totalWeight += 1;
 
-        if (wave >= 7 && elitePrefab != null)
+        if (!huntActive && wave >= 7 && elitePrefab != null)
             totalWeight += 2;
 
         if (totalWeight <= 0)
@@ -1098,9 +1675,9 @@ public class EnemySpawner : MonoBehaviour
                 return tankPrefab;
         }
 
-        if (wave >= 7 && elitePrefab != null)
+        if (!huntActive && wave >= 7 && elitePrefab != null)
             return elitePrefab;
 
-        return null;
+        return normalPrefab;
     }
 }

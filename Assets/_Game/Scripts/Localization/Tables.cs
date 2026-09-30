@@ -83,6 +83,7 @@ public static class Tables
             { "hud.hud_strip_time", "ВРЕМЯ" },
             { "hud.boss", "БОСС" },
             { "hud.crit", "КРИТ " },
+            { "hud.wave_left", "ВОЛНА: {0} · ОСТАЛОСЬ: {1}" },
             { "hud.wave_complete", "Волна завершена" },
 
             // ---------- Волны ----------
@@ -94,6 +95,12 @@ public static class Tables
             { "wave.archetype_swarm", "РОЙ" },
             { "wave.archetype_siege", "ОСАДА" },
             { "wave.archetype_hunt", "ВЫЛАЗКА" },
+            { "wave.mod_fast_assault", "НАЛЁТ" },
+            { "wave.mod_ranged_assault", "ОБСТРЕЛ" },
+            { "wave.mod_elite_hunt", "ОХОТА" },
+            { "wave.mod_ambush", "ЗАХОД С ФЛАНГОВ" },
+            { "wave.mod_danger_zone", "МИНЫ" },
+            { "wave.mod_last_stand", "ПРИКРЫТИЕ" },
             { "wave.event_ambush", "ЗАСАДА!" },
             { "wave.event_surge", "РЫВОК!" },
             { "wave.event_danger", "ОПАСНОСТЬ!" },
@@ -411,6 +418,7 @@ public static class Tables
             { "hud.hud_strip_time", "SÜRE" },
             { "hud.boss", "PATRON" },
             { "hud.crit", "KRİTİK " },
+            { "hud.wave_left", "DALGA: {0} · KALAN: {1}" },
             { "hud.wave_complete", "Dalga tamamlandı" },
 
             // ---------- Dalgalar ----------
@@ -422,6 +430,12 @@ public static class Tables
             { "wave.archetype_swarm", "SÜRÜ" },
             { "wave.archetype_siege", "KUŞATMA" },
             { "wave.archetype_hunt", "BASKIN" },
+            { "wave.mod_fast_assault", "HÜCUM" },
+            { "wave.mod_ranged_assault", "MENZİL" },
+            { "wave.mod_elite_hunt", "AV" },
+            { "wave.mod_ambush", "YAN SALDIRI" },
+            { "wave.mod_danger_zone", "MAYINLAR" },
+            { "wave.mod_last_stand", "SON DURUŞ" },
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "DALGA!" },
             { "wave.event_danger", "TEHLİKE!" },
@@ -739,6 +753,7 @@ public static class Tables
             { "hud.hud_strip_time", "TIME" },
             { "hud.boss", "BOSS" },
             { "hud.crit", "CRIT " },
+            { "hud.wave_left", "WAVE: {0} · LEFT: {1}" },
             { "hud.wave_complete", "Wave complete" },
 
             // ---------- Waves ----------
@@ -750,6 +765,12 @@ public static class Tables
             { "wave.archetype_swarm", "SWARM" },
             { "wave.archetype_siege", "SIEGE" },
             { "wave.archetype_hunt", "HUNT" },
+            { "wave.mod_fast_assault", "ONSLAUGHT" },
+            { "wave.mod_ranged_assault", "LONG RANGE" },
+            { "wave.mod_elite_hunt", "ELITE HUNT" },
+            { "wave.mod_ambush", "FLANK" },
+            { "wave.mod_danger_zone", "MINES" },
+            { "wave.mod_last_stand", "COVER" },
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "SURGE!" },
             { "wave.event_danger", "DANGER!" },

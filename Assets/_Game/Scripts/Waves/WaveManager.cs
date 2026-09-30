@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class WaveManager : MonoBehaviour
 {
@@ -16,6 +17,27 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private int enemiesAddedPerWave = 3;
     [Tooltip("Каждая N-я волна заменяется боссом.")]
     [SerializeField] private int bossWaveInterval = 10;
+
+    [Header("Intensity Curve")]
+    [Tooltip("Мягкий потолок размера волны. Сырой рост «+N за волну» сжимается к этому потолку: короткие волны почти не меняются, длинные упираются в него и растут всё медленнее. Без этого волна 30 — это девяносто мобов разом.")]
+    [SerializeField] private float enemyCountCeiling = 85f;
+    [Tooltip("Жёсткий потолок: больше этого врагов в одну волну не выпускается никогда. Страховка от бесконечной волны, если потолок сжатия выставлен неверно.")]
+    [SerializeField] private int maxEnemiesPerWave = 110;
+    [Tooltip("Дополнительный линейный множитель размера с номером волны. Нужен потому, что здоровье врагов растёт на фиксированный процент за волну и никогда не останавливается, а количество упирается в потолок сжатия. Без этого множителя после ~20 волны сложность держалась бы только на HP, и волны переставали бы отличаться друг от друга.")]
+    [SerializeField] private float countRampPerWave = 0.008f;
+
+    [Header("Wave Modifiers")]
+    [Tooltip("С какой волны включаются модификаторы. Раньше игрок ещё не знает базовые типы врагов — акценты только мешают учиться.")]
+    [SerializeField] private int minModifierWave = 5;
+    [Tooltip("Шанс, что «спокойный» слот цикла получит модификатор. Ниже 0.5 — чтобы больше половины волн оставались обычными.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float extraModifierChance = 0.35f;
+    [Tooltip("Сколько последних акцентов помнить, чтобы не ставить тот же дважды подряд и не повторять слишком часто. 2-4 — компромисс: узнаваемый шаблон ломается, но игрок всё ещё ждёт акцент на «тяжёлых» слотах.")]
+    [Range(1, 6)]
+    [SerializeField] private int modifierMemoryLength = 3;
+    [Tooltip("Минимальный зазор (в волнах) между тяжёлыми акцентами — «охота на элиту», «мины» и «последний рубеж». Не даёт двум самым дорогим ситуациям идти одна за другой.")]
+    [Range(1, 5)]
+    [SerializeField] private int heavyModifierCooldown = 2;
 
     [Header("Boss Spawning")]
     [Tooltip("Пауза между выходом босса и его прислугой.")]
@@ -49,8 +71,41 @@ public class WaveManager : MonoBehaviour
 
     public int CurrentWave { get; private set; }
 
+    /// <summary>
+    /// Сколько врагов ещё предстоит увидеть: живые на поле плюс те,
+    /// кого спавнер ещё выпустит (включая отложенную элиту и
+    /// финальную пачку «последнего рубежа»). Нужен игроку, чтобы
+    /// понимать, когда волна действительно закончится, а не когда
+    /// на экране временно опустело.
+    /// </summary>
+    public int EnemiesLeft
+    {
+        get
+        {
+            int pending =
+                enemySpawner != null
+                    ? enemySpawner.PendingSpawnCount
+                    : 0;
+
+            return pending + Enemy.AliveCount;
+        }
+    }
+
+    // Последние выданные акценты. Нужны, чтобы не повторять один и
+    // тот же акцент и не ставить тяжёлые ситуации впритык.
+    private readonly List<WaveModifier> recentModifiers =
+        new List<WaveModifier>();
+
+    // Номер волны, на которой последний раз выдался тяжёлый акцент.
+    // Память акцентов хранит только сами акценты, а для передышки
+    // между тяжёлыми нужен ещё и порядковый номер волны.
+    private int lastHeavyModifierWave = int.MinValue;
+
     private WaveArchetype currentArchetype =
         WaveArchetype.Standard;
+
+    private WaveModifier currentModifier =
+        WaveModifier.None;
 
     private bool waveActive;
     private bool waitingForNextWave;
@@ -115,10 +170,18 @@ public class WaveManager : MonoBehaviour
             waitingForNextWave = false;
             waveCompleteShown = false;
             generatedMapSeed = -1;
+            currentModifier = WaveModifier.None;
+
+            // Память акцентов обнуляется вместе с забегом: иначе
+            // второй забег начинался бы с запретов, оставшихся от
+            // первого, и первые волны шли без акцентов.
+            recentModifiers.Clear();
+            lastHeavyModifierWave = int.MinValue;
+
             StopAllCoroutines();
 
             if (eventDirector != null)
-                eventDirector.Stop();
+                eventDirector.ResetRun();
 
             if (enemySpawner != null)
                 enemySpawner.StopSpawnQueue();
@@ -317,6 +380,23 @@ public class WaveManager : MonoBehaviour
         currentArchetype =
             GetArchetypeForWave(CurrentWave);
 
+        // Босс-волна играет по своим правилам (прислуга, способности),
+        // поэтому акцент слота на ней не назначается: подпись вроде
+        // «НАЛЁТ» над боссом обещала бы волну быстрых врагов, которой
+        // на босс-волне нет.
+        currentModifier =
+            IsBossWave(CurrentWave)
+                ? WaveModifier.None
+                : GetModifierForWave(CurrentWave);
+
+        // Акцент попадает в память и на босс-волне — как «пустой»:
+        // иначе после босса слот сразу выдаст тот же акцент, который
+        // шёл до него, и у босса появится дубль.
+        if (IsBossWave(CurrentWave))
+            recentModifiers.Add(WaveModifier.None);
+        else
+            RememberModifier(currentModifier, CurrentWave);
+
         SwitchToMainMusic();
 
         // Мир строится один раз под карту и остаётся стабильным на
@@ -345,7 +425,10 @@ public class WaveManager : MonoBehaviour
         if (waveUI != null)
             waveUI.ShowWave(
                 CurrentWave,
-                GetArchetypeSubtitle(currentArchetype)
+                GetWaveSubtitle(
+                    currentArchetype,
+                    currentModifier
+                )
             );
 
         if (!isFirstWave && !isBossWave)
@@ -450,13 +533,13 @@ public class WaveManager : MonoBehaviour
     private void SpawnCurrentWave()
     {
         int enemyCount =
-            startingEnemies +
-            (CurrentWave - 1) *
-            enemiesAddedPerWave;
+            GetEnemyCountForWave(CurrentWave);
 
         Debug.Log(
             $"WAVE {CurrentWave} START " +
-            $"({currentArchetype})"
+            $"({currentArchetype}" +
+            $"{DescribeModifier(currentModifier)}" +
+            $", enemies: {enemyCount})"
         );
 
         PlayWaveStartSound();
@@ -474,7 +557,11 @@ public class WaveManager : MonoBehaviour
             SpawnBossWave();
 
             if (eventDirector != null)
-                eventDirector.OnWaveStarted(CurrentWave, false);
+                eventDirector.OnWaveStarted(
+                    CurrentWave,
+                    false,
+                    currentModifier
+                );
 
             return;
         }
@@ -484,11 +571,77 @@ public class WaveManager : MonoBehaviour
         enemySpawner.SpawnWave(
             enemyCount,
             CurrentWave,
-            currentArchetype
+            currentArchetype,
+            currentModifier
         );
 
         if (eventDirector != null)
-            eventDirector.OnWaveStarted(CurrentWave, true);
+            eventDirector.OnWaveStarted(
+                CurrentWave,
+                AllowsMidWaveEvent(currentModifier),
+                currentModifier
+            );
+    }
+
+    // Акцент волны больше не запрещает событие целиком. Раньше волны
+    // с акцентом просто не получали событий, а волны без акцента
+    // получали их всегда — и «опасные зоны» выпадали из забега
+    // целиком, хотя ничто не мешало им сочетаться с обычным
+    // событием. Теперь несовместимость решается по типу события
+    // внутри WaveEventDirector, а не запретом волны.
+    private bool AllowsMidWaveEvent(
+        WaveModifier modifier)
+    {
+        return true;
+    }
+
+    private string DescribeModifier(
+        WaveModifier modifier)
+    {
+        return modifier == WaveModifier.None
+            ? string.Empty
+            : $" + {modifier}";
+    }
+
+    // Размер волны. Сырой рост «+N за волну» задаёт длину забега,
+    // но сам по себе превращает волну 30 в девяносто мобов и волну
+    // 50 в полторы сотни. Поэтому линейный рост сжимается к
+    // потолку: короткие волны почти не меняются, длинные упираются
+    // в потолок и растут всё медленнее. Поверх сжатия идёт высота
+    // слота — так появляются спады и пики, а не ровный поток.
+    private int GetEnemyCountForWave(int wave)
+    {
+        float ceiling =
+            Mathf.Max(enemyCountCeiling, 1f);
+
+        float raw =
+            startingEnemies +
+            (wave - 1) * enemiesAddedPerWave;
+
+        float compressed =
+            ceiling *
+            (1f - Mathf.Exp(-raw / ceiling));
+
+        // Линейная надбавка поверх сжатия. Нужна потому, что сжатие
+        // почти останавливает рост к потолку, а здоровье врагов
+        // продолжает расти на фиксированный процент каждую волну.
+        // Без этой надбавки после потолка волны отличались бы только
+        // множителем HP, а не размером.
+        float ramp =
+            1f +
+            Mathf.Max(countRampPerWave, 0f) *
+            (wave - 1);
+
+        float scaled =
+            compressed *
+            GetWaveIntensity(wave) *
+            ramp;
+
+        return Mathf.Clamp(
+            Mathf.RoundToInt(scaled),
+            1,
+            Mathf.Max(maxEnemiesPerWave, 1)
+        );
     }
 
     private void SpawnBossWave()
@@ -569,12 +722,14 @@ public class WaveManager : MonoBehaviour
     // WAVE ARCHETYPES
     // =========================================================
 
-    // Волны чередуются по фиксированному циклу, чтобы у каждой
-    // был свой характер: рой → осада → вылазка → снова.
+    // Волны чередуются по фиксированному циклу из восьми слотов,
+    // чтобы у каждой был свой характер: рой → осада → вылазка →
+    // снова. Слот определяет и архетип, и высоту волны, и её акцент,
+    // поэтому подъёмы и спады совпадают по смыслу, а не случайно.
     private WaveArchetype GetArchetypeForWave(
         int wave)
     {
-        switch ((wave - 1) % 8)
+        switch (GetWaveSlot(wave))
         {
             case 1:
             case 5:
@@ -592,8 +747,326 @@ public class WaveManager : MonoBehaviour
         }
     }
 
-    private string GetArchetypeSubtitle(
-        WaveArchetype archetype)
+    // Высота волны внутри восьмиволнового цикла. Смысл слотов:
+    //   0 — отдых после босса
+    //   1 — рой с напором
+    //   2 — передышка, первая дальняя угроза
+    //   3 — осада
+    //   4 — отдых
+    //   5 — рой с другой стороны
+    //   6 — вылазка за элитой
+    //   7 — пик цикла
+    // Подряд две «тяжёлые» не идут: спады обязательны, иначе
+    // волны сливаются в ровный поток, в котором ни одна не
+    // отличается от соседней. Разброс специально узкий (≈ -16%
+    // … +12%): широкая «горка» давала провалы почти в -30% сразу
+    // после пика, и волна после напряжённой читалась как пустая.
+    private static readonly float[] SlotIntensity =
+    {
+        0.86f,
+        1.00f,
+        0.88f,
+        1.04f,
+        0.84f,
+        1.00f,
+        0.94f,
+        1.12f
+    };
+
+    // Модификатор — не украшение каждой волны, а акцент. Слоты с
+    // характером (1, 3, 5, 6, 7) несут свой акцент всегда, а слоты-
+    // передышки (0, 2, 4) могут получить случайный и только с шансом
+    // меньше половины. Итог: около трети волн остаются полностью
+    // обычными, иначе «особенность» перестаёт быть особенной.
+    private WaveModifier GetModifierForWave(
+        int wave)
+    {
+        if (wave < minModifierWave)
+            return WaveModifier.None;
+
+        switch (GetWaveSlot(wave))
+        {
+            case 1:
+                return PickSlotModifier(
+                    FastSlotPool,
+                    wave);
+
+            case 3:
+                return PickSlotModifier(
+                    RangedSlotPool,
+                    wave);
+
+            case 5:
+                return PickSlotModifier(
+                    AmbushSlotPool,
+                    wave);
+
+            case 6:
+                return PickSlotModifier(
+                    EliteSlotPool,
+                    wave);
+
+            case 7:
+                return PickSlotModifier(
+                    PeakSlotPool,
+                    wave);
+        }
+
+        // Акцент на отдыхе — редкость, а не правило.
+        if (wave >= minModifierWave + 2 &&
+            Random.value < extraModifierChance)
+        {
+            return PickSlotModifier(
+                CalmSlotPool,
+                wave);
+        }
+
+        return WaveModifier.None;
+    }
+
+    // Слот «навала». «Заход с флангов» здесь почти всегда, но не
+    // всегда: иначе вторая волна каждого цикла была бы гарантированным
+    // заходом, и цикл читался бы наизусть.
+    private static readonly WaveModifier[] FastSlotPool =
+    {
+        WaveModifier.FastAssault,
+        WaveModifier.FastAssault,
+        WaveModifier.Ambush
+    };
+
+    // Кандидаты для «спокойных» слотов: только лёгкие акценты.
+    // Тяжёлые ситуации (охота, мины, последний рубеж) на отдыхе
+    // не ставятся — иначе тихая волна оказывалась бы тяжелее
+    // предыдущей громкой, и ритм пульса ломался бы.
+    private static readonly WaveModifier[] CalmSlotPool =
+    {
+        WaveModifier.FastAssault,
+        WaveModifier.RangedAssault
+    };
+
+    // Слот с дальниками по умолчанию, но «мины» и «заход с
+    // флангов» здесь равновероятны: иначе игрок выучивает
+    // «четвёртая волна — всегда обстрел».
+    private static readonly WaveModifier[] RangedSlotPool =
+    {
+        WaveModifier.RangedAssault,
+        WaveModifier.DangerZone,
+        WaveModifier.Ambush
+    };
+
+    // Слот захода с флангов по умолчанию, но с равными шансами
+    // «мины» и «навал».
+    private static readonly WaveModifier[] AmbushSlotPool =
+    {
+        WaveModifier.Ambush,
+        WaveModifier.DangerZone,
+        WaveModifier.FastAssault
+    };
+
+    // Слот охоты на элиту почти всегда остаётся охотой: это
+    // единственный слот, где она уместна, и без элиты слот
+    // просто дублирует соседние. Охота требует волну 7+,
+    // где элита и так появляется в общей смеси.
+    private static readonly WaveModifier[] EliteSlotPool =
+    {
+        WaveModifier.EliteHunt,
+        WaveModifier.EliteHunt,
+        WaveModifier.RangedAssault
+    };
+
+    // Пик цикла: самый широкий набор. Здесь и «последний рубеж»,
+    // и всё остальное, что обычно придерживается для отдыха.
+    private static readonly WaveModifier[] PeakSlotPool =
+    {
+        WaveModifier.LastStand,
+        WaveModifier.DangerZone,
+        WaveModifier.Ambush,
+        WaveModifier.EliteHunt,
+        WaveModifier.FastAssault
+    };
+
+    // Выбор акцента из слота с двумя ограничениями: не повторять
+    // слишком недавно и не ставить тяжёлый акцент впритык к
+    // предыдущему тяжёлому. Оба условия убирают предсказуемость,
+    // но выбор остаётся внутри фиксированного пула слота —
+    // структура «лёгкая → тяжёлая» восьмиволнового цикла
+    // сохраняется.
+    private WaveModifier PickSlotModifier(
+        WaveModifier[] pool,
+        int wave)
+    {
+        int memory =
+            Mathf.Clamp(modifierMemoryLength, 1, 6);
+
+        // Тяжёлые акценты: дорогие по вниманию и по урону.
+        bool previousWasHeavy =
+            recentModifiers.Count > 0 &&
+            IsHeavyModifier(recentModifiers[recentModifiers.Count - 1]);
+
+        int allowed = pool.Length;
+        WaveModifier fallback = WaveModifier.None;
+
+        // Считаем веса: подходящие кандидаты получают вес 1,
+        // повторённые — 0. Дальше взвешенный выбор, поэтому
+        // дубли в пуле (EliteSlotPool) работают как вес.
+        float totalWeight = 0f;
+        int[] weights = new int[pool.Length];
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            WaveModifier candidate = pool[i];
+
+            weights[i] = 1;
+
+            if (WasUsedRecently(candidate, memory))
+            {
+                weights[i] = 0;
+                continue;
+            }
+
+            // Два тяжёлых акцента подряд — это не «разнообразие»,
+            // а две тяжёлые волны в ряд без передышки.
+            if (previousWasHeavy &&
+                IsHeavyModifier(candidate) &&
+                recentModifiers.Count > 0)
+            {
+                int wavesSinceHeavy =
+                    wave - lastHeavyModifierWave;
+
+                if (wavesSinceHeavy <
+                    Mathf.Max(heavyModifierCooldown, 1))
+                {
+                    weights[i] = 0;
+                    continue;
+                }
+            }
+
+            totalWeight += weights[i];
+
+            if (fallback == WaveModifier.None)
+                fallback = candidate;
+        }
+
+        // Все кандидаты в памяти: не превращаем волну в обычную,
+        // просто берём самый далёкий из использованных.
+        if (totalWeight <= 0f)
+            return PickLeastRecent(pool, memory);
+
+        float roll = Random.Range(0f, totalWeight);
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            if (weights[i] <= 0)
+                continue;
+
+            roll -= weights[i];
+
+            if (roll < 0f)
+                return pool[i];
+        }
+
+        return fallback;
+    }
+
+    private bool WasUsedRecently(
+        WaveModifier modifier,
+        int memory)
+    {
+        int count = recentModifiers.Count;
+
+        for (int i = 0; i < count && i < memory; i++)
+        {
+            if (recentModifiers[count - 1 - i] == modifier)
+                return true;
+        }
+
+        return false;
+    }
+
+    // Самый далёкий по времени: волна всё равно получает акцент,
+    // просто не тот, что только что был.
+    private WaveModifier PickLeastRecent(
+        WaveModifier[] pool,
+        int memory)
+    {
+        WaveModifier best = pool[0];
+        int bestDistance = -1;
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            int distance = 0;
+
+            for (int j = 0; j < recentModifiers.Count && j < memory; j++)
+            {
+                if (recentModifiers[recentModifiers.Count - 1 - j] ==
+                    pool[i])
+                {
+                    distance++;
+                }
+            }
+
+            if (distance > bestDistance)
+            {
+                bestDistance = distance;
+                best = pool[i];
+            }
+        }
+
+        return best;
+    }
+
+    private static bool IsHeavyModifier(
+        WaveModifier modifier)
+    {
+        return
+            modifier.Has(WaveModifier.EliteHunt) ||
+            modifier.Has(WaveModifier.DangerZone) ||
+            modifier.Has(WaveModifier.LastStand);
+    }
+
+    private void RememberModifier(
+        WaveModifier modifier,
+        int wave)
+    {
+        if (modifier == WaveModifier.None)
+            return;
+
+        recentModifiers.Add(modifier);
+
+        if (IsHeavyModifier(modifier))
+            lastHeavyModifierWave = wave;
+
+        int limit =
+            Mathf.Max(modifierMemoryLength, 1) + 2;
+
+        while (recentModifiers.Count > limit)
+            recentModifiers.RemoveAt(0);
+    }
+
+    // Номер слота восьмиволнового цикла. Остаток берётся
+    // неотрицательным, чтобы смена забега (CurrentWave = 0)
+    // не уводила индекс в минус.
+    private static int GetWaveSlot(int wave)
+    {
+        int slot = (wave - 1) % SlotIntensity.Length;
+
+        return slot < 0
+            ? slot + SlotIntensity.Length
+            : slot;
+    }
+
+    private float GetWaveIntensity(int wave)
+    {
+        return SlotIntensity[GetWaveSlot(wave)];
+    }
+
+    // Подпись под номером волны: архетип важнее модификатора, но
+    // у обычной волны архетип безымянный, и тогда подписью
+    // становится акцент — игрок хотя бы видит, что волна не «просто
+    // ещё одна».
+    private string GetWaveSubtitle(
+        WaveArchetype archetype,
+        WaveModifier modifier)
     {
         switch (archetype)
         {
@@ -605,10 +1078,33 @@ public class WaveManager : MonoBehaviour
 
             case WaveArchetype.Hunt:
                 return Lang.Get("wave.archetype_hunt");
-
-            default:
-                return null;
         }
+
+        return GetModifierSubtitle(modifier);
+    }
+
+    private string GetModifierSubtitle(
+        WaveModifier modifier)
+    {
+        if (modifier.Has(WaveModifier.FastAssault))
+            return Lang.Get("wave.mod_fast_assault");
+
+        if (modifier.Has(WaveModifier.RangedAssault))
+            return Lang.Get("wave.mod_ranged_assault");
+
+        if (modifier.Has(WaveModifier.EliteHunt))
+            return Lang.Get("wave.mod_elite_hunt");
+
+        if (modifier.Has(WaveModifier.Ambush))
+            return Lang.Get("wave.mod_ambush");
+
+        if (modifier.Has(WaveModifier.DangerZone))
+            return Lang.Get("wave.mod_danger_zone");
+
+        if (modifier.Has(WaveModifier.LastStand))
+            return Lang.Get("wave.mod_last_stand");
+
+        return null;
     }
 
     // =========================================================
