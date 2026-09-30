@@ -160,7 +160,16 @@ public class WaveEventDirector : MonoBehaviour
         // в счёт не попадали — обязательное событие потом
         // срывалось на самой напряжённой волне.
         if (!eventFiredThisWave)
+        {
             wavesSinceEvent++;
+
+            // Счётчик серии обнуляется на тихой волне. Без этого он
+            // рос только вверх и однажды навсегда упирался в
+            // maxConsecutiveEventWaves: после двух event-волн
+            // OnWaveStarted отсекался на этой проверке и события
+            // больше не появлялись до конца забега.
+            consecutiveEventWaves = 0;
+        }
 
         eventFiredThisWave = false;
 
