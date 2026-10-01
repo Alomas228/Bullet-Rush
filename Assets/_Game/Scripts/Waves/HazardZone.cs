@@ -32,6 +32,12 @@ public class HazardZone : MonoBehaviour
     private Transform borderParent;
     private Transform flashSphere;
 
+    private MeshRenderer fillRenderer;
+    private MeshRenderer flashRenderer;
+
+    private MaterialPropertyBlock fillBlock;
+    private MaterialPropertyBlock flashBlock;
+
     private PlayerHealth playerHealth;
 
     public void Initialize(
@@ -90,13 +96,14 @@ public class HazardZone : MonoBehaviour
 
     private void BuildVisual()
     {
+        // Материалы берутся из общего кэша, а не создаются на каждую
+        // зону: раньше на спавн уходило три new Material и столько же
+        // Destroy, а зоны не батчились друг с другом.
         fillMaterial =
-            CreateTransparentMaterial(
-                dangerColor
-            );
+            DangerZoneMaterials.Get(dangerColor);
 
         borderMaterial =
-            CreateTransparentMaterial(
+            DangerZoneMaterials.Get(
                 new Color(
                     dangerColor.r,
                     dangerColor.g,
@@ -106,9 +113,7 @@ public class HazardZone : MonoBehaviour
             );
 
         flashMaterial =
-            CreateTransparentMaterial(
-                dangerColor
-            );
+            DangerZoneMaterials.Get(dangerColor);
 
         fillDisc =
             CreatePrimitive(
@@ -126,8 +131,8 @@ public class HazardZone : MonoBehaviour
                 radius * 2f
             );
 
-        fillDisc.GetComponent<MeshRenderer>().sharedMaterial =
-            fillMaterial;
+        fillRenderer = fillDisc.GetComponent<MeshRenderer>();
+        fillRenderer.sharedMaterial = fillMaterial;
 
         borderParent =
             new GameObject("HazardBorder").transform;
@@ -181,10 +186,16 @@ public class HazardZone : MonoBehaviour
 
         flashSphere.localScale = Vector3.zero;
 
-        flashSphere.GetComponent<MeshRenderer>().sharedMaterial =
-            flashMaterial;
+        flashRenderer = flashSphere.GetComponent<MeshRenderer>();
+        flashRenderer.sharedMaterial = flashMaterial;
 
         flashSphere.gameObject.SetActive(false);
+
+        // Пульсация и вспышка едут через PropertyBlock: писать цвет
+        // в общий материал нельзя, иначе мигали бы сразу все зоны
+        // этого цвета на карте.
+        fillBlock = new MaterialPropertyBlock();
+        flashBlock = new MaterialPropertyBlock();
     }
 
     private GameObject CreatePrimitive(
@@ -366,10 +377,12 @@ public class HazardZone : MonoBehaviour
         float alpha =
             Mathf.Lerp(0.15f, 0.45f, pulse);
 
-        Color c = dangerColor;
-        c.a = alpha;
-
-        SetMaterialColor(fillMaterial, c);
+        DangerZoneMaterials.ApplyAlpha(
+            fillRenderer,
+            fillBlock,
+            dangerColor,
+            alpha
+        );
     }
 
     private void TickDamage()
@@ -468,10 +481,12 @@ public class HazardZone : MonoBehaviour
                         diameter
                     );
 
-                Color c = dangerColor;
-                c.a = 1f - progress;
-
-                SetMaterialColor(flashMaterial, c);
+                DangerZoneMaterials.ApplyAlpha(
+                    flashRenderer,
+                    flashBlock,
+                    dangerColor,
+                    1f - progress
+                );
             }
 
             yield return null;
@@ -481,41 +496,17 @@ public class HazardZone : MonoBehaviour
             flashSphere.gameObject.SetActive(false);
     }
 
-    // Материалы зоны создаются в рантайме, поэтому Destroy(gameObject)
-// их не убирает — без этого каждый каст элиты и каждая опасная
-// зона волны оставляли бы в памяти три материала навсегда.
-private void OnDestroy()
+    // Материалы зоны теперь живут в общем кэше DangerZoneMaterials
+    // и переживают саму зону, поэтому Destroy-ить их здесь нельзя:
+    // на том же цвете могут стоять другие зоны и эффекты босса.
+    private void OnDestroy()
     {
-        DestroyMaterial(fillMaterial);
-        DestroyMaterial(borderMaterial);
-        DestroyMaterial(flashMaterial);
-
         fillMaterial = null;
         borderMaterial = null;
         flashMaterial = null;
-    }
 
-    private void DestroyMaterial(Material mat)
-    {
-        if (mat == null)
-            return;
-
-        if (Application.isPlaying)
-        {
-            Destroy(mat);
-            return;
-        }
-
-        DestroyImmediate(mat);
-    }
-
-    private void SetMaterialColor(Material mat, Color color)
-    {
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
+        fillBlock = null;
+        flashBlock = null;
     }
 
     private void PlayWarningSound()

@@ -24,6 +24,12 @@ public class BossAttackZone : MonoBehaviour
     private Transform flashSphere;
     private Transform borderParent;
 
+    private MeshRenderer fillRenderer;
+    private MeshRenderer flashRenderer;
+
+    private MaterialPropertyBlock fillBlock;
+    private MaterialPropertyBlock flashBlock;
+
     public void Initialize(
         float newDamage,
         float newRadius,
@@ -83,18 +89,17 @@ public class BossAttackZone : MonoBehaviour
 
     private void BuildVisual()
     {
+        // Общий кэш, а не new Material на каждую зону: босс может
+        // дать несколько аое подряд, и раньше каждое тянуло с собой
+        // три материала, которые потом Destroy-ились.
         fillMaterial =
-            CreateTransparentMaterial(
-                dangerColor
-            );
+            DangerZoneMaterials.Get(dangerColor);
 
         flashMaterial =
-            CreateTransparentMaterial(
-                dangerColor
-            );
+            DangerZoneMaterials.Get(dangerColor);
 
         borderMaterial =
-            CreateTransparentMaterial(
+            DangerZoneMaterials.Get(
                 new Color(
                     dangerColor.r,
                     dangerColor.g,
@@ -120,8 +125,8 @@ public class BossAttackZone : MonoBehaviour
                 radius * 2f
             );
 
-        fillDisc.GetComponent<MeshRenderer>().sharedMaterial =
-            fillMaterial;
+        fillRenderer = fillDisc.GetComponent<MeshRenderer>();
+        fillRenderer.sharedMaterial = fillMaterial;
 
         // Вращающийся "забор" из кубиков по периметру.
         borderParent =
@@ -177,10 +182,15 @@ public class BossAttackZone : MonoBehaviour
 
         flashSphere.localScale = Vector3.zero;
 
-        flashSphere.GetComponent<MeshRenderer>().sharedMaterial =
-            flashMaterial;
+        flashRenderer = flashSphere.GetComponent<MeshRenderer>();
+        flashRenderer.sharedMaterial = flashMaterial;
 
         flashSphere.gameObject.SetActive(false);
+
+        // Пульсация и вспышка — через PropertyBlock: материал общий
+        // с другими зонами этого цвета, писать в него нельзя.
+        fillBlock = new MaterialPropertyBlock();
+        flashBlock = new MaterialPropertyBlock();
     }
 
     private GameObject CreatePrimitive(
@@ -333,10 +343,12 @@ public class BossAttackZone : MonoBehaviour
         float alpha =
             Mathf.Lerp(0.15f, 0.5f, pulse);
 
-        Color c = dangerColor;
-        c.a = alpha;
-
-        SetMaterialColor(fillMaterial, c);
+        DangerZoneMaterials.ApplyAlpha(
+            fillRenderer,
+            fillBlock,
+            dangerColor,
+            alpha
+        );
     }
 
     private void RotateBorder()
@@ -422,13 +434,12 @@ public class BossAttackZone : MonoBehaviour
                         diameter
                     );
 
-                float alpha =
-                    (1f - progress);
-
-                Color c = dangerColor;
-                c.a = alpha;
-
-                SetMaterialColor(flashMaterial, c);
+                DangerZoneMaterials.ApplyAlpha(
+                    flashRenderer,
+                    flashBlock,
+                    dangerColor,
+                    1f - progress
+                );
             }
 
             yield return null;
@@ -439,30 +450,15 @@ public class BossAttackZone : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Материалы создаются в BuildVisual на каждый экземпляр зоны,
-        // а зоны ставятся каждые несколько секунд. Без уничтожения
-        // они копятся до конца боя и держат в памяти всё, что было
-        // отрисовано.
-        DestroyMaterial(fillMaterial);
-        DestroyMaterial(flashMaterial);
-        DestroyMaterial(borderMaterial);
-    }
+        // Материалы принадлежат общему кэшу DangerZoneMaterials и
+        // переживают зону: на том же цвете работают зоны волн.
+        // Destroy-ить их здесь нельзя.
+        fillMaterial = null;
+        flashMaterial = null;
+        borderMaterial = null;
 
-    private static void DestroyMaterial(Material mat)
-    {
-        if (mat == null)
-            return;
-
-        Destroy(mat);
-    }
-
-    private void SetMaterialColor(Material mat, Color color)
-    {
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
+        fillBlock = null;
+        flashBlock = null;
     }
 
     private void PlayAoeExplodeSound()

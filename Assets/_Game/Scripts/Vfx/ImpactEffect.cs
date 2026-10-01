@@ -8,19 +8,37 @@ using UnityEngine;
 ///   Particle System на каждое попадание = свой эмиттер, своя
 ///   система частиц в сцене, сортировка, свой набор шейдерных
 ///   вариантов. Для эффекта длиной 0.2 с это заметно дороже,
-///   чем несколько квадов, которые уже лежат в пуле.
+///   чем квады, которые уже лежат в пуле.
 ///
-///   Здесь на попадание приходится 1 draw call вспышки и до
-///   3 draw call осколков, без сортировки (аддитивное смешивание
-///   не зависит от порядка) и без единой аллокации в рантайме.
+/// Стоимость в draw call'ах - главный аргумент этой реализации.
+/// Вспышка и осколки собраны в ОДИН меш на объекте, поэтому всё
+/// попадание стоит 1 draw call. Раньше вспышка была отдельным
+/// MeshRenderer и каждый осколок - тоже отдельным, то есть до
+/// 5 draw call на одно попадание; при 8 попаданиях за кадр
+/// (пулемёт) это 40 draw call только на вспышки, плюс те же
+/// осколки висят в кадре ещё кадр после попадания.
 ///
-/// Всё держится на двух материалах на весь забег:
-/// VfxSharedAssets.ImpactMaterial. Вспышка и осколки - это
-/// MeshRenderer на квадах без нормалей, теней и пробросов света.
+/// Про SRP Batcher: он НЕ снижает число draw call, а только
+/// удешевляет их подготовку (bind состояния). Каждый Renderer -
+/// это отдельная пара bind+draw, поэтому количество Renderer'ов
+/// здесь равно количеству draw call'ов один в один. Свести их
+/// к одному - единственный способ урезать это число.
 ///
-/// Затухание сделано через localScale, а не через цвет: это
-/// одна запись в transform вместо пересборки меша или
-/// MaterialPropertyBlock (тот ломает SRP Batcher).
+/// Форма считается в шейдере из UV квада (см. BulletTracerVfx.hlsl,
+/// радиальный режим), ни текстур, ни сэмплов. Затухание идёт
+/// через размер вершин, а не через цвет: шейдер не читает vertex
+/// color, а пересборка меша не нужна - вершины и так пишутся
+/// каждый кадр. MaterialPropertyBlock не используется: он ломает
+/// SRP Batcher.
+///
+/// Меш свой у каждого экземпляра пула, потому что вершины
+/// перезаписываются каждый кадр. Буферы выделяются один раз в
+/// Awake: в рантайме аллокаций нет.
+///
+/// Симуляция целиком в локальных координатах эффекта: объект
+/// стоит в точке попадания и развёрнут билбордом к камере
+/// (VfxSharedAssets.FaceDirection), поэтому осколки лежат в
+/// плоскости билборда, а гравитация - один повёрнутый вектор.
 /// </summary>
 public sealed class ImpactEffect : VfxEffect
 {
@@ -28,7 +46,7 @@ public sealed class ImpactEffect : VfxEffect
     // РЕКОМЕНДУЕМЫЕ ЗНАЧЕНИЯ
     //
     // Размеры заданы от высоты экрана. Игровая камера стоит
-    // в ~22.5 мировых единицах от плоскости боя при FOV 60,
+    // в ~22.5 мировых единиц от плоскости боя при FOV 60,
     // то есть видит ~26 единиц по вертикали: на 1080p это
     // ~42 пикселя на единицу.
     //
@@ -62,6 +80,9 @@ public sealed class ImpactEffect : VfxEffect
 
     private const int MaxShards = 4;
 
+    // Квадов в меше: вспышка + по одному на каждый возможный осколок.
+    private const int TotalQuads = MaxShards + 1;
+
     [Header("Flash")]
     [SerializeField, Tooltip("Диаметр вспышки в мировых единицах")]
     private float flashSize = DefaultFlashSize;
@@ -92,13 +113,18 @@ public sealed class ImpactEffect : VfxEffect
     [SerializeField, Tooltip("Максимальное время жизни осколка")]
     private float shardLifetimeMax = DefaultShardLifetimeMax;
 
-    private Transform flashTransform;
-
-    private Transform[] shards;
+    // Позиции и скорости осколков в локальных координатах эффекта.
+    private Vector3[] shardPosition;
     private Vector3[] shardVelocity;
     private float[] shardTimeLeft;
     private float[] shardDuration;
     private float[] shardBaseSize;
+
+    // Буфер меша: по 4 вершины на квад.
+    private Vector3[] vertexBuffer;
+
+    private Mesh mesh;
+    private Vector3 localGravity;
     private int activeShards;
 
     /// <summary>
@@ -118,57 +144,79 @@ public sealed class ImpactEffect : VfxEffect
     {
         gameObject.name = "Impact";
 
-        BuildFlash();
-        BuildShards();
+        AllocateState();
+        BuildMesh();
     }
 
-    private void BuildFlash()
+    private void AllocateState()
     {
-        // Вспышка - отдельный дочерний объект: масштабировать
-        // самого эффекта нельзя, иначе масштаб уедет и осколкам
-        // (они тоже дети).
-        GameObject flashObject = new GameObject("Flash");
-
-        flashObject.transform.SetParent(transform, false);
-
-        MeshRenderer flashRenderer =
-            flashObject.AddComponent<MeshRenderer>();
-
-        VfxSharedAssets.SetupAdditiveRenderer(
-            flashRenderer,
-            VfxSharedAssets.CenteredMesh,
-            VfxSharedAssets.ImpactMaterial
-        );
-
-        flashTransform = flashObject.transform;
-    }
-
-    private void BuildShards()
-    {
-        shards = new Transform[MaxShards];
+        shardPosition = new Vector3[MaxShards];
         shardVelocity = new Vector3[MaxShards];
         shardTimeLeft = new float[MaxShards];
         shardDuration = new float[MaxShards];
         shardBaseSize = new float[MaxShards];
 
-        for (int i = 0; i < MaxShards; i++)
+        vertexBuffer = new Vector3[TotalQuads * 4];
+    }
+
+    private void BuildMesh()
+    {
+        mesh = new Mesh
         {
-            GameObject shardObject = new GameObject("Shard");
+            name = "VfxImpactFlashAndShards",
+            hideFlags = HideFlags.HideAndDontSave
+        };
 
-            shardObject.transform.SetParent(transform, false);
+        // Меш перезаписывается каждый кадр: без MarkDynamic Unity
+        // считает его статическим и перезаливает буфер как static.
+        mesh.MarkDynamic();
 
-            MeshRenderer shardRenderer =
-                shardObject.AddComponent<MeshRenderer>();
+        Vector2[] uvs = new Vector2[TotalQuads * 4];
+        int[] triangles = new int[TotalQuads * 6];
 
-            VfxSharedAssets.SetupAdditiveRenderer(
-                shardRenderer,
-                VfxSharedAssets.CenteredMesh,
-                VfxSharedAssets.ImpactMaterial
-            );
+        for (int i = 0; i < TotalQuads; i++)
+        {
+            int vertex = i * 4;
 
-            shardObject.SetActive(false);
-            shards[i] = shardObject.transform;
+            uvs[vertex + 0] = new Vector2(0f, 0f);
+            uvs[vertex + 1] = new Vector2(0f, 1f);
+            uvs[vertex + 2] = new Vector2(1f, 0f);
+            uvs[vertex + 3] = new Vector2(1f, 1f);
+
+            int triangle = i * 6;
+
+            triangles[triangle + 0] = vertex + 0;
+            triangles[triangle + 1] = vertex + 2;
+            triangles[triangle + 2] = vertex + 1;
+            triangles[triangle + 3] = vertex + 2;
+            triangles[triangle + 4] = vertex + 3;
+            triangles[triangle + 5] = vertex + 1;
         }
+
+        mesh.vertices = vertexBuffer;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+
+        // Осколки улетают на несколько единиц от точки попадания,
+        // а сам эффект стоит в этой точке: локального бокса 8
+        // единиц хватает с запасом. Без заданного бокса эффект
+        // вылетел бы из frustum culling, как только осколки
+        // разлетелись.
+        mesh.bounds = new Bounds(
+            Vector3.zero,
+            new Vector3(8f, 8f, 8f)
+        );
+
+        MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
+
+        if (renderer == null)
+            renderer = gameObject.AddComponent<MeshRenderer>();
+
+        VfxSharedAssets.SetupAdditiveRenderer(
+            renderer,
+            mesh,
+            VfxSharedAssets.ImpactMaterial
+        );
     }
 
     /// <summary>
@@ -185,22 +233,28 @@ public sealed class ImpactEffect : VfxEffect
         transform.rotation =
             VfxSharedAssets.FaceDirection(normal);
 
-        // Масштаб вспышки задаём сразу: первый кадр эффекта
-        // не должен показывать квад размером во всю арену.
-        flashTransform.localScale = new Vector3(
-            flashSize,
-            flashSize,
-            1f
-        );
+        Quaternion toLocal =
+            Quaternion.Inverse(transform.rotation);
 
-        SpawnShards(position, normal);
+        // Гравитация в локальных координатах: один вектор на
+        // весь эффект вместо поворота Vector3.down в каждом
+        // осколке каждый кадр.
+        localGravity = toLocal * (Vector3.down * shardGravity);
+
+        SpawnShards(normal, toLocal);
+
+        // Меш перезаписывается целиком уже на первом кадре, но
+        // показывать до Tick нечего: старые вершины от прошлого
+        // попадания лежали бы в кадре один кадр.
+        WriteFlash(0f);
+        WriteShards();
+
+        mesh.vertices = vertexBuffer;
 
         BeginPlay(flashLifetime);
     }
 
-    private void SpawnShards(
-        Vector3 position,
-        Vector3 normal)
+    private void SpawnShards(Vector3 normal, Quaternion toLocal)
     {
         activeShards = Mathf.Clamp(shardCount, 0, MaxShards);
 
@@ -225,38 +279,34 @@ public sealed class ImpactEffect : VfxEffect
                 shardSpeedMax
             );
 
-            shardVelocity[i] = direction * speed;
-            shardDuration[i] = Random.Range(
-                shardLifetimeMin,
-                shardLifetimeMax
-            );
-            shardTimeLeft[i] = shardDuration[i];
+            shardVelocity[i] = toLocal * (direction * speed);
 
             float size = shardSize * Random.Range(0.7f, 1.3f);
 
             shardBaseSize[i] = size;
 
-            Transform shard = shards[i];
+            // Стартовая точка - сразу перед точкой попадания,
+            // как и раньше, когда осколок был отдельным объектом.
+            shardPosition[i] =
+                toLocal * (normal * (size * 0.5f));
 
-            shard.position =
-                position + normal * (size * 0.5f);
+            float duration = Random.Range(
+                shardLifetimeMin,
+                shardLifetimeMax
+            );
 
-            // Поворот не считаем: осколок наследует билборд
-            // родителя и остаётся в плоскости камеры.
-            shard.localRotation = Quaternion.identity;
-
-            shard.localScale = new Vector3(size, size, 1f);
-
-            if (!shard.gameObject.activeSelf)
-                shard.gameObject.SetActive(true);
+            shardDuration[i] = duration;
+            shardTimeLeft[i] = duration;
         }
 
         // Неиспользуемые осколки гасим, иначе они останутся
         // висеть на экране от прошлого попадания.
         for (int i = activeShards; i < MaxShards; i++)
         {
-            if (shards[i].gameObject.activeSelf)
-                shards[i].gameObject.SetActive(false);
+            shardTimeLeft[i] = 0f;
+            shardPosition[i] = Vector3.zero;
+            shardVelocity[i] = Vector3.zero;
+            shardBaseSize[i] = 0f;
         }
     }
 
@@ -269,73 +319,107 @@ public sealed class ImpactEffect : VfxEffect
         float flashLife =
             Mathf.Clamp01(TimeLeft / Duration);
 
-        float flashScale =
-            flashSize * flashLife * flashLife;
-
-        if (flashScale > 0.0001f)
-        {
-            flashTransform.localScale = new Vector3(
-                flashScale,
-                flashScale,
-                1f
-            );
-        }
-
-        float gravity = shardGravity * deltaTime;
+        WriteFlash(flashSize * flashLife * flashLife);
 
         for (int i = 0; i < activeShards; i++)
         {
             shardTimeLeft[i] -= deltaTime;
 
-            float life = shardTimeLeft[i] / shardDuration[i];
-
-            if (life <= 0f)
+            if (shardTimeLeft[i] > 0f)
             {
-                shards[i].localScale = Vector3.zero;
+                Vector3 velocity = shardVelocity[i];
 
-                if (shards[i].gameObject.activeSelf)
-                    shards[i].gameObject.SetActive(false);
+                velocity += localGravity * deltaTime;
+                shardVelocity[i] = velocity;
 
-                continue;
+                shardPosition[i] += velocity * deltaTime;
             }
 
-            Vector3 velocity = shardVelocity[i];
-
-            velocity.y -= gravity;
-            shardVelocity[i] = velocity;
-
-            Transform shard = shards[i];
-
-            shard.position += velocity * deltaTime;
-
-            float scale = shardBaseSize[i] * life;
-
-            shard.localScale = new Vector3(
-                scale,
-                scale,
-                1f
-            );
+            WriteShard(i);
         }
+
+        // Квады, которые не пишет WriteShard (сверх activeShards),
+        // затираем: в буфере от прошлого попадания лежали бы
+        // старые вершины.
+        for (int i = activeShards; i < MaxShards; i++)
+            HideQuad(i + 1);
+
+        mesh.vertices = vertexBuffer;
 
         if (TimeLeft <= 0f)
             Finish();
     }
 
-    protected override void ReturnToPool()
+    private void WriteFlash(float size)
     {
-        if (shards != null)
+        WriteQuad(0, Vector3.zero, size);
+    }
+
+    private void WriteShard(int index)
+    {
+        float life =
+            shardDuration[index] > 0f
+                ? shardTimeLeft[index] / shardDuration[index]
+                : 0f;
+
+        if (life <= 0f)
         {
-            for (int i = 0; i < MaxShards; i++)
-            {
-                if (shards[i] != null &&
-                    shards[i].gameObject.activeSelf)
-                {
-                    shards[i].gameObject.SetActive(false);
-                }
-            }
+            HideQuad(index + 1);
+            return;
         }
 
+        WriteQuad(
+            index + 1,
+            shardPosition[index],
+            shardBaseSize[index] * life
+        );
+    }
+
+    private void WriteShards()
+    {
+        for (int i = 0; i < MaxShards; i++)
+            WriteShard(i);
+    }
+
+    /// <summary>
+    /// Квад размером size с центром в точке position. size - это
+    /// полная сторона, как и раньше у масштабируемого квада.
+    /// </summary>
+    private void WriteQuad(int index, Vector3 position, float size)
+    {
+        int vertex = index * 4;
+
+        if (size <= 0.0001f)
+        {
+            HideQuad(index);
+            return;
+        }
+
+        float half = size * 0.5f;
+
+        Vector3 right = Vector3.right * half;
+        Vector3 up = Vector3.up * half;
+
+        vertexBuffer[vertex + 0] = position - right - up;
+        vertexBuffer[vertex + 1] = position - right + up;
+        vertexBuffer[vertex + 2] = position + right - up;
+        vertexBuffer[vertex + 3] = position + right + up;
+    }
+
+    private void HideQuad(int index)
+    {
+        int vertex = index * 4;
+
+        vertexBuffer[vertex + 0] = Vector3.zero;
+        vertexBuffer[vertex + 1] = Vector3.zero;
+        vertexBuffer[vertex + 2] = Vector3.zero;
+        vertexBuffer[vertex + 3] = Vector3.zero;
+    }
+
+    protected override void ReturnToPool()
+    {
         activeShards = 0;
+
         VfxPools.Impacts.Despawn(this);
     }
 }

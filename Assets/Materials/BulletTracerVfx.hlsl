@@ -30,12 +30,14 @@ struct Attributes
 {
     float4 positionOS : POSITION;
     float2 uv : TEXCOORD0;
+    float2 uv1 : TEXCOORD1;
 };
 
 struct Varyings
 {
     float4 positionHCS : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float shapeOverride : TEXCOORD1;
 };
 
 Varyings Vert(Attributes input)
@@ -47,6 +49,19 @@ Varyings Vert(Attributes input)
 
     output.uv = input.uv;
 
+    // Переключатель формы на квад: 0 - как задано материалом,
+    // 1 - круглое свечение, -1 - вытянутый хвост.
+    //
+    // Нужен, чтобы в одном мехе держать и хвост, и круглое ядро
+    // пули и уложить их в один draw call. Раньше для этого
+    // требовалось два материала и два рендерера.
+    //
+    // Взят UV1, а не COLOR: у меша без этого канала Unity
+    // подставляет 0, то есть «как в материале», и все старые
+    // меши (вспышка попадания, осколки, брызги крови) продолжают
+    // вести себя ровно как раньше. У COLOR дефолт неоднозначен.
+    output.shapeOverride = input.uv1.x;
+
     return output;
 }
 
@@ -55,10 +70,17 @@ half4 Frag(Varyings input) : SV_Target
     // Центр квада в (0,0), края в ±1.
     float2 p = input.uv * 2.0 - 1.0;
 
+    float radialMode = _RadialMode;
+
+    if (input.shapeOverride > 0.5)
+        radialMode = 1.0;
+    else if (input.shapeOverride < -0.5)
+        radialMode = 0.0;
+
     float shape;
     float tail;
 
-    if (_RadialMode > 0.5)
+    if (radialMode > 0.5)
     {
         // Вспышка попадания: настоящий круг, спад по расстоянию.
         shape = saturate(length(p));

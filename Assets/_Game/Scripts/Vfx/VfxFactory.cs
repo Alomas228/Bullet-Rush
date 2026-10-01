@@ -366,13 +366,7 @@ public static class VfxFactory
         Vector3 from,
         Vector3 to)
     {
-        GameObject effect =
-            new GameObject("ChainLightning");
-
-        TraceBoltEffect bolt =
-            effect.AddComponent<TraceBoltEffect>();
-
-        bolt.Initialize(
+        TraceBoltEffect.Spawn(
             from,
             to,
             LightningColor,
@@ -385,13 +379,7 @@ public static class VfxFactory
         Vector3 from,
         Vector3 to)
     {
-        GameObject effect =
-            new GameObject("RicochetBolt");
-
-        TraceBoltEffect bolt =
-            effect.AddComponent<TraceBoltEffect>();
-
-        bolt.Initialize(
+        TraceBoltEffect.Spawn(
             from,
             to,
             RicochetColor,

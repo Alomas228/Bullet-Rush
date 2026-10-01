@@ -6,7 +6,7 @@ using UnityEngine;
 ///
 /// Тот же эффект используется для снарядов врага (enemyStyle):
 /// отличается только красный материал и потолок фазы Follow -
-/// форма, размер и поведение остаются игрокными. Вражеские пули
+/// форма, размер и поведение остаются игровыми. Вражеские пули
 /// и свои должны читаться на лету, поэтому цвет - единственное,
 /// чем они различаются.
 ///
@@ -26,11 +26,32 @@ using UnityEngine;
 /// выдана под новый выстрел - иначе хвост прыгнул бы на чужую
 /// пулю.
 ///
+/// ПОЧЕМУ ХВОСТ И ЯДРО В ОДНОМ МЕШЕ. Снаряд раньше стоил
+/// 2 draw call: MeshRenderer трассера плюс MeshRenderer шара на
+/// самом снаряде (у Sphere-префаба он был отдельным объектом).
+/// SRP Batcher эти два рендерера не складывает в один вызов, а
+/// инстансинг не применим: у шара и у хвоста разные меши и
+/// разные шейдеры. Единственный способ получить один вызов -
+/// держать обе части в одном меше на одном шейдере, поэтому
+/// круглое ядро въехало в меш трассера как второй квад.
+///
+/// Форма квада выбирается в шейдере через UV1 (см.
+/// BulletTracerVfx.hlsl): 0 - хвост, 1 - круглое свечение.
+/// Раньше форма задавалась одним _RadialMode на материал, и в
+/// одном материале жить двум формам было нельзя.
+///
+/// Размеры пишутся прямо в вершины, а не в localScale: хвост
+/// растягивается по X, а ядро обязано остаться круглым, и
+/// localScale с двумя разными коэффициентами растянул бы ядро в
+/// овал. Меш перезаписывается каждый кадр (едет за пулей и
+/// гаснет), поэтому он динамический и свой у каждого экземпляра
+/// пула. Буферы выделяются один раз в Awake.
+///
 /// Форма (белое ядро + оранжевое свечение) считается в шейдере
 /// из UV квада: ни текстур, ни сэмплов. Затухание сделано через
-/// localScale, а не через цвет: одна запись в transform вместо
-/// пересборки меха или MaterialPropertyBlock (тот ломает SRP
-/// Batcher).
+/// размер вершин, а не через цвет: одна запись в буфер меша
+/// вместо пересборки геометрии или MaterialPropertyBlock (тот
+/// ломает SRP Batcher).
 /// </summary>
 public sealed class TracerEffect : VfxEffect
 {
@@ -38,7 +59,7 @@ public sealed class TracerEffect : VfxEffect
     // РЕКОМЕНДУЕМЫЕ ЗНАЧЕНИЯ
     //
     // Размеры заданы от высоты экрана. Игровая камера стоит
-    // в ~22.5 мировых единицах от плоскости боя при FOV 60,
+    // в ~22.5 мировых единиц от плоскости боя при FOV 60,
     // то есть видит ~26 единиц по вертикали: на 1080p это
     // ~42 пикселя на единицу.
     //
@@ -46,7 +67,7 @@ public sealed class TracerEffect : VfxEffect
     //   длина 0.075 * скорость -> при 16 у/с = 1.2 ед. = ~5%
     //
     // Если камеру поднимут или уменьшишь FOV - пересчитай:
-    //   size = доля_экрана * (2 * расстояние * tan(FOV / 2))
+    //   size = доля_экрана * (2 * расстояния * tan(FOV / 2))
     // =========================================================
 
     /// <summary>
@@ -93,7 +114,7 @@ public sealed class TracerEffect : VfxEffect
     public const float MaxLength = 1.8f;
 
     /// <summary>
-    /// Длина на единицу скорости для снарядов врага. Снаряды
+    /// Длина хвоста на единицу скорости для снарядов врага. Снаряды
     /// медленные (8 у/с у дальника, 7 у/с у взрыва танка) против
     /// 14-16 у/с у пуль игрока, поэтому при общем коэффициенте
     /// вражеский хвост упирался в MinLength и был вдвое короче
@@ -103,6 +124,15 @@ public sealed class TracerEffect : VfxEffect
     public const float EnemyLengthPerSpeed = 0.14f;
 
     private const float MinWidthRatio = 0.35f;
+
+    /// <summary>
+    /// Диаметр круглого ядра. Раньше на снаряде висел Sphere с
+    /// диаметром 0.1 (localScale префаба 0.1 на юните-примитиве),
+    /// теперь это второй квад того же размера.
+    /// </summary>
+    public const float DefaultCoreSize = 0.1f;
+
+    private const int Quads = 2;
 
     [Header("Visual")]
     [SerializeField, Tooltip("Ширина трассера: доля высоты экрана (0.01 = 1%)")]
@@ -116,6 +146,9 @@ public sealed class TracerEffect : VfxEffect
 
     [SerializeField, Tooltip("Длина хвоста на единицу скорости")]
     private float lengthPerSpeed = LengthPerSpeed;
+
+    [SerializeField, Tooltip("Диаметр круглого ядра снаряда")]
+    private float coreSize = DefaultCoreSize;
 
     [Header("Follow")]
     [SerializeField, Tooltip("Жить вместе с пулёй до её смерти")]
@@ -135,6 +168,9 @@ public sealed class TracerEffect : VfxEffect
 
     private float fullLength;
     private float fullWidth;
+
+    private Vector3[] vertexBuffer;
+    private Mesh mesh;
 
     /// <summary>
     /// Шаблон для пула, когда префаб не задан. Создаётся один раз.
@@ -184,16 +220,98 @@ public sealed class TracerEffect : VfxEffect
     {
         gameObject.name = enemyStyle ? "EnemyTracer" : "Tracer";
 
-        MeshRenderer meshRenderer =
-            gameObject.AddComponent<MeshRenderer>();
+        AllocateState();
+        BuildMesh();
 
-        VfxSharedAssets.SetupAdditiveRenderer(
-            meshRenderer,
-            VfxSharedAssets.StreakMesh,
+        VfxSharedAssets.SetupRenderer(
+            gameObject.GetComponent<MeshRenderer>(),
+            mesh,
             enemyStyle
                 ? VfxSharedAssets.EnemyTracerMaterial
                 : VfxSharedAssets.TracerMaterial
         );
+    }
+
+    private void AllocateState()
+    {
+        vertexBuffer = new Vector3[Quads * 4];
+    }
+
+    private void BuildMesh()
+    {
+        mesh = new Mesh
+        {
+            name = enemyStyle
+                ? "VfxEnemyTracerWithCore"
+                : "VfxTracerWithCore",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        // Меш перезаписывается каждый кадр: он едет за пулей и
+        // гаснет. Без MarkDynamic Unity считает меш статическим и
+        // перезаливает буфер как static.
+        mesh.MarkDynamic();
+
+        Vector2[] uvs = new Vector2[Quads * 4];
+        Vector2[] shapeOverrides = new Vector2[Quads * 4];
+        int[] triangles = new int[Quads * 6];
+
+        // Квад 0 - хвост. Ось X от -1 (хвост) до 0 (голова), так
+        // же, как в VfxSharedAssets.StreakMesh: U = 1 у головы.
+        uvs[0] = new Vector2(0f, 0f);
+        uvs[1] = new Vector2(0f, 1f);
+        uvs[2] = new Vector2(1f, 0f);
+        uvs[3] = new Vector2(1f, 1f);
+
+        // Квад 1 - круглое ядро по центру квадрата.
+        uvs[4] = new Vector2(0f, 0f);
+        uvs[5] = new Vector2(0f, 1f);
+        uvs[6] = new Vector2(1f, 0f);
+        uvs[7] = new Vector2(1f, 1f);
+
+        // -1 = хвост, 1 = круглое свечение. Раньше форма была
+        // одна на материал (_RadialMode), и в одном материале
+        // хвост и ядро ужиться не могли.
+        for (int i = 0; i < 4; i++)
+        {
+            shapeOverrides[i] = new Vector2(-1f, 0f);
+            shapeOverrides[i + 4] = new Vector2(1f, 0f);
+        }
+
+        triangles[0] = 0;
+        triangles[1] = 2;
+        triangles[2] = 1;
+        triangles[3] = 2;
+        triangles[4] = 3;
+        triangles[5] = 1;
+
+        triangles[6] = 4;
+        triangles[7] = 6;
+        triangles[8] = 5;
+        triangles[9] = 6;
+        triangles[10] = 7;
+        triangles[11] = 5;
+
+        mesh.vertices = vertexBuffer;
+        mesh.uv = uvs;
+        mesh.SetUVs(1, shapeOverrides);
+        mesh.triangles = triangles;
+
+        // Хвост уходит назад по X, поэтому бокс должен покрывать
+        // и MaxLength, и CoreSize. Задаётся руками: с нулевым
+        // боксом трассер вылетел бы из frustum culling.
+        float extent = Mathf.Max(MaxLength, DefaultCoreSize) + 1f;
+
+        mesh.bounds = new Bounds(
+            new Vector3(-MaxLength * 0.5f, 0f, 0f),
+            new Vector3(extent * 2f, extent * 2f, extent * 2f)
+        );
+
+        MeshRenderer meshRenderer =
+            gameObject.GetComponent<MeshRenderer>();
+
+        if (meshRenderer == null)
+            meshRenderer = gameObject.AddComponent<MeshRenderer>();
     }
 
     /// <summary>
@@ -222,14 +340,18 @@ public sealed class TracerEffect : VfxEffect
         transform.rotation =
             VfxSharedAssets.FaceDirection(direction);
 
-        transform.localScale = new Vector3(
-            fullLength,
-            fullWidth,
-            1f
-        );
+        // Масштаб объекта всегда единичный: длина и ширина пишутся
+        // в вершины, иначе ядро, у которого своя длина, растянулось
+        // бы тем же localScale.
+        transform.localScale = Vector3.one;
 
         followTarget = followBullet ? target : null;
         following = followTarget != null;
+
+        // Меш перезаписывается целиком на первом же кадре, но
+        // показывать до этого нечего: в буфере лежали бы нули от
+        // Awake и квад прорисовался бы точкой в точке попадания.
+        WriteMesh(1f);
 
         // С пулей - едем до её смерти (с потолком maxFollowLifetime).
         // Без пули - сразу короткое затухание.
@@ -264,6 +386,9 @@ public sealed class TracerEffect : VfxEffect
                 followTarget.gameObject.activeInHierarchy)
             {
                 transform.position = followTarget.position;
+
+                // Пока пуля жива, хвост и ядро полной формы.
+                WriteMesh(1f);
                 return;
             }
 
@@ -293,13 +418,39 @@ public sealed class TracerEffect : VfxEffect
         // форму, последние кадры быстро уходит в ноль.
         float life = Mathf.Clamp01(TimeLeft / Duration);
 
-        float retract = life * life;
+        WriteMesh(life * life);
+    }
 
-        transform.localScale = new Vector3(
-            fullLength * retract,
-            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, retract),
-            1f
-        );
+    /// <summary>
+    /// Сборка хвоста и ядра в меш. retract = 1 - полная форма,
+    /// 0 - всё схлопнуто.
+    /// </summary>
+    private void WriteMesh(float retract)
+    {
+        float lengthNow = fullLength * retract;
+
+        float widthNow =
+            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, retract);
+
+        float halfWidth = widthNow * 0.5f;
+
+        // Хвост: от головы (X = 0) назад по -X.
+        vertexBuffer[0] = new Vector3(-lengthNow, -halfWidth, 0f);
+        vertexBuffer[1] = new Vector3(-lengthNow, halfWidth, 0f);
+        vertexBuffer[2] = new Vector3(0f, -halfWidth, 0f);
+        vertexBuffer[3] = new Vector3(0f, halfWidth, 0f);
+
+        // Ядро: квад со стороной coreSize по центру головы.
+        // Сторона равна в обеих осях, поэтому после поворота
+        // объекта к камере ядро остаётся круглым.
+        float halfCore = coreSize * retract * 0.5f;
+
+        vertexBuffer[4] = new Vector3(-halfCore, -halfCore, 0f);
+        vertexBuffer[5] = new Vector3(-halfCore, halfCore, 0f);
+        vertexBuffer[6] = new Vector3(halfCore, -halfCore, 0f);
+        vertexBuffer[7] = new Vector3(halfCore, halfCore, 0f);
+
+        mesh.vertices = vertexBuffer;
     }
 
     protected override void ReturnToPool()

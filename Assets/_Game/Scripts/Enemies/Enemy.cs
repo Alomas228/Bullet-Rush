@@ -184,19 +184,28 @@ public class Enemy : MonoBehaviour
     // в роль раньше, чем список успит заполниться.
     private const float fallenMemoryTime = 3f;
 
-    // PropertyBlock не трогает общий материал, поэтому подкраска
-    // варианта не течёт на всех мобов этого типа в сцене.
+    // Подкраска варианта идёт через копию материала, а не через
+    // MaterialPropertyBlock. Любой PropertyBlock выводит рендерер
+    // из SRP Batcher, а у мобов он один на весь объект: 38 живых
+    // мобов в поле — это 38 отдельных draw call вместо одного
+    // батча на тип. Копий мало и они общие: по одной на пару
+    // (материал префаба, вариант), всего 5 типов × 5 вариантов.
     private static readonly int BaseColorId =
         Shader.PropertyToID("_BaseColor");
 
     private static readonly int LegacyColorId =
         Shader.PropertyToID("_Color");
 
+    // material.GetInstanceID() + вариант. Вариант нужен в ключе,
+    // иначе первая же подкраска закэширует цвет для всех.
+    private static readonly Dictionary<int, Material>
+        variantMaterialCache = new Dictionary<int, Material>(32);
+
     private int aliveRegistryIndex = -1;
 
     private Vector3 baseScale = Vector3.one;
     private Renderer variantRenderer;
-    private MaterialPropertyBlock variantPropertyBlock;
+    private Material baseVariantMaterial;
 
     // Отдача от попадания. Это не смещение и не импульс физики,
     // а скорость, которую каждый кадр добавляем к позиции и
@@ -682,31 +691,63 @@ public class Enemy : MonoBehaviour
     }
 
     // Редкий вариант должен читаться до того, как игрок поймёт по
-    // поведению, что моб особенный. Подкраска идёт через
-    // MaterialPropertyBlock: общий материал префаба не меняется, и
-    // у обычных мобов остаётся ровно ноль дополнительной работы.
+    // поведению, что моб особенный. Подкраска идёт через общий
+    // кэшированный материал варианта, а не через PropertyBlock:
+    // PropertyBlock выводит рендерер из SRP Batcher, а у моба он
+    // один на весь объект — 38 живых мобов стали бы 38 draw call.
+    // Обычные мобы (без варианта) работают на материале префаба
+    // и не создают вообще ничего.
     private void ApplyVariantTint()
     {
         if (variantRenderer == null)
             return;
 
-        Material material = variantRenderer.sharedMaterial;
+        // Ключ и базовый цвет всегда берём у материала префаба,
+        // а не у текущего sharedMaterial: иначе повторный вызов
+        // красил бы уже подкрашенную копию и гонял свет в два раза.
+        Material baseMaterial = baseVariantMaterial;
 
-        if (material == null)
-            return;
+        if (baseMaterial == null)
+        {
+            baseMaterial = variantRenderer.sharedMaterial;
+
+            if (baseMaterial == null)
+                return;
+
+            baseVariantMaterial = baseMaterial;
+        }
+
+        // Без варианта моб работает ровно на материале префаба:
+        // ни своей копии, ни PropertyBlock, ни единой лишней работы.
+        variantRenderer.sharedMaterial =
+            variant == EnemyVariant.None
+                ? baseMaterial
+                : GetVariantMaterial(baseMaterial, variant);
+    }
+
+    // Копия материала на пару (материал, вариант), общая для всех
+    // мобов этого сочетания. Копий получается 5 типов × 4 редких
+    // варианта = 20 за забег, а не по одной на каждого моба.
+    private static Material GetVariantMaterial(
+        Material material,
+        EnemyVariant target)
+    {
+        int key = material.GetInstanceID() * 31 + (int)target;
+
+        if (variantMaterialCache.TryGetValue(key, out Material cached) &&
+            cached != null)
+        {
+            return cached;
+        }
 
         Color baseColor = Color.white;
 
         if (material.HasProperty(BaseColorId))
-        {
             baseColor = material.GetColor(BaseColorId);
-        }
         else if (material.HasProperty(LegacyColorId))
-        {
             baseColor = material.GetColor(LegacyColorId);
-        }
 
-        Color tint = GetVariantTint(variant);
+        Color tint = GetVariantTint(target);
 
         Color tinted = new Color(
             baseColor.r * tint.r,
@@ -715,15 +756,23 @@ public class Enemy : MonoBehaviour
             baseColor.a
         );
 
-        if (variantPropertyBlock == null)
-            variantPropertyBlock = new MaterialPropertyBlock();
+        Material tintedCopy = new Material(material)
+        {
+            name = material.name + " (" + target + ")"
+        };
 
-        variantRenderer.GetPropertyBlock(variantPropertyBlock);
+        if (tintedCopy.HasProperty(BaseColorId))
+            tintedCopy.SetColor(BaseColorId, tinted);
+        if (tintedCopy.HasProperty(LegacyColorId))
+            tintedCopy.SetColor(LegacyColorId, tinted);
 
-        variantPropertyBlock.SetColor(BaseColorId, tinted);
-        variantPropertyBlock.SetColor(LegacyColorId, tinted);
+        // Копия обязана оставаться инстансируемой, иначе подкрашенный
+        // вариант выпадает из общего батча не хуже, чем PropertyBlock.
+        tintedCopy.enableInstancing = true;
 
-        variantRenderer.SetPropertyBlock(variantPropertyBlock);
+        variantMaterialCache[key] = tintedCopy;
+
+        return tintedCopy;
     }
 
     private static Color GetVariantTint(EnemyVariant target)

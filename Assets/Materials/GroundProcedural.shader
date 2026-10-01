@@ -201,8 +201,12 @@ Shader "Custom/Procedural Ground Lit"
 
             HLSLPROGRAM
 
-            #pragma vertex ShadowVert
-            #pragma fragment ShadowFrag
+            // Имена берутся из Shaders/ShadowCasterPass.hlsl:
+            // там объявлены ShadowPassVertex и ShadowPassFragment.
+            // ShadowVert/ShadowFrag в URP нет, и с ними этот Pass
+            // не компилируется ("Did not find shader kernel").
+            #pragma vertex ShadowPassVertex
+            #pragma fragment ShadowPassFragment
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"

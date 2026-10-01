@@ -53,9 +53,14 @@ public class EnemyProjectile : MonoBehaviour
     }
 
     /// <summary>
-    /// Тело снаряда светится красным, как и хвост за ним, иначе
-    /// на экране видно «шарик в хвосте». Цвет общий на все
-    /// снаряды врага, поэтому материал ставится один раз.
+    /// Тело снаряда раньше было отдельным Sphere-префабом со своим
+    /// MeshRenderer, и снаряд стоил 2 draw call: шар плюс хвост.
+    /// Теперь круглое ядро нарисовано вторым квадом внутри меша
+    /// трассера (см. TracerEffect), поэтому рендерер шара
+    /// выключается и остаётся в префабе нерисущим.
+    ///
+    /// Рендерер НЕ удаляется из префаба намеренно - гашение
+    /// обратимо одной строкой.
     /// </summary>
     private void ApplyGlowMaterial()
     {
@@ -65,8 +70,7 @@ public class EnemyProjectile : MonoBehaviour
         if (meshRenderer == null)
             return;
 
-        meshRenderer.sharedMaterial =
-            VfxSharedAssets.EnemyBulletMaterial;
+        meshRenderer.enabled = false;
     }
 
     private void Update()

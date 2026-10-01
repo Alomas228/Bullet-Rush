@@ -1,8 +1,18 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 // Плавно «растворяет» блок, когда он загораживает игрока от камеры,
 // и возвращает непрозрачность обратно, когда игрок снова в поле зрения.
+//
+// Раньше в Awake на каждый MeshRenderer создавались две копии материала:
+// обычная и «призрачная». Обычная копия тут же назначалась обратно
+// через sharedMaterial и тем самым ломала SRP Batcher у всего блока,
+// хотя её цвет никто не менял. Теперь в непрозрачном режиме работает
+// исходный общий материал префаба, а призрачный материал кэшируется
+// по исходному материалу и делится между всеми блоками. Цвет призрака
+// едет через MaterialPropertyBlock — но только пока блок реально
+// заслоняет игрока, то есть на единицах объектов, а не на всей карте.
 public class StructureOcclusionFader : MonoBehaviour
 {
     [Header("Occlusion Look")]
@@ -17,12 +27,31 @@ public class StructureOcclusionFader : MonoBehaviour
     [Tooltip("Сила оттенка и лёгкого мерцания, пока блок скрывает игрока.")]
     [SerializeField] private float ghostEffectStrength = 0.35f;
 
+    private static readonly int BaseColorId =
+        Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId =
+        Shader.PropertyToID("_Color");
+
+    // Призрачный материал на каждый исходный материал, общий на всю
+    // карту. Раньше на каждый рендерер каждого блока создавалась своя
+    // копия — до двух материалов на меш в середине боя.
+    private static readonly Dictionary<int, GhostEntry> ghostCache =
+        new Dictionary<int, GhostEntry>(32);
+
+    private sealed class GhostEntry
+    {
+        public Material material;
+        public bool hasBaseColor;
+        public bool hasColor;
+    }
+
     // Рендереры ищутся во всём поддереве: у префабов-заготовок
     // меши часто висят на дочерних объектах, а не на корне.
     private MeshRenderer[] meshRenderers;
 
     private Material[] opaqueMaterials;
-    private Material[] ghostMaterials;
+    private GhostEntry[] ghostEntries;
+    private MaterialPropertyBlock[] ghostBlocks;
     private Color[] originalColors;
 
     private bool ghostActive;
@@ -46,43 +75,36 @@ public class StructureOcclusionFader : MonoBehaviour
         int count = meshRenderers.Length;
 
         opaqueMaterials = new Material[count];
-        ghostMaterials = new Material[count];
+        ghostEntries = new GhostEntry[count];
+        ghostBlocks = new MaterialPropertyBlock[count];
         originalColors = new Color[count];
 
         for (int i = 0; i < count; i++)
         {
-            // material создаёт копию — общий материал префаба
-            // не должен переключаться на призрачный режим.
-            opaqueMaterials[i] = meshRenderers[i].material;
+            // Именно sharedMaterial, а не material: общий материал
+            // префаба не меняется, и копия не нужна.
+            Material opaque = meshRenderers[i].sharedMaterial;
 
-            originalColors[i] =
-                GetMaterialColor(opaqueMaterials[i]);
+            if (opaque == null)
+                continue;
 
-            Material ghost =
-                new Material(opaqueMaterials[i])
-                {
-                    name =
-                        opaqueMaterials[i].name +
-                        " (Ghost)"
-                };
-
-            MakeTransparent(ghost);
-
-            SetMaterialColor(ghost, originalColors[i]);
-
-            ghostMaterials[i] = ghost;
+            opaqueMaterials[i] = opaque;
+            originalColors[i] = GetMaterialColor(opaque);
+            ghostEntries[i] = GetGhostEntry(opaque);
         }
     }
 
     private void OnDestroy()
     {
-        if (ghostMaterials == null)
+        if (meshRenderers == null)
             return;
 
-        for (int i = 0; i < ghostMaterials.Length; i++)
+        // Снимаем PropertyBlock, чтобы кэшированный призрачный
+        // материал не остался привязанным к уничтоженному рендереру.
+        for (int i = 0; i < meshRenderers.Length; i++)
         {
-            if (ghostMaterials[i] != null)
-                Destroy(ghostMaterials[i]);
+            if (meshRenderers[i] != null)
+                meshRenderers[i].SetPropertyBlock(null);
         }
     }
 
@@ -134,7 +156,13 @@ public class StructureOcclusionFader : MonoBehaviour
         if (shouldGhost && !ghostActive)
         {
             for (int i = 0; i < meshRenderers.Length; i++)
-                meshRenderers[i].sharedMaterial = ghostMaterials[i];
+            {
+                if (opaqueMaterials[i] == null)
+                    continue;
+
+                meshRenderers[i].sharedMaterial =
+                    ghostEntries[i].material;
+            }
 
             ghostActive = true;
         }
@@ -144,7 +172,15 @@ public class StructureOcclusionFader : MonoBehaviour
             currentAlpha >= 0.999f)
         {
             for (int i = 0; i < meshRenderers.Length; i++)
-                meshRenderers[i].sharedMaterial = opaqueMaterials[i];
+            {
+                if (opaqueMaterials[i] == null)
+                    continue;
+
+                meshRenderers[i].sharedMaterial =
+                    opaqueMaterials[i];
+
+                meshRenderers[i].SetPropertyBlock(null);
+            }
 
             ghostActive = false;
         }
@@ -170,8 +206,11 @@ public class StructureOcclusionFader : MonoBehaviour
             0.04f *
             (1f - progress);
 
-        for (int i = 0; i < ghostMaterials.Length; i++)
+        for (int i = 0; i < meshRenderers.Length; i++)
         {
+            if (opaqueMaterials[i] == null)
+                continue;
+
             Color color =
                 Color.Lerp(
                     originalColors[i],
@@ -185,30 +224,65 @@ public class StructureOcclusionFader : MonoBehaviour
 
             color.a = currentAlpha;
 
-            SetMaterialColor(ghostMaterials[i], color);
+            GhostEntry entry = ghostEntries[i];
+
+            if (ghostBlocks[i] == null)
+                ghostBlocks[i] = new MaterialPropertyBlock();
+
+            ghostBlocks[i].Clear();
+
+            if (entry.hasBaseColor)
+                ghostBlocks[i].SetColor(BaseColorId, color);
+
+            if (entry.hasColor)
+                ghostBlocks[i].SetColor(ColorId, color);
+
+            meshRenderers[i].SetPropertyBlock(ghostBlocks[i]);
         }
+    }
+
+    private static GhostEntry GetGhostEntry(Material opaque)
+    {
+        int key = opaque.GetInstanceID();
+
+        if (ghostCache.TryGetValue(key, out GhostEntry cached) &&
+            cached != null &&
+            cached.material != null)
+        {
+            return cached;
+        }
+
+        Material ghost =
+            new Material(opaque)
+            {
+                name = opaque.name + " (Ghost)"
+            };
+
+        MakeTransparent(ghost);
+        ghost.enableInstancing = true;
+
+        GhostEntry entry = new GhostEntry
+        {
+            material = ghost,
+            hasBaseColor = ghost.HasProperty(BaseColorId),
+            hasColor = ghost.HasProperty(ColorId)
+        };
+
+        ghostCache[key] = entry;
+
+        return entry;
     }
 
     private static Color GetMaterialColor(
         Material material)
     {
-        if (material.HasProperty("_BaseColor"))
-            return material.GetColor("_BaseColor");
+        if (material.HasProperty(BaseColorId))
+            return material.GetColor(BaseColorId);
 
-        if (material.HasProperty("_Color"))
-            return material.GetColor("_Color");
+        if (material.HasProperty(ColorId))
+            return material.GetColor(ColorId);
 
         return Color.white;
-    }
-
-    private static void SetMaterialColor(
-        Material material,
-        Color color)
-    {
-        if (material.HasProperty("_BaseColor"))
-            material.SetColor("_BaseColor", color);
-        else if (material.HasProperty("_Color"))
-            material.SetColor("_Color", color);
     }
 
     // Переключает копию материала в прозрачный режим.

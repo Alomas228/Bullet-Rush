@@ -93,10 +93,19 @@ public class Bullet : MonoBehaviour
     }
 
     /// <summary>
-    /// Тело пули должно светиться так же, как трассер за ней,
-    /// иначе на экране видно «шарик в хвосте». Цвет общий на все
-    /// пули игрока, поэтому материал ставится один раз за жизнь
-    /// объекта: ни MaterialPropertyBlock, ни копий материала.
+    /// Тело пули раньше было отдельным Sphere-префабом со своим
+    /// MeshRenderer, и снаряд стоил 2 draw call: шар плюс хвост.
+    /// Теперь круглое ядро нарисовано вторым квадом внутри меша
+    /// трассера (см. TracerEffect), поэтому рендерер шара
+    /// выключается: он остаётся в префабе, но не рисуется и
+    /// не стоит ничего.
+    ///
+    /// Рендерер НЕ удаляется из префаба намеренно - гашение
+    /// обратимо одной строкой, а править YAML префаба руками
+    /// ради одной строчки рискованнее.
+    ///
+    /// Если понадобится вернуть шар обратно - достаточно
+    /// вернуть enabled = true и убрать квад ядра из TracerEffect.
     /// </summary>
     private void ApplyGlowMaterial()
     {
@@ -106,8 +115,7 @@ public class Bullet : MonoBehaviour
         if (meshRenderer == null)
             return;
 
-        meshRenderer.sharedMaterial =
-            VfxSharedAssets.BulletMaterial;
+        meshRenderer.enabled = false;
     }
 
     private void Update()
@@ -754,9 +762,34 @@ public class Bullet : MonoBehaviour
     // CHAIN LIGHTNING
     // =========================================================
 
+    // Цели, уже пробитые текущей цепью. Без этого список
+    // проверялся только на первый удар (target == hitEnemy),
+    // и молния могла ударить одного и того же моба второй раз -
+    // отрезок уходил обратно через всю карту.
+    private static readonly Enemy[] visitedEnemies =
+        new Enemy[16];
+
+    private static int visitedCount;
+
+    private static bool WasVisited(Enemy enemy)
+    {
+        for (int i = 0; i < visitedCount; i++)
+        {
+            if (visitedEnemies[i] == enemy)
+                return true;
+        }
+
+        return false;
+    }
+
     private void TriggerChainLightning(
         Enemy hitEnemy)
     {
+        // Список пробитых целей общий на весь вызов: рекурсии
+        // внутри нет (TriggerChainLightning зовётся только из
+        // OnTriggerEnter и не вызывает сам себя).
+        visitedCount = 0;
+
         Vector3 fromPosition =
             transform.position;
 
@@ -774,12 +807,23 @@ public class Bullet : MonoBehaviour
 
         PlayLightningSound();
 
+        // Голова цепи теперь на первом пробитом мобе.
         fromPosition =
             hitEnemy.transform.position;
 
+        visitedEnemies[visitedCount++] =
+            hitEnemy;
+
+        // Поиск следующей цели идёт ВОКРУГ ГОЛОВЫ ЦЕПИ, а не
+        // вокруг пули. Раньше центром был transform.position,
+        // то есть точка попадания: все следующие цели выбирались
+        // из одного места у пули, а рисовался отрезок от головы
+        // цепи до них. Из-за этого молния ходила не наружу от
+        // цепи, а постоянно возвращалась к месту выстрела -
+        // в бою у центра карты это и читалось как «бьёт в центр».
         Collider[] colliders =
             StructureQuery.OverlapSphere(
-                transform.position,
+                fromPosition,
                 chainLightningRadius,
                 out int colliderCount
             );
@@ -796,7 +840,8 @@ public class Bullet : MonoBehaviour
 
             if (target == null ||
                 target == hitEnemy ||
-                target.IsDead)
+                target.IsDead ||
+                WasVisited(target))
             {
                 continue;
             }
@@ -813,6 +858,10 @@ public class Bullet : MonoBehaviour
 
             fromPosition =
                 target.transform.position;
+
+            if (visitedCount < visitedEnemies.Length)
+                visitedEnemies[visitedCount++] =
+                    target;
 
             ApplyAreaDotEffects(target);
             ApplyAreaLifesteal(
