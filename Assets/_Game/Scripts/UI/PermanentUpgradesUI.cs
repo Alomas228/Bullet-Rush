@@ -520,7 +520,10 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
         SFXLibrary sfx = GetSfx();
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.UpgradePick);
+            AudioManager.Instance.PlaySFX(
+                sfx.UpgradePick,
+                priority: SfxPriority.High
+            );
     }
 
     private void PlayUiClick()

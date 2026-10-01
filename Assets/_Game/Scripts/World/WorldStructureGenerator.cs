@@ -90,6 +90,58 @@ public class WorldStructureGenerator : MonoBehaviour
     private readonly List<float> placedClearances =
         new List<float>();
 
+    // =========================================================
+    // ARENA LAYOUT
+    // =========================================================
+
+    // Архетип боевой геометрии текущей карты. Scattered — исходное
+    // поведение: независимые броски по всей площади. Остальные
+    // стили сначала строят план геометрии (стены с проходами,
+    // колонны, гроздья), а уже он раздаётся блокам по одному.
+    private ArenaLayoutStyle activeLayoutStyle =
+        ArenaLayoutStyle.Scattered;
+
+    // План раскладки текущей генерации. Строится один раз на
+    // генерацию из того же rng, поэтому карта с тем же зерном
+    // всегда даёт одну и ту же геометрию.
+    private readonly List<PlannedStructure> layoutPlan =
+        new List<PlannedStructure>(64);
+
+    private int layoutCursor;
+
+    // Одна запланированная структура. dimensions — габариты до
+    // умножения на авторасштаб префаба; spacingOverride < 0 означает
+    // «взять общий minSpacing». Отдельный зазор нужен стенам и
+    // участкам грозди: они стоят впритык по замыслу, и общий
+    // зазор их бы вычеркнул.
+    private struct PlannedStructure
+    {
+        public Vector2 position;
+        public Vector3 dimensions;
+        public float yaw;
+        public float spacingOverride;
+    }
+
+    // Значения инспектора до применения первого профиля. Профиль
+    // пишет в те же поля, из которых генератор читает параметры по
+    // умолчанию, поэтому карта без профиля обязана вернуть именно их,
+    // а не раскладку предыдущей карты.
+    private struct DefaultLayout
+    {
+        public int minStructures;
+        public int maxStructures;
+        public float minWidth;
+        public float maxWidth;
+        public float minHeight;
+        public float maxHeight;
+        public float minSpacing;
+        public float structureHalfSize;
+        public float minDistanceFromCenter;
+    }
+
+    private DefaultLayout inspectorDefaults;
+    private bool inspectorDefaultsCaptured;
+
     // Список префабов без пустых слотов: случайный выбор не должен
     // упираться в null и молча подменяться кубом.
     private GameObject[] spawnPrefabs;
@@ -282,6 +334,8 @@ public class WorldStructureGenerator : MonoBehaviour
                 minStructures,
                 maxStructures + 1
             );
+
+        BuildLayoutPlan(rng, count);
 
         generateCoroutine = StartCoroutine(
             TransitionToWaveRoutine(
@@ -547,6 +601,8 @@ public class WorldStructureGenerator : MonoBehaviour
         structures.Clear();
         placedPositions.Clear();
         placedClearances.Clear();
+        layoutPlan.Clear();
+        layoutCursor = 0;
     }
 
     /// <summary>
@@ -562,11 +618,99 @@ public class WorldStructureGenerator : MonoBehaviour
             materials = null;
             palette = null;
 
+            ApplyArenaLayout(null);
+
             return;
         }
 
         materials = map.structureMaterials;
         palette = map.structurePalette;
+
+        ApplyArenaLayout(map.arenaLayout);
+    }
+
+    // Профиль боевой геометрии — единственное, что делает карты
+    // разными по задаче. Значения переносятся в те же поля, из
+    // которых генератор читает параметры по умолчанию, поэтому
+    // путь «профиль → блоки» остаётся один и новый стиль не
+    // требует второго генератора.
+    private void ApplyArenaLayout(ArenaLayout layout)
+    {
+        CaptureInspectorDefaults();
+
+        layoutPlan.Clear();
+        layoutCursor = 0;
+
+        if (layout == null)
+        {
+            activeLayoutStyle = ArenaLayoutStyle.Scattered;
+
+            RestoreInspectorDefaults();
+
+            return;
+        }
+
+        activeLayoutStyle = layout.style;
+
+        minStructures = Mathf.Clamp(layout.minStructures, 0, 200);
+
+        maxStructures = Mathf.Clamp(
+            layout.maxStructures,
+            minStructures,
+            200
+        );
+
+        minWidth = Mathf.Max(layout.minWidth, 0.25f);
+        maxWidth = Mathf.Max(layout.maxWidth, minWidth);
+
+        minHeight = Mathf.Max(layout.minHeight, 0.25f);
+        maxHeight = Mathf.Max(layout.maxHeight, minHeight);
+
+        minSpacing = Mathf.Max(layout.minSpacing, 0f);
+
+        structureHalfSize =
+            Mathf.Clamp(layout.halfSize, 4f, 48f);
+
+        minDistanceFromCenter =
+            Mathf.Clamp(
+                layout.centerClearRadius,
+                0f,
+                structureHalfSize
+            );
+    }
+
+    private void CaptureInspectorDefaults()
+    {
+        if (inspectorDefaultsCaptured)
+            return;
+
+        inspectorDefaults = new DefaultLayout
+        {
+            minStructures = minStructures,
+            maxStructures = maxStructures,
+            minWidth = minWidth,
+            maxWidth = maxWidth,
+            minHeight = minHeight,
+            maxHeight = maxHeight,
+            minSpacing = minSpacing,
+            structureHalfSize = structureHalfSize,
+            minDistanceFromCenter = minDistanceFromCenter
+        };
+
+        inspectorDefaultsCaptured = true;
+    }
+
+    private void RestoreInspectorDefaults()
+    {
+        minStructures = inspectorDefaults.minStructures;
+        maxStructures = inspectorDefaults.maxStructures;
+        minWidth = inspectorDefaults.minWidth;
+        maxWidth = inspectorDefaults.maxWidth;
+        minHeight = inspectorDefaults.minHeight;
+        maxHeight = inspectorDefaults.maxHeight;
+        minSpacing = inspectorDefaults.minSpacing;
+        structureHalfSize = inspectorDefaults.structureHalfSize;
+        minDistanceFromCenter = inspectorDefaults.minDistanceFromCenter;
     }
 
     private void TrySpawnStructure(
@@ -582,65 +726,38 @@ public class WorldStructureGenerator : MonoBehaviour
                 ? prefab.transform.localScale
                 : Vector3.one;
 
+        Vector2 centerH =
+            new Vector2(
+                centerPos.x,
+                centerPos.z
+            );
+
         for (int attempt = 0;
              attempt < maxPlacementAttempts;
              attempt++)
         {
-            float width = NextFloat(rng, minWidth, maxWidth);
-            float depth = NextFloat(rng, minWidth, maxWidth);
-            float height = NextFloat(rng, minHeight, maxHeight);
+            if (!TryGetCandidate(rng, out PlannedStructure planned))
+                continue;
 
             Vector3 scale = new Vector3(
-                width * baseScale.x,
-                height * baseScale.y,
-                depth * baseScale.z
+                planned.dimensions.x * baseScale.x,
+                planned.dimensions.y * baseScale.y,
+                planned.dimensions.z * baseScale.z
             );
+
+            float spacing =
+                planned.spacingOverride >= 0f
+                    ? planned.spacingOverride
+                    : minSpacing;
 
             float clearance =
                 Mathf.Max(scale.x, scale.z) * 0.5f +
-                minSpacing;
+                spacing;
 
-            Vector2 hPos;
-
-            if (useSquarePlacement)
-            {
-                // Квадрат: равномерно по боевой площади арены,
-                // а не кольцом — как на референсе.
-                float half = Mathf.Max(structureHalfSize, 1f);
-
-                hPos = new Vector2(
-                    NextFloat(rng, -half, half),
-                    NextFloat(rng, -half, half)
-                );
-            }
-            else
-            {
-                float angle =
-                    (float)(rng.NextDouble() * Mathf.PI * 2.0);
-
-                float distance =
-                    NextFloat(
-                        rng,
-                        minDistanceFromCenter,
-                        arenaRadius
-                    );
-
-                hPos =
-                    new Vector2(
-                        Mathf.Cos(angle),
-                        Mathf.Sin(angle)
-                    ) *
-                    distance;
-            }
-
-            hPos +=
-                new Vector2(
-                    centerPos.x,
-                    centerPos.z
-                );
+            Vector2 hPos = planned.position + centerH;
 
             // Свободный центр арены: безопасная зона старта игрока.
-            if ((hPos - new Vector2(centerPos.x, centerPos.z)).magnitude <
+            if ((hPos - centerH).magnitude <
                 minDistanceFromCenter)
             {
                 continue;
@@ -652,13 +769,441 @@ public class WorldStructureGenerator : MonoBehaviour
                 continue;
             }
 
-            SpawnStructure(prefab, hPos, scale, rng);
+            SpawnStructure(prefab, hPos, scale, rng, planned.yaw);
 
             placedPositions.Add(hPos);
             placedClearances.Add(clearance);
 
             return;
         }
+    }
+
+    // =========================================================
+    // LAYOUT PLANNING
+    // =========================================================
+
+    // Следующая кандидатура на блок: из плана, если стиль его
+    // построил, иначе — исходный независимый бросок по площади.
+    private bool TryGetCandidate(
+        System.Random rng,
+        out PlannedStructure planned)
+    {
+        if (activeLayoutStyle == ArenaLayoutStyle.Scattered ||
+            layoutCursor >= layoutPlan.Count)
+        {
+            return TryGetScatterCandidate(rng, out planned);
+        }
+
+        // План — каркас, а не жёсткая сетка: небольшой разброс
+        // убирает вид «разложенного по линейке» ряда.
+        PlannedStructure slot = layoutPlan[layoutCursor++];
+
+        slot.position +=
+            new Vector2(
+                NextFloat(rng, -0.8f, 0.8f),
+                NextFloat(rng, -0.8f, 0.8f)
+            );
+
+        slot.yaw += NextFloat(rng, -6f, 6f);
+
+        planned = slot;
+
+        return true;
+    }
+
+    // Исходная раскладка: независимые броски по квадрату арены.
+    // Осталась как запасной путь, когда план исчерпан.
+    private bool TryGetScatterCandidate(
+        System.Random rng,
+        out PlannedStructure planned)
+    {
+        planned = new PlannedStructure
+        {
+            yaw = (float)(rng.NextDouble() * 360.0),
+            spacingOverride = -1f
+        };
+
+        planned.dimensions = new Vector3(
+            NextFloat(rng, minWidth, maxWidth),
+            NextFloat(rng, minHeight, maxHeight),
+            NextFloat(rng, minWidth, maxWidth)
+        );
+
+        if (useSquarePlacement)
+        {
+            // Квадрат: равномерно по боевой площади арены,
+            // а не кольцом — как на референсе.
+            float half = Mathf.Max(structureHalfSize, 1f);
+
+            planned.position = new Vector2(
+                NextFloat(rng, -half, half),
+                NextFloat(rng, -half, half)
+            );
+
+            return true;
+        }
+
+        float angle =
+            (float)(rng.NextDouble() * Mathf.PI * 2.0);
+
+        float distance =
+            NextFloat(rng, minDistanceFromCenter, arenaRadius);
+
+        planned.position =
+            new Vector2(
+                Mathf.Cos(angle),
+                Mathf.Sin(angle)
+            ) *
+            distance;
+
+        return true;
+    }
+
+    private void BuildLayoutPlan(System.Random rng, int count)
+    {
+        layoutPlan.Clear();
+        layoutCursor = 0;
+
+        // Плана делаем с запасом: часть слотов всё равно отбросят
+        // проверки (центр арены, игрок, пересечения), и без запаса
+        // арена вышла бы заметно пустее задуманного.
+        int budget = Mathf.CeilToInt(count * 1.35f) + 4;
+
+        float half = Mathf.Max(structureHalfSize, 1f);
+
+        switch (activeLayoutStyle)
+        {
+            case ArenaLayoutStyle.Open:
+                BuildOpenPlan(rng, budget, half);
+                break;
+
+            case ArenaLayoutStyle.Pillars:
+                BuildPillarPlan(rng, budget, half);
+                break;
+
+            case ArenaLayoutStyle.Walls:
+                BuildWallPlan(rng, budget, half);
+                break;
+
+            case ArenaLayoutStyle.Clusters:
+                BuildClusterPlan(rng, budget, half);
+                break;
+        }
+    }
+
+// Открытое поле: блоков мало, они мелкие и низкие. Задача карты —
+    // читать поле и маневрировать, а не прятаться. Высота не
+    // уменьшается: блок ниже габарита игрока становится невидимым
+    // препятствием, о которое спотыкаешься, а не укрытием.
+    private void BuildOpenPlan(
+        System.Random rng,
+        int budget,
+        float half)
+    {
+        for (int i = 0; i < budget; i++)
+        {
+            float width =
+                NextFloat(rng, minWidth, maxWidth) * 0.7f;
+
+            layoutPlan.Add(
+                new PlannedStructure
+                {
+                    position = RandomPoint(rng, half),
+                    dimensions =
+                        new Vector3(
+                            width,
+                            NextFloat(rng, minHeight, maxHeight),
+                            width
+                        ),
+                    yaw = (float)(rng.NextDouble() * 360.0),
+                    spacingOverride = minSpacing * 3f
+                }
+            );
+        }
+    }
+
+    // Колонны: узкие и высокие. Дальний бой встречает их как
+    // разрывы линии огня, а не как сплошную стену укрытий.
+    private void BuildPillarPlan(
+        System.Random rng,
+        int budget,
+        float half)
+    {
+        for (int i = 0; i < budget; i++)
+        {
+            float thickness =
+                NextFloat(rng, minWidth, maxWidth) * 0.6f;
+
+            // Высота берётся из верхней части диапазона: колонна
+            // ниже 4 метров не разрывает линию огня, а выше 6
+            // начинает закрывать обзор с камеры.
+            float height =
+                Mathf.Lerp(
+                    minHeight,
+                    maxHeight,
+                    NextFloat(rng, 0.8f, 1f)
+                );
+
+            layoutPlan.Add(
+                new PlannedStructure
+                {
+                    position = RandomPoint(rng, half),
+                    dimensions = new Vector3(
+                        thickness,
+                        height,
+                        thickness
+                    ),
+                    yaw = (float)(rng.NextDouble() * 360.0),
+                    spacingOverride = minSpacing * 2.5f
+                }
+            );
+        }
+    }
+
+    // Стены с проходами. Каждая линия режется на две части разрывом
+    // шириной не меньше двух метров — проём, в который проходит
+    // игрок и любой противник. Ширина промежутков между линиями
+    // заметно больше проёма, поэтому зажать игрока в коридоре
+    // шириной с одного противника раскладка не может.
+    private void BuildWallPlan(
+        System.Random rng,
+        int budget,
+        float half)
+    {
+        int runs =
+            Mathf.Clamp(
+                Mathf.RoundToInt(budget / 7f),
+                3,
+                8
+            );
+
+        float wallThickness =
+            NextFloat(rng, 1.2f, 2f);
+
+        // Зазор внутри стены: блоки одной линии стоят рядом, и общий
+        // minSpacing (плюс половина длины сегмента) вычеркнул бы их
+        // все. Сегменты длинные, поэтому отталкиваемся только от
+        // толщины стены.
+        float wallSpacing = wallThickness * 0.5f + 0.4f;
+
+        for (int i = 0; i < runs; i++)
+        {
+            bool alongX = rng.Next(0, 2) == 0;
+
+            // Координата линии и её длина держатся внутри half, иначе
+            // стены вылезут к тематическому декору на периметрии.
+            float lane =
+                NextFloat(rng, -half * 0.7f, half * 0.7f);
+
+            float runCenter =
+                NextFloat(rng, -half * 0.35f, half * 0.35f);
+
+            float halfRun =
+                NextFloat(rng, half * 0.28f, half * 0.42f);
+
+            float runStart = runCenter - halfRun;
+            float runLength = halfRun * 2f;
+
+            // Проём не должен съесть линию: с обеих сторон остаётся
+            // отрезок не короче 6 метров.
+            float doorway =
+                Mathf.Min(
+                    NextFloat(rng, 5f, 8f),
+                    Mathf.Max(runLength - 12f, 1f)
+                );
+
+            float doorwayCenter =
+                NextFloat(
+                    rng,
+                    runStart + 6f + doorway * 0.5f,
+                    runStart + runLength - 6f - doorway * 0.5f
+                );
+
+            float height =
+                NextFloat(
+                    rng,
+                    2.5f,
+                    Mathf.Max(Mathf.Min(maxHeight, 5f), 2.5f)
+                );
+
+            AddWallSegment(
+                alongX,
+                lane,
+                runStart,
+                doorwayCenter - doorway * 0.5f,
+                wallThickness,
+                height,
+                wallSpacing
+            );
+
+            AddWallSegment(
+                alongX,
+                lane,
+                doorwayCenter + doorway * 0.5f,
+                runStart + runLength,
+                wallThickness,
+                height,
+                wallSpacing
+            );
+        }
+
+        // Остаток бюджета — обычные блоки между линиями: стены
+        // дают коридоры, но арена не должна выглядеть пустой.
+        for (int i = 0; i < budget; i++)
+        {
+            layoutPlan.Add(
+                new PlannedStructure
+                {
+                    position = RandomPoint(rng, half),
+                    dimensions =
+                        new Vector3(
+                            NextFloat(rng, minWidth, maxWidth),
+                            NextFloat(rng, minHeight, maxHeight),
+                            NextFloat(rng, minWidth, maxWidth)
+                        ),
+                    yaw = (float)(rng.NextDouble() * 360.0),
+                    spacingOverride = -1f
+                }
+            );
+        }
+    }
+
+    private void AddWallSegment(
+        bool alongX,
+        float lane,
+        float start,
+        float end,
+        float thickness,
+        float height,
+        float spacing)
+    {
+        float length = end - start;
+
+        if (length < 1f)
+            return;
+
+        float middle = (start + end) * 0.5f;
+
+        Vector2 position =
+            alongX
+                ? new Vector2(middle, lane)
+                : new Vector2(lane, middle);
+
+        layoutPlan.Add(
+            new PlannedStructure
+            {
+                position = position,
+                dimensions =
+                    alongX
+                        ? new Vector3(length, height, thickness)
+                        : new Vector3(thickness, height, length),
+                yaw = 0f,
+                spacingOverride = spacing
+            }
+        );
+    }
+
+    // Гроздья: плотные куски укрытия, между которыми остаются
+    // широкие просветы. Внутри грозди блоки стоят впритык и дают
+    // настоящее укрытие, снаружи — открытые коридоры для манёвра.
+    private void BuildClusterPlan(
+        System.Random rng,
+        int budget,
+        float half)
+    {
+        int clusters =
+            Mathf.Clamp(
+                Mathf.RoundToInt(budget / 7f),
+                3,
+                7
+            );
+
+        float innerSpacing = minSpacing * 0.5f;
+
+        int planned = 0;
+
+        for (int i = 0; i < clusters && planned < budget; i++)
+        {
+            Vector2 anchor = RandomPoint(rng, half * 0.85f);
+
+            float blobRadius =
+                NextFloat(rng, 3.5f, 5.5f);
+
+            int blocks =
+                NextInt(rng, 4, 8);
+
+            for (int j = 0;
+                 j < blocks && planned < budget;
+                 j++, planned++)
+            {
+                layoutPlan.Add(
+                    new PlannedStructure
+                    {
+                        position =
+                            anchor +
+                            RandomUnitVector(rng) *
+                            NextFloat(rng, 0f, blobRadius),
+                        dimensions =
+                            new Vector3(
+                                NextFloat(rng, minWidth, maxWidth),
+                                NextFloat(rng, minHeight, maxHeight),
+                                NextFloat(rng, minWidth, maxWidth)
+                            ),
+                        yaw = (float)(rng.NextDouble() * 360.0),
+                        spacingOverride = innerSpacing
+                    }
+                );
+            }
+        }
+
+        // Хвост — разбросанные блоки, чтобы пустоты между гроздьями
+        // не выглядели вырезанными.
+        for (int i = 0; i < budget; i++)
+        {
+            layoutPlan.Add(
+                new PlannedStructure
+                {
+                    position = RandomPoint(rng, half),
+                    dimensions =
+                        new Vector3(
+                            NextFloat(rng, minWidth, maxWidth),
+                            NextFloat(rng, minHeight, maxHeight),
+                            NextFloat(rng, minWidth, maxWidth)
+                        ),
+                    yaw = (float)(rng.NextDouble() * 360.0),
+                    spacingOverride = -1f
+                }
+            );
+        }
+    }
+
+    private Vector2 RandomPoint(System.Random rng, float half)
+    {
+        float bound = Mathf.Max(half, 1f);
+
+        return new Vector2(
+            NextFloat(rng, -bound, bound),
+            NextFloat(rng, -bound, bound)
+        );
+    }
+
+    private static Vector2 RandomUnitVector(System.Random rng)
+    {
+        float angle =
+            (float)(rng.NextDouble() * Mathf.PI * 2.0);
+
+        return new Vector2(
+            Mathf.Cos(angle),
+            Mathf.Sin(angle)
+        );
+    }
+
+    private static int NextInt(
+        System.Random rng,
+        int minInclusive,
+        int maxExclusive)
+    {
+        return rng.Next(minInclusive, maxExclusive);
     }
 
     private bool IsPositionFree(
@@ -751,7 +1296,8 @@ public class WorldStructureGenerator : MonoBehaviour
         GameObject prefab,
         Vector2 hPos,
         Vector3 scale,
-        System.Random rng)
+        System.Random rng,
+        float yaw)
     {
         bool useFallbackCube = prefab == null;
 
@@ -777,7 +1323,7 @@ public class WorldStructureGenerator : MonoBehaviour
         structure.transform.localRotation =
             Quaternion.Euler(
                 0f,
-                (float)(rng.NextDouble() * 360.0),
+                yaw,
                 0f
             );
 

@@ -593,7 +593,8 @@ public class PlayerController : MonoBehaviour
 
         if (sfx != null)
             AudioManager.Instance.PlaySFXVariation(
-                sfx.Dash
+                sfx.Dash,
+                priority: SfxPriority.Medium
             );
     }
 

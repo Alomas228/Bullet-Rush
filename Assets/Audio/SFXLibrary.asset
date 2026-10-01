@@ -31,9 +31,10 @@ MonoBehaviour:
   enemyDie: {fileID: 8300000, guid: db7c8a7df55b00d40a9b6f6348ffa0b7, type: 3}
   enemyShot: {fileID: 0}
   bossSpawn: {fileID: 8300000, guid: 07a042b9012653245b78cb10445ae85c, type: 3}
-  bossPhaseChange: {fileID: 0}
+  bossPhaseChange: {fileID: 8300000, guid: 5d2b9fd2ca2134742a6078ef1b2ab029, type: 3}
   bossAbility: {fileID: 8300000, guid: 8d39216f5d1321a4ab2116da49fa6d0a, type: 3}
   bossAoeExplode: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
+  bossDie: {fileID: 8300000, guid: dcd0acdac7e0a3b47aad6265789fe0d2, type: 3}
   pickupSpawn: {fileID: 0}
   pickupCollect: {fileID: 0}
   uiClick: {fileID: 0}

@@ -20349,6 +20349,7 @@ MonoBehaviour:
   upgradeUI: {fileID: 750808759}
   worldGenerator: {fileID: 1135991941}
   eventDirector: {fileID: 0}
+  enemyCountMultiplier: 2
   startingEnemies: 5
   enemiesAddedPerWave: 3
   bossWaveInterval: 10
@@ -28188,7 +28189,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 02d4767d903f3ab4892d88b8ca263eec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
-  player: {fileID: 2653629175947242027, guid: 15b17f8ea4d5c7f4b8431098d11eb5ea, type: 3}
+  player: {fileID: 1327351452}
   worldGenerator: {fileID: 0}
   normalPrefab: {fileID: 825037764437159876, guid: ca7cca0bbd46af74d80257fcbdcd0b0f, type: 3}
   fastPrefab: {fileID: 825037764437159876, guid: 7670efb42ade58747bf8ec6eb4077b4c, type: 3}
@@ -28196,7 +28197,6 @@ MonoBehaviour:
   rangedPrefab: {fileID: 825037764437159876, guid: ef150186777b5654d9aa154f8f7bf760, type: 3}
   elitePrefab: {fileID: 825037764437159876, guid: 19943bd5be4910a4a9f70bb319ae1179, type: 3}
   bossPrefab: {fileID: 825037764437159876, guid: e2aa28d1f0962614a98d3b1faf7efdd3, type: 3}
-  minPlayerSpawnDistance: 15
   minimumSpawnDistance: 1.5
   spawnAttempts: 20
   spawnBatchSize: 4
@@ -28231,8 +28231,15 @@ MonoBehaviour:
   rangedAssaultWeight: 0.45
   ambushFastWeight: 0.3
   dangerZoneRangedWeight: 0.2
-  arenaEdgeMin: 0.85
-  arenaEdgeMax: 0.95
+  playerRingMinDistance: 15
+  playerRingMaxDistance: 22
+  minPlayerSpawnDistance: 8
+  normalMinSpawnDistance: 15
+  fastMinSpawnDistance: 20
+  tankMinSpawnDistance: 16
+  rangedMinSpawnDistance: 18
+  eliteMinSpawnDistance: 20
+  bossMinSpawnDistance: 22
   arenaHalfSize: 50
   arenaWallMargin: 1
   minAngularSeparation: 18

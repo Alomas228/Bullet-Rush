@@ -986,7 +986,10 @@ public class UpgradeManager : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.UpgradePick);
+            AudioManager.Instance.PlaySFX(
+                sfx.UpgradePick,
+                priority: SfxPriority.High
+            );
     }
 
     private void OnDestroy()

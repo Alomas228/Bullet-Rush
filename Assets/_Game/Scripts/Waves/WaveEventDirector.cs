@@ -562,7 +562,7 @@ public class WaveEventDirector : MonoBehaviour
         }
     }
 
-    // Одна зона читается как «осторожно». Две-три, разнесённые по
+// Одна зона читается как «осторожно». Две-три, разнесённые по
     // разным направлениям от игрока, — как участок, который надо
     // пересекать по маршруту. Разносить обязательно: две зоны в
     // одной точке — это одна зона вдвое шире, и игрок просто
@@ -577,6 +577,21 @@ public class WaveEventDirector : MonoBehaviour
 
         int zoneCount =
             GetZoneCount(wave);
+
+        // Зона растёт, поэтому считать надо итоговый радиус, а не
+        // заданный. Раньше центр мог оказаться в 5 метрах от игрока,
+        // а растущая зона дотягивалась до 5.4 — в коридоре или у
+        // стены это накрывало единственный отход, и событие переставало
+        // быть задачей «обойди», становясь ловушкой «некуда идти».
+        float finalRadius =
+            zoneRadius *
+            Mathf.Max(zoneGrowMultiplier, 1f);
+
+        float nearLimit =
+            Mathf.Max(zoneSpreadMin, finalRadius * 1.2f);
+
+        float farLimit =
+            Mathf.Max(zoneSpreadMax, nearLimit);
 
         float baseAngle =
             Random.Range(0f, 360f);
@@ -601,16 +616,15 @@ public class WaveEventDirector : MonoBehaviour
                     360f
                 );
 
-            float distance =
-                Random.Range(zoneSpreadMin, zoneSpreadMax);
-
-            Vector3 position =
-                anchor.transform.position +
-                new Vector3(
-                    Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
-                    0f,
-                    Mathf.Sin(angle * Mathf.Deg2Rad) * distance
-                );
+            if (!TryFindZoneCenter(
+                    anchor.transform.position,
+                    angle,
+                    nearLimit,
+                    farLimit,
+                    out Vector3 position))
+            {
+                continue;
+            }
 
             position.y = 0.02f;
 
@@ -636,6 +650,114 @@ public class WaveEventDirector : MonoBehaviour
         }
 
         ShowBanner(Lang.Get("wave.event_danger"));
+    }
+
+    // Перебирает направления вокруг игрока, пока не найдёт место,
+    // куда зона реально встаёт. Отбраковываются две вещи: центр
+    // внутри блока (в стену зона не встанет — туда нельзя войти,
+    // но она всё равно отнимает внимание от настоящей опасности) и
+    // центр у самой стены, где половина круга уходит в границы
+    // арены.
+    private bool TryFindZoneCenter(
+        Vector3 anchor,
+        float baseAngle,
+        float nearLimit,
+        float farLimit,
+        out Vector3 position)
+    {
+        const float attempts = 8;
+        const float angleStep = 37f;
+
+        position = Vector3.zero;
+
+        Vector3 arenaCenter = arenaCenterXZ;
+        float arenaLimit = arenaSafeLimit;
+
+        for (int attempt = 0; attempt < attempts; attempt++)
+        {
+            float angle =
+                Mathf.Repeat(
+                    baseAngle +
+                    attempt * angleStep,
+                    360f
+                );
+
+            float distance =
+                Random.Range(
+                    nearLimit,
+                    farLimit
+                );
+
+            Vector3 candidate =
+                anchor +
+                new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
+                    0f,
+                    Mathf.Sin(angle * Mathf.Deg2Rad) * distance
+                );
+
+            // За стеной арены зона недостижима: событие потрачено
+            // впустую. У самого края оставляем запас на то, чтобы
+            // край зоны не уходил в стену.
+            float offsetX =
+                Mathf.Abs(candidate.x - arenaCenter.x);
+
+            float offsetZ =
+                Mathf.Abs(candidate.z - arenaCenter.z);
+
+            if (offsetX > arenaLimit || offsetZ > arenaLimit)
+                continue;
+
+            if (!IsZoneCenterClear(candidate))
+                continue;
+
+            position = candidate;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    // Кэш границ арены: пересчитывать их для каждой зоны незачем,
+    // а спавнер может быть не назначен.
+    private Vector3 arenaCenterXZ =>
+        enemySpawner != null
+            ? enemySpawner.ArenaCenter
+            : Vector3.zero;
+
+    private float arenaSafeLimit
+    {
+        get
+        {
+            float half =
+                enemySpawner != null
+                    ? enemySpawner.ArenaHalfSize
+                    : 0f;
+
+            if (half <= 0f)
+                return float.MaxValue;
+
+            return half - zoneRadius;
+        }
+    }
+
+    private static bool IsZoneCenterClear(Vector3 position)
+    {
+        Collider[] colliders =
+            StructureQuery.OverlapSphere(
+                position,
+                0.5f,
+                out int colliderCount
+            );
+
+        for (int i = 0; i < colliderCount; i++)
+        {
+            if (StructureQuery.IsWorldStructure(colliders[i]))
+                return false;
+        }
+
+        return true;
     }
 
     private void ShowBanner(string label)

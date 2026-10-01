@@ -17,8 +17,6 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private GameObject bossPrefab;
 
     [Header("Spawn Settings")]
-    [Tooltip("Минимальная дистанция до игрока, ближе которой враги не появляются.")]
-    [SerializeField] private float minPlayerSpawnDistance = 15f;
     [SerializeField] private float minimumSpawnDistance = 1.5f;
     [SerializeField] private int spawnAttempts = 24;
 
@@ -105,12 +103,34 @@ public class EnemySpawner : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float dangerZoneRangedWeight = 0.2f;
 
-    [Header("Arena Edge Spawning")]
-    [Tooltip("Ближняя граница кольца спауна у края арены (доля радиуса).")]
-    [SerializeField] private float arenaEdgeMin = 0.85f;
-    [Tooltip("Дальняя граница кольца спауна у края арены (доля радиуса).")]
-    [SerializeField] private float arenaEdgeMax = 0.95f;
+    [Header("Player Ring Spawning")]
+    [Tooltip("Ближняя граница кольца спауна вокруг игрока.")]
+    [SerializeField] private float playerRingMinDistance = 15f;
+    [Tooltip("Дальняя граница кольца спауна вокруг игрока.")]
+    [SerializeField] private float playerRingMaxDistance = 22f;
+    [Tooltip("Минимальная дистанция до игрока, ближе которой враги не появляются никогда, даже если арена не даёт места.")]
+    [SerializeField] private float minPlayerSpawnDistance = 8f;
 
+    [Header("Per-Type Ring Start")]
+    [Tooltip("Ближняя граница кольца для обычных. Ниже playerRingMinDistance смысла не имеет.")]
+    [SerializeField] private float normalMinSpawnDistance = 15f;
+
+    [Tooltip("Быстрые начинают с внешнего края кольца: до игрока ещё надо добежать, поэтому у него остаётся время на реакцию, а не мгновенный навал.")]
+    [SerializeField] private float fastMinSpawnDistance = 20f;
+
+    [Tooltip("Танки идут ближе: медленный разгон делает их дистанцию менее опасной.")]
+    [SerializeField] private float tankMinSpawnDistance = 16f;
+
+    [Tooltip("Дальники держат среднюю дистанцию: ближе они бьют точнее, но выходят у игрока из-за спины.")]
+    [SerializeField] private float rangedMinSpawnDistance = 18f;
+
+    [Tooltip("Элиты выходят с внешнего края кольца.")]
+    [SerializeField] private float eliteMinSpawnDistance = 20f;
+
+    [Tooltip("Боссы выходят с внешнего края кольца.")]
+    [SerializeField] private float bossMinSpawnDistance = 22f;
+
+    [Header("Arena Bounds")]
     [Tooltip("Полуширина квадратной арены: враги не спавнятся за её пределами (0 — без ограничения). Стены арены на ±50.")]
     [SerializeField] private float arenaHalfSize = 50f;
 
@@ -176,18 +196,37 @@ public class EnemySpawner : MonoBehaviour
     {
         cachedCamera = Camera.main;
 
-        if (player == null)
-        {
-            GameObject playerObject =
-                GameObject.FindGameObjectWithTag("Player");
-
-            if (playerObject != null)
-                player = playerObject.transform;
-        }
+        ResolvePlayer();
 
         if (worldGenerator == null)
             worldGenerator =
                 FindAnyObjectByType<WorldStructureGenerator>();
+    }
+
+    // Ссылка на игрока в инспекторе может указывать на ассет
+    // префаба, а не на инстанс в сцене: такой Transform живёт вне
+    // иерархии сцены, и его position вечно равен нулю. Проверка
+    // player == null такое не ловит — объект валиден, просто не
+    // тот. Из-за этого кольцо спауна и все проверки дистанции
+    // молча считали опорной точкой центр арены вместо игрока.
+    private void ResolvePlayer()
+    {
+        if (IsUsablePlayer(player))
+            return;
+
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObject != null)
+            player = playerObject.transform;
+    }
+
+    // Годится только объект, живущий в загруженной сцене.
+    private static bool IsUsablePlayer(Transform candidate)
+    {
+        return
+            candidate != null &&
+            candidate.gameObject.scene.IsValid();
     }
 
     // =========================================================
@@ -581,7 +620,7 @@ public class EnemySpawner : MonoBehaviour
         {
             SpawnEnemyAtPosition(
                 PickLastStandType(wave),
-                GetArenaEdgeSpawnPosition()
+                GetPlayerRingSpawnPosition()
             );
         }
     }
@@ -689,6 +728,7 @@ public class EnemySpawner : MonoBehaviour
 
         if (!TryGetWaveSpawnPosition(
                 preferredAngle,
+                GetMinSpawnDistanceFor(GetTypeForPrefab(prefab)),
                 out Vector3 spawnPosition))
         {
             Debug.LogWarning(
@@ -786,26 +826,135 @@ public class EnemySpawner : MonoBehaviour
             : result;
     }
 
-    // Кольцо спауна лежит у края арены, а не вокруг игрока.
-    // Три прохода по строгости, чтобы враги гарантированно заспавнились
-    // даже если игрок встал у стены: 0 — вне экрана + дистанция до игрока,
-    // 1 — без проверки экрана, 2 — только кольцо арены и соседство.
+    // Кольцо спауна строится вокруг игрока, а не вокруг центра арены:
+    // иначе игрок может отойти к стене и стоять там, пока все подходят
+    // через всю карту. Чтобы враги при этом не появлялись за стенами,
+    // луч от игрока обрезается границами арены: если в выбранном
+    // направлении до стены меньше, чем кольцо, радиус подрезается до
+    // доступного, а если и его не хватает — направление отбрасывается.
     //
+    // Три прохода по строгости, чтобы враги гарантированно
+    // заспавнились даже если игрок зажат в углу: 0 — вне экрана,
+    // 1 — без проверки экрана, 2 — с гарантированным зазором.
+    //
+    // preferredAngle >= 0 — враг обязан выйти из этого направления:
+    // повторные попытки поиска свободной точки не имеют права
+    // разбрасывать приём по всему кольцу.
+    // Ближняя граница кольца для конкретного типа. Значение не может
+    // оказаться выше playerRingMaxDistance: иначе кольцо схлопнется в
+    // точку и спавн прижмётся к стене. В этом случае берётся дальняя
+    // граница — «максимально издалека», а не «невозможно».
+    private float GetMinSpawnDistanceFor(
+        EnemyType enemyType)
+    {
+        float value;
+
+        switch (enemyType)
+        {
+            case EnemyType.Normal:
+                value = normalMinSpawnDistance;
+                break;
+
+            case EnemyType.Fast:
+                value = fastMinSpawnDistance;
+                break;
+
+            case EnemyType.Tank:
+                value = tankMinSpawnDistance;
+                break;
+
+            case EnemyType.Ranged:
+                value = rangedMinSpawnDistance;
+                break;
+
+            case EnemyType.Elite:
+                value = eliteMinSpawnDistance;
+                break;
+
+            case EnemyType.Boss:
+                value = bossMinSpawnDistance;
+                break;
+
+            default:
+                value = playerRingMinDistance;
+                break;
+        }
+
+        float ringMax =
+            Mathf.Max(playerRingMaxDistance, playerRingMinDistance);
+
+        return Mathf.Clamp(
+            value,
+            0f,
+            ringMax
+        );
+    }
+
+    // Обратная к GetPrefabByType: приём уже выбрал префаб, но
+    // дистанция настраивается по типу, а не по ассету.
+    private EnemyType GetTypeForPrefab(
+        GameObject prefab)
+    {
+        if (prefab == null)
+            return EnemyType.Normal;
+
+        if (prefab == elitePrefab)
+            return EnemyType.Elite;
+
+        if (prefab == bossPrefab)
+            return EnemyType.Boss;
+
+        if (prefab == fastPrefab)
+            return EnemyType.Fast;
+
+        if (prefab == tankPrefab)
+            return EnemyType.Tank;
+
+        if (prefab == rangedPrefab)
+            return EnemyType.Ranged;
+
+        return EnemyType.Normal;
+    }
+
+    private bool TryGetWaveSpawnPosition(
+        float preferredAngle,
+        out Vector3 spawnPosition)
+    {
+        return TryGetWaveSpawnPosition(
+            preferredAngle,
+            playerRingMinDistance,
+            out spawnPosition
+        );
+    }
+
     // preferredAngle >= 0 — враг обязан выйти из этого направления:
     // повторные попытки поиска свободной точки не имеют права
     // разбрасывать приём по всему кольцу.
     private bool TryGetWaveSpawnPosition(
         float preferredAngle,
+        float typeMinDistance,
         out Vector3 spawnPosition)
     {
-        Vector3 arenaCenter = GetArenaCenter();
-        float minRadius =
-            GetArenaRadius() * arenaEdgeMin;
-        float maxRadius =
-            GetArenaRadius() * arenaEdgeMax;
+        Vector3 ringCenter = GetRingCenter();
+
+        // Ближняя граница — это максимум из общей и типовой: обычные
+        // берут playerRingMinDistance, быстрые отталкиваются дальше.
+        float ringMin =
+            Mathf.Max(typeMinDistance, 0f);
+
+        float ringMax =
+            Mathf.Max(playerRingMaxDistance, ringMin);
 
         for (int pass = 0; pass < 3; pass++)
         {
+            // Даже последний, «а лишь бы где-нибудь» проход держит
+            // минимальный зазор. Иначе на зажатой арене волна
+            // материализуется прямо на игроке.
+            float requiredDistance =
+                pass <= 1
+                    ? minPlayerSpawnDistance
+                    : Mathf.Max(minimumSpawnDistance * 3f, 4f);
+
             for (int attempt = 0;
                  attempt < spawnAttempts;
                  attempt++)
@@ -818,39 +967,59 @@ public class EnemySpawner : MonoBehaviour
                 if (!IsAngleSeparated(angle))
                     continue;
 
+                // Дальняя граница — это ringMax, подрезанная лучом до стены.
+                // Без Mathf.Min кольцо растягивалось от ringMin до самой
+                // стены, и враги выходили у самого края арены вместо
+                // того, чтобы подойти к игроку.
+                float maxRadius =
+                    Mathf.Min(
+                        ringMax,
+                        GetRayLimitInsideArena(ringCenter, angle)
+                    );
+
+                // В этом направлении арена не вмещает даже минимальный
+                // зазор: брать точку у стены под ногами игрока хуже,
+                // чем поискать другое направление.
+                if (maxRadius < requiredDistance)
+                    continue;
+
+                // Ближняя граница поджимается к обрезанному лучу: иначе
+                // Random.Range получил бы min > max.
+                float minRadius =
+                    Mathf.Min(ringMin, maxRadius);
+
                 float radius =
                     Random.Range(minRadius, maxRadius);
 
                 // Высоту берём у игрока: пол арены приподнят относительно
                 // нуля, а коллайдер врага центрирован на его transform.
                 // Спавн на y = arenaCenter.y утапливал врага в KillZone.
-                float spawnHeight =
-                    player != null
-                        ? player.position.y
-                        : arenaCenter.y;
-
                 Vector3 candidate =
-                    arenaCenter +
+                    ringCenter +
                     new Vector3(
                         Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
-                        spawnHeight,
+                        0f,
                         Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                     );
 
+                candidate.y =
+                    IsUsablePlayer(player)
+                        ? player.position.y
+                        : GetArenaCenter().y;
+
                 // Не выходить за квадратные границы игровой арены
-                // (стены на ±50), даже если кольцо спауна расширено.
+                // (стены на ±50): луч уже обрезан, но после подрезки
+                // радиуса точка всё равно прижимается к стене.
                 candidate = ClampToArena(candidate);
 
-                if (pass <= 1)
+                // Проверка зазора идёт от настоящего игрока. С ассетом
+                // префаба в поле distance считалась от нуля, и гарантия
+                // «не ближе minPlayerSpawnDistance» не работала вовсе.
+                if (IsUsablePlayer(player) &&
+                    FlatDistance(player.position, candidate) <
+                    requiredDistance)
                 {
-                    float distanceToPlayer =
-                        Vector3.Distance(
-                            player.position,
-                            candidate
-                        );
-
-                    if (distanceToPlayer < minPlayerSpawnDistance)
-                        continue;
+                    continue;
                 }
 
                 if (pass == 0 && IsPositionVisible(candidate))
@@ -869,45 +1038,121 @@ public class EnemySpawner : MonoBehaviour
         return false;
     }
 
-    // Точка у противоположного края арены — для боссов.
-    public Vector3 GetArenaEdgeSpawnPosition()
+    // Центр кольца спауна — позиция игрока. Без пригодной ссылки на
+    // игрока (загрузка, отладка) откатываемся на центр арены, чтобы
+    // волна не собралась в точке у нуля.
+    private Vector3 GetRingCenter()
     {
-        Vector3 arenaCenter = GetArenaCenter();
-        float minRadius =
-            GetArenaRadius() * arenaEdgeMin;
-        float maxRadius =
-            GetArenaRadius() * arenaEdgeMax;
+        if (!IsUsablePlayer(player))
+            return GetArenaCenter();
 
-        for (int attempt = 0;
-             attempt < spawnAttempts;
-             attempt++)
+        return new Vector3(
+            player.position.x,
+            GetArenaCenter().y,
+            player.position.z
+        );
+    }
+
+    // Насколько далеко от точки можно уйти в этом направлении, не
+    // выйдя за квадратные стены арены. Возвращает бесконечность,
+    // если ограничение выключено.
+    private float GetRayLimitInsideArena(
+        Vector3 origin,
+        float angle)
+    {
+        if (arenaHalfSize <= 0f)
+            return float.MaxValue;
+
+        float limit =
+            Mathf.Max(
+                arenaHalfSize - arenaWallMargin,
+                0f
+            );
+
+        float directionX =
+            Mathf.Cos(angle * Mathf.Deg2Rad);
+        float directionZ =
+            Mathf.Sin(angle * Mathf.Deg2Rad);
+
+        float distance = float.MaxValue;
+
+        if (directionX > 0.0001f)
         {
-            float angle =
-                Random.Range(0f, 360f);
-
-            float radius =
-                Random.Range(minRadius, maxRadius);
-
-            float spawnHeight =
-                player != null
-                    ? player.position.y
-                    : arenaCenter.y;
-
-            Vector3 candidate =
-                arenaCenter +
-                new Vector3(
-                    Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
-                    spawnHeight,
-                    Mathf.Sin(angle * Mathf.Deg2Rad) * radius
+            distance =
+                Mathf.Min(
+                    distance,
+                    (limit - origin.x) / directionX
                 );
-
-            candidate = ClampToArena(candidate);
-
-            if (IsSpawnPositionFree(candidate))
-                return candidate;
+        }
+        else if (directionX < -0.0001f)
+        {
+            distance =
+                Mathf.Min(
+                    distance,
+                    (-limit - origin.x) / directionX
+                );
         }
 
-        return arenaCenter + Vector3.forward * minRadius;
+        if (directionZ > 0.0001f)
+        {
+            distance =
+                Mathf.Min(
+                    distance,
+                    (limit - origin.z) / directionZ
+                );
+        }
+        else if (directionZ < -0.0001f)
+        {
+            distance =
+                Mathf.Min(
+                    distance,
+                    (-limit - origin.z) / directionZ
+                );
+        }
+
+        return distance;
+    }
+
+    // Точка с кольца вокруг игрока — для боссов, прислуги и
+    // финальной пачки «последнего рубежа».
+    //
+    // Раньше кольцо бралось вслепую, без единой проверки: игрок,
+    // стоящий на той же окружности, получал босса на голову, а
+    // финальная пачка выходила вплотную к тем, кого должна была
+    // оставить на последние секунды волны. Теперь та же
+    // трёхпроходная проверка, что и у обычного приёма: вне экрана
+    // и не ближе проёма, затем без экрана, затем с гарантированным
+    // зазором.
+    public Vector3 GetPlayerRingSpawnPosition()
+    {
+        // Угол не задан — приём сам раскидывается по кольцу, иначе
+        // босс с прислугой вышли бы одной точкой.
+        if (TryGetWaveSpawnPosition(-1f, out Vector3 spawnPosition))
+            return spawnPosition;
+
+        // Арена настолько забита, что свободной точки вне экрана не
+        // нашлось. Отдаём ближний край кольца — хоть и близко, но
+        // точно не в стене и не под ногами у игрока.
+        Vector3 ringCenter = GetRingCenter();
+
+        float radius =
+            Mathf.Max(minPlayerSpawnDistance, 0.1f);
+
+        Vector3 fallback =
+            ringCenter +
+            new Vector3(0f, 0f, radius);
+
+        fallback.y = ringCenter.y;
+
+        return ClampToArena(fallback);
+    }
+
+    private static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        float dx = a.x - b.x;
+        float dz = a.z - b.z;
+
+        return Mathf.Sqrt(dx * dx + dz * dz);
     }
 
     // Враги не должны появляться за пределами игровой арены:
@@ -1042,11 +1287,13 @@ public class EnemySpawner : MonoBehaviour
                 minimumSpawnDistance * 2f;
 
             spawnPosition =
-                center +
-                new Vector3(
-                    randomOffset.x,
-                    0f,
-                    randomOffset.y
+                ClampToArena(
+                    center +
+                    new Vector3(
+                        randomOffset.x,
+                        0f,
+                        randomOffset.y
+                    )
                 );
 
             if (IsSpawnPositionFree(spawnPosition))
@@ -1067,13 +1314,14 @@ public class EnemySpawner : MonoBehaviour
         return Vector3.zero;
     }
 
-    private float GetArenaRadius()
-    {
-        if (worldGenerator != null)
-            return worldGenerator.ArenaRadius;
+    // Границы квадратной арены для внешних систем. Опасная зона,
+    // поставленная за стеной, не опасна, а только тратит событие:
+    // такую точку должен уметь отбраковать тот, кто ставит.
+    public float ArenaHalfSize =>
+        arenaHalfSize;
 
-        return 30f;
-    }
+    public Vector3 ArenaCenter =>
+        GetArenaCenter();
 
     // =========================================================
     // SPAWN-IN EFFECT
@@ -1113,10 +1361,12 @@ public class EnemySpawner : MonoBehaviour
             return null;
         }
 
+        // Заявленная точка прижимается к арене: босс у стены зовёт
+        // прислугу, и без зажима часть призыва уходила за стену.
         Vector3 spawnPosition;
 
         if (!TryGetFreePositionAround(
-                position,
+                ClampToArena(position),
                 out spawnPosition))
         {
             Debug.LogWarning(
@@ -1231,17 +1481,55 @@ public class EnemySpawner : MonoBehaviour
 
             desired = ClampToArena(desired);
 
+            desired = RestorePlayerDistance(desired, minDistance);
+
             if (!IsSpawnPositionFree(desired) &&
                 !TryGetFreePositionAround(desired, out desired))
             {
                 continue;
             }
 
+            desired = ClampToArena(desired);
+
             SpawnEnemyAtPosition(
                 PickAmbushType(allowRanged),
                 desired
             );
         }
+    }
+
+    // Зажим по квадрату арены срезает дистанцию: игрок у самой стены
+    // получал засаду в упор, потому что точка «в 13-17 метрах» от
+    // него оказывалась в метре от стены, то есть в полутора метрах
+    // от игрока.
+    //
+    // Лечится вдоль того же луча: берём максимум, который арена
+    // позволяет в этом направлении. Если арена помещается — враг
+    // выходит на запрошенную дистанцию, если нет — на максимально
+    // возможную, но всё равно не вплотную.
+    private Vector3 RestorePlayerDistance(
+        Vector3 position,
+        float minDistance)
+    {
+        if (player == null || minDistance <= 0f)
+            return position;
+
+        Vector3 origin = player.position;
+
+        Vector3 offset = position - origin;
+        offset.y = 0f;
+
+        if (offset.sqrMagnitude < 0.0001f)
+            return position;
+
+        Vector3 restored =
+            origin +
+            offset.normalized *
+            minDistance;
+
+        restored.y = position.y;
+
+        return ClampToArena(restored);
     }
 
     // Смесь внутри засады: быстрые давят, обычные держат кольцо,
@@ -1284,13 +1572,21 @@ public class EnemySpawner : MonoBehaviour
         if (player == null || count <= 0)
             return;
 
-        Vector3 arenaCenter = GetArenaCenter();
+        Vector3 ringCenter = GetRingCenter();
 
-        float minRadius =
-            GetArenaRadius() * arenaEdgeMin;
+        // Стенда идёт с одного фланга и почти всегда быстрая, поэтому
+        // ближняя граница берётся типовой: иначе пачка вылезала бы
+        // из-под ног на максимальной скорости, ровно тот навал,
+        // от которого стенда и должна была отличаться.
+        EnemyType type =
+            wave >= 2
+                ? EnemyType.Fast
+                : EnemyType.Normal;
 
-        float maxRadius =
-            GetArenaRadius() * arenaEdgeMax;
+        float ringMin =
+            GetMinSpawnDistanceFor(type);
+        float ringMax =
+            Mathf.Max(playerRingMaxDistance, ringMin);
 
         if (centerAngle < 0f)
             centerAngle = Random.Range(0f, 360f);
@@ -1305,16 +1601,34 @@ public class EnemySpawner : MonoBehaviour
                 centerAngle +
                 Random.Range(-halfArc, halfArc);
 
+            // Стенда идёт с одного фланга, поэтому луч обрезается
+            // ареной: если у игрока за спиной стена, пачка выходит
+            // с доступной стороны. Дальняя граница — ringMax, иначе
+            // кольцо растянулось бы до самой стены.
+            float maxRadius =
+                Mathf.Min(
+                    ringMax,
+                    GetRayLimitInsideArena(ringCenter, angle)
+                );
+
+            if (maxRadius < minPlayerSpawnDistance)
+                continue;
+
+            float minRadius =
+                Mathf.Min(ringMin, maxRadius);
+
             float radius =
                 Random.Range(minRadius, maxRadius);
 
             Vector3 candidate =
-                arenaCenter +
+                ringCenter +
                 new Vector3(
                     Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
-                    player.position.y,
+                    0f,
                     Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                 );
+
+            candidate.y = ringCenter.y;
 
             candidate = ClampToArena(candidate);
 
@@ -1323,11 +1637,6 @@ public class EnemySpawner : MonoBehaviour
             {
                 continue;
             }
-
-            EnemyType type =
-                wave >= 2
-                    ? EnemyType.Fast
-                    : EnemyType.Normal;
 
             // Немного разного времени материализации, чтобы пачка
             // выходила «волной», а не одним кадром.

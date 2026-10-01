@@ -711,8 +711,10 @@ public class Bullet : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXVariation(
-                sfx.BulletExplosion
+            AudioManager.Instance.PlaySFXVariationAt(
+                sfx.BulletExplosion,
+                transform.position,
+                priority: SfxPriority.High
             );
     }
 
@@ -725,8 +727,10 @@ public class Bullet : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXVariation(
-                sfx.Lightning
+            AudioManager.Instance.PlaySFXVariationAt(
+                sfx.Lightning,
+                transform.position,
+                priority: SfxPriority.High
             );
     }
 
@@ -739,8 +743,10 @@ public class Bullet : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXVariation(
-                sfx.Ricochet
+            AudioManager.Instance.PlaySFXVariationAt(
+                sfx.Ricochet,
+                transform.position,
+                priority: SfxPriority.Low
             );
     }
 

@@ -27,6 +27,17 @@ MonoBehaviour:
     scale: {x: 25, y: 1, z: 25}
     keepColliders: 0
   layoutSeed: 2202
+  arenaLayout:
+    style: 1
+    minStructures: 10
+    maxStructures: 16
+    minWidth: 1.2
+    maxWidth: 2.6
+    minHeight: 1.2
+    maxHeight: 2.4
+    minSpacing: 1
+    halfSize: 32
+    centerClearRadius: 10
   structureMaterials: []
   structurePalette:
   - {r: 0.58, g: 0.62, b: 0.66, a: 1}

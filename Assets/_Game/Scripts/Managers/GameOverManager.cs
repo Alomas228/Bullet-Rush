@@ -209,6 +209,9 @@ public class GameOverManager : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.GameOver);
+            AudioManager.Instance.PlaySFX(
+                sfx.GameOver,
+                priority: SfxPriority.Critical
+            );
     }
 }

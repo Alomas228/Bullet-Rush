@@ -549,7 +549,10 @@ public class Weapon : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXVariation(sfx.WeaponFire);
+            AudioManager.Instance.PlaySFXVariation(
+                sfx.WeaponFire,
+                priority: SfxPriority.High
+            );
     }
 
     private void ApplyRecoil(Transform firePoint)
@@ -661,7 +664,10 @@ public class Weapon : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.WeaponSwitch);
+            AudioManager.Instance.PlaySFX(
+                sfx.WeaponSwitch,
+                priority: SfxPriority.Medium
+            );
     }
 
     private void ApplyWeaponVisual()

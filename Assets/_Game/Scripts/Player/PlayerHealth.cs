@@ -151,7 +151,10 @@ public class PlayerHealth : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.PlayerHit);
+            AudioManager.Instance.PlaySFX(
+                sfx.PlayerHit,
+                priority: SfxPriority.High
+            );
     }
 
     private void TriggerScreenShake()
@@ -245,7 +248,7 @@ public class PlayerHealth : MonoBehaviour
 
         Vector3 position =
             spawner != null
-                ? spawner.GetArenaEdgeSpawnPosition()
+                ? spawner.GetPlayerRingSpawnPosition()
                 : transform.position;
 
         Rigidbody body =
@@ -269,6 +272,9 @@ public class PlayerHealth : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.PlayerDie);
+            AudioManager.Instance.PlaySFX(
+                sfx.PlayerDie,
+                priority: SfxPriority.Critical
+            );
     }
 }

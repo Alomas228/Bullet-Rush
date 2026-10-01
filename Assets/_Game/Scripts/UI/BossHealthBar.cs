@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class BossHealthBar : MonoBehaviour
+public class BossHealthBar : MonoBehaviour, ILangRefreshable
 {
     [Header("UI")]
     [SerializeField] private GameObject bossPanel;
@@ -93,13 +93,44 @@ public class BossHealthBar : MonoBehaviour
             healthSlider.value = healthPercent;
         }
 
-        string bossLabel = Lang.Get("hud.boss");
+        string bossLabel = GetBossLabel(currentBoss);
 
         if (bossNameText != null &&
             bossNameText.text != bossLabel)
         {
             bossNameText.text = bossLabel;
         }
+    }
+
+    // Имя босса берём из его ассета, а фазу показываем явно: смена
+    // фазы ускоряет всё сразу, и без подписи игрок не понимает, что
+    // именно изменилось. Фаза всегда есть, поэтому и с боссом без
+    // собственного имени строка остаётся осмысленной.
+    private string GetBossLabel(Enemy boss)
+    {
+        string name =
+            boss != null
+                ? boss.BossDisplayName
+                : string.Empty;
+
+        if (string.IsNullOrEmpty(name))
+            name = Lang.Get("hud.boss");
+
+        int phase =
+            boss != null
+                ? boss.BossPhase
+                : 1;
+
+        return Lang.Get("hud.boss_phase", name, phase);
+    }
+
+    public void RefreshLang()
+    {
+        if (currentBoss == null)
+            return;
+
+        if (bossNameText != null)
+            bossNameText.text = GetBossLabel(currentBoss);
     }
 
     private void Show()

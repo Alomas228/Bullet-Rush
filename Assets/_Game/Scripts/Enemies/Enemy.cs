@@ -309,6 +309,14 @@ public class Enemy : MonoBehaviour
     public int BossPhase { get; private set; } = 1;
 
     /// <summary>
+    /// Имя босса из его ассета BossData. Пустое у обычных мобов.
+    /// </summary>
+    public string BossDisplayName =>
+        bossData != null
+            ? bossData.BossName
+            : string.Empty;
+
+    /// <summary>
     /// Редкий вариант этого моба. None — обычный моб без выкрутки.
     /// </summary>
     public EnemyVariant Variant => variant;
@@ -805,6 +813,22 @@ public class Enemy : MonoBehaviour
     // предупреждением перед уроном.
     private void ApplyFirstCastGrace()
     {
+        if (cachedEnemyType == EnemyType.Boss &&
+            bossData != null)
+        {
+            float bossGrace =
+                Mathf.Max(
+                    bossData.Phase1AbilityWarningDuration + 0.8f,
+                    bossData.Phase1AbilityCooldown * 0.5f
+                );
+
+            abilityTimer = bossGrace;
+            summonTimer = bossGrace;
+            attackTimer = bossGrace;
+
+            return;
+        }
+
         if (cachedEnemyType != EnemyType.Elite ||
             enemyData == null)
         {
@@ -2884,7 +2908,10 @@ public class Enemy : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAbility);
+            AudioManager.Instance.PlaySFX(
+                sfx.BossAbility,
+                priority: SfxPriority.High
+            );
     }
 
 
@@ -2921,6 +2948,20 @@ public class Enemy : MonoBehaviour
 
         BossPhase = newPhase;
 
+        // Смена фазы сама по себе не опасна: новые кулдауны не должны
+        // срабатывать в тот же кадр, в который фаза сменилась, иначе
+        // ускорение читается как удар из ниоткуда. Даём короткую
+        // паузу, равную новому кулдауну способности фазы.
+        abilityTimer = Mathf.Max(
+            abilityTimer,
+            GetBossAbilityCooldown()
+        );
+
+        summonTimer = Mathf.Max(
+            summonTimer,
+            GetBossSummonCooldown()
+        );
+
         PlayBossPhaseChangeSound();
 
         Debug.Log(
@@ -2936,7 +2977,10 @@ public class Enemy : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossPhaseChange);
+            AudioManager.Instance.PlaySFX(
+                sfx.BossPhaseChange,
+                priority: SfxPriority.High
+            );
     }
 
     private void PlayBossAbilitySound()
@@ -2947,7 +2991,54 @@ public class Enemy : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAbility);
+            AudioManager.Instance.PlaySFX(
+                sfx.BossAbility,
+                priority: SfxPriority.High
+            );
+    }
+
+
+    // Есть ли у игрока хотя бы одно направление, в котором можно
+    // отойти от центра опасной зоны на её радиус. Зона всегда
+    // ставится под игрока, поэтому проверяем именно геометрию
+    // вокруг игрока: луч в сторону не должен упираться в стену
+    // раньше, чем игрок успеет выйти из круга.
+    private bool HasEscapeRouteFromPlayer(float radius)
+    {
+        if (player == null)
+            return false;
+
+        const int directions = 12;
+
+        float checkDistance =
+            Mathf.Max(radius, 0.5f) + 0.5f;
+
+        Vector3 origin =
+            player.position +
+            Vector3.up * rayHeight;
+
+        for (int i = 0; i < directions; i++)
+        {
+            float angle =
+                (float)i / directions * 360f;
+
+            Vector3 direction =
+                new Vector3(
+                    Mathf.Cos(angle * Mathf.Deg2Rad),
+                    0f,
+                    Mathf.Sin(angle * Mathf.Deg2Rad)
+                );
+
+            if (!HasStructureBlocking(
+                    origin,
+                    direction,
+                    checkDistance))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 
@@ -3238,6 +3329,23 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        float zoneRadius = GetBossAbilityRadius();
+
+        // Зона ставится ровно под игрока, поэтому она обязана быть
+        // покидаемой. Если ни в одну сторону от игрока нельзя отойти
+        // на радиус зоны (узкий проход, угол карты), каст не читается
+        // как уклонение — это просто смерть с телеграфом. В таком
+        // случае способность не применяется вовсе.
+        if (!HasEscapeRouteFromPlayer(zoneRadius))
+        {
+            Debug.Log(
+                $"BOSS '{name}' skipped AoE: player has " +
+                $"no escape route within {zoneRadius:F1}."
+            );
+
+            return;
+        }
+
         Vector3 zonePosition =
             player.position;
 
@@ -3257,7 +3365,7 @@ public class Enemy : MonoBehaviour
         {
             attackZone.Initialize(
                 GetBossAbilityDamage(),
-                GetBossAbilityRadius(),
+                zoneRadius,
                 GetBossAbilityWarningDuration()
             );
         }
@@ -3324,8 +3432,34 @@ public class Enemy : MonoBehaviour
         if (bossData == null)
             return;
 
-        int summonCount =
+        int wantedCount =
             GetBossSummonCount();
+
+        // Призыв идёт мимо очереди спавнера, поэтому потолок живых
+        // врагов его не касается. Без этой проверки третья фаза
+        // добавляет врагов быстрее, чем игрок успевает их убивать, и
+        // бой превращается в очередь, которая не заканчивается.
+        int room =
+            enemySpawner.MaxAliveEnemies -
+            Enemy.AliveCount;
+
+        int summonCount =
+            Mathf.Min(
+                Mathf.Max(wantedCount, 0),
+                Mathf.Max(room, 0)
+            );
+
+        if (summonCount <= 0)
+        {
+            Debug.Log(
+                $"Boss summon skipped: field is full " +
+                $"({Enemy.AliveCount}/" +
+                $"{enemySpawner.MaxAliveEnemies}). " +
+                $"Phase: {BossPhase}"
+            );
+
+            return;
+        }
 
         for (int i = 0;
              i < summonCount;
@@ -3349,8 +3483,8 @@ public class Enemy : MonoBehaviour
         }
 
         Debug.Log(
-            $"Boss summoned {summonCount} enemies. " +
-            $"Phase: {BossPhase}"
+            $"Boss summoned {summonCount} of {wantedCount} " +
+            $"enemies. Phase: {BossPhase}"
         );
     }
 
@@ -3488,8 +3622,10 @@ public class Enemy : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXVariation(
-                sfx.EnemyShot
+            AudioManager.Instance.PlaySFXVariationAt(
+                sfx.EnemyShot,
+                transform.position,
+                priority: SfxPriority.Low
             );
     }
 
@@ -3540,7 +3676,11 @@ public class Enemy : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.EnemyHit);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.EnemyHit,
+                transform.position,
+                priority: SfxPriority.Low
+            );
     }
 
 
@@ -3874,11 +4014,23 @@ public class Enemy : MonoBehaviour
         if (enemyData != null &&
             cachedEnemyType == EnemyType.Boss)
         {
-            AudioManager.Instance.PlaySFX(sfx.BossSpawn);
+            AudioClip bossDie = sfx.BossDie;
+
+            AudioManager.Instance.PlaySFXAt(
+                bossDie != null
+                    ? bossDie
+                    : sfx.EnemyDie,
+                transform.position,
+                priority: SfxPriority.High
+            );
         }
         else
         {
-            AudioManager.Instance.PlaySFX(sfx.EnemyDie);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.EnemyDie,
+                transform.position,
+                priority: SfxPriority.Medium
+            );
         }
     }
 
@@ -4038,7 +4190,11 @@ public class Enemy : MonoBehaviour
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAoeExplode);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.BossAoeExplode,
+                transform.position,
+                priority: SfxPriority.High
+            );
     }
 
 

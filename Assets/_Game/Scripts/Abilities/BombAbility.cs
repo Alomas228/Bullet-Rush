@@ -141,7 +141,8 @@ public class BombAbility : MonoBehaviour
         if (sfx != null)
             AudioManager.Instance.PlaySFX(
                 sfx.PlayerAbilityExplosion,
-                0.9f
+                volumeScale: 0.9f,
+                priority: SfxPriority.High
             );
     }
 

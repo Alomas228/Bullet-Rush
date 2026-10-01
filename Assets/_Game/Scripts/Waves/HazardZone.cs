@@ -527,7 +527,11 @@ private void OnDestroy()
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAbility);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.BossAbility,
+                transform.position,
+                priority: SfxPriority.Medium
+            );
     }
 
     private void PlayActivateSound()
@@ -539,6 +543,10 @@ private void OnDestroy()
             AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAoeExplode);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.BossAoeExplode,
+                transform.position,
+                priority: SfxPriority.High
+            );
     }
 }

@@ -1182,7 +1182,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         SFXLibrary sfx = GetSfx();
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.UpgradePick);
+            AudioManager.Instance.PlaySFX(
+                sfx.UpgradePick,
+                priority: SfxPriority.High
+            );
     }
 
     private void PlayEquipSound()
@@ -1190,7 +1193,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         SFXLibrary sfx = GetSfx();
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.WeaponSwitch);
+            AudioManager.Instance.PlaySFX(
+                sfx.WeaponSwitch,
+                priority: SfxPriority.Medium
+            );
     }
 
     private void PlayUiClick()

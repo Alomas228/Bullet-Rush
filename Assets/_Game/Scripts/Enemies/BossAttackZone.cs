@@ -437,6 +437,25 @@ public class BossAttackZone : MonoBehaviour
         Destroy(gameObject);
     }
 
+    private void OnDestroy()
+    {
+        // Материалы создаются в BuildVisual на каждый экземпляр зоны,
+        // а зоны ставятся каждые несколько секунд. Без уничтожения
+        // они копятся до конца боя и держат в памяти всё, что было
+        // отрисовано.
+        DestroyMaterial(fillMaterial);
+        DestroyMaterial(flashMaterial);
+        DestroyMaterial(borderMaterial);
+    }
+
+    private static void DestroyMaterial(Material mat)
+    {
+        if (mat == null)
+            return;
+
+        Destroy(mat);
+    }
+
     private void SetMaterialColor(Material mat, Color color)
     {
         if (mat.HasProperty("_BaseColor"))
@@ -454,6 +473,10 @@ public class BossAttackZone : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossAoeExplode);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.BossAoeExplode,
+                transform.position,
+                priority: SfxPriority.High
+            );
     }
 }

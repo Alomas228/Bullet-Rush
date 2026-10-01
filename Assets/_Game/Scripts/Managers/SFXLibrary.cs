@@ -58,6 +58,7 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip bossPhaseChange;
     [SerializeField] private AudioClip bossAbility;
     [SerializeField] private AudioClip bossAoeExplode;
+    [SerializeField] private AudioClip bossDie;
 
     [Header("Pickup")]
     [SerializeField] private AudioClip pickupSpawn;
@@ -92,6 +93,7 @@ public class SFXLibrary : ScriptableObject
     public AudioClip BossPhaseChange => bossPhaseChange;
     public AudioClip BossAbility => bossAbility;
     public AudioClip BossAoeExplode => bossAoeExplode;
+public AudioClip BossDie => bossDie;
 
     public AudioClip CountdownTick => countdownTick;
     public AudioClip WaveStart => waveStart;

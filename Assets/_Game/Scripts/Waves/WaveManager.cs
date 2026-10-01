@@ -13,6 +13,8 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private WaveEventDirector eventDirector;
 
     [Header("Wave Settings")]
+    [Tooltip("Общий множитель количества противников во всех волнах. Умножается последним, поверх сжатия, высоты слота и надбавки, поэтому кривая остаётся той же — растёт только количество. 1 — без изменений, 2 — вдвое больше.")]
+    [SerializeField] private float enemyCountMultiplier = 2f;
     [SerializeField] private int startingEnemies = 5;
     [SerializeField] private int enemiesAddedPerWave = 3;
     [Tooltip("Каждая N-я волна заменяется боссом.")]
@@ -616,12 +618,20 @@ public class WaveManager : MonoBehaviour
     // слота — так появляются спады и пики, а не ровный поток.
     private int GetEnemyCountForWave(int wave)
     {
+        // Множитель поднимает и потолок сжатия, и сам линейный рост.
+        // Если поднять только потолок, волны с малым raw почти не
+        // изменятся, а после потолка количество упрётся в него вдвое
+        // раньше. Равномерное масштабирование обоих даёт ровно ×N
+        // на каждой волне, не ломая форму кривой.
+        float multiplier =
+            Mathf.Max(enemyCountMultiplier, 0f);
+
         float ceiling =
-            Mathf.Max(enemyCountCeiling, 1f);
+            Mathf.Max(enemyCountCeiling, 1f) * multiplier;
 
         float raw =
-            startingEnemies +
-            (wave - 1) * enemiesAddedPerWave;
+            (startingEnemies +
+            (wave - 1) * enemiesAddedPerWave) * multiplier;
 
         float compressed =
             ceiling *
@@ -646,7 +656,7 @@ public class WaveManager : MonoBehaviour
         return Mathf.Clamp(
             Mathf.RoundToInt(scaled),
             1,
-            Mathf.Max(maxEnemiesPerWave, 1)
+            Mathf.Max(Mathf.RoundToInt(maxEnemiesPerWave * multiplier), 1)
         );
     }
 
@@ -671,7 +681,7 @@ public class WaveManager : MonoBehaviour
     private IEnumerator BossWaveRoutine()
     {
         Vector3 bossPosition =
-            enemySpawner.GetArenaEdgeSpawnPosition();
+            enemySpawner.GetPlayerRingSpawnPosition();
 
         enemySpawner.SpawnEnemyAtPosition(
             EnemyType.Boss,
@@ -682,7 +692,13 @@ public class WaveManager : MonoBehaviour
         // Пауза: игрок видит «ритуал» появления босса, потом выходит прислуга.
         yield return new WaitForSeconds(bossMinionDelay);
 
-        for (int i = 0; i < bossMinionCount; i++)
+        int minionCount =
+            Mathf.RoundToInt(
+                bossMinionCount *
+                Mathf.Max(enemyCountMultiplier, 0f)
+            );
+
+        for (int i = 0; i < minionCount; i++)
         {
             enemySpawner.SpawnEnemyAtPosition(
                 EnemyType.Normal,
@@ -1132,7 +1148,10 @@ private static readonly float[] SlotIntensity =
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.CountdownTick);
+            AudioManager.Instance.PlaySFX(
+                sfx.CountdownTick,
+                priority: SfxPriority.High
+            );
     }
 
     private void PlayWaveStartSound()
@@ -1143,7 +1162,10 @@ private static readonly float[] SlotIntensity =
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.WaveStart);
+            AudioManager.Instance.PlaySFX(
+                sfx.WaveStart,
+                priority: SfxPriority.High
+            );
     }
 
     private void PlayBossSpawnSound()
@@ -1154,7 +1176,10 @@ private static readonly float[] SlotIntensity =
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.BossSpawn);
+            AudioManager.Instance.PlaySFX(
+                sfx.BossSpawn,
+                priority: SfxPriority.Critical
+            );
     }
 
     private void SwitchToBossMusic()

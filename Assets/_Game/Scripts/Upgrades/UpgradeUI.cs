@@ -236,7 +236,10 @@ public class UpgradeUI : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.MenuOpen);
+            AudioManager.Instance.PlaySFX(
+                sfx.MenuOpen,
+                priority: SfxPriority.High
+            );
     }
 
     private void OnDestroy()

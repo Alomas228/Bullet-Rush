@@ -203,6 +203,10 @@ public class LootPickup : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFX(sfx.PickupCollect);
+            AudioManager.Instance.PlaySFXAt(
+                sfx.PickupCollect,
+                transform.position,
+                priority: SfxPriority.Medium
+            );
     }
 }
