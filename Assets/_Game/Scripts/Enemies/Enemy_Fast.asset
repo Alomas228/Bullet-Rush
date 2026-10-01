@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Enemy_Fast
   enemyType: 1
-  maxHealth: 25
+  maxHealth: 250
   moveSpeed: 4
-  contactDamage: 1
+  contactDamage: 10
   damageCooldown: 1
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 5
+  projectileDamage: 38
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1

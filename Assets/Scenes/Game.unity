@@ -20370,7 +20370,6 @@ MonoBehaviour:
   waveCompleteDisplayTime: 0.6
   bossWaveCompleteDisplayTime: 1.4
   postUpgradeDelay: 0.35
-  structureSpawnBuffer: 1
 --- !u!4 &911471529
 Transform:
   m_ObjectHideFlags: 0
@@ -31906,7 +31905,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcfb6b9808d96b14e842ac8fe29229fb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 10
+  maxHealth: 100
   healTickInterval: 0.5
   hitShakeAmount: 0.68
 --- !u!114 &1327351454

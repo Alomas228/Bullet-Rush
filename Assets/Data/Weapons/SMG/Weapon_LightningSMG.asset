@@ -22,7 +22,7 @@ MonoBehaviour:
   unlockLevel: 8
   price: 1500
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 5
+  damage: 50
   fireRate: 13
   projectileSpeed: 15
   projectileCount: 1
@@ -41,6 +41,6 @@ MonoBehaviour:
   recoilForce: 0
   shakeOnFire: 0
   lightningChance: 0.35
-  lightningDamage: 10
+  lightningDamage: 100
   lightningTargets: 3
   lightningRange: 4.5

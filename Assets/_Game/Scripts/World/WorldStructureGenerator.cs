@@ -69,6 +69,14 @@ public class WorldStructureGenerator : MonoBehaviour
     [Tooltip("Сколько структур обрабатывается за один шаг стаггера. Больше — быстрее перестройка карты между волнами.")]
     [SerializeField] private int structuresPerTick = 4;
 
+    [Header("Quick Transition")]
+    [Tooltip("Длительность «вырастания» блока при быстрой пересборке между волнами. Короткая, чтобы перестройка не затягивала паузу.")]
+    [SerializeField] private float quickScaleInDuration = 0.18f;
+    [Tooltip("Зазор между блоками при быстрой пересборке: каскад даёт ощущение смены арены, а не одновременного хаоса.")]
+    [SerializeField] private float quickStagger = 0.015f;
+    [Tooltip("Множитель скорости укорочения блоков при быстрой пересборке. 1 — исчезают за quickScaleInDuration, 0.5 — вдвое быстрее.")]
+    [SerializeField] private float quickFadeOutScale = 0.6f;
+
     [Header("Layer")]
     [Tooltip("Слой, на который помещаются создаваемые структуры (включая дочерние объекты префаба). Должен совпадать с occlusionMask в StructureOcclusionManager. Пусто — слой не меняется.")]
     [SerializeField] private string structureLayerName = "World";
@@ -89,6 +97,19 @@ public class WorldStructureGenerator : MonoBehaviour
 
     private Coroutine generateCoroutine;
     private int cachedWorldLayer = -1;
+
+    // Корутины «вырастания»/исчезновения, запущенные текущей
+    // генерацией. Отдельные корутины на каждый блок, поэтому
+    // StopCoroutine на головном их не гасит — без явной остановки
+    // они продолжат анимировать уже снятые блоки.
+    private readonly List<Coroutine> transitionRoutines =
+        new List<Coroutine>();
+
+    // Длительность «вырастания» текущей генерации. Быстрая
+    // пересборка между волнами ставит своё короткое значение,
+    // поэтому ScaleInStructure берёт время отсюда, а не из поля
+    // инспектора напрямую.
+    private float currentScaleInDuration;
 
     // Общие материалы для палитры: один материал на цвет вместо
     // создания копии на каждый куб (иначе каждая волна плодит
@@ -133,6 +154,8 @@ public class WorldStructureGenerator : MonoBehaviour
         }
 
         EnsureOcclusionManager();
+
+        currentScaleInDuration = scaleInDuration;
     }
 
     // Отбрасывает пустые слоты, чтобы случайный выбор всегда
@@ -167,47 +190,90 @@ public class WorldStructureGenerator : MonoBehaviour
             gameObject.AddComponent<StructureOcclusionManager>();
     }
 
-    public void GenerateForMap(int mapSeed)
+    /// <summary>
+    /// Анимированная сборка арены: блоки появляются цепочкой с
+    /// «вырастанием». Используется для первого появления арены
+    /// (старт забега, обучение), где на анимацию есть время.
+    /// </summary>
+    public void GenerateAnimated(int mapSeed, int wave)
     {
         BeginGeneration(
-            new System.Random(mapSeed * 31 + 97)
+            new System.Random(
+                mapSeed * 31 + wave * 131
+            )
         );
     }
 
     /// <summary>
-    /// Легаси-вход для волн. Стабильная геометрия карты строится
-    /// через <see cref="GenerateForMap"/>, где seed зависит от карты,
-    /// а не от номера волны. Метод сохранён, чтобы не ломать
-    /// внешние вызовы (обучение и т.п.), но больше не используется
-    /// для перестройки арены между волнами.
+    /// Перестройка арены под новую волну. Раскладка зависит и от
+    /// карты, и от номера волны: блоки меняются каждый забег, но
+    /// одна и та же волна на одной карте всегда даёт одну и ту же
+    /// геометрию. Анимация короткая, чтобы пауза между волнами
+    /// почти не росла, но переход не выглядел скачком.
     /// </summary>
-    public void GenerateForWave(int wave)
+    public void RebuildForWave(int mapSeed, int wave)
     {
         BeginGeneration(
-            new System.Random(baseSeed * 31 + wave * 131)
+            new System.Random(
+                mapSeed * 31 + wave * 131
+            ),
+            RebuildProfile()
         );
+    }
+
+    // Короткие тайминги нужны только чтобы ускорить смену одной
+    // раскладки на другую. Если арены ещё нет (обучение пропущено,
+    // первая волна идёт в пустоту), пересобирать нечего — и
+    // сокращённый каскад лишь делает появление блоков резким.
+    // Первое появление идёт на штатных таймингах.
+    private TransitionProfile RebuildProfile()
+    {
+        if (structures.Count > 0)
+            return QuickTransitionProfile();
+
+        return AnimatedProfile();
+    }
+
+    private TransitionProfile QuickTransitionProfile()
+    {
+        return new TransitionProfile
+        {
+            stagger = quickStagger,
+            scaleInDuration = quickScaleInDuration,
+            fadeOutScale = quickFadeOutScale
+        };
+    }
+
+    private TransitionProfile AnimatedProfile()
+    {
+        return new TransitionProfile
+        {
+            stagger = spawnStagger,
+            scaleInDuration = scaleInDuration,
+            fadeOutScale = 1f
+        };
+    }
+
+    // Тайминги одной пересборки. Основной путь берёт значения из
+    // инспектора, быстрая пересборка между волнами — свои, короткие.
+    private struct TransitionProfile
+    {
+        public float stagger;
+        public float scaleInDuration;
+        public float fadeOutScale;
     }
 
     // Общий вход обеих генераций: гасит текущий корутин, ищет игрока
     // и считает количество блоков по параметрам инспектора.
-    private void BeginGeneration(System.Random rng)
+    private void BeginGeneration(
+        System.Random rng,
+        TransitionProfile? profile = null)
     {
-        if (generateCoroutine != null)
-            StopCoroutine(generateCoroutine);
+        CancelRunningGeneration();
 
-        if (player == null)
-        {
-            GameObject playerObject =
-                GameObject.FindGameObjectWithTag("Player");
+        PrepareForGeneration();
 
-            if (playerObject != null)
-                player = playerObject.transform;
-        }
-
-        Vector3 centerPos =
-            center != null
-                ? center.position
-                : transform.position;
+        Vector3 centerPos = ArenaCenter;
 
         groundY = centerPos.y;
 
@@ -221,21 +287,60 @@ public class WorldStructureGenerator : MonoBehaviour
             TransitionToWaveRoutine(
                 rng,
                 centerPos,
-                count
+                count,
+                profile
             )
         );
     }
 
+    // Гасит и головную корутину, и корутины перехода: они живут
+    // отдельно, StopCoroutine на головной их не трогает, и отменённая
+    // генерация продолжила бы спавнить блоки поверх новой раскладки.
+    private void CancelRunningGeneration()
+    {
+        StopTrackedCoroutines();
+
+        if (generateCoroutine == null)
+            return;
+
+        StopCoroutine(generateCoroutine);
+
+        generateCoroutine = null;
+    }
+
+    private void PrepareForGeneration()
+    {
+        if (player != null)
+            return;
+
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObject != null)
+            player = playerObject.transform;
+    }
+
+    // Анимация идёт в два захода: сначала старая раскладка уходит
+    // каскадом, затем новая вырастает на её месте. Порядок важен —
+    // при одновременном старте на экране секунду живут обе раскладки.
     private IEnumerator TransitionToWaveRoutine(
         System.Random rng,
         Vector3 centerPos,
-        int count)
+        int count,
+        TransitionProfile? profileOverride)
     {
+        TransitionProfile profile =
+            profileOverride ?? AnimatedProfile();
+
+        float growDuration = profile.scaleInDuration;
+
         WaitForSecondsRealtime staggerWait =
-            new WaitForSecondsRealtime(spawnStagger);
+            new WaitForSecondsRealtime(profile.stagger);
 
         WaitForSecondsRealtime growWait =
-            new WaitForSecondsRealtime(scaleInDuration);
+            new WaitForSecondsRealtime(growDuration);
+
+        int perTick = Mathf.Max(structuresPerTick, 1);
 
         if (structures.Count > 0)
         {
@@ -246,7 +351,22 @@ public class WorldStructureGenerator : MonoBehaviour
             placedPositions.Clear();
             placedClearances.Clear();
 
-            int perTick = Mathf.Max(structuresPerTick, 1);
+            // Коллайдеры гасим сразу, а не в начале fade-out: старые
+            // блоки не должны блокировать игрока и пули, пока новые
+            // ещё не выросли. Иначе на пересборке между волнами
+            // остаётся невидимая стена.
+            for (int i = 0; i < oldStructures.Count; i++)
+            {
+                if (oldStructures[i] == null)
+                    continue;
+
+                Collider[] colliders =
+                    oldStructures[i]
+                        .GetComponentsInChildren<Collider>(true);
+
+                for (int j = 0; j < colliders.Length; j++)
+                    colliders[j].enabled = false;
+            }
 
             for (int i = 0; i < oldStructures.Count; i += perTick)
             {
@@ -259,9 +379,10 @@ public class WorldStructureGenerator : MonoBehaviour
                 for (int j = i; j < batchEnd; j++)
                 {
                     if (oldStructures[j] != null)
-                        StartCoroutine(
+                        StartTrackedCoroutine(
                             FadeOutStructure(
-                                oldStructures[j]
+                                oldStructures[j],
+                                growDuration * profile.fadeOutScale
                             )
                         );
                 }
@@ -269,55 +390,85 @@ public class WorldStructureGenerator : MonoBehaviour
                 yield return staggerWait;
             }
 
-            yield return growWait;
+            // Ждём исчезновения старых блоков, иначе на экране
+            // на секунду окажутся две раскладки одновременно.
+            yield return new WaitForSecondsRealtime(
+                growDuration * profile.fadeOutScale
+            );
         }
 
-        int spawnPerTick = Mathf.Max(structuresPerTick, 1);
+        currentScaleInDuration = growDuration;
 
-        for (int i = 0; i < count; i += spawnPerTick)
+        try
         {
-            int batchEnd =
-                Mathf.Min(
-                    i + spawnPerTick,
-                    count
-                );
-
-            for (int j = i; j < batchEnd; j++)
+            for (int i = 0; i < count; i += perTick)
             {
-                TrySpawnStructure(rng, centerPos);
+                int batchEnd =
+                    Mathf.Min(
+                        i + perTick,
+                        count
+                    );
+
+                for (int j = i; j < batchEnd; j++)
+                {
+                    TrySpawnStructure(rng, centerPos);
+                }
+
+                yield return staggerWait;
             }
 
-            yield return staggerWait;
+            // Ждём роста последнего блока, чтобы генерация
+            // считалась завершённой только когда всё выросло.
+            yield return growWait;
+        }
+        finally
+        {
+            currentScaleInDuration = scaleInDuration;
+
+            generateCoroutine = null;
+        }
+    }
+
+    // Корутины перехода живут отдельно от головного, поэтому их
+    // нужно помнить: StopCoroutine(generateCoroutine) их не гасит,
+    // и задержанные блоки продолжили бы анимироваться поверх новой
+    // раскладки.
+    private Coroutine StartTrackedCoroutine(IEnumerator routine)
+    {
+        Coroutine coroutine = StartCoroutine(routine);
+
+        transitionRoutines.Add(coroutine);
+
+        return coroutine;
+    }
+
+    private void StopTrackedCoroutines()
+    {
+        for (int i = 0; i < transitionRoutines.Count; i++)
+        {
+            if (transitionRoutines[i] != null)
+                StopCoroutine(transitionRoutines[i]);
         }
 
-        // Ждём роста последнего куба, чтобы генерация
-        // считалась завершённой только когда всё выросло.
-        yield return growWait;
-
-        generateCoroutine = null;
+        transitionRoutines.Clear();
     }
 
     private IEnumerator FadeOutStructure(
-        GameObject structure)
+        GameObject structure,
+        float duration)
     {
         if (structure == null)
             yield break;
 
-        // Коллайдеры префаба часто висят на дочерних объектах,
-        // иначе исчезающая структура продолжитт блокировать пули
-        // и перемещение до конца анимации.
-        Collider[] colliders =
-            structure.GetComponentsInChildren<Collider>(true);
-
-        for (int i = 0; i < colliders.Length; i++)
-            colliders[i].enabled = false;
+        // Коллайдеры гасит вызывающий: на быстрой пересборке
+        // старые блоки перестают мешать сразу, не дожидаясь анимации.
 
         Vector3 startScale =
             structure.transform.localScale;
 
         float timer = 0f;
 
-        while (timer < scaleInDuration)
+        while (timer < duration)
         {
             if (structure == null)
                 yield break;
@@ -326,7 +477,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
             float t =
                 Mathf.Clamp01(
-                    timer / scaleInDuration
+                    timer / duration
                 );
 
             t = Mathf.SmoothStep(0f, 1f, t);
@@ -349,11 +500,13 @@ public class WorldStructureGenerator : MonoBehaviour
         GameObject structure,
         Vector3 fullScale)
     {
+        float duration = currentScaleInDuration;
+
         structure.transform.localScale = Vector3.zero;
 
         float timer = 0f;
 
-        while (timer < scaleInDuration)
+        while (timer < duration)
         {
             if (structure == null)
                 yield break;
@@ -362,7 +515,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
             float t =
                 Mathf.Clamp01(
-                    timer / scaleInDuration
+                    timer / duration
                 );
 
             t = Mathf.SmoothStep(0f, 1f, t);
@@ -383,6 +536,8 @@ public class WorldStructureGenerator : MonoBehaviour
 
     public void Clear()
     {
+        CancelRunningGeneration();
+
         foreach (GameObject structure in structures)
         {
             if (structure != null)
@@ -630,7 +785,7 @@ public class WorldStructureGenerator : MonoBehaviour
 
         structures.Add(structure);
 
-        StartCoroutine(
+        StartTrackedCoroutine(
             ScaleInStructure(structure, scale)
         );
     }

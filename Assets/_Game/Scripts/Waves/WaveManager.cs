@@ -64,10 +64,10 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float bossWaveCompleteDisplayTime = 1.4f;
     [Tooltip("Пауза после выбора улучшения перед началом следующей волны.")]
     [SerializeField] private float postUpgradeDelay = 0.35f;
-
-    [Header("Structure Sync")]
-    [Tooltip("Пауза после генерации структур перед спавном врагов. Даёт структурам дорасти. Тратится только когда арена реально перестраивается — между волнами она уже готова.")]
-    [SerializeField] private float structureSpawnBuffer = 1f;
+    [Tooltip("Сколько ждать перестройки арены между волнами, прежде чем начать спавн врагов. Время уходит на исчезновение старых блоков и вырастание новых — без него игрок увидел бы пустую площадку.")]
+    [SerializeField] private float structureTransitionWait = 1.2f;
+    [Tooltip("Потолок ожидания перестройки. Страховка: если генерация зависнет, волна всё равно начнётся.")]
+    [SerializeField] private float structureTransitionTimeout = 4f;
 
     public int CurrentWave { get; private set; }
 
@@ -112,11 +112,10 @@ public class WaveManager : MonoBehaviour
     private bool gameStarted;
     private bool waveCompleteShown;
 
-    // Для какого seed карты мир уже сгенерирован — чтобы не
-    // перестраивать арену заново между волнами (геометрия карты
-    // стабильна внутри забега) и не дублировать подготовку во время
-    // обучения.
-    private int generatedMapSeed = -1;
+    // Для какой волны арена уже собрана. Нужна, чтобы не перестраивать
+    // мир повторно на первой волне после анимированной подготовки
+    // обучения (та же раскладка, только уже выросшая).
+    private int generatedWorldWave = -1;
 
     private EnvironmentController cachedEnvironment;
 
@@ -169,7 +168,7 @@ public class WaveManager : MonoBehaviour
             waveActive = false;
             waitingForNextWave = false;
             waveCompleteShown = false;
-            generatedMapSeed = -1;
+            generatedWorldWave = -1;
             currentModifier = WaveModifier.None;
 
             // Память акцентов обнуляется вместе с забегом: иначе
@@ -337,8 +336,9 @@ public class WaveManager : MonoBehaviour
 
     /// <summary>
     /// Строит арену для первой волны заранее — во время обучения,
-    /// чтобы игрок сражался не на пустом поле. Геометрия привязана
-    /// к текущей карте (GenerateForMap), а не к номеру волны.
+    /// чтобы игрок сражался не на пустом поле. Geометрия привязана
+    /// к текущей карте и номеру первой волны, поэтому пересборка
+    /// на старте забега даёт ту же раскладку.
     /// </summary>
     public void PrepareTutorialWorld()
     {
@@ -347,12 +347,17 @@ public class WaveManager : MonoBehaviour
 
         int mapSeed = GetCurrentMapSeed();
 
-        worldGenerator.GenerateForMap(mapSeed);
-        generatedMapSeed = mapSeed;
+        // Здесь анимация нужна: игрок ещё в обучении, блоки
+        // появляются цепочкой и показывают, что арена живая.
+        // Seed совпадает с формулой RebuildForWave, поэтому на
+        // первой волне раскладка не перестроится.
+        worldGenerator.GenerateAnimated(mapSeed, 1);
+        generatedWorldWave = 1;
     }
 
-    // Seed геометрии арены берётся из текущей карты: стабильная
-    // конфигурация блоков для каждого биома.
+    // Seed геометрии арены берётся из текущей карты: у каждого
+    // биома своя конфигурация блоков. Номер волны добавляется
+    // поверх, поэтому внутри карты раскладка меняется.
     private int GetCurrentMapSeed()
     {
         if (cachedEnvironment == null)
@@ -399,21 +404,20 @@ public class WaveManager : MonoBehaviour
 
         SwitchToMainMusic();
 
-        // Мир строится один раз под карту и остаётся стабильным на
-        // весь забег (референс: одна арена с фиксированным набором
-        // препятствий). Перестраивание только при смене карты.
-        bool worldRegenerated = false;
-
-        if (worldGenerator != null)
+        // Арена перестраивается каждую волну, но мгновенно: новая
+        // раскладка блоков готова до спавна врагов, поэтому лишней
+        // паузы между волнами не появляется. На первой волне мир
+        // уже собран обучением — перестраивать в ту же раскладку
+        // незачем.
+        if (worldGenerator != null &&
+            generatedWorldWave != CurrentWave)
         {
-            int mapSeed = GetCurrentMapSeed();
+            worldGenerator.RebuildForWave(
+                GetCurrentMapSeed(),
+                CurrentWave
+            );
 
-            if (generatedMapSeed != mapSeed)
-            {
-                worldGenerator.GenerateForMap(mapSeed);
-                generatedMapSeed = mapSeed;
-                worldRegenerated = true;
-            }
+            generatedWorldWave = CurrentWave;
         }
 
         // Отсчёт 3-2-1 и «подготовка» нужны только там, где игрок
@@ -440,9 +444,7 @@ public class WaveManager : MonoBehaviour
             if (waveUI != null)
                 waveUI.Hide();
 
-            yield return WaitForWorldReady(
-                worldRegenerated
-            );
+            yield return WaitForWorldReady();
 
             SpawnCurrentWave();
 
@@ -486,35 +488,38 @@ public class WaveManager : MonoBehaviour
         if (waveUI != null)
             waveUI.Hide();
 
-        yield return WaitForWorldReady(
-            worldRegenerated
-        );
+        yield return WaitForWorldReady();
 
         SpawnCurrentWave();
 
         waveActive = true;
     }
 
-    // Структурам нужно время только после реальной генерации —
-    // тогда блоки ещё дорастают. Если арена уже собрана (обычный
-    // случай между волнами), ждать нечего и ждать не нужно.
-    private IEnumerator WaitForWorldReady(
-        bool worldRegenerated)
+    // Ждать нужно только анимированную генерацию (смена карты,
+    // ждём и сам переход: пока блоки исчезают и вырастают, на поле
+    // нет ни старой, ни новой раскладки, и враги спавнились бы в
+    // пустое место. Лимит нужен, чтобы зависшая генерация не
+    // заблокировала начало волны навсегда.
+    private IEnumerator WaitForWorldReady()
     {
-        if (worldGenerator != null)
+        if (worldGenerator == null)
+            yield break;
+
+        float timeout = structureTransitionTimeout;
+
+        while (worldGenerator.IsGenerating && timeout > 0f)
         {
-            while (worldGenerator.IsGenerating)
-            {
-                yield return null;
-            }
+            timeout -= Time.unscaledDeltaTime;
+
+            yield return null;
         }
 
-        if (worldRegenerated && structureSpawnBuffer > 0f)
-        {
-            yield return new WaitForSeconds(
-                structureSpawnBuffer
-            );
-        }
+        // Минимальная пауза нужна даже когда перестройка не запускалась
+        // (первая волна после обучения): баннер волны и доска улучшений
+        // должны успеть уйти, прежде чем на поле придут враги.
+        yield return new WaitForSeconds(
+            Mathf.Max(structureTransitionWait, 0f)
+        );
     }
 
     private bool IsBossWave(int wave)
@@ -635,6 +640,7 @@ public class WaveManager : MonoBehaviour
         float scaled =
             compressed *
             GetWaveIntensity(wave) *
+            WaveDifficulty.GetCountMultiplier(wave) *
             ramp;
 
         return Mathf.Clamp(
@@ -747,30 +753,33 @@ public class WaveManager : MonoBehaviour
         }
     }
 
-    // Высота волны внутри восьмиволнового цикла. Смысл слотов:
-    //   0 — отдых после босса
-    //   1 — рой с напором
-    //   2 — передышка, первая дальняя угроза
-    //   3 — осада
-    //   4 — отдых
-    //   5 — рой с другой стороны
-    //   6 — вылазка за элитой
-    //   7 — пик цикла
-    // Подряд две «тяжёлые» не идут: спады обязательны, иначе
-    // волны сливаются в ровный поток, в котором ни одна не
-    // отличается от соседней. Разброс специально узкий (≈ -16%
-    // … +12%): широкая «горка» давала провалы почти в -30% сразу
-    // после пика, и волна после напряжённой читалась как пустая.
-    private static readonly float[] SlotIntensity =
+// Высота волны внутри восьмиволнового цикла. Смысл слотов:
+//   0 — отдых после босса
+//   1 — рой с напором
+//   2 — передышка, первая дальняя угроза
+//   3 — осада
+//   4 — отдых
+//   5 — рой с другой стороны
+//   6 — вылазка за элитой
+//   7 — пик цикла
+//
+// Раньше разброс здесь был основным источником «горки» сложности
+// (≈ -16% … +12%). Теперь главный ритм задаёт уровень волны
+// (лёгкая / сложная, см. WaveDifficulty), поэтому таблица сжата
+// почти до единицы и работает как фактура поверх него: слот по-прежнему
+// чуть выше или ниже соседей, но уже не перебивает чередование, иначе
+// «лёгкая» волна в слоте пика оказывалась бы тяжелее «сложной» в слоте
+// отдыха — а это прямое противоречие тому, что игрок видит на экране.
+private static readonly float[] SlotIntensity =
     {
-        0.86f,
+        0.97f,
         1.00f,
-        0.88f,
-        1.04f,
-        0.84f,
+        0.98f,
+        1.02f,
+        0.96f,
         1.00f,
-        0.94f,
-        1.12f
+        0.99f,
+        1.06f
     };
 
     // Модификатор — не украшение каждой волны, а акцент. Слоты с
@@ -1068,6 +1077,10 @@ public class WaveManager : MonoBehaviour
         WaveArchetype archetype,
         WaveModifier modifier)
     {
+        // Уровень волны (лёгкая / сложная) намеренно не показывается:
+        // это внутренний ритм, и подпись выдала бы его игроку. Разница
+        // должна читаться по тому, что враги стали живучее или слабее, а
+        // не по названию под колонтитулом.
         switch (archetype)
         {
             case WaveArchetype.Swarm:

@@ -513,7 +513,10 @@ public static class PermanentUpgrades
             }
         );
 
-        // Регенерация: +0.1 HP/с за уровень -> +1 HP/с на максимуме.
+        // Регенерация: +1 HP/с за уровень -> +10 HP/с на максимуме.
+        // Плоское число, а не процент, поэтому оно обязано жить в том же
+        // масштабе, что и здоровье игрока (100 HP): при прежних +0.1
+        // регенерация стала бы одной сотой здоровья в секунду.
         Add(
             map,
             new Def
@@ -521,7 +524,7 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.HealthRegen,
                 Key = "health_regen",
                 Mode = ValueMode.FlatAdd,
-                ValuePerLevel = 0.1f,
+                ValuePerLevel = 1f,
                 ValueIsFraction = false,
                 Decimals = 1
             }

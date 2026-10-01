@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Elite
   enemyType: 4
-  maxHealth: 300
+  maxHealth: 3000
   moveSpeed: 2.2
-  contactDamage: 4
+  contactDamage: 40
   damageCooldown: 1
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 5
+  projectileDamage: 38
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1.5

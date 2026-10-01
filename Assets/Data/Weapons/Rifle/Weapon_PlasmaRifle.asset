@@ -22,7 +22,7 @@ MonoBehaviour:
   unlockLevel: 12
   price: 3000
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 18
+  damage: 180
   fireRate: 5
   projectileSpeed: 20
   projectileCount: 1
@@ -35,7 +35,7 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 8
+  burnDamagePerSecond: 80
   burnDuration: 2.5
   burnTickInterval: 0.5
   recoilForce: 0

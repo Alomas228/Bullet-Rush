@@ -23,7 +23,7 @@ MonoBehaviour:
   unlockLevel: 1
   price: 0
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 10
+  damage: 100
   fireRate: 5.5
   projectileSpeed: 15
   projectileCount: 1

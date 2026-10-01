@@ -828,8 +828,31 @@ public class Enemy : MonoBehaviour
         float damageMultiplier =
             1f + (currentWave - 1) * GetWaveDamagePercent();
 
+        // Поверх плавного роста по номеру волны накладывается ритм
+        // «лёгкая / сложная»: он не добавляет сложности в среднем, но
+        // делает соседние волны заметно разными. Без него апгрейд,
+        // взятый после сложной волны, не читался — следующая волна была
+        // ровно такой же.
+        float tierMultiplier =
+            WaveDifficulty.GetHealthMultiplier(
+                currentWave,
+                isBoss
+            );
+
         scaledMaxHealth =
-            GetBaseMaxHealth() * healthMultiplier;
+            GetBaseMaxHealth() *
+            healthMultiplier *
+            tierMultiplier;
+
+        // Тот же уровень волны, но для урона множитель свой: смерть от
+        // снаряда читается хуже долгого боя, поэтому на сложной волне
+        // урон уходит выше единицы сильнее, чем здоровье.
+        damageMultiplier *=
+            WaveDifficulty.GetDamageMultiplier(
+                currentWave,
+                isBoss
+            );
+
         scaledDamageMultiplier = damageMultiplier;
 
         currentHealth = scaledMaxHealth;
@@ -3130,17 +3153,40 @@ public class Enemy : MonoBehaviour
 
     private float GetBossAbilityDamage()
     {
+        float damage;
+
         switch (BossPhase)
         {
             case 2:
-                return bossData.Phase2AbilityDamage;
+                damage =
+                    bossData.Phase2AbilityDamage;
+
+                break;
 
             case 3:
-                return bossData.Phase3AbilityDamage;
+                damage =
+                    bossData.Phase3AbilityDamage;
+
+                break;
 
             default:
-                return bossData.Phase1AbilityDamage;
+                damage =
+                    bossData.Phase1AbilityDamage;
+
+                break;
         }
+
+        // Способность босса по номеру волны не масштабируется — так
+        // было и раньше, и менять это здесь нельзя, волны бы поехали.
+        // А вот уровень «лёгкая / сложная» к ней применяется: иначе на
+        // лёгкой волне ударная зона осталась бы ровно такой же дорогой,
+        // как контактный урон, и половина ритма развалилась бы — игрок
+        // получил бы передышку по мобам и мгновенную смерть от способности.
+        return damage *
+            WaveDifficulty.GetDamageMultiplier(
+                currentWave,
+                true
+            );
     }
 
     private float GetBossAbilityRadius()

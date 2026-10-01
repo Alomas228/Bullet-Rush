@@ -57,7 +57,8 @@ public class WaveEventDirector : MonoBehaviour
     [Header("Danger Zone Event")]
     [SerializeField] private float zoneWarning = 1.4f;
     [SerializeField] private float zoneRadius = 3f;
-    [SerializeField] private float zoneDamagePerSecond = 3f;
+    [Tooltip("Урон зоны в секунду. Масштаб ×10 к прежнему; поверх накладывается уровень волны (лёгкая / сложная).")]
+    [SerializeField] private float zoneDamagePerSecond = 30f;
     [SerializeField] private float zoneDuration = 4f;
     [SerializeField] private float zoneGrowMultiplier = 1.8f;
     [Tooltip("Начиная с этой волны событие ставит сразу две зоны.")]
@@ -99,8 +100,14 @@ public class WaveEventDirector : MonoBehaviour
     // в начало следующей.
     private float lastEventTime = -999f;
 
-    // Было ли событие именно на текущей волне.
+// Было ли событие именно на текущей волне.
     private bool eventFiredThisWave;
+
+    // Номер волны, на которой сейчас идёт событие. Нужен урону
+    // опасной зоны: по номеру волны она не масштабируется, но уровень
+    // «лёгкая / сложная» к ней применяется, иначе на лёгкой волне зона
+    // осталась бы самым дорогим источником урона на арене.
+    private int currentWave = 1;
 
     public void Initialize(
         EnemySpawner spawner,
@@ -120,6 +127,11 @@ public class WaveEventDirector : MonoBehaviour
         WaveModifier modifier = WaveModifier.None)
     {
         Stop();
+
+        // Номер волны запоминается сразу, до всех ранних выходов: урон
+        // опасной зоны должен знать уровень волны даже тогда, когда само
+        // событие решило не запускаться и будет отменено позже.
+        currentWave = Mathf.Max(wave, 1);
 
         eventFiredThisWave = false;
 
@@ -614,7 +626,10 @@ public class WaveEventDirector : MonoBehaviour
             zone.Initialize(
                 zoneWarning,
                 zoneRadius,
-                zoneDamagePerSecond,
+                zoneDamagePerSecond *
+                    WaveDifficulty.GetDamageMultiplier(
+                        currentWave
+                    ),
                 zoneDuration,
                 zoneGrowMultiplier
             );

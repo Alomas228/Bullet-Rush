@@ -43,15 +43,17 @@ public class EnemyData : ScriptableObject
     [SerializeField] private EnemyType enemyType;
 
     [Header("Stats")]
-    [SerializeField] private float maxHealth = 40f;
+    [Tooltip("Базовое здоровье. Масштаб игровых чисел ×10 к прежнему: игрок живёт 100 HP, моб 400 — те же два десятка попаданий, что и раньше, просто в читаемых числах.")]
+    [SerializeField] private float maxHealth = 400f;
     [SerializeField] private float moveSpeed = 2f;
-    [SerializeField] private float contactDamage = 1f;
+    [SerializeField] private float contactDamage = 10f;
     [SerializeField] private float damageCooldown = 1f;
 
     [Header("Ranged Attack")]
     [SerializeField] private float attackRange = 8f;
     [SerializeField] private float attackRate = 1.5f;
-    [SerializeField] private float projectileDamage = 5f;
+    [Tooltip("Урон снаряда. Специально ниже, чем даёт простое масштабирование ×10: при 100 HP игроке снаряд должен стоить три попадания, а не два, иначе любой дальник на чистом луче убивал мгновенно.")]
+    [SerializeField] private float projectileDamage = 38f;
     [SerializeField] private float projectileSpeed = 8f;
 
     [Header("Elite / Boss")]
@@ -158,15 +160,15 @@ public class EnemyData : ScriptableObject
     [Tooltip("Длительность зоны шока.")]
     [SerializeField] private float abilityDuration = 3f;
     [Tooltip("Урон в секунду зоны шока.")]
-    [SerializeField] private float abilityDps = 3f;
+    [SerializeField] private float abilityDps = 30f;
 
     [Header("Death Explosion")]
     [Tooltip("Сколько снарядов разлетается при смерти (0 = без взрыва).")]
     [SerializeField] private int deathExplosionProjectileCount = 8;
     [Tooltip("Скорость снарядов взрыва при смерти.")]
     [SerializeField] private float deathExplosionProjectileSpeed = 7f;
-    [Tooltip("Урон каждого снаряда взрыва при смерти.")]
-    [SerializeField] private float deathExplosionDamage = 6f;
+    [Tooltip("Урон каждого снаряда взрыва при смерти. Снаряды взрыва не понерфены вместе с обычными: кольцо летит вплотную и не уклоняется, поэтому делить его урон ещё сильнее было бы уже нечестно.")]
+    [SerializeField] private float deathExplosionDamage = 60f;
 
     [Header("Knockback")]
     [Tooltip("Устойчивость к отталкиванию: 0 — отлетает от попадания полностью, 1 — не двигается совсем (босс, элита, танк).")]

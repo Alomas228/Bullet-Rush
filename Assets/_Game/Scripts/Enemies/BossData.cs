@@ -10,14 +10,15 @@ public class BossData : ScriptableObject
     [SerializeField] private string bossName = "Boss";
 
     [Header("Base Stats")]
-    [SerializeField] private float maxHealth = 1000f;
+    [Tooltip("Все числа здесь — в масштабе ×10 к прежнему (игрок живёт 100 HP). Урон способностей по номеру волны НЕ масштабируется: к нему применяется только уровень «лёгкая / сложная», см. WaveDifficulty.")]
+    [SerializeField] private float maxHealth = 10000f;
     [SerializeField] private float moveSpeed = 1.5f;
-    [SerializeField] private float contactDamage = 10f;
+    [SerializeField] private float contactDamage = 100f;
 
     [Header("Ranged Attack")]
     [SerializeField] private float attackRange = 8f;
     [SerializeField] private float attackInterval = 1.5f;
-    [SerializeField] private float projectileDamage = 15f;
+    [SerializeField] private float projectileDamage = 114f;
     [SerializeField] private float projectileSpeed = 8f;
 
 
@@ -31,7 +32,7 @@ public class BossData : ScriptableObject
 
     [Header("Phase 1 Ability")]
     [SerializeField] private float phase1AbilityCooldown = 8f;
-    [SerializeField] private float phase1AbilityDamage = 25f;
+    [SerializeField] private float phase1AbilityDamage = 250f;
     [SerializeField] private float phase1AbilityRadius = 5f;
     [SerializeField] private float phase1AbilityWarningDuration = 2f;
 
@@ -53,7 +54,7 @@ public class BossData : ScriptableObject
 
     [Header("Phase 2 Ability")]
     [SerializeField] private float phase2AbilityCooldown = 6f;
-    [SerializeField] private float phase2AbilityDamage = 35f;
+    [SerializeField] private float phase2AbilityDamage = 350f;
     [SerializeField] private float phase2AbilityRadius = 5f;
     [SerializeField] private float phase2AbilityWarningDuration = 2f;
 
@@ -76,7 +77,7 @@ public class BossData : ScriptableObject
 
     [Header("Phase 3 Ability")]
     [SerializeField] private float phase3AbilityCooldown = 4f;
-    [SerializeField] private float phase3AbilityDamage = 50f;
+    [SerializeField] private float phase3AbilityDamage = 500f;
     [SerializeField] private float phase3AbilityRadius = 6f;
     [SerializeField] private float phase3AbilityWarningDuration = 1.5f;
 

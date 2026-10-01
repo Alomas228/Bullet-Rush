@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Tank
   enemyType: 2
-  maxHealth: 150
+  maxHealth: 1500
   moveSpeed: 1
-  contactDamage: 3
+  contactDamage: 30
   damageCooldown: 1.5
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 5
+  projectileDamage: 38
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1

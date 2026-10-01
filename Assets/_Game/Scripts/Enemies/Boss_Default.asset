@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: Boss_Default
   m_EditorClassIdentifier: Assembly-CSharp::BossData
   bossName: Boss
-  maxHealth: 1000
+  maxHealth: 10000
   moveSpeed: 1.5
-  contactDamage: 10
+  contactDamage: 100
   attackRange: 8
   attackInterval: 1.5
-  projectileDamage: 15
+  projectileDamage: 114
   projectileSpeed: 8
   phase1HealthPercent: 1
   phase1AbilityCooldown: 8
-  phase1AbilityDamage: 25
+  phase1AbilityDamage: 250
   phase1AbilityRadius: 5
   phase1AbilityWarningDuration: 2
   phase1SummonCooldown: 10
@@ -31,7 +31,7 @@ MonoBehaviour:
   phase2MoveSpeedMultiplier: 1.2
   phase2AttackIntervalMultiplier: 0.8
   phase2AbilityCooldown: 6
-  phase2AbilityDamage: 35
+  phase2AbilityDamage: 350
   phase2AbilityRadius: 5
   phase2AbilityWarningDuration: 2
   phase2SummonCooldown: 8
@@ -41,7 +41,7 @@ MonoBehaviour:
   phase3AttackIntervalMultiplier: 0.65
   phase3DamageMultiplier: 1.5
   phase3AbilityCooldown: 4
-  phase3AbilityDamage: 50
+  phase3AbilityDamage: 500
   phase3AbilityRadius: 6
   phase3AbilityWarningDuration: 1.5
   phase3SummonCooldown: 6

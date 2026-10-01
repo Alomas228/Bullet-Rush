@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Effect_ChainLightning_
   m_EditorClassIdentifier: Assembly-CSharp::ChainLightningEffectData
   chance: 0.2
-  damage: 5
+  damage: 50
   radius: 4
   maxTargets: 2

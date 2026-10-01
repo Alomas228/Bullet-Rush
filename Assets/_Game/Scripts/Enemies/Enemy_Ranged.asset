@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Ranged
   enemyType: 3
-  maxHealth: 35
+  maxHealth: 350
   moveSpeed: 1.5
-  contactDamage: 1
+  contactDamage: 10
   damageCooldown: 1
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 5
+  projectileDamage: 38
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1

@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: Enemy_Normal
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Enemy_Normal
-  maxHealth: 40
+  maxHealth: 400
   moveSpeed: 2
-  contactDamage: 1
+  contactDamage: 10
   damageCooldown: 1
   knockbackResistance: 0
   waveHealthPercent: 0.15
@@ -25,7 +25,7 @@ MonoBehaviour:
   enemyType: 0
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 5
+  projectileDamage: 38
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1

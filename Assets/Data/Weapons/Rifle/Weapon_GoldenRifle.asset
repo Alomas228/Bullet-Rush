@@ -23,7 +23,7 @@ MonoBehaviour:
   unlockLevel: 8
   price: 1500
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 10
+  damage: 100
   fireRate: 6
   projectileSpeed: 17
   projectileCount: 1

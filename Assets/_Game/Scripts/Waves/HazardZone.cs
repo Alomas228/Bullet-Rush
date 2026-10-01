@@ -9,7 +9,7 @@ public class HazardZone : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private float warningDuration = 1.4f;
     [SerializeField] private float radius = 3f;
-    [SerializeField] private float damagePerSecond = 3f;
+    [SerializeField] private float damagePerSecond = 30f;
     [SerializeField] private float duration = 4f;
     [SerializeField] private float growMultiplier = 1.8f;
     [SerializeField] private float damageTickInterval = 0.5f;

@@ -4,7 +4,8 @@ public class PlayerHealth : MonoBehaviour
 {
     public static PlayerHealth Instance { get; private set; }
 
-    [SerializeField] private float maxHealth = 10f;
+    [Tooltip("Базовое здоровье игрока. Все урон и лечение в игре приведены к этому же масштабу, поэтому 100 условных единиц — это ровно то же 10, что было раньше, просто в читаемых числах.")]
+    [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float healTickInterval = 0.5f;
 
     [Header("Screen Shake")]

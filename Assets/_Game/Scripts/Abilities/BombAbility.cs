@@ -3,7 +3,8 @@ using UnityEngine;
 public class BombAbility : MonoBehaviour
 {
     [Header("Settings")]
-    [SerializeField] private float baseDamage = 5f;
+    [Tooltip("Урон бомбы. Масштаб ×10 к прежнему — как и весь остальной урон в игре, игрок живёт 100 HP.")]
+    [SerializeField] private float baseDamage = 50f;
     [SerializeField] private float radius = 5f;
     [SerializeField] private float cooldown = 8f;
 

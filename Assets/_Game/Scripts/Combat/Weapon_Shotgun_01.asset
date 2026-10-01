@@ -17,7 +17,7 @@ MonoBehaviour:
   weaponType: 1
   rarity: 0
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 1
+  damage: 10
   fireRate: 1.5
   projectileSpeed: 12
   projectileCount: 5
