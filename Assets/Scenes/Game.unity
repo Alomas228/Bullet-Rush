@@ -20349,7 +20349,7 @@ MonoBehaviour:
   upgradeUI: {fileID: 750808759}
   worldGenerator: {fileID: 1135991941}
   eventDirector: {fileID: 0}
-  enemyCountMultiplier: 2
+  enemyCountMultiplier: 1.7
   startingEnemies: 5
   enemiesAddedPerWave: 3
   bossWaveInterval: 10
@@ -20371,6 +20371,8 @@ MonoBehaviour:
   waveCompleteDisplayTime: 0.6
   bossWaveCompleteDisplayTime: 1.4
   postUpgradeDelay: 0.35
+  structureTransitionWait: 1.2
+  structureTransitionTimeout: 4
 --- !u!4 &911471529
 Transform:
   m_ObjectHideFlags: 0
@@ -27331,6 +27333,9 @@ MonoBehaviour:
   spawnStagger: 0.1
   scaleInDuration: 0.25
   structuresPerTick: 4
+  quickScaleInDuration: 0.18
+  quickStagger: 0.015
+  quickFadeOutScale: 0.6
   structureLayerName: World
 --- !u!4 &1135991942
 Transform:
@@ -28145,6 +28150,11 @@ MonoBehaviour:
   sfxVolume: 1
   uiVolume: 0.8
   musicVolume: 0.5
+  sfxVoices: 24
+  repeatCooldownMedium: 0.035
+  repeatCooldownLow: 0.09
+  maxSfxDistance: 28
+  falloffStartDistance: 8
 --- !u!4 &1165344368
 Transform:
   m_ObjectHideFlags: 0

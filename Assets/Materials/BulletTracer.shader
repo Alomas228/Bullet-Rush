@@ -19,6 +19,14 @@
 // ВАЖНО: общий код лежит в BulletTracerVfx.hlsl, а не в
 // HLSLINCLUDE на уровне SubShader. HLSLINCLUDE в таком виде
 // Unity 6 не парсит, и шейдер целиком выпадает из импорта.
+//
+// ИНСТАНСИНГ. Шейдер умеет и обычный MeshRenderer, и пачку
+// через Graphics.RenderMeshInstanced (трассеры пуль едут пачкой).
+// Для второго нужны multi_compile_instancing и UNITY_SETUP_INSTANCE_ID
+// в Vert, а также target 3.5: ниже SV_InstanceID недоступен.
+// Вспышки попадания и осколки идут через MeshRenderer и берут
+// неинстансированный вариант, для них оба макроса раскрываются
+// в ничто.
 // ============================================================
 
 Shader "Custom/Bullet Rush VFX Additive"
@@ -66,9 +74,10 @@ Shader "Custom/Bullet Rush VFX Additive"
             ColorMask RGB
 
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile_instancing
             #pragma editor_sync_compilation
             #include "BulletTracerVfx.hlsl"
             ENDHLSL
@@ -86,9 +95,10 @@ Shader "Custom/Bullet Rush VFX Additive"
             ColorMask RGB
 
             HLSLPROGRAM
-            #pragma target 2.0
+            #pragma target 3.5
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile_instancing
             #pragma editor_sync_compilation
             #include "BulletTracerVfx.hlsl"
             ENDHLSL

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Разделяемые ресурсы VFX: одиннадцать материалов и две сетки на весь забег.
+/// Разделяемые ресурсы VFX: материалы и сетки на весь забег.
 ///
 /// Всё создаётся лениво, ровно один раз, и дальше только переиспользуется.
 /// Ни один эффект не создаёт себе Material/mesh в рантайме.
@@ -136,6 +136,8 @@ public static class VfxSharedAssets
                     TracerGlowColor,
                     TracerCoreColor,
                     DefaultIntensity);
+
+                EnableInstancing(tracerMaterial);
             }
 
             return tracerMaterial;
@@ -159,10 +161,28 @@ public static class VfxSharedAssets
                     EnemyTracerGlowColor,
                     EnemyTracerCoreColor,
                     EnemyIntensity);
+
+                EnableInstancing(enemyTracerMaterial);
             }
 
             return enemyTracerMaterial;
         }
+    }
+
+    /// <summary>
+    /// GPU-инстансинг на материале трассеров. Без этого флага
+    /// Graphics.RenderMeshInstanced бросает InvalidOperationException.
+    ///
+    /// Ставится только на два материала трассеров: остальные VFX
+    /// по-прежнему рисуются обычными MeshRenderer, и лишний
+    /// инстансинг-вариант им не нужен.
+    /// </summary>
+    private static void EnableInstancing(Material material)
+    {
+        if (material == null)
+            return;
+
+        material.enableInstancing = true;
     }
 
     /// <summary>
@@ -708,6 +728,117 @@ public static class VfxSharedAssets
     }
 
     // =========================================================
+    // TRACER QUADS (ОБЩИЕ, ДЛЯ ИНСТАНСИНГА)
+    // =========================================================
+
+    private static Mesh tracerTailMesh;
+    private static Mesh tracerCoreMesh;
+
+    /// <summary>
+    /// Единичный квад хвоста: X от -1 (хвост) до 0 (голова),
+    /// Y от -0.5 до 0.5. Форма зашита в UV1.x = -1, поэтому шейдер
+    /// берёт спад по длине, а не по радиусу.
+    ///
+    /// Геометрия та же, что у StreakMesh, но это ДРУГой меш: у
+    /// StreakMesh канала UV1 нет, и форма приходит из материала
+    /// (_RadialMode). Для инстансов материал общий на всех, а
+    /// хвост и ядро лежат в разных вызовах отрисовки, поэтому
+    /// форму приходится задавать на самом меше.
+    ///
+    /// Масштаб приходит из матрицы инстанса: X - длина хвоста,
+    /// Y - её ширина.
+    /// </summary>
+    public static Mesh TracerTailMesh
+    {
+        get
+        {
+            if (tracerTailMesh == null)
+                tracerTailMesh = BuildShapeQuad(
+                    "VfxTracerTailQuad",
+                    -1f,
+                    0f,
+                    -1f);
+
+            return tracerTailMesh;
+        }
+    }
+
+    /// <summary>
+    /// Единичный квад ядра: X и Y от -0.5 до 0.5, то есть квад
+    /// квадратный - масштабируется одинаково по обеим осям и
+    /// остаётся круглым после поворота объекта к камере.
+    /// Форма зашита в UV1.x = +1 (радиальный спад).
+    /// </summary>
+    public static Mesh TracerCoreMesh
+    {
+        get
+        {
+            if (tracerCoreMesh == null)
+                tracerCoreMesh = BuildShapeQuad(
+                    "VfxTracerCoreQuad",
+                    -0.5f,
+                    0.5f,
+                    1f);
+
+            return tracerCoreMesh;
+        }
+    }
+
+    private static Mesh BuildShapeQuad(
+        string name,
+        float minX,
+        float maxX,
+        float shape)
+    {
+        Vector3[] vertices =
+        {
+            new Vector3(minX, -0.5f, 0f),
+            new Vector3(minX,  0.5f, 0f),
+            new Vector3(maxX, -0.5f, 0f),
+            new Vector3(maxX,  0.5f, 0f)
+        };
+
+        Vector2[] uvs =
+        {
+            new Vector2(0f, 0f),
+            new Vector2(0f, 1f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f)
+        };
+
+        Vector2[] shapes = new Vector2[4];
+
+        for (int i = 0; i < shapes.Length; i++)
+            shapes[i] = new Vector2(shape, 0f);
+
+        int[] triangles = { 0, 2, 1, 2, 3, 1 };
+
+        Mesh mesh = new Mesh
+        {
+            name = name,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.SetUVs(1, shapes);
+        mesh.triangles = triangles;
+
+        // Бокс задаётся руками, а не RecalculateBounds: квад плоский,
+        // и по нему считается отсечение всего батча целиком.
+        // Нулевая толщина по Z отсекала бы инстансы у камеры,
+        // поэтому Z задаётся с запасом.
+        mesh.bounds = new Bounds(
+            new Vector3((minX + maxX) * 0.5f, 0f, 0f),
+            new Vector3(maxX - minX, 1f, 2f));
+
+        // Сетка неизменяемая: убираем копию в CPU-памяти.
+        mesh.UploadMeshData(true);
+
+        return mesh;
+    }
+
+    // =========================================================
     // RENDERER SETUP
     // =========================================================
 
@@ -842,6 +973,8 @@ public static class VfxSharedAssets
         shaderWarningLogged = false;
         streakMesh = null;
         centeredMesh = null;
+        tracerTailMesh = null;
+        tracerCoreMesh = null;
         cachedCamera = null;
     }
 

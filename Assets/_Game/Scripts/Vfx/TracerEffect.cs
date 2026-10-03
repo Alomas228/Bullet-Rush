@@ -26,32 +26,26 @@ using UnityEngine;
 /// выдана под новый выстрел - иначе хвост прыгнул бы на чужую
 /// пулю.
 ///
-/// ПОЧЕМУ ХВОСТ И ЯДРО В ОДНОМ МЕШЕ. Снаряд раньше стоил
-/// 2 draw call: MeshRenderer трассера плюс MeshRenderer шара на
-/// самом снаряде (у Sphere-префаба он был отдельным объектом).
-/// SRP Batcher эти два рендерера не складывает в один вызов, а
-/// инстансинг не применим: у шара и у хвоста разные меши и
-/// разные шейдеры. Единственный способ получить один вызов -
-/// держать обе части в одном меше на одном шейдере, поэтому
-/// круглое ядро въехало в меш трассера как второй квад.
+/// ПОЧЕМУ ХВОСТ И ЯДРО В ДВУХ ОТДЕЛЬНЫХ КВАДОВ. Раньше они были
+/// одним мешем с двумя квадами, и всё держалось на двух вещах:
+/// разные размеры были зашиты прямо в вершины, а форма выбиралась
+/// в шейдере через UV1 (см. BulletTracerVfx.hlsl). С переходом на
+/// GPU-инстансинг первый пункт стал невозможен - у всех инстансов
+/// обязан быть один и тот же меш. Теперь каждый квад отдельным
+/// мешем, а длина и ширина приходят из матрицы инстанса; рисовает
+/// всё TracerBatcher. На видимый результат это не влияет: те же
+/// UV, та же форма, тот же фрагментный шейдер.
 ///
-/// Форма квада выбирается в шейдере через UV1 (см.
-/// BulletTracerVfx.hlsl): 0 - хвост, 1 - круглое свечение.
-/// Раньше форма задавалась одним _RadialMode на материал, и в
-/// одном материале жить двум формам было нельзя.
+/// Форма квада задаётся на самом меше (UV1.x): у хвоста -1, у
+/// ядра +1. Раньше это держалось тем же каналом в том же меше,
+/// теперь каналов два, но значения прежние.
 ///
-/// Размеры пишутся прямо в вершины, а не в localScale: хвост
-/// растягивается по X, а ядро обязано остаться круглым, и
-/// localScale с двумя разными коэффициентами растянул бы ядро в
-/// овал. Меш перезаписывается каждый кадр (едет за пулей и
-/// гаснет), поэтому он динамический и свой у каждого экземпляра
-/// пула. Буферы выделяются один раз в Awake.
+/// Затухание тоже больше не пишет в вершины: это просто
+/// масштаб матрицы. Побочный плюс - исчезли перезаписи
+/// vertexBuffer каждый кадр на каждом трассере.
 ///
-/// Форма (белое ядро + оранжевое свечение) считается в шейдере
-/// из UV квада: ни текстур, ни сэмплов. Затухание сделано через
-/// размер вершин, а не через цвет: одна запись в буфер меша
-/// вместо пересборки геометрии или MaterialPropertyBlock (тот
-/// ломает SRP Batcher).
+/// Объект в пуле больше не содержит рендерера вовсе: ни MeshRenderer,
+/// ни MeshFilter. Рисует батчер.
 /// </summary>
 public sealed class TracerEffect : VfxEffect
 {
@@ -132,8 +126,6 @@ public sealed class TracerEffect : VfxEffect
     /// </summary>
     public const float DefaultCoreSize = 0.1f;
 
-    private const int Quads = 2;
-
     [Header("Visual")]
     [SerializeField, Tooltip("Ширина трассера: доля высоты экрана (0.01 = 1%)")]
     private float width = DefaultWidth;
@@ -169,8 +161,26 @@ public sealed class TracerEffect : VfxEffect
     private float fullLength;
     private float fullWidth;
 
-    private Vector3[] vertexBuffer;
-    private Mesh mesh;
+    /// <summary>
+    /// Насколько сейчас развёрнута форма: 1 - полная, 0 - схлопнута.
+    /// Раньше это значение писалось прямо в вершины меша, теперь его
+    /// читает TracerBatcher и раскладывает по масштабу матриц
+    /// инстансов. Пока трассер летит с пулёй, значение равно 1 и
+    /// матрица не меняется вовсе - меняется только позиция.
+    /// </summary>
+    internal float Retract = 1f;
+
+    /// <summary>
+    /// Стоит ли трассер в очереди на отрисовку. Ставится батчером
+    /// при Play и снимается при возврате в пул; очередь чистится
+    /// в LateUpdate батчера.
+    /// </summary>
+    internal bool Batched;
+
+    internal bool EnemyStyle
+    {
+        get { return enemyStyle; }
+    }
 
     /// <summary>
     /// Шаблон для пула, когда префаб не задан. Создаётся один раз.
@@ -219,99 +229,49 @@ public sealed class TracerEffect : VfxEffect
     private void Awake()
     {
         gameObject.name = enemyStyle ? "EnemyTracer" : "Tracer";
-
-        AllocateState();
-        BuildMesh();
-
-        VfxSharedAssets.SetupRenderer(
-            gameObject.GetComponent<MeshRenderer>(),
-            mesh,
-            enemyStyle
-                ? VfxSharedAssets.EnemyTracerMaterial
-                : VfxSharedAssets.TracerMaterial
-        );
     }
 
-    private void AllocateState()
+    /// <summary>
+    /// Матрицы инстансов для хвоста и ядра.
+    ///
+    /// Размеры, которые раньше писались в вершины, теперь идут в
+    /// масштаб матрицы. Хвост тянется по X на всю длину и по Y на
+    /// свою ширину, поэтому его масштаб неравномерный; ядро
+    /// квадратное и масштабируется по обеим осям одинаково, чтобы
+    /// после поворота к камере остаться круглым.
+    ///
+    /// Матрица собирается умножением базиса на Scale, а не через
+    /// Matrix4x4.TRS: TRS с неравномерным масштабом и поворотом
+    /// даёт матрицу, из которой нельзя корректно восстановить
+    /// нормали, а инстансинг Unity считает ещё и worldToObject.
+    /// Нам transforms нужны только позиции, но лишней зависимости от
+    /// этого поведения в VFX не хочется.
+    /// </summary>
+    internal void BuildMatrices(
+        Vector3 position,
+        Quaternion rotation,
+        out Matrix4x4 tail,
+        out Matrix4x4 core)
     {
-        vertexBuffer = new Vector3[Quads * 4];
-    }
+        float lengthNow = fullLength * Retract;
 
-    private void BuildMesh()
-    {
-        mesh = new Mesh
-        {
-            name = enemyStyle
-                ? "VfxEnemyTracerWithCore"
-                : "VfxTracerWithCore",
-            hideFlags = HideFlags.HideAndDontSave
-        };
+        float widthNow =
+            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, Retract);
 
-        // Меш перезаписывается каждый кадр: он едет за пулей и
-        // гаснет. Без MarkDynamic Unity считает меш статическим и
-        // перезаливает буфер как static.
-        mesh.MarkDynamic();
+        float sideNow = coreSize * Retract;
 
-        Vector2[] uvs = new Vector2[Quads * 4];
-        Vector2[] shapeOverrides = new Vector2[Quads * 4];
-        int[] triangles = new int[Quads * 6];
+        Matrix4x4 basis = Matrix4x4.TRS(position, rotation, Vector3.one);
 
-        // Квад 0 - хвост. Ось X от -1 (хвост) до 0 (голова), так
-        // же, как в VfxSharedAssets.StreakMesh: U = 1 у головы.
-        uvs[0] = new Vector2(0f, 0f);
-        uvs[1] = new Vector2(0f, 1f);
-        uvs[2] = new Vector2(1f, 0f);
-        uvs[3] = new Vector2(1f, 1f);
+        // Хвост: меш от -1 до 0 по X и от -0.5 до 0.5 по Y, поэтому
+        // масштаб идёт полными величинами - длиной и шириной.
+        tail = basis * Matrix4x4.Scale(
+            new Vector3(lengthNow, widthNow, 1f));
 
-        // Квад 1 - круглое ядро по центру квадрата.
-        uvs[4] = new Vector2(0f, 0f);
-        uvs[5] = new Vector2(0f, 1f);
-        uvs[6] = new Vector2(1f, 0f);
-        uvs[7] = new Vector2(1f, 1f);
-
-        // -1 = хвост, 1 = круглое свечение. Раньше форма была
-        // одна на материал (_RadialMode), и в одном материале
-        // хвост и ядро ужиться не могли.
-        for (int i = 0; i < 4; i++)
-        {
-            shapeOverrides[i] = new Vector2(-1f, 0f);
-            shapeOverrides[i + 4] = new Vector2(1f, 0f);
-        }
-
-        triangles[0] = 0;
-        triangles[1] = 2;
-        triangles[2] = 1;
-        triangles[3] = 2;
-        triangles[4] = 3;
-        triangles[5] = 1;
-
-        triangles[6] = 4;
-        triangles[7] = 6;
-        triangles[8] = 5;
-        triangles[9] = 6;
-        triangles[10] = 7;
-        triangles[11] = 5;
-
-        mesh.vertices = vertexBuffer;
-        mesh.uv = uvs;
-        mesh.SetUVs(1, shapeOverrides);
-        mesh.triangles = triangles;
-
-        // Хвост уходит назад по X, поэтому бокс должен покрывать
-        // и MaxLength, и CoreSize. Задаётся руками: с нулевым
-        // боксом трассер вылетел бы из frustum culling.
-        float extent = Mathf.Max(MaxLength, DefaultCoreSize) + 1f;
-
-        mesh.bounds = new Bounds(
-            new Vector3(-MaxLength * 0.5f, 0f, 0f),
-            new Vector3(extent * 2f, extent * 2f, extent * 2f)
-        );
-
-        MeshRenderer meshRenderer =
-            gameObject.GetComponent<MeshRenderer>();
-
-        if (meshRenderer == null)
-            meshRenderer = gameObject.AddComponent<MeshRenderer>();
+        // Ядро: меш - единичный квад (полная сторона 1), поэтому
+        // масштабом идёт сторона, а не полусторона. Иначе ядро
+        // получилось бы вдвое меньше прежнего.
+        core = basis * Matrix4x4.Scale(
+            new Vector3(sideNow, sideNow, 1f));
     }
 
     /// <summary>
@@ -340,18 +300,10 @@ public sealed class TracerEffect : VfxEffect
         transform.rotation =
             VfxSharedAssets.FaceDirection(direction);
 
-        // Масштаб объекта всегда единичный: длина и ширина пишутся
-        // в вершины, иначе ядро, у которого своя длина, растянулось
-        // бы тем же localScale.
-        transform.localScale = Vector3.one;
-
         followTarget = followBullet ? target : null;
         following = followTarget != null;
 
-        // Меш перезаписывается целиком на первом же кадре, но
-        // показывать до этого нечего: в буфере лежали бы нули от
-        // Awake и квад прорисовался бы точкой в точке попадания.
-        WriteMesh(1f);
+        Retract = 1f;
 
         // С пулей - едем до её смерти (с потолком maxFollowLifetime).
         // Без пули - сразу короткое затухание.
@@ -360,6 +312,10 @@ public sealed class TracerEffect : VfxEffect
                 ? maxFollowLifetime
                 : fadeLifetime
         );
+
+        // Последним: к этому моменту IsPlaying уже true, и батчер
+        // сразу подхватит трассер в ближайшем LateUpdate.
+        TracerBatcher.Register(this);
     }
 
     protected override void Tick(float deltaTime)
@@ -388,7 +344,7 @@ public sealed class TracerEffect : VfxEffect
                 transform.position = followTarget.position;
 
                 // Пока пуля жива, хвост и ядро полной формы.
-                WriteMesh(1f);
+                Retract = 1f;
                 return;
             }
 
@@ -418,45 +374,18 @@ public sealed class TracerEffect : VfxEffect
         // форму, последние кадры быстро уходит в ноль.
         float life = Mathf.Clamp01(TimeLeft / Duration);
 
-        WriteMesh(life * life);
-    }
-
-    /// <summary>
-    /// Сборка хвоста и ядра в меш. retract = 1 - полная форма,
-    /// 0 - всё схлопнуто.
-    /// </summary>
-    private void WriteMesh(float retract)
-    {
-        float lengthNow = fullLength * retract;
-
-        float widthNow =
-            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, retract);
-
-        float halfWidth = widthNow * 0.5f;
-
-        // Хвост: от головы (X = 0) назад по -X.
-        vertexBuffer[0] = new Vector3(-lengthNow, -halfWidth, 0f);
-        vertexBuffer[1] = new Vector3(-lengthNow, halfWidth, 0f);
-        vertexBuffer[2] = new Vector3(0f, -halfWidth, 0f);
-        vertexBuffer[3] = new Vector3(0f, halfWidth, 0f);
-
-        // Ядро: квад со стороной coreSize по центру головы.
-        // Сторона равна в обеих осях, поэтому после поворота
-        // объекта к камере ядро остаётся круглым.
-        float halfCore = coreSize * retract * 0.5f;
-
-        vertexBuffer[4] = new Vector3(-halfCore, -halfCore, 0f);
-        vertexBuffer[5] = new Vector3(-halfCore, halfCore, 0f);
-        vertexBuffer[6] = new Vector3(halfCore, -halfCore, 0f);
-        vertexBuffer[7] = new Vector3(halfCore, halfCore, 0f);
-
-        mesh.vertices = vertexBuffer;
+        Retract = life * life;
     }
 
     protected override void ReturnToPool()
     {
         followTarget = null;
         following = false;
+
+        // Снимаем с отрисовки до возврата в пул: объект переиспользуют
+        // следующим же выстрелом, и на кадр между возвратом и новым
+        // Play трассер не должен остаться в очереди на отрисовку.
+        TracerBatcher.Unregister(this);
 
         if (enemyStyle)
         {
