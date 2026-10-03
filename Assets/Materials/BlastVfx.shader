@@ -7,16 +7,17 @@
 // настоящий объём. Подробности в BlastVfx.hlsl.
 //
 // Стоимость на GPU:
-//   - 1 активный pass, 2 квада на взрыв (угли одним мешем,
-//     дым одним мешем) = 2 draw call;
+//   - 1 активный pass, а угли и дым со всех взрывов сцены
+//     уходят в батчер по одному вызову на слой (BlastBatcher);
 //   - 0 текстурных сэмплов: форма и край считаются
 //     в фрагментном шейдере из UV;
 //   - CBUFFER_START(UnityPerMaterial) => совместим с SRP Batcher;
 //   - ZWrite Off => порядок отрисовки слоёв не важен.
 //
-// ВАЖНО: общий код лежит в BlastVfx.hlsl, а не в HLSLINCLUDE
-// на уровне SubShader - HLSLINCLUDE в таком виде Unity 6
-// не парсит, и шейдер целиком выпадает из импорта.
+// Общий код лежит в BlastVfx.hlsl и подключается внутри pass:
+// этот же шейдер носит BurnFlameEffect, который рисуется обычным
+// MeshRenderer без инстансинга, и путь через атрибут COLOR должен
+// остаться рабочим.
 // ============================================================
 
 Shader "Custom/Bullet Rush VFX Blast"
@@ -79,9 +80,20 @@ Shader "Custom/Bullet Rush VFX Blast"
             ColorMask RGB
 
             HLSLPROGRAM
-            #pragma target 2.0
             #pragma vertex Vert
             #pragma fragment Frag
+            // БЕЗ "#pragma target 4.5":StructuredBuffer в
+            // вершинном шейдере требует SM 4.5, и эта строка
+            // отключала инстансинг - шейдер уходил на вариант без
+            // UNITY_INSTANCING_ON. Цвет берётся из instanced-свойства
+            // и SM 4.5 не нужен.
+            //
+            // Угли и дым рисуются пачкой через
+            // Graphics.RenderMeshInstanced, цвет квада приходит
+            // per-instance из структуры инстанса. Тот же шейдер носит
+            // BurnFlameEffect - у него инстансинг выключен, и он
+            // берёт цвет из атрибута COLOR.
+            #pragma multi_compile_instancing
             #pragma editor_sync_compilation
             #include "BlastVfx.hlsl"
             ENDHLSL
@@ -99,9 +111,10 @@ Shader "Custom/Bullet Rush VFX Blast"
             ColorMask RGB
 
             HLSLPROGRAM
-            #pragma target 2.0
+            // Без "#pragma target 4.5" - см. первый pass.
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile_instancing
             #pragma editor_sync_compilation
             #include "BlastVfx.hlsl"
             ENDHLSL

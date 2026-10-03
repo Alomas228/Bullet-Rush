@@ -10,9 +10,10 @@
 // настоящий объём (N·V, горячая кромка, Cull Off), а этот
 // шейдер для плоских билбордов.
 //
-// Лежит отдельным файлом, а не в HLSLINCLUDE на уровне SubShader:
-// HLSLINCLUDE в таком виде Unity 6 не парсит, и шейдер целиком
-// выпадает из импорта.
+// Подключается внутри pass, а не через HLSLINCLUDE на уровне
+// SubShader: этот же шейдер носит BurnFlameEffect, который
+// рисуется обычным MeshRenderer без инстансинга, и путь через
+// атрибут COLOR должен остаться рабочим.
 
 #ifndef BULLET_RUSH_BLAST_INCLUDED
 #define BULLET_RUSH_BLAST_INCLUDED
@@ -36,11 +37,39 @@ CBUFFER_START(UnityPerMaterial)
 
 CBUFFER_END
 
+// Per-instance цвет квада: стадия остывания углей и прозрачность
+// дыма у каждого квада своя.
+//
+// Приходит из MaterialPropertyBlock через SetVectorArray и читается
+// как обычное instanced-свойство, тем же instanceID, что и
+// матрица.
+//
+// Почему не часть структуры инстанса: RenderMeshInstanced
+// вытаскивает из пользовательской структуры только objectToWorld,
+// renderingLayerMask и prevObjectToWorld, а остальное игнорирует -
+// цвет остался бы на CPU.
+//
+// Почему не StructuredBuffer: он требует SM 4.5 в вершинном
+// шейдере, а "#pragma target 4.5" здесь отключает инстансинг.
+//
+// Почему не instanced-свойство с MPB фиксированной длины вслепую:
+// у SetVectorArray длина массива не меняется после первой записи
+// ("The array length can't be changed once it has been added to the
+// block"), поэтому BlastBatchBuffer всегда отдаёт массив ровно из
+// 511 элементов.
+//
+// Без инстансинга (BurnFlameEffect, обычный MeshRenderer) путь
+// прежний: цвет берётся из атрибута COLOR.
+UNITY_INSTANCING_BUFFER_START(BlastPerInstance)
+    UNITY_DEFINE_INSTANCED_PROP(float4, _BlastColor)
+UNITY_INSTANCING_BUFFER_END(BlastPerInstance)
+
 struct Attributes
 {
     float4 positionOS : POSITION;
     float2 uv : TEXCOORD0;
     half4 color : COLOR;
+    UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
 struct Varyings
@@ -52,13 +81,24 @@ struct Varyings
 
 Varyings Vert(Attributes input)
 {
+    // Instance ID нужен и матрице квада, и per-instance цвету.
+    // Без этой строки все угли и клубы дыма легли бы в одну точку.
+    UNITY_SETUP_INSTANCE_ID(input);
     Varyings output;
 
     output.positionHCS =
         TransformObjectToHClip(input.positionOS.xyz);
 
     output.uv = input.uv;
-    output.color = input.color;
+
+    // UNITY_INSTANCING_ENABLED - корректная проверка варианта.
+    // UNITY_INSTANCING_ON - имя keyword'а, а не макрос для ветвления.
+    #if defined(UNITY_INSTANCING_ENABLED)
+        output.color = UNITY_ACCESS_INSTANCED_PROP(
+            BlastPerInstance, _BlastColor);
+    #else
+        output.color = input.color;
+    #endif
 
     return output;
 }

@@ -173,9 +173,10 @@ public static class VfxSharedAssets
     /// GPU-инстансинг на материале трассеров. Без этого флага
     /// Graphics.RenderMeshInstanced бросает InvalidOperationException.
     ///
-    /// Ставится только на два материала трассеров: остальные VFX
-    /// по-прежнему рисуются обычными MeshRenderer, и лишний
-    /// инстансинг-вариант им не нужен.
+    /// Ставится только на те материалы, которые рисует батчер
+    /// (трассеры и три слоя взрыва): остальные VFX по-прежнему
+    /// рисуются обычными MeshRenderer, и лишний инстансинг-вариант
+    /// им не нужен.
     /// </summary>
     private static void EnableInstancing(Material material)
     {
@@ -305,8 +306,12 @@ public static class VfxSharedAssets
         get
         {
             if (explosionSphereMaterial == null)
+            {
                 explosionSphereMaterial =
                     CreateExplosionSphereMaterial();
+
+                EnableInstancing(explosionSphereMaterial);
+            }
 
             return explosionSphereMaterial;
         }
@@ -359,6 +364,8 @@ public static class VfxSharedAssets
                     1.2f,
                     2f,
                     0.12f);
+
+                EnableInstancing(blastEmberMaterial);
             }
 
             return blastEmberMaterial;
@@ -385,6 +392,8 @@ public static class VfxSharedAssets
                     0.5f,
                     2.5f,
                     0.2f);
+
+                EnableInstancing(blastSmokeMaterial);
             }
 
             return blastSmokeMaterial;
@@ -650,6 +659,8 @@ public static class VfxSharedAssets
 
     private static Mesh streakMesh;
     private static Mesh centeredMesh;
+    private static Mesh blastFireballMesh;
+    private static Mesh blastQuadMesh;
 
     /// <summary>
     /// Квад 1x1, pivot у головы: X от -1 до 0, Y от -0.5 до 0.5.
@@ -688,6 +699,130 @@ public static class VfxSharedAssets
 
             return centeredMesh;
         }
+    }
+
+    // Единичный квад со стороной 1: X и Y от -0.5 до 0.5, центр в
+    // pivot. Общий для углей и дыма - форму круга рисует
+    // BlastVfx.hlsl по UV, а размер приходит из матрицы инстанса,
+    // а per-instance цвет - из массива _BlastColor, который ведёт
+    // батчер через MaterialPropertyBlock.
+    public static Mesh BlastQuadMesh
+    {
+        get
+        {
+            if (blastQuadMesh == null)
+                blastQuadMesh = BuildQuad(
+                    "VfxBlastQuad",
+                    -0.5f,
+                    0.5f
+                );
+
+            return blastQuadMesh;
+        }
+    }
+
+    /// <summary>
+    /// Сфера радиуса 0.5 для огненного шара: 14x9 сегментов,
+    /// 150 вершин. Нормали шейдер берёт из самой позиции вершины,
+    /// поэтому атрибут normal не нужен - на сфере радиус-вектор
+    /// и есть нормаль.
+    ///
+    /// Меш общий на все взрывы: без инстансинга у каждого свой
+    /// меш означал бы свой draw call на взрыв, а стадия остывания
+    /// теперь приходит per-instance цветом.
+    /// </summary>
+    public static Mesh BlastFireballMesh
+    {
+        get
+        {
+            if (blastFireballMesh == null)
+                blastFireballMesh = BuildSphereMesh(
+                    "VfxBlastFireball",
+                    14,
+                    9);
+
+            return blastFireballMesh;
+        }
+    }
+
+    private static Mesh BuildSphereMesh(
+        string name,
+        int segments,
+        int rings)
+    {
+        Vector3[] vertices =
+            new Vector3[(segments + 1) * (rings + 1)];
+
+        Vector2[] uvs = new Vector2[(segments + 1) * (rings + 1)];
+        int[] triangles = new int[segments * rings * 6];
+
+        for (int ring = 0; ring <= rings; ring++)
+        {
+            float v = ring / (float)rings;
+            float phi = v * Mathf.PI;
+
+            float sin = Mathf.Sin(phi);
+            float cos = Mathf.Cos(phi);
+
+            for (int segment = 0; segment <= segments; segment++)
+            {
+                float u = segment / (float)segments;
+                float theta = u * Mathf.PI * 2f;
+
+                int index = ring * (segments + 1) + segment;
+
+                vertices[index] = new Vector3(
+                    sin * Mathf.Cos(theta),
+                    cos,
+                    sin * Mathf.Sin(theta)
+                ) * 0.5f;
+
+                uvs[index] = new Vector2(u, 1f - v);
+            }
+        }
+
+        int cursor = 0;
+
+        for (int ring = 0; ring < rings; ring++)
+        {
+            for (int segment = 0; segment < segments; segment++)
+            {
+                int bottomLeft = ring * (segments + 1) + segment;
+                int bottomRight = bottomLeft + 1;
+                int topLeft = bottomLeft + segments + 1;
+                int topRight = topLeft + 1;
+
+                triangles[cursor++] = bottomLeft;
+                triangles[cursor++] = topLeft;
+                triangles[cursor++] = bottomRight;
+
+                triangles[cursor++] = topLeft;
+                triangles[cursor++] = topRight;
+                triangles[cursor++] = bottomRight;
+            }
+        }
+
+        Mesh mesh = new Mesh
+        {
+            name = name,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+
+        // Меш не меняется после создания: ни цвета, ни вершин
+        // effect больше в него не пишет. Поэтому границы задаются
+        // руками и UploadMeshData(true) - без CPU-копии.
+        mesh.bounds = new Bounds(
+            Vector3.zero,
+            new Vector3(1f, 1f, 1f)
+        );
+
+        mesh.UploadMeshData(true);
+
+        return mesh;
     }
 
     private static Mesh BuildQuad(string name, float minX, float maxX)
@@ -973,6 +1108,8 @@ public static class VfxSharedAssets
         shaderWarningLogged = false;
         streakMesh = null;
         centeredMesh = null;
+        blastFireballMesh = null;
+        blastQuadMesh = null;
         tracerTailMesh = null;
         tracerCoreMesh = null;
         cachedCamera = null;
