@@ -10,16 +10,18 @@
 /// что у Particle System на каждый эмиттер свой набор шейдерных
 /// вариантов и своя сортировка.
 ///
-/// Главное отличие от ImpactEffect по стоимости: все капли
-/// effect'а собраны в ОДИН меш на объекте, поэтому попадание
-/// целиком стоит 1 draw call (у ImpactEffect вспышка + 3 осколка
-/// = 4). Затухание идёт через vertex color, а не через
-/// localScale: капли летят по разным направлениям, и у каждой
-/// своя прозрачность.
+/// Затухание идёт через vertex color, а не через localScale:
+/// капли летят по разным направлениям, и у каждой своя
+/// прозрачность.
 ///
-/// Меш свой у каждого экземпляра пула, потому что вершины
-/// пересобираются каждый кадр. Буферы вершин и цветов
-/// выделяются один раз в Awake: в рантайме аллокаций нет.
+/// Своего рендерера у эффекта нет вообще. Все капли всех
+/// попаданий собирает BloodBatcher в один общий меш и рисует
+/// одним MeshRenderer'ом, а BloodEffect остаётся чистым
+/// состоянием: считает капли в локальных координатах билборда
+/// и отдаёт батчеру готовые квады. Локальные буферы вершин и
+/// цветов выделяются один раз в Awake: в рантайме аллокаций
+/// нет, и каждый pooled-эффект стоит только свои шесть массивов
+/// состояния.
 ///
 /// Симуляция целиком в локальных координатах эффекта: объект
 /// стоит в точке попадания и развёрнут билбордом к камере
@@ -59,7 +61,7 @@ public sealed class BloodEffect : VfxEffect
     /// </summary>
     public const float DefaultSpread = 0.8f;
 
-    private const int MaxDroplets = 12;
+    internal const int MaxDroplets = 12;
 
     private static readonly Color32 InvisibleColor =
         new Color32(0, 0, 0, 0);
@@ -98,13 +100,35 @@ public sealed class BloodEffect : VfxEffect
     private float[] dropletBaseSize;
     private float[] dropletShade;
 
-    // Буферы меша: по 4 вершины и 4 цвета на каплю.
+    // Буферы квадов: по 4 вершины и 4 цвета на каплю, в
+    // локальных координатах эффекта. Их забирает BloodBatcher.
     private Vector3[] vertexBuffer;
     private Color32[] colorBuffer;
 
-    private Mesh mesh;
     private Vector3 localGravity;
     private int activeDroplets;
+
+    /// <summary>
+    /// Эффект рисуется общим мешем BloodBatcher, а не своим
+    /// MeshRenderer'ом.
+    /// </summary>
+    internal bool Batched;
+
+    /// <summary>
+    /// Позиция в статическом массиве BloodBatcher: удаление
+    /// за O(1) вместо поиска по массиву.
+    /// </summary>
+    internal int BatchIndex = -1;
+
+    internal Vector3[] LocalVertices
+    {
+        get { return vertexBuffer; }
+    }
+
+    internal Color32[] LocalColors
+    {
+        get { return colorBuffer; }
+    }
 
     /// <summary>
     /// Шаблон для пула, когда префаб не задан. Создаётся один раз.
@@ -124,7 +148,6 @@ public sealed class BloodEffect : VfxEffect
         gameObject.name = "BloodBurst";
 
         AllocateState();
-        BuildMesh();
     }
 
     private void AllocateState()
@@ -138,67 +161,6 @@ public sealed class BloodEffect : VfxEffect
 
         vertexBuffer = new Vector3[MaxDroplets * 4];
         colorBuffer = new Color32[MaxDroplets * 4];
-    }
-
-    private void BuildMesh()
-    {
-        mesh = new Mesh
-        {
-            name = "VfxBloodDroplets",
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        // Меш перезаписывается каждый кадр: без MarkDynamic Unity
-        // считает его статическим и перезаливает буфер как static.
-        mesh.MarkDynamic();
-
-        Vector2[] uvs = new Vector2[MaxDroplets * 4];
-        int[] triangles = new int[MaxDroplets * 6];
-
-        for (int i = 0; i < MaxDroplets; i++)
-        {
-            int vertex = i * 4;
-
-            uvs[vertex + 0] = new Vector2(0f, 0f);
-            uvs[vertex + 1] = new Vector2(0f, 1f);
-            uvs[vertex + 2] = new Vector2(1f, 0f);
-            uvs[vertex + 3] = new Vector2(1f, 1f);
-
-            int triangle = i * 6;
-
-            triangles[triangle + 0] = vertex + 0;
-            triangles[triangle + 1] = vertex + 2;
-            triangles[triangle + 2] = vertex + 1;
-            triangles[triangle + 3] = vertex + 2;
-            triangles[triangle + 4] = vertex + 3;
-            triangles[triangle + 5] = vertex + 1;
-        }
-
-        mesh.vertices = vertexBuffer;
-        mesh.colors32 = colorBuffer;
-        mesh.uv = uvs;
-        mesh.triangles = triangles;
-
-        // Капли улетают на 2-3 единицы от точки попадания, а сам
-        // эффект стоит в этой точке: локального бокса 8 единиц
-        // хватает с запасом. RecalculateBounds каждый кадр не
-        // нужен, а без заданного бокса эффект вылетел бы из
-        // frustum culling, как только капли разлетелись.
-        mesh.bounds = new Bounds(
-            Vector3.zero,
-            new Vector3(8f, 8f, 8f)
-        );
-
-        MeshRenderer renderer = gameObject.GetComponent<MeshRenderer>();
-
-        if (renderer == null)
-            renderer = gameObject.AddComponent<MeshRenderer>();
-
-        VfxSharedAssets.SetupRenderer(
-            renderer,
-            mesh,
-            VfxSharedAssets.BloodMaterial
-        );
     }
 
     /// <summary>
@@ -278,6 +240,8 @@ public sealed class BloodEffect : VfxEffect
         // непрозрачным цветом. Перезаписываем целиком.
         WriteBuffers();
 
+        BloodBatcher.Register(this);
+
         BeginPlay(longest);
     }
 
@@ -320,7 +284,8 @@ public sealed class BloodEffect : VfxEffect
     }
 
     /// <summary>
-    /// Сборка капель в меш. Идём по всем MaxDroplets, а не по
+    /// Сборка капель в локальные буферы, которые потом забирает
+    /// BloodBatcher. Идём по всем MaxDroplets, а не по
     /// activeDroplets: у капли, которая уже погасла, и у капли
     /// сверх activeDroplets в буфере лежат старые вершины, и их
     /// надо затереть нулями, иначе они останутся висеть на экране
@@ -376,9 +341,6 @@ public sealed class BloodEffect : VfxEffect
             colorBuffer[vertex + 2] = color;
             colorBuffer[vertex + 3] = color;
         }
-
-        mesh.vertices = vertexBuffer;
-        mesh.colors32 = colorBuffer;
     }
 
     private void HideDroplet(int vertex)
@@ -396,6 +358,8 @@ public sealed class BloodEffect : VfxEffect
 
     protected override void ReturnToPool()
     {
+        BloodBatcher.Unregister(this);
+
         VfxPools.BloodBursts.Despawn(this);
     }
 }
