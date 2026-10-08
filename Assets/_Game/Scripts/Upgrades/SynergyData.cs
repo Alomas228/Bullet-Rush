@@ -19,7 +19,8 @@ public class SynergyData : ScriptableObject
     {
         Upgrade,
         Family,
-        DistinctFamilies
+        DistinctFamilies,
+        WeaponTaken
     }
 
     [System.Serializable]
@@ -29,6 +30,8 @@ public class SynergyData : ScriptableObject
             RequirementKind.Upgrade;
 
         [SerializeField] private UpgradeData upgrade;
+
+        [SerializeField] private WeaponData weapon;
 
         [SerializeField]
         private UpgradeFamily family = UpgradeFamily.None;
@@ -40,6 +43,8 @@ public class SynergyData : ScriptableObject
         public RequirementKind Kind => kind;
 
         public UpgradeData Upgrade => upgrade;
+
+        public WeaponData Weapon => weapon;
 
         public UpgradeFamily Family => family;
 
@@ -63,7 +68,12 @@ public class SynergyData : ScriptableObject
                            build.GetFamilyStacks(family) >= Count;
 
                 case RequirementKind.DistinctFamilies:
-                    return build.GetDistinctFamilyCount() >= Count;
+                    return build.GetDistinctFamilyCount(family) >= Count;
+
+                case RequirementKind.WeaponTaken:
+                    return weapon != null
+                        ? build.HasTakenWeapon(weapon)
+                        : build.GetDistinctWeaponCount() >= Count;
 
                 default:
                     return false;
@@ -87,7 +97,15 @@ public class SynergyData : ScriptableObject
                     );
 
                 case RequirementKind.DistinctFamilies:
-                    return families != UpgradeFamily.None;
+                    return families != UpgradeFamily.None &&
+                           (family == UpgradeFamily.None ||
+                            UpgradeFamilyUtility.Intersects(
+                                families,
+                                family
+                            ));
+
+                case RequirementKind.WeaponTaken:
+                    return false;
 
                 default:
                     return false;
@@ -113,9 +131,26 @@ public class SynergyData : ScriptableObject
 
     [SerializeField] private Rarity rarity = Rarity.Rare;
 
+    [Header("Availability")]
+    [Tooltip(
+        "Условие доступности: маска семейств, хотя бы одно из " +
+        "которых должно быть в билде. None — доступна всегда."
+    )]
+    [SerializeField]
+    private UpgradeFamily unlockFamily = UpgradeFamily.None;
+
     [Header("Requirements")]
+    [Tooltip("Обязательные условия активации.")]
     [SerializeField]
     private List<SynergyRequirement> requirements =
+        new List<SynergyRequirement>();
+
+    [Tooltip(
+        "Необязательные условия: не блокируют активацию, " +
+        "но выполняются — дают бонусные награды."
+    )]
+    [SerializeField]
+    private List<SynergyRequirement> optionalRequirements =
         new List<SynergyRequirement>();
 
     [Header("Rewards")]
@@ -123,14 +158,26 @@ public class SynergyData : ScriptableObject
     private List<UpgradeData> rewards =
         new List<UpgradeData>();
 
+    [SerializeField]
+    private List<UpgradeData> optionalRewards =
+        new List<UpgradeData>();
+
     public SynergyKind Kind => kind;
 
     public Rarity Rarity => rarity;
 
+    public UpgradeFamily UnlockFamily => unlockFamily;
+
     public IReadOnlyList<SynergyRequirement> Requirements =>
         requirements;
 
+    public IReadOnlyList<SynergyRequirement> OptionalRequirements =>
+        optionalRequirements;
+
     public IReadOnlyList<UpgradeData> Rewards => rewards;
+
+    public IReadOnlyList<UpgradeData> OptionalRewards =>
+        optionalRewards;
 
     public string LocalizedName
     {
@@ -174,6 +221,14 @@ public class SynergyData : ScriptableObject
         }
     }
 
+    public bool IsAvailable(RunBuildState build)
+    {
+        if (unlockFamily == UpgradeFamily.None)
+            return true;
+
+        return build != null && build.HasAnyFlag(unlockFamily);
+    }
+
     public bool IsSatisfied(RunBuildState build)
     {
         if (requirements == null || requirements.Count == 0)
@@ -201,17 +256,55 @@ public class SynergyData : ScriptableObject
         return satisfied;
     }
 
+    public bool HasAllOptional(RunBuildState build)
+    {
+        if (optionalRequirements == null ||
+            optionalRequirements.Count == 0)
+        {
+            return true;
+        }
+
+        for (int i = 0; i < optionalRequirements.Count; i++)
+        {
+            if (optionalRequirements[i] == null)
+                continue;
+
+            if (!optionalRequirements[i].IsSatisfied(build))
+                return false;
+        }
+
+        return true;
+    }
+
     public bool Involves(
         UpgradeData upgrade,
         UpgradeFamily families)
     {
-        if (requirements == null || upgrade == null)
+        if (upgrade == null)
             return false;
 
-        for (int i = 0; i < requirements.Count; i++)
+        if (InvolvesList(requirements, upgrade, families))
+            return true;
+
+        return InvolvesList(
+            optionalRequirements,
+            upgrade,
+            families
+        );
+    }
+
+    private static bool InvolvesList(
+        List<SynergyRequirement> list,
+        UpgradeData upgrade,
+        UpgradeFamily families)
+    {
+        if (list == null)
+            return false;
+
+        for (int i = 0; i < list.Count; i++)
         {
-            if (requirements[i] != null &&
-                requirements[i].Involves(upgrade, families))
+            if (list[i] != null &&
+                list[i].Involves(upgrade, families))
             {
                 return true;
             }

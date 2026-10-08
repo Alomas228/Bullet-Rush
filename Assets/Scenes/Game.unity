@@ -8468,12 +8468,13 @@ MonoBehaviour:
     coreBonus: 1.12
   synergies:
   - {fileID: 11400000, guid: 7ca3c1e21e7a4dd2a7dc0050c9943932, type: 2}
-  - {fileID: 11400000, guid: 48821d0134624196b6d0525191a04a3a, type: 2}
-  - {fileID: 11400000, guid: 674cdd8a47d24ad598bb5f4afc04899f, type: 2}
+  - {fileID: 11400000, guid: dc2d9328b9c046e0addc194c0c89f84a, type: 2}
+  - {fileID: 11400000, guid: 9ff14a3ea514482195be666b895ed690, type: 2}
+  - {fileID: 11400000, guid: b7c043a43023443eb4792308ecb7a80f, type: 2}
   - {fileID: 11400000, guid: aea6c1d017784b418e085b12babd8cc1, type: 2}
-  - {fileID: 11400000, guid: 05856715dd08459dafc0adb13dae026a, type: 2}
-  - {fileID: 11400000, guid: cf57f6e4f6a04f8bb5ed17f83f186023, type: 2}
-  - {fileID: 11400000, guid: 1e4efcb5327f4bceada7e567782234bd, type: 2}
+  - {fileID: 11400000, guid: eeb981b0d52a446284eff894e62265ea, type: 2}
+  - {fileID: 11400000, guid: 8463e542a4be4334a81e9e60bc689db8, type: 2}
+  - {fileID: 11400000, guid: 6ce7aa64a8fb4028a31b9c21b11d91bf, type: 2}
   takenAffinity: 1.6
   repeatPenalty: 0.15
   weaponDropChance: 0.22

@@ -279,8 +279,8 @@ public class UpgradeUI : MonoBehaviour
             "SynergyTracker",
             new Vector2(0.5f, 0f),
             new Vector2(0f, -46f),
-            new Vector2(660f, 44f),
-            16f,
+            new Vector2(660f, 72f),
+            15f,
             TextAlignmentOptions.Center,
             TextWrappingModes.Normal
         );
@@ -302,7 +302,29 @@ public class UpgradeUI : MonoBehaviour
 
             if (progress == null ||
                 progress.Synergy == null ||
-                progress.IsComplete)
+                !progress.IsComplete)
+            {
+                continue;
+            }
+
+            parts.Add(
+                "<color=#FFC24D>✓ " +
+                progress.Synergy.ShortName +
+                "</color>"
+            );
+
+            if (parts.Count >= 5)
+                return string.Join("  •  ", parts);
+        }
+
+        for (int i = 0; i < synergies.Count; i++)
+        {
+            SynergyProgress progress = synergies[i];
+
+            if (progress == null ||
+                progress.Synergy == null ||
+                progress.IsComplete ||
+                progress.Current <= 0)
             {
                 continue;
             }
@@ -312,7 +334,7 @@ public class UpgradeUI : MonoBehaviour
                 progress.Current + "/" + progress.Required
             );
 
-            if (parts.Count >= 4)
+            if (parts.Count >= 5)
                 break;
         }
 
@@ -340,19 +362,27 @@ public class UpgradeUI : MonoBehaviour
 
         foreach (SynergyData synergy in discovered)
         {
-            if (synergy != null)
-                names.Add(synergy.LocalizedName);
+            if (synergy == null)
+                continue;
+
+            names.Add(
+                synergy.LocalizedName + " — " +
+                synergy.LocalizedDescription
+            );
+
+            if (names.Count >= 3)
+                break;
         }
 
         toastText.text = Lang.Get(
             "synergy.discovered",
-            string.Join(", ", names)
+            string.Join("\n", names)
         );
 
         toastRoot.SetActive(true);
         toastRoot.transform.SetAsLastSibling();
 
-        toastHideAt = Time.unscaledTime + 4f;
+        toastHideAt = Time.unscaledTime + 5f;
     }
 
     private void CreateToast()
@@ -379,8 +409,8 @@ public class UpgradeUI : MonoBehaviour
             "Label",
             new Vector2(0.5f, 0.5f),
             Vector2.zero,
-            new Vector2(700f, 90f),
-            24f,
+            new Vector2(820f, 260f),
+            18f,
             TextAlignmentOptions.Center,
             TextWrappingModes.Normal
         );

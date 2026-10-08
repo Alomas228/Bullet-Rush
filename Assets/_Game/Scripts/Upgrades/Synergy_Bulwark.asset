@@ -17,12 +17,16 @@ MonoBehaviour:
   description: Health and regen hold the line, and the shield finishes the job.
   kind: 0
   rarity: 2
+  unlockFamily: 0
   requirements:
   - kind: 1
     upgrade: {fileID: 0}
+    weapon: {fileID: 0}
     family: 128
     count: 3
     target: 1
+  optionalRequirements: []
   rewards:
   - {fileID: 11400000, guid: b62fa553d35b405db03c8747953a108f, type: 2}
   - {fileID: 11400000, guid: 04cb3a2e8db896e4aacfb5ddfad2c562, type: 2}
+  optionalRewards: []

@@ -98,6 +98,9 @@ public class UpgradeManager : MonoBehaviour
     private readonly List<UpgradeData> recentPicks =
         new List<UpgradeData>();
 
+    private readonly List<WeaponData> takenWeapons =
+        new List<WeaponData>();
+
     private readonly List<SynergyProgress> synergyProgress =
         new List<SynergyProgress>();
 
@@ -227,6 +230,7 @@ public class UpgradeManager : MonoBehaviour
         lastTaken = null;
 
         recentPicks.Clear();
+        takenWeapons.Clear();
         discoveredSynergies.Clear();
         discoveredQueue.Clear();
 
@@ -237,7 +241,8 @@ public class UpgradeManager : MonoBehaviour
     {
         buildState = RunBuildState.Build(
             takenStacks,
-            recentPicks
+            recentPicks,
+            takenWeapons
         );
 
         synergyProgress.Clear();
@@ -250,6 +255,9 @@ public class UpgradeManager : MonoBehaviour
             SynergyData synergy = synergies[i];
 
             if (synergy == null)
+                continue;
+
+            if (!synergy.IsAvailable(buildState))
                 continue;
 
             var progress = new SynergyProgress(
@@ -276,10 +284,18 @@ public class UpgradeManager : MonoBehaviour
 
     private void ApplySynergyRewards(SynergyData synergy)
     {
-        if (synergy.Rewards == null)
+        ApplyRewardList(synergy.Rewards);
+
+        if (synergy.HasAllOptional(buildState))
+            ApplyRewardList(synergy.OptionalRewards);
+    }
+
+    private void ApplyRewardList(IReadOnlyList<UpgradeData> rewards)
+    {
+        if (rewards == null)
             return;
 
-        foreach (UpgradeData reward in synergy.Rewards)
+        foreach (UpgradeData reward in rewards)
         {
             if (reward == null || IsMaxed(reward))
                 continue;
@@ -623,6 +639,13 @@ public class UpgradeManager : MonoBehaviour
     {
         if (upgrade == null)
             return;
+
+        if (upgrade.Type == UpgradeType.Weapon &&
+            upgrade.WeaponData != null &&
+            !takenWeapons.Contains(upgrade.WeaponData))
+        {
+            takenWeapons.Add(upgrade.WeaponData);
+        }
 
         // Оружие из дропа создаётся в рантайме и каждый раз новое,
         // поэтому счётчики стаков по нему не ведём. Иначе штраф за

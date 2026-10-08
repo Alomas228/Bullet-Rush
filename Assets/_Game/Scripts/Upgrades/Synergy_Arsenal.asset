@@ -10,24 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
-  m_Name: Synergy_Stormcaller
+  m_Name: Synergy_Arsenal
   m_EditorClassIdentifier: Assembly-CSharp::SynergyData
-  langKey: stormcaller
-  displayName: Stormcaller
-  description: Chain lightning plus heavy damage: the bolt strikes harder and more often.
-  kind: 1
+  langKey: arsenal
+  displayName: Arsenal
+  description: More than one weapon per run: damage and pace grow with the arsenal.
+  kind: 3
   rarity: 2
+  unlockFamily: 0
   requirements:
-  - kind: 1
+  - kind: 3
     upgrade: {fileID: 0}
-    family: 4
+    weapon: {fileID: 0}
+    family: 0
     count: 2
     target: 1
-  - kind: 0
-    upgrade: {fileID: 11400000, guid: e0ba0c1379da28b4199be6212c2d174c, type: 2}
-    family: 0
-    count: 1
-    target: 2
+  optionalRequirements:
+  - kind: 1
+    upgrade: {fileID: 0}
+    weapon: {fileID: 0}
+    family: 1
+    count: 2
+    target: 1
   rewards:
+  - {fileID: 11400000, guid: e0ba0c1379da28b4199be6212c2d174c, type: 2}
   - {fileID: 11400000, guid: 9c9133caa5832a046a5efed115c04fc7, type: 2}
-  - {fileID: 11400000, guid: 7988fa6fae176134f818d9e7370871c3, type: 2}
+  optionalRewards:
+  - {fileID: 11400000, guid: 04f55fd854dbd504684e9991d2433058, type: 2}

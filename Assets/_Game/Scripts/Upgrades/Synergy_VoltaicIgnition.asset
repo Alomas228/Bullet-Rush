@@ -10,24 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
-  m_Name: Synergy_Demolitionist
+  m_Name: Synergy_VoltaicIgnition
   m_EditorClassIdentifier: Assembly-CSharp::SynergyData
-  langKey: demolitionist
-  displayName: Demolitionist
-  description: Explosive rounds plus the bomb: every target becomes a charge.
+  langKey: voltaic_ignition
+  displayName: Voltaic Ignition
+  description: Fire and lightning strike together: burning targets draw bolts, and lightning ignites.
   kind: 1
-  rarity: 2
+  rarity: 4
+  unlockFamily: 0
   requirements:
   - kind: 1
     upgrade: {fileID: 0}
-    family: 16
-    count: 2
+    weapon: {fileID: 0}
+    family: 2
+    count: 1
     target: 1
   - kind: 1
     upgrade: {fileID: 0}
-    family: 256
+    weapon: {fileID: 0}
+    family: 4
     count: 1
     target: 1
+  optionalRequirements: []
   rewards:
-  - {fileID: 11400000, guid: e26a32a115f14da79867b32e4885728d, type: 2}
-  - {fileID: 11400000, guid: e0ba0c1379da28b4199be6212c2d174c, type: 2}
+  - {fileID: 11400000, guid: 9ff274d78b7a47f4686bd588e9759b30, type: 2}
+  - {fileID: 11400000, guid: 9aee41296c2b3854192ee4214434f65a, type: 2}
+  optionalRewards: []

@@ -291,33 +291,37 @@ public static class Tables
 
             { "synergy.firestorm.name", "Огненный шторм" },
             { "synergy.firestorm.short", "Шторм" },
-            { "synergy.firestorm.desc", "Три стака горения — и огонь перерастает во взрывы." },
+            { "synergy.firestorm.desc", "Горение и взрывы: пламя перерастает в огненный шторм, и каждая цель вспыхивает." },
 
-            { "synergy.bloodlust.name", "Жажда крови" },
-            { "synergy.bloodlust.short", "Кровь" },
-            { "synergy.bloodlust.desc", "Кровотечение и вампиризм вместе: раны копятся, урон возвращается здоровьем." },
+            { "synergy.voltaic_ignition.name", "Вольтовый разряд" },
+            { "synergy.voltaic_ignition.short", "Разряд" },
+            { "synergy.voltaic_ignition.desc", "Огонь и молния бьют вместе: горящие цели ловят разряды, а молнии поджигают." },
 
-            { "synergy.stormcaller.name", "Призыв бури" },
-            { "synergy.stormcaller.short", "Буря" },
-            { "synergy.stormcaller.desc", "Цепная молния плюс тяжёлый урон: разряд бьёт чаще и злее." },
+            { "synergy.blood_bomb.name", "Кровавая бомба" },
+            { "synergy.blood_bomb.short", "Бомба" },
+            { "synergy.blood_bomb.desc", "Кровоточащие раны взрываются: кровь и заряды складываются в кровавый взрыв." },
+
+            { "synergy.chain_reaction.name", "Цепная реакция" },
+            { "synergy.chain_reaction.short", "Реакция" },
+            { "synergy.chain_reaction.desc", "Молнии и рикошеты множатся: разряд перескакивает, снаряд — перелетает к новой цели." },
 
             { "synergy.bulwark.name", "Бастион" },
             { "synergy.bulwark.short", "Бастион" },
             { "synergy.bulwark.desc", "Здоровье и регенерация держат строй, а щит добивает защиту." },
 
-            { "synergy.ripple.name", "Рикошетный залп" },
-            { "synergy.ripple.short", "Рикошет" },
-            { "synergy.ripple.desc", "Снаряды ищут новые цели: залп становится шире и глубже." },
+            { "synergy.bullet_storm.name", "Шквал пуль" },
+            { "synergy.bullet_storm.short", "Шквал" },
+            { "synergy.bullet_storm.desc", "Больше снарядов — больше рикошетов: залп превращается в шквал." },
 
-            { "synergy.chaos.name", "Хаос" },
-            { "synergy.chaos.short", "Хаос" },
-            { "synergy.chaos.desc", "Четыре разных семейства — билд выходит из-под контроля и выигрывает от этого." },
+            { "synergy.elemental_chaos.name", "Элементальный хаос" },
+            { "synergy.elemental_chaos.short", "Хаос" },
+            { "synergy.elemental_chaos.desc", "Стихии выходят из-под контроля: скорость и крит разгоняют хаотичный билд." },
 
-            { "synergy.demolitionist.name", "Сапёр" },
-            { "synergy.demolitionist.short", "Сапёр" },
-            { "synergy.demolitionist.desc", "Взрывные снаряды и бомба: каждая цель становится зарядом." },
+            { "synergy.arsenal.name", "Арсенал" },
+            { "synergy.arsenal.short", "Арсенал" },
+            { "synergy.arsenal.desc", "Несколько оружий в забеге: урон и темп растут вместе с арсеналом." },
 
-            { "synergy.discovered", "СИНЕРГИЯ ОТКРЫТА: {0}" },
+            { "synergy.discovered", "СИНЕРГИЯ ОТКРЫТА 🔥\n{0}" },
 
             // ---------- Снаряжение ----------
             { "eq.title", "СНАРЯЖЕНИЕ" },
@@ -726,33 +730,37 @@ public static class Tables
 
             { "synergy.firestorm.name", "Ateş Fırtınası" },
             { "synergy.firestorm.short", "Ateş" },
-            { "synergy.firestorm.desc", "Üç yangın seviyesi — ve alev patlamalara dönüşür." },
+            { "synergy.firestorm.desc", "Yanma ve patlamalar: alevler ateş fırtınasına dönüşür, her hedef tutuşur." },
 
-            { "synergy.bloodlust.name", "Kan Açlığı" },
-            { "synergy.bloodlust.short", "Kan" },
-            { "synergy.bloodlust.desc", "Kanama ve vampirizm birlikte: yaralar birikir, hasar can olarak geri döner." },
+            { "synergy.voltaic_ignition.name", "Voltaj Kıvılcımı" },
+            { "synergy.voltaic_ignition.short", "Voltaj" },
+            { "synergy.voltaic_ignition.desc", "Ateş ve yıldırım birlikte çarpar: yanan hedefler şimşek çeker, yıldırımlar tutuşturur." },
 
-            { "synergy.stormcaller.name", "Fırtına Çağırıcı" },
-            { "synergy.stormcaller.short", "Fırtına" },
-            { "synergy.stormcaller.desc", "Zincirleme yıldırım artı ağır hasar: şimşek daha sık ve daha sert iner." },
+            { "synergy.blood_bomb.name", "Kan Bombası" },
+            { "synergy.blood_bomb.short", "Bomb" },
+            { "synergy.blood_bomb.desc", "Kanayan yaralar patlar: kan ve mermiler kanlı bir bombada birleşir." },
+
+            { "synergy.chain_reaction.name", "Zincirleme Tepkime" },
+            { "synergy.chain_reaction.short", "Tepkime" },
+            { "synergy.chain_reaction.desc", "Yıldırımlar ve sekmeler çoğalır: şimşek zincirinden atlar, mermi yeni hedefe sıçrar." },
 
             { "synergy.bulwark.name", "Sur" },
             { "synergy.bulwark.short", "Sur" },
             { "synergy.bulwark.desc", "Can ve yenilenme hattı tutar, kalkan savunmayı tamamlar." },
 
-            { "synergy.ripple.name", "Sekme Atışışı" },
-            { "synergy.ripple.short", "Sekme" },
-            { "synergy.ripple.desc", "Mermiler yeni hedefler bulur: atış daha geniş ve daha derin olur." },
+            { "synergy.bullet_storm.name", "Mermi Fırtınası" },
+            { "synergy.bullet_storm.short", "Mermi" },
+            { "synergy.bullet_storm.desc", "Daha çok mermi, daha çok sekme: atış bir mermi fırtınasına dönüşür." },
 
-            { "synergy.chaos.name", "Kaos" },
-            { "synergy.chaos.short", "Kaos" },
-            { "synergy.chaos.desc", "Dört farklı aile — yapı bozulur ve bundan kazançlı çıkar." },
+            { "synergy.elemental_chaos.name", "Elemental Kaos" },
+            { "synergy.elemental_chaos.short", "Kaos" },
+            { "synergy.elemental_chaos.desc", "Elementler kontrolden çıkar: hız ve kritik kaotik yapıyı hızlandırır." },
 
-            { "synergy.demolitionist.name", "İmha Uzmanı" },
-            { "synergy.demolitionist.short", "İmha" },
-            { "synergy.demolitionist.desc", "Patlayıcı mermiler artı bomba: her hedef bir şarjör olur." },
+            { "synergy.arsenal.name", "Cephanelik" },
+            { "synergy.arsenal.short", "Cephanelik" },
+            { "synergy.arsenal.desc", "Zinde birden fazla silah: hasar ve tempo cephanelikle birlikte büyür." },
 
-            { "synergy.discovered", "SİNERJİ AÇILDI: {0}" },
+            { "synergy.discovered", "SİNERJİ AÇILDI 🔥\n{0}" },
 
             // ---------- Teçhizat ----------
             { "eq.title", "TEÇHİZAT" },
@@ -1161,33 +1169,37 @@ public static class Tables
 
             { "synergy.firestorm.name", "Firestorm" },
             { "synergy.firestorm.short", "Firestorm" },
-            { "synergy.firestorm.desc", "Three stacks of burn, and the fire outgrows into explosions." },
+            { "synergy.firestorm.desc", "Burn and explosions: fire grows into a firestorm, and every target catches." },
 
-            { "synergy.bloodlust.name", "Bloodlust" },
-            { "synergy.bloodlust.short", "Bloodlust" },
-            { "synergy.bloodlust.desc", "Bleeding and lifesteal together: wounds stack while damage comes back as health." },
+            { "synergy.voltaic_ignition.name", "Voltaic Ignition" },
+            { "synergy.voltaic_ignition.short", "Ignition" },
+            { "synergy.voltaic_ignition.desc", "Fire and lightning strike together: burning targets draw bolts, and lightning ignites." },
 
-            { "synergy.stormcaller.name", "Stormcaller" },
-            { "synergy.stormcaller.short", "Stormcaller" },
-            { "synergy.stormcaller.desc", "Chain lightning plus heavy damage: the bolt strikes harder and more often." },
+            { "synergy.blood_bomb.name", "Blood Bomb" },
+            { "synergy.blood_bomb.short", "Blood Bomb" },
+            { "synergy.blood_bomb.desc", "Bleeding wounds burst: blood and rounds combine into a blood bomb." },
+
+            { "synergy.chain_reaction.name", "Chain Reaction" },
+            { "synergy.chain_reaction.short", "Reaction" },
+            { "synergy.chain_reaction.desc", "Lightning and ricochets multiply: the bolt jumps the chain, the bullet hops to a new target." },
 
             { "synergy.bulwark.name", "Bulwark" },
             { "synergy.bulwark.short", "Bulwark" },
             { "synergy.bulwark.desc", "Health and regen hold the line, and the shield finishes the job." },
 
-            { "synergy.ripple.name", "Ricochet Volley" },
-            { "synergy.ripple.short", "Volley" },
-            { "synergy.ripple.desc", "Bullets look for new targets: the volley becomes wider and deeper." },
+            { "synergy.bullet_storm.name", "Bullet Storm" },
+            { "synergy.bullet_storm.short", "Storm" },
+            { "synergy.bullet_storm.desc", "More bullets, more bounces: the volley becomes a bullet storm." },
 
-            { "synergy.chaos.name", "Chaos" },
-            { "synergy.chaos.short", "Chaos" },
-            { "synergy.chaos.desc", "Four different families: the build breaks shape and wins from it." },
+            { "synergy.elemental_chaos.name", "Elemental Chaos" },
+            { "synergy.elemental_chaos.short", "Chaos" },
+            { "synergy.elemental_chaos.desc", "Elements spiral out of control: speed and crits push the chaotic build." },
 
-            { "synergy.demolitionist.name", "Demolitionist" },
-            { "synergy.demolitionist.short", "Demolitionist" },
-            { "synergy.demolitionist.desc", "Explosive rounds plus the bomb: every target becomes a charge." },
+            { "synergy.arsenal.name", "Arsenal" },
+            { "synergy.arsenal.short", "Arsenal" },
+            { "synergy.arsenal.desc", "More than one weapon per run: damage and pace grow with the arsenal." },
 
-            { "synergy.discovered", "SYNERGY UNLOCKED: {0}" },
+            { "synergy.discovered", "SYNERGY UNLOCKED 🔥\n{0}" },
 
             // ---------- Equipment ----------
             { "eq.title", "EQUIPMENT" },

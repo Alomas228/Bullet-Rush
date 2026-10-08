@@ -10,12 +10,16 @@ public class RunBuildState
 
     private readonly List<UpgradeData> recentPicks;
 
+    private readonly List<WeaponData> takenWeapons;
+
     private RunBuildState(
         Dictionary<UpgradeData, int> stacks,
-        List<UpgradeData> recentPicks)
+        List<UpgradeData> recentPicks,
+        List<WeaponData> takenWeapons)
     {
         this.stacks = stacks;
         this.recentPicks = recentPicks;
+        this.takenWeapons = takenWeapons;
 
         familyStacks = new Dictionary<UpgradeFamily, int>();
         familyUpgrades = new Dictionary<UpgradeFamily, int>();
@@ -48,7 +52,8 @@ public class RunBuildState
 
     public static RunBuildState Build(
         IReadOnlyDictionary<UpgradeData, int> stacks,
-        IReadOnlyList<UpgradeData> recentPicks)
+        IReadOnlyList<UpgradeData> recentPicks,
+        IReadOnlyList<WeaponData> takenWeapons = null)
     {
         var stackCopy = new Dictionary<UpgradeData, int>();
 
@@ -63,7 +68,8 @@ public class RunBuildState
 
         return new RunBuildState(
             stackCopy,
-            CopyRecent(recentPicks)
+            CopyRecent(recentPicks),
+            CopyWeapons(takenWeapons)
         );
     }
 
@@ -79,7 +85,8 @@ public class RunBuildState
 
         return new RunBuildState(
             next,
-            new List<UpgradeData>(recentPicks)
+            new List<UpgradeData>(recentPicks),
+            new List<WeaponData>(takenWeapons)
         );
     }
 
@@ -150,17 +157,60 @@ public class RunBuildState
         return false;
     }
 
-    public int GetDistinctFamilyCount()
+    public int GetDistinctFamilyCount(
+        UpgradeFamily mask = UpgradeFamily.None)
     {
         int count = 0;
 
         for (int i = 0; i < UpgradeFamilyUtility.All.Length; i++)
         {
-            if (HasFamily(UpgradeFamilyUtility.All[i]))
+            UpgradeFamily flag = UpgradeFamilyUtility.All[i];
+
+            if (mask != UpgradeFamily.None &&
+                (mask & flag) == 0)
+            {
+                continue;
+            }
+
+            if (HasFamily(flag))
                 count++;
         }
 
         return count;
+    }
+
+    public bool HasAnyFlag(UpgradeFamily families)
+    {
+        if (families == UpgradeFamily.None)
+            return false;
+
+        for (int i = 0; i < UpgradeFamilyUtility.All.Length; i++)
+        {
+            UpgradeFamily flag = UpgradeFamilyUtility.All[i];
+
+            if ((families & flag) == 0)
+                continue;
+
+            if (HasFamily(flag))
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool HasTakenWeapon(WeaponData weapon)
+    {
+        if (weapon == null || takenWeapons == null)
+            return false;
+
+        return takenWeapons.Contains(weapon);
+    }
+
+    public int GetDistinctWeaponCount()
+    {
+        return takenWeapons != null
+            ? takenWeapons.Count
+            : 0;
     }
 
     public bool IsRecent(UpgradeData upgrade)
@@ -186,6 +236,23 @@ public class RunBuildState
         {
             if (recentPicks[i] != null)
                 copy.Add(recentPicks[i]);
+        }
+
+        return copy;
+    }
+
+    private static List<WeaponData> CopyWeapons(
+        IReadOnlyList<WeaponData> takenWeapons)
+    {
+        var copy = new List<WeaponData>();
+
+        if (takenWeapons == null)
+            return copy;
+
+        for (int i = 0; i < takenWeapons.Count; i++)
+        {
+            if (takenWeapons[i] != null)
+                copy.Add(takenWeapons[i]);
         }
 
         return copy;

@@ -10,23 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
-  m_Name: Synergy_Bloodlust
+  m_Name: Synergy_BloodBomb
   m_EditorClassIdentifier: Assembly-CSharp::SynergyData
-  langKey: bloodlust
-  displayName: Bloodlust
-  description: Bleeding and lifesteal together: wounds stack while damage comes back as health.
+  langKey: blood_bomb
+  displayName: Blood Bomb
+  description: Bleeding wounds burst: blood and rounds combine into a blood bomb.
   kind: 1
-  rarity: 2
+  rarity: 4
+  unlockFamily: 0
   requirements:
   - kind: 1
     upgrade: {fileID: 0}
+    weapon: {fileID: 0}
     family: 8
-    count: 2
+    count: 1
     target: 1
   - kind: 1
     upgrade: {fileID: 0}
-    family: 32
-    count: 2
+    weapon: {fileID: 0}
+    family: 16
+    count: 1
     target: 1
+  optionalRequirements: []
   rewards:
-  - {fileID: 11400000, guid: 1493b191502437a4fb032ad2b78209e8, type: 2}
+  - {fileID: 11400000, guid: 1d4bd6d24c97e2243a81f11f97097f72, type: 2}
+  - {fileID: 11400000, guid: 2189dcc589742c14498cc96e20123b20, type: 2}
+  optionalRewards: []
