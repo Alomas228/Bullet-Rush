@@ -32,6 +32,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private Button tipsButton;
     [SerializeField] private Button equipmentButton;
     [SerializeField] private Button mapsButton;
+    [SerializeField] private Button dailyRewardButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -88,6 +89,16 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (mapsButton != null)
             mapsButton.onClick.AddListener(OnMapsClicked);
+
+        if (dailyRewardButton != null)
+        {
+            dailyRewardButton.onClick.AddListener(OnDailyRewardClicked);
+            Debug.Log("[MainMenuUI] DailyRewardButton assigned: " + dailyRewardButton.name);
+        }
+        else
+        {
+            Debug.LogWarning("[MainMenuUI] DailyRewardButton NOT assigned in Inspector!");
+        }
     }
 
     private void OnEnable()
@@ -95,11 +106,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         EnsureSubscribed();
     }
 
-    /// <summary>
-    /// Перерисовывает подписи, которые скрипт собрал сам:
-    /// после смены языка в открытом меню они остались бы
-    /// на старом языке до перезагрузки сцены.
-    /// </summary>
     public void RefreshLang()
     {
         RefreshPlayerDisplay();
@@ -130,6 +136,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (mapsButton != null)
             mapsButton.onClick.RemoveListener(OnMapsClicked);
+
+        if (dailyRewardButton != null)
+            dailyRewardButton.onClick.RemoveListener(OnDailyRewardClicked);
     }
 
     private void Start()
@@ -194,10 +203,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             HideMenu();
     }
 
-    /// <summary>
-    /// Обновляет блок «Уровень игрока / XP» в главном меню из
-    /// персистентных данных XpManager (тот же источник, что и GameOverUI).
-    /// </summary>
     private void RefreshPlayerDisplay()
     {
         XpManager xp = XpManager.Instance;
@@ -238,6 +243,13 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             playButton.interactable = !MenuReloadPending;
 
         SetMenuInteractive(!MenuReloadPending);
+
+        // Кнопка ежедневных наград всегда активна и кликабельна!
+        if (dailyRewardButton != null)
+        {
+            dailyRewardButton.interactable = true;
+            dailyRewardButton.gameObject.SetActive(true);
+        }
 
         if (ShowWithoutAnimation)
         {
@@ -328,6 +340,12 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         OpenSubPanel(mapsPanel);
     }
 
+    private void OnDailyRewardClicked()
+    {
+        Debug.Log("[MainMenuUI] OnDailyRewardClicked called!");
+        OpenDailyRewardPanel();
+    }
+
     public void OpenSubPanel(GameObject panelToShow)
     {
         CloseSubPanels();
@@ -335,6 +353,25 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (panelToShow != null)
             panelToShow.SetActive(true);
+    }
+
+    public void OpenDailyRewardPanel()
+    {
+        Debug.Log("[MainMenuUI] OpenDailyRewardPanel called!");
+        
+        CloseSubPanels();
+        HideMenuButtons();
+
+        DailyRewardUI dailyRewardUI = FindObjectOfType<DailyRewardUI>();
+        if (dailyRewardUI != null)
+        {
+            Debug.Log("[MainMenuUI] Found DailyRewardUI: " + dailyRewardUI.gameObject.name);
+            dailyRewardUI.ShowPanel();
+        }
+        else
+        {
+            Debug.LogError("[MainMenuUI] DailyRewardUI NOT FOUND!");
+        }
     }
 
     public void CloseSubPanels()
@@ -396,6 +433,13 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (mapsButton != null)
             mapsButton.gameObject.SetActive(active);
+
+        // Кнопка ежедневных наград ВСЕГДА активна и кликабельна!
+        if (dailyRewardButton != null)
+        {
+            dailyRewardButton.gameObject.SetActive(true);
+            dailyRewardButton.interactable = true;
+        }
     }
 
     private void OnPlayClicked()

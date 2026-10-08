@@ -404,7 +404,16 @@ public static class Tables
             { "clo.classic.name", "Классик" },
             { "clo.classic.desc", "Оригинальное белое обмундирование. Ничего не улучшает, зато бесплатно." },
             { "clo.neon.name", "Неон" },
-            { "clo.neon.desc", "Яркий неоновый цвет. Видно издалека — и врагам тоже." }
+            { "clo.neon.desc", "Яркий неоновый цвет. Видно издалека — и врагам тоже." },
+
+            // ---------- Ежедневные награды ----------
+            { "daily.title", "ЕЖЕДЕЛЬНЫЕ НАГРАДЫ" },
+            { "daily.day", "День {0}" },
+            { "daily.claim", "ПОЛУЧИТЬ" },
+            { "daily.claimed", "ПОЛУЧЕНО" },
+            { "daily.locked", "ЗАКРЫТО" },
+            { "daily.coins", "{0} монет" },
+            { "daily.xp", "{0} XP" },
         };
 
         _ru = t;
@@ -791,7 +800,16 @@ public static class Tables
             { "clo.classic.name", "Klasik" },
             { "clo.classic.desc", "Orijinal beyaz üniforma. Hiçbir şey iyileştirmez ama bedava." },
             { "clo.neon.name", "Neon" },
-            { "clo.neon.desc", "Parlak neon renk. Uzaktan görülür — düşmanlar da görür." }
+            { "clo.neon.desc", "Parlak neon renk. Uzaktan görülür — düşmanlar da görür." },
+
+            // ---------- Günlük ödüller ----------
+            { "daily.title", "GÜNLÜK ÖDÜLLER" },
+            { "daily.day", "Gün {0}" },
+            { "daily.claim", "AL" },
+            { "daily.claimed", "ALINDI" },
+            { "daily.locked", "KİLİTLİ" },
+            { "daily.coins", "{0} jeton" },
+            { "daily.xp", "{0} XP" },
         };
 
         _tr = t;
@@ -1178,7 +1196,16 @@ public static class Tables
             { "clo.classic.name", "Classic" },
             { "clo.classic.desc", "The original white uniform. Improves nothing, but it's free." },
             { "clo.neon.name", "Neon" },
-            { "clo.neon.desc", "Bright neon colour. Visible from afar — and to enemies." }
+            { "clo.neon.desc", "Bright neon colour. Visible from afar — and to enemies." },
+
+            // ---------- Daily Rewards ----------
+            { "daily.title", "DAILY REWARDS" },
+            { "daily.day", "Day {0}" },
+            { "daily.claim", "CLAIM" },
+            { "daily.claimed", "CLAIMED" },
+            { "daily.locked", "LOCKED" },
+            { "daily.coins", "{0} coins" },
+            { "daily.xp", "{0} XP" },
         };
 
         _en = t;
