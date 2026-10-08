@@ -51,6 +51,10 @@ public class GameOverManager : MonoBehaviour
 
         IsGameOver = true;
 
+        // Рекорд фиксируется в момент смерти: волна, на которой игрок
+        // погиб, и есть его достижение («добраться хотя бы до 18»).
+        SubmitPersonalBest();
+
         // ============================================
         // LEADERBOARD: Собираем метрики
         // ============================================
@@ -87,8 +91,23 @@ public class GameOverManager : MonoBehaviour
         Time.timeScale = 0f;
     }
 
+    /// <summary>
+    /// Сохраняет волну текущего забега как личный рекорд, если она
+    /// лучше сохранённой. Вызывается на всех выходах из забега:
+    /// смерть, рестарт, выход в меню.
+    /// </summary>
+    private void SubmitPersonalBest()
+    {
+        WaveManager waves = FindAnyObjectByType<WaveManager>();
+
+        if (waves != null)
+            PersonalBestRecord.Submit(waves.CurrentWave);
+    }
+
     public void RestartGame()
     {
+        SubmitPersonalBest();
+
         IsGameOver = false;
         pendingRestart = true;
         Time.timeScale = 1f;
@@ -120,6 +139,8 @@ public class GameOverManager : MonoBehaviour
 
     public void BackToMenu()
     {
+        SubmitPersonalBest();
+
         IsGameOver = false;
 
         // Если забег не был завершён через GameOver() (выход из паузы),

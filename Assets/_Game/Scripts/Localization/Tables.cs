@@ -106,6 +106,15 @@ public static class Tables
             { "wave.event_surge", "РЫВОК!" },
             { "wave.event_danger", "ОПАСНОСТЬ!" },
 
+            // ---------- Личный рекорд ----------
+            { "pb.menu", "ЛИЧНЫЙ РЕКОРД — ВОЛНА {0}" },
+            { "pb.hud_line", "Волна {0} / Рекорд {1}" },
+            { "pb.progress", "{2}" },
+            { "pb.approach", "{2} ВОЛНЫ ДО ТВОЕГО РЕКОРДА" },
+            { "pb.approach_one", "{2} ВОЛНА ДО ТВОЕГО РЕКОРДА" },
+            { "pb.on_record", "ЭТО ТВОЯ РЕКОРДНАЯ ВОЛНА — ДЕРЖИСЬ!" },
+            { "pb.new_record", "НОВЫЙ ЛИЧНЫЙ РЕКОРД!" },
+
             // ---------- Игровое завершение ----------
             { "over.title", "ИГРА ОКОНЧЕНА" },
             { "over.level", "УРОВЕНЬ {0}" },
@@ -502,6 +511,15 @@ public static class Tables
             { "wave.event_surge", "DALGA!" },
             { "wave.event_danger", "TEHLİKE!" },
 
+            // ---------- Kisisel rekor ----------
+            { "pb.menu", "KİŞİSEL REKOR — DALGA {0}" },
+            { "pb.hud_line", "Dalga {0} / Rekor {1}" },
+            { "pb.progress", "{2}" },
+            { "pb.approach", "REKORUNU GEÇMEK İÇİN {2} DALGA" },
+            { "pb.approach_one", "REKORUNU GEÇMEK İÇİN {2} DALGA" },
+            { "pb.on_record", "REKOR DALGANDASIN — DAYAN!" },
+            { "pb.new_record", "YENİ KİŞİSEL REKOR!" },
+
             // ---------- Oyun sonu ----------
             { "over.title", "OYUN BİTTİ" },
             { "over.level", "SEVİYE {0}" },
@@ -897,6 +915,15 @@ public static class Tables
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "SURGE!" },
             { "wave.event_danger", "DANGER!" },
+
+            // ---------- Personal best ----------
+            { "pb.menu", "PERSONAL BEST — WAVE {0}" },
+            { "pb.hud_line", "Wave {0} / PB {1}" },
+            { "pb.progress", "{2}" },
+            { "pb.approach", "{2} WAVES TO BEAT YOUR RECORD" },
+            { "pb.approach_one", "{2} WAVE TO BEAT YOUR RECORD" },
+            { "pb.on_record", "THIS IS YOUR RECORD WAVE — HOLD ON!" },
+            { "pb.new_record", "NEW PERSONAL BEST!" },
 
             // ---------- Game over ----------
             { "over.title", "GAME OVER" },
