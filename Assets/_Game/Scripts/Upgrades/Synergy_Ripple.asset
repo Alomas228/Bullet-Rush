@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
+  m_Name: Synergy_Ripple
+  m_EditorClassIdentifier: Assembly-CSharp::SynergyData
+  langKey: ripple
+  displayName: Ricochet Volley
+  description: Bullets look for new targets: the volley becomes wider and deeper.
+  kind: 0
+  rarity: 2
+  requirements:
+  - kind: 1
+    upgrade: {fileID: 0}
+    family: 64
+    count: 2
+    target: 1
+  rewards:
+  - {fileID: 11400000, guid: 708cf49b4675489418ee262d5b8e5c6b, type: 2}
+  - {fileID: 11400000, guid: 7ad72c39f4dfb4b42ab8180e2ede09da, type: 2}

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -24,6 +25,15 @@ public class UpgradeUI : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private WaveManager waveManager;
+
+    private TMP_Text[] badges;
+
+    private GameObject trackerRoot;
+    private TMP_Text trackerText;
+
+    private GameObject toastRoot;
+    private TMP_Text toastText;
+    private float toastHideAt;
 
     public bool IsShowing =>
         upgradePanel != null && upgradePanel.activeSelf;
@@ -109,12 +119,304 @@ public class UpgradeUI : MonoBehaviour
 
         // Останавливаем игру во время выбора
         Time.timeScale = 0f;
+
+        RefreshSynergyWidgets(choices);
+        ShowDiscoveredToast();
     }
 
     public void Hide()
     {
         if (upgradePanel != null)
             upgradePanel.SetActive(false);
+    }
+
+    private void Update()
+    {
+        if (toastRoot != null &&
+            toastRoot.activeSelf &&
+            Time.unscaledTime >= toastHideAt)
+        {
+            toastRoot.SetActive(false);
+        }
+    }
+
+    private void RefreshSynergyWidgets(
+        IReadOnlyList<UpgradeData> choices)
+    {
+        UpdateBadges(choices);
+        UpdateTracker();
+    }
+
+    private void UpdateBadges(IReadOnlyList<UpgradeData> choices)
+    {
+        if (cards == null)
+            return;
+
+        EnsureBadges();
+
+        IReadOnlyList<SynergyProgress> synergies =
+            UpgradeManager.Instance != null
+                ? UpgradeManager.Instance.ActiveSynergies
+                : null;
+
+        for (int i = 0; i < cards.Length; i++)
+        {
+            if (badges == null || badges[i] == null)
+                continue;
+
+            UpgradeData upgrade =
+                choices != null && i < choices.Count
+                    ? choices[i]
+                    : null;
+
+            SynergyProgress best =
+                upgrade != null
+                    ? FindBestSynergy(upgrade, synergies)
+                    : null;
+
+            if (best == null)
+            {
+                badges[i].gameObject.SetActive(false);
+                continue;
+            }
+
+            badges[i].gameObject.SetActive(true);
+
+            badges[i].text =
+                best.Synergy.ShortName + " " +
+                best.Current + "/" + best.Required;
+
+            badges[i].color =
+                RarityColor(best.Synergy.Rarity);
+        }
+    }
+
+    private void EnsureBadges()
+    {
+        if (badges != null)
+            return;
+
+        badges = new TMP_Text[cards.Length];
+
+        for (int i = 0; i < cards.Length; i++)
+        {
+            if (cards[i].Root == null)
+                continue;
+
+            badges[i] = CreateLabel(
+                cards[i].Root.transform,
+                "SynergyBadge",
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 5f),
+                new Vector2(260f, 24f),
+                16f,
+                TextAlignmentOptions.Center,
+                TextWrappingModes.NoWrap
+            );
+        }
+    }
+
+    private static SynergyProgress FindBestSynergy(
+        UpgradeData upgrade,
+        IReadOnlyList<SynergyProgress> synergies)
+    {
+        if (synergies == null)
+            return null;
+
+        SynergyProgress best = null;
+
+        for (int i = 0; i < synergies.Count; i++)
+        {
+            SynergyProgress progress = synergies[i];
+
+            if (progress == null ||
+                progress.Synergy == null ||
+                progress.IsComplete)
+            {
+                continue;
+            }
+
+            if (!progress.Synergy.Involves(
+                    upgrade,
+                    upgrade.Families))
+            {
+                continue;
+            }
+
+            if (best == null ||
+                progress.Ratio > best.Ratio)
+            {
+                best = progress;
+            }
+        }
+
+        return best;
+    }
+
+    private void UpdateTracker()
+    {
+        if (upgradePanel == null)
+            return;
+
+        if (trackerRoot == null)
+            CreateTracker();
+
+        IReadOnlyList<SynergyProgress> synergies =
+            UpgradeManager.Instance != null
+                ? UpgradeManager.Instance.ActiveSynergies
+                : null;
+
+        string line = BuildProgressLine(synergies);
+
+        trackerText.text = line;
+        trackerRoot.SetActive(!string.IsNullOrEmpty(line));
+    }
+
+    private void CreateTracker()
+    {
+        trackerText = CreateLabel(
+            upgradePanel.transform,
+            "SynergyTracker",
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, -46f),
+            new Vector2(660f, 44f),
+            16f,
+            TextAlignmentOptions.Center,
+            TextWrappingModes.Normal
+        );
+
+        trackerRoot = trackerText.gameObject;
+    }
+
+    private static string BuildProgressLine(
+        IReadOnlyList<SynergyProgress> synergies)
+    {
+        if (synergies == null || synergies.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>();
+
+        for (int i = 0; i < synergies.Count; i++)
+        {
+            SynergyProgress progress = synergies[i];
+
+            if (progress == null ||
+                progress.Synergy == null ||
+                progress.IsComplete)
+            {
+                continue;
+            }
+
+            parts.Add(
+                progress.Synergy.ShortName + " " +
+                progress.Current + "/" + progress.Required
+            );
+
+            if (parts.Count >= 4)
+                break;
+        }
+
+        return string.Join("  •  ", parts);
+    }
+
+    private void ShowDiscoveredToast()
+    {
+        if (upgradePanel == null ||
+            UpgradeManager.Instance == null)
+        {
+            return;
+        }
+
+        List<SynergyData> discovered =
+            UpgradeManager.Instance.DrainDiscoveredSynergies();
+
+        if (discovered == null || discovered.Count == 0)
+            return;
+
+        if (toastRoot == null)
+            CreateToast();
+
+        var names = new List<string>(discovered.Count);
+
+        foreach (SynergyData synergy in discovered)
+        {
+            if (synergy != null)
+                names.Add(synergy.LocalizedName);
+        }
+
+        toastText.text = Lang.Get(
+            "synergy.discovered",
+            string.Join(", ", names)
+        );
+
+        toastRoot.SetActive(true);
+        toastRoot.transform.SetAsLastSibling();
+
+        toastHideAt = Time.unscaledTime + 4f;
+    }
+
+    private void CreateToast()
+    {
+        var root = new GameObject(
+            "SynergyToast",
+            typeof(RectTransform),
+            typeof(Image)
+        );
+
+        var rect = root.GetComponent<RectTransform>();
+        rect.SetParent(upgradePanel.transform, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        var image = root.GetComponent<Image>();
+        image.color = new Color(0f, 0f, 0f, 0.85f);
+        image.raycastTarget = false;
+
+        toastText = CreateLabel(
+            root.transform,
+            "Label",
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(700f, 90f),
+            24f,
+            TextAlignmentOptions.Center,
+            TextWrappingModes.Normal
+        );
+
+        toastRoot = root;
+    }
+
+    private static TMP_Text CreateLabel(
+        Transform parent,
+        string name,
+        Vector2 anchor,
+        Vector2 anchoredPosition,
+        Vector2 size,
+        float fontSize,
+        TextAlignmentOptions alignment,
+        TextWrappingModes wrapping)
+    {
+        var root = new GameObject(name, typeof(RectTransform));
+
+        var rect = root.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = anchor;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+
+        var text = root.AddComponent<TextMeshProUGUI>();
+        text.font = TMP_Settings.defaultFontAsset;
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.textWrappingMode = wrapping;
+        text.overflowMode = TextOverflowModes.Overflow;
+        text.raycastTarget = false;
+
+        return text;
     }
 
     private void ChooseUpgrade(int index)

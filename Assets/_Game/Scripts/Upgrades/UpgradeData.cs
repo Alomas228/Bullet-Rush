@@ -30,6 +30,13 @@ public class UpgradeData : ScriptableObject
     [SerializeField] private UpgradeType type;
     [SerializeField] private Rarity rarity = Rarity.Common;
 
+    [Tooltip(
+        "Семейства билда для синергий. None — вывести " +
+        "автоматически из типа улучшения."
+    )]
+    [SerializeField]
+    private UpgradeFamily families = UpgradeFamily.None;
+
     [Header("Value")]
     [SerializeField] private float percentValue = 0.10f;
 
@@ -52,6 +59,9 @@ public class UpgradeData : ScriptableObject
 
     public UpgradeType Type => type;
     public Rarity Rarity => rarity;
+
+    public UpgradeFamily Families =>
+        UpgradeFamilyUtility.Resolve(families, type);
 
     public float PercentValue => percentValue;
 

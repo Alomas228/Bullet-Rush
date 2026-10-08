@@ -45,6 +45,16 @@ public class UpgradeManager : MonoBehaviour
     [Header("Selection")]
     [SerializeField] private int choicesCount = 3;
 
+    [Header("Smart Choices")]
+    [SerializeField]
+    private SmartChoiceSettings smartChoices =
+        new SmartChoiceSettings();
+
+    [Header("Synergies")]
+    [SerializeField]
+    private List<SynergyData> synergies =
+        new List<SynergyData>();
+
     [Tooltip(
         "Во сколько раз чаще предлагается уже взятое улучшение. " +
         "Это то, из-за чего карточки перестают быть случайными: " +
@@ -83,8 +93,37 @@ public class UpgradeManager : MonoBehaviour
     private bool subscribed;
     private bool runStarted;
 
+    private const int RecentPickWindow = 3;
+
+    private readonly List<UpgradeData> recentPicks =
+        new List<UpgradeData>();
+
+    private readonly List<SynergyProgress> synergyProgress =
+        new List<SynergyProgress>();
+
+    private readonly HashSet<SynergyData> discoveredSynergies =
+        new HashSet<SynergyData>();
+
+    private readonly List<SynergyData> discoveredQueue =
+        new List<SynergyData>();
+
+    private RunBuildState buildState;
+
     public IReadOnlyList<UpgradeData> CurrentChoices =>
         currentChoices;
+
+    public SmartChoiceSettings SmartChoices => smartChoices;
+
+    public RunBuildState BuildState => buildState;
+
+    public IReadOnlyList<SynergyProgress> ActiveSynergies =>
+        synergyProgress;
+
+    public UpgradeData LastTaken => lastTaken;
+
+    public float TakenAffinity => takenAffinity;
+
+    public float RepeatPenalty => repeatPenalty;
 
     /// <summary>
     /// Все оружия, доступные в забеге (используется панелью снаряжения
@@ -186,6 +225,85 @@ public class UpgradeManager : MonoBehaviour
         takenStacks.Clear();
 
         lastTaken = null;
+
+        recentPicks.Clear();
+        discoveredSynergies.Clear();
+        discoveredQueue.Clear();
+
+        RebuildState();
+    }
+
+    private void RebuildState()
+    {
+        buildState = RunBuildState.Build(
+            takenStacks,
+            recentPicks
+        );
+
+        synergyProgress.Clear();
+
+        if (synergies == null)
+            return;
+
+        for (int i = 0; i < synergies.Count; i++)
+        {
+            SynergyData synergy = synergies[i];
+
+            if (synergy == null)
+                continue;
+
+            var progress = new SynergyProgress(
+                synergy,
+                buildState
+            );
+
+            synergyProgress.Add(progress);
+
+            if (progress.IsComplete &&
+                discoveredSynergies.Add(synergy))
+            {
+                ApplySynergyRewards(synergy);
+
+                discoveredQueue.Add(synergy);
+
+                Debug.Log(
+                    $"SYNERGY DISCOVERED: " +
+                    $"{synergy.LocalizedName}"
+                );
+            }
+        }
+    }
+
+    private void ApplySynergyRewards(SynergyData synergy)
+    {
+        if (synergy.Rewards == null)
+            return;
+
+        foreach (UpgradeData reward in synergy.Rewards)
+        {
+            if (reward == null || IsMaxed(reward))
+                continue;
+
+            ApplyUpgrade(reward);
+        }
+    }
+
+    public void EnsureState()
+    {
+        if (buildState == null)
+            RebuildState();
+    }
+
+    public List<SynergyData> DrainDiscoveredSynergies()
+    {
+        if (discoveredQueue.Count == 0)
+            return null;
+
+        var drained = new List<SynergyData>(discoveredQueue);
+
+        discoveredQueue.Clear();
+
+        return drained;
     }
 
     /// <summary>
@@ -395,56 +513,20 @@ public class UpgradeManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Заполняет слоты выбора. Первый слот отдаётся свежему
-    /// улучшению, если в пуле ещё есть ни разу не взятое: именно
-    /// оно превращает три карточки из лотереи в выбор
-    /// направления, а остальные слоты позволяют углубить то,
-    /// что уже начато.
+    /// Заполняет слоты выбора тремя ролями: продолжение билда,
+    /// пересечение синергий и wildcard. Гарантия «хотя бы одна
+    /// свежая карточка» живёт в wildcard — последнем слоте.
     /// </summary>
     private void FillChoiceSlots(
         List<UpgradeData> pool,
         int slotCount)
     {
-        if (pool == null || pool.Count == 0)
-            return;
-
-        int count =
-            Mathf.Min(
-                slotCount,
-                pool.Count
-            );
-
-        bool freshPlaced = false;
-
-        for (int i = 0; i < count; i++)
-        {
-            bool wantFresh =
-                !freshPlaced && HasFreshUpgrade(pool);
-
-            UpgradeData selected =
-                PickWeighted(pool, wantFresh);
-
-            if (selected == null)
-                break;
-
-            if (GetStacks(selected) == 0)
-                freshPlaced = true;
-
-            currentChoices.Add(selected);
-
-            pool.Remove(selected);
-        }
-    }
-
-    private bool HasFreshUpgrade(List<UpgradeData> pool)
-    {
-        for (int i = 0; i < pool.Count; i++)
-        {
-            if (GetStacks(pool[i]) == 0)
-                return true;
-        }
-
-        return false;
+        UpgradeChoiceGenerator.Fill(
+            this,
+            pool,
+            slotCount,
+            currentChoices
+        );
     }
 
     private WeaponData GetRandomWeapon()
@@ -498,91 +580,7 @@ public class UpgradeManager : MonoBehaviour
         return candidates[candidates.Count - 1];
     }
 
-    /// <summary>
-    /// Случайный элемент пула, взвешенный по редкости и по
-    /// состоянию билда: уже взятое улучшение выпадает чаще
-    /// (значит, его берут осознанно), а только что взятое —
-    /// заметно реже. При onlyFresh берётся лишь то, что игрок
-    /// ещё не пробовал.
-    /// </summary>
-    private UpgradeData PickWeighted(
-        List<UpgradeData> pool,
-        bool onlyFresh)
-    {
-        if (pool == null || pool.Count == 0)
-            return null;
-
-        UpgradeData picked =
-            PickWeightedCore(pool, onlyFresh);
-
-        // Свежих не нашлось — значит, билд уже собран и
-        // оставшиеся слоты нужно долить любым доступным.
-        if (picked == null && onlyFresh)
-            picked = PickWeightedCore(pool, false);
-
-        return picked;
-    }
-
-    private UpgradeData PickWeightedCore(
-        List<UpgradeData> pool,
-        bool onlyFresh)
-    {
-        float totalWeight = 0f;
-
-        for (int i = 0; i < pool.Count; i++)
-        {
-            totalWeight += GetChoiceWeight(
-                pool[i],
-                onlyFresh
-            );
-        }
-
-        if (totalWeight <= 0f)
-        {
-            return pool[
-                Random.Range(0, pool.Count)
-            ];
-        }
-
-        float roll = Random.Range(0f, totalWeight);
-
-        for (int i = 0; i < pool.Count; i++)
-        {
-            UpgradeData candidate = pool[i];
-
-            roll -= GetChoiceWeight(candidate, onlyFresh);
-
-            if (roll < 0f)
-                return candidate;
-        }
-
-        return pool[pool.Count - 1];
-    }
-
-    private float GetChoiceWeight(
-        UpgradeData upgrade,
-        bool onlyFresh)
-    {
-        if (upgrade == null)
-            return 0f;
-
-        int stacks = GetStacks(upgrade);
-
-        if (onlyFresh && stacks > 0)
-            return 0f;
-
-        float weight = GetRarityWeight(upgrade.Rarity);
-
-        if (stacks > 0)
-            weight *= takenAffinity;
-
-        if (upgrade == lastTaken)
-            weight *= repeatPenalty;
-
-        return weight;
-    }
-
-    private int GetRarityWeight(Rarity rarity)
+    public int GetRarityWeight(Rarity rarity)
     {
         return Mathf.Max(5 - (int)rarity, 1);
     }
@@ -637,6 +635,13 @@ public class UpgradeManager : MonoBehaviour
         takenStacks[upgrade] = stacks + 1;
 
         lastTaken = upgrade;
+
+        recentPicks.Add(upgrade);
+
+        while (recentPicks.Count > RecentPickWindow)
+            recentPicks.RemoveAt(0);
+
+        RebuildState();
     }
 
     public void ApplyUpgrade(UpgradeData upgrade)

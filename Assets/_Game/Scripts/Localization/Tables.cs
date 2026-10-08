@@ -289,6 +289,36 @@ public static class Tables
             { "runup.chain_lightning.name", "Цепная молния" },
             { "runup.chain_lightning.desc", "Попадания бьют молнией по соседним целям. С уровнем растут шанс, урон и число целей." },
 
+            { "synergy.firestorm.name", "Огненный шторм" },
+            { "synergy.firestorm.short", "Шторм" },
+            { "synergy.firestorm.desc", "Три стака горения — и огонь перерастает во взрывы." },
+
+            { "synergy.bloodlust.name", "Жажда крови" },
+            { "synergy.bloodlust.short", "Кровь" },
+            { "synergy.bloodlust.desc", "Кровотечение и вампиризм вместе: раны копятся, урон возвращается здоровьем." },
+
+            { "synergy.stormcaller.name", "Призыв бури" },
+            { "synergy.stormcaller.short", "Буря" },
+            { "synergy.stormcaller.desc", "Цепная молния плюс тяжёлый урон: разряд бьёт чаще и злее." },
+
+            { "synergy.bulwark.name", "Бастион" },
+            { "synergy.bulwark.short", "Бастион" },
+            { "synergy.bulwark.desc", "Здоровье и регенерация держат строй, а щит добивает защиту." },
+
+            { "synergy.ripple.name", "Рикошетный залп" },
+            { "synergy.ripple.short", "Рикошет" },
+            { "synergy.ripple.desc", "Снаряды ищут новые цели: залп становится шире и глубже." },
+
+            { "synergy.chaos.name", "Хаос" },
+            { "synergy.chaos.short", "Хаос" },
+            { "synergy.chaos.desc", "Четыре разных семейства — билд выходит из-под контроля и выигрывает от этого." },
+
+            { "synergy.demolitionist.name", "Сапёр" },
+            { "synergy.demolitionist.short", "Сапёр" },
+            { "synergy.demolitionist.desc", "Взрывные снаряды и бомба: каждая цель становится зарядом." },
+
+            { "synergy.discovered", "СИНЕРГИЯ ОТКРЫТА: {0}" },
+
             // ---------- Снаряжение ----------
             { "eq.title", "СНАРЯЖЕНИЕ" },
             { "eq.subtitle", "Собери боевой набор" },
@@ -694,6 +724,36 @@ public static class Tables
             { "runup.chain_lightning.name", "Zincirleme Yıldırım" },
             { "runup.chain_lightning.desc", "İsabetler yanındaki hedeflere yıldırım indirir. Seviye arttıkça şans, hasar ve hedef sayısı büyür." },
 
+            { "synergy.firestorm.name", "Ateş Fırtınası" },
+            { "synergy.firestorm.short", "Ateş" },
+            { "synergy.firestorm.desc", "Üç yangın seviyesi — ve alev patlamalara dönüşür." },
+
+            { "synergy.bloodlust.name", "Kan Açlığı" },
+            { "synergy.bloodlust.short", "Kan" },
+            { "synergy.bloodlust.desc", "Kanama ve vampirizm birlikte: yaralar birikir, hasar can olarak geri döner." },
+
+            { "synergy.stormcaller.name", "Fırtına Çağırıcı" },
+            { "synergy.stormcaller.short", "Fırtına" },
+            { "synergy.stormcaller.desc", "Zincirleme yıldırım artı ağır hasar: şimşek daha sık ve daha sert iner." },
+
+            { "synergy.bulwark.name", "Sur" },
+            { "synergy.bulwark.short", "Sur" },
+            { "synergy.bulwark.desc", "Can ve yenilenme hattı tutar, kalkan savunmayı tamamlar." },
+
+            { "synergy.ripple.name", "Sekme Atışışı" },
+            { "synergy.ripple.short", "Sekme" },
+            { "synergy.ripple.desc", "Mermiler yeni hedefler bulur: atış daha geniş ve daha derin olur." },
+
+            { "synergy.chaos.name", "Kaos" },
+            { "synergy.chaos.short", "Kaos" },
+            { "synergy.chaos.desc", "Dört farklı aile — yapı bozulur ve bundan kazançlı çıkar." },
+
+            { "synergy.demolitionist.name", "İmha Uzmanı" },
+            { "synergy.demolitionist.short", "İmha" },
+            { "synergy.demolitionist.desc", "Patlayıcı mermiler artı bomba: her hedef bir şarjör olur." },
+
+            { "synergy.discovered", "SİNERJİ AÇILDI: {0}" },
+
             // ---------- Teçhizat ----------
             { "eq.title", "TEÇHİZAT" },
             { "eq.subtitle", "Savaş teçhizatını topla" },
@@ -1098,6 +1158,36 @@ public static class Tables
 
             { "runup.chain_lightning.name", "Chain Lightning" },
             { "runup.chain_lightning.desc", "Hits arc lightning to nearby enemies. Each level raises chance, damage and target count." },
+
+            { "synergy.firestorm.name", "Firestorm" },
+            { "synergy.firestorm.short", "Firestorm" },
+            { "synergy.firestorm.desc", "Three stacks of burn, and the fire outgrows into explosions." },
+
+            { "synergy.bloodlust.name", "Bloodlust" },
+            { "synergy.bloodlust.short", "Bloodlust" },
+            { "synergy.bloodlust.desc", "Bleeding and lifesteal together: wounds stack while damage comes back as health." },
+
+            { "synergy.stormcaller.name", "Stormcaller" },
+            { "synergy.stormcaller.short", "Stormcaller" },
+            { "synergy.stormcaller.desc", "Chain lightning plus heavy damage: the bolt strikes harder and more often." },
+
+            { "synergy.bulwark.name", "Bulwark" },
+            { "synergy.bulwark.short", "Bulwark" },
+            { "synergy.bulwark.desc", "Health and regen hold the line, and the shield finishes the job." },
+
+            { "synergy.ripple.name", "Ricochet Volley" },
+            { "synergy.ripple.short", "Volley" },
+            { "synergy.ripple.desc", "Bullets look for new targets: the volley becomes wider and deeper." },
+
+            { "synergy.chaos.name", "Chaos" },
+            { "synergy.chaos.short", "Chaos" },
+            { "synergy.chaos.desc", "Four different families: the build breaks shape and wins from it." },
+
+            { "synergy.demolitionist.name", "Demolitionist" },
+            { "synergy.demolitionist.short", "Demolitionist" },
+            { "synergy.demolitionist.desc", "Explosive rounds plus the bomb: every target becomes a charge." },
+
+            { "synergy.discovered", "SYNERGY UNLOCKED: {0}" },
 
             // ---------- Equipment ----------
             { "eq.title", "EQUIPMENT" },

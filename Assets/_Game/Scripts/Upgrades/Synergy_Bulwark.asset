@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
+  m_Name: Synergy_Bulwark
+  m_EditorClassIdentifier: Assembly-CSharp::SynergyData
+  langKey: bulwark
+  displayName: Bulwark
+  description: Health and regen hold the line, and the shield finishes the job.
+  kind: 0
+  rarity: 2
+  requirements:
+  - kind: 1
+    upgrade: {fileID: 0}
+    family: 128
+    count: 3
+    target: 1
+  rewards:
+  - {fileID: 11400000, guid: b62fa553d35b405db03c8747953a108f, type: 2}
+  - {fileID: 11400000, guid: 04cb3a2e8db896e4aacfb5ddfad2c562, type: 2}

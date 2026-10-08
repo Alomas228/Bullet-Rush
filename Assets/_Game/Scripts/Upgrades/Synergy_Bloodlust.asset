@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0272f4fdb7e84efca3d3a88c77fcdac2, type: 3}
+  m_Name: Synergy_Bloodlust
+  m_EditorClassIdentifier: Assembly-CSharp::SynergyData
+  langKey: bloodlust
+  displayName: Bloodlust
+  description: Bleeding and lifesteal together: wounds stack while damage comes back as health.
+  kind: 1
+  rarity: 2
+  requirements:
+  - kind: 1
+    upgrade: {fileID: 0}
+    family: 8
+    count: 2
+    target: 1
+  - kind: 1
+    upgrade: {fileID: 0}
+    family: 32
+    count: 2
+    target: 1
+  rewards:
+  - {fileID: 11400000, guid: 1493b191502437a4fb032ad2b78209e8, type: 2}
