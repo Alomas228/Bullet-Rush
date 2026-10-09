@@ -151,13 +151,26 @@ public sealed class TracerBatcher : MonoBehaviour
 
         EnsureCapacity(total);
 
-        int playerCount = 0;
-        int enemyCount = 0;
-
+        // Первый проход чистит список и считает игроков и врагов
+        // РАЗДЕЛЬНО, плюс копит общий AABB.
+        //
+        // Слот для матрицы нельзя было вычислять по ходу этого
+        // прохода (playerCount + enemyCount++): активный список
+        // идёт в порядке спавна, и пули игрока с вражескими в нём
+        // перемешаны. Стоило врагу попасть в список раньше хотя бы
+        // одного игрока или вклиниться между ними — его матрица
+        // ложилась в чужой индекс, затирала чужие данные, и после
+        // этого весь батч разъезжался: часть трассеров рисовалась
+        // чужим цветом, часть — из устаревшей матрицы прошлого
+        // кадра (телепорт и «остановка»), часть пропадала вовсе.
+        // Сам снаряд при этом продолжал лететь и бить по игроку —
+        // его логика от батчера не зависит. Поэтому индексы
+        // раздаём детерминированно вторым проходом.
         Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
         Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
         int kept = 0;
+        int playerCount = 0;
 
         for (int read = 0; read < total; read++)
         {
@@ -174,25 +187,10 @@ public sealed class TracerBatcher : MonoBehaviour
             // один раз в конце.
             active[kept++] = tracer;
 
-            Transform tracerTransform = tracer.transform;
-            Vector3 position = tracerTransform.position;
+            if (!tracer.EnemyStyle)
+                playerCount++;
 
-            tracer.BuildMatrices(
-                position,
-                tracerTransform.rotation,
-                out Matrix4x4 tail,
-                out Matrix4x4 core);
-
-            // Хвосты и ядра лежат в одном массиве каждый: сначала
-            // игрок, сразу за ним враг. Дальше это позволяет брать
-            // свой кусок через startInstance и не заводить четыре
-            // массива.
-            int slot = tracer.EnemyStyle
-                ? playerCount + enemyCount++
-                : playerCount++;
-
-            tailMatrices[slot] = tail;
-            coreMatrices[slot] = core;
+            Vector3 position = tracer.transform.position;
 
             if (position.x < min.x) min.x = position.x;
             if (position.y < min.y) min.y = position.y;
@@ -213,6 +211,39 @@ public sealed class TracerBatcher : MonoBehaviour
         // в отсечение.
         if (kept == 0)
             return;
+
+        // Второй проход: игроки ложатся строго с нуля, враги —
+        // строго с playerCount. Теперь у каждого куска ровно своя
+        // область, и DrawBatch читает ровно то, что записал.
+        int playerSlot = 0;
+        int enemySlot = playerCount;
+
+        for (int i = 0; i < kept; i++)
+        {
+            TracerEffect tracer = active[i];
+            Transform tracerTransform = tracer.transform;
+
+            tracer.BuildMatrices(
+                tracerTransform.position,
+                tracerTransform.rotation,
+                out Matrix4x4 tail,
+                out Matrix4x4 core);
+
+            if (tracer.EnemyStyle)
+            {
+                tailMatrices[enemySlot] = tail;
+                coreMatrices[enemySlot] = core;
+                enemySlot++;
+            }
+            else
+            {
+                tailMatrices[playerSlot] = tail;
+                coreMatrices[playerSlot] = core;
+                playerSlot++;
+            }
+        }
+
+        int enemyCount = kept - playerCount;
 
         Camera camera = VfxSharedAssets.MainCamera;
 

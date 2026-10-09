@@ -14,6 +14,10 @@ public class EnemyProjectile : MonoBehaviour
     private Vector3 direction;
     private float lifetimeRemaining;
 
+    // Свой трассер этого выстрела. Храним ссылку, чтобы явно
+    // отцепить хвост при возврате снаряда в пул (см. ReturnToPool).
+    private TracerEffect tracer;
+
     // Ключ пула (по префабу): пустой = объект живёт вне пула.
     public EntityId? PoolKey { get; internal set; }
 
@@ -33,13 +37,15 @@ public class EnemyProjectile : MonoBehaviour
     }
 
     /// <summary>
-    /// Хвост едет вместе со снарядом: трассер сам следит за
-    /// активностью объекта и гаснет, когда снаряд вернулся в
-    /// пул. Своего Update у него нет - тикает общий VfxUpdater.
+    /// Хвост едет вместе со снарядом и гаснет, когда снаряд
+    /// вернулся в пул. Своего Update у трассера нет - тикает
+    /// общий VfxUpdater, а о возврате снаряда в пул хвосту
+    /// сообщает сам снаряд через Detach (см. ReturnToPool), не
+    /// полагаясь на опрос activeInHierarchy.
     /// </summary>
     private void SpawnTracer()
     {
-        VfxFactory.SpawnEnemyTracer(
+        tracer = VfxFactory.SpawnEnemyTracer(
             transform.position,
             direction,
             speed,
@@ -92,6 +98,15 @@ public class EnemyProjectile : MonoBehaviour
     public void ReturnToPool()
     {
         lifetimeRemaining = 0f;
+
+        // Сначала отпускаем хвост: он останется в точке попадания
+        // и погаснет сам, а снаряд можно безопасно вернуть в пул и
+        // тут же выдать под новый выстрел.
+        if (tracer != null)
+        {
+            tracer.Detach();
+            tracer = null;
+        }
 
         EnemyProjectilePool.Despawn(this);
     }

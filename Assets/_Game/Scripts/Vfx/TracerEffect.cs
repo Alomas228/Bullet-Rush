@@ -358,6 +358,25 @@ public sealed class TracerEffect : VfxEffect
         ApplyFade();
     }
 
+    /// <summary>
+    /// Снаряд уходит в пул: трассер должен остаться в точке и
+    /// погаснуть, не дожидаясь следующего тика.
+    ///
+    /// Иначе хвост узнаёт о смерти пули только по флагу
+    /// activeInHierarchy. Если тот же объект пула переиспользуют
+    /// под новый выстрел, флаг не успевает мигнуть false — и
+    /// старый хвост прыгает (телепортируется) на новую пулю, а
+    /// иногда остаётся висеть на месте, пока снаряд летит дальше.
+    /// </summary>
+    public void Detach()
+    {
+        if (!following)
+            return;
+
+        followTarget = null;
+        StartFade();
+    }
+
     private void StartFade()
     {
         following = false;
