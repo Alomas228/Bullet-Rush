@@ -1,41 +1,31 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 /// <summary>
-/// Procedural lightning / ricochet line effect.
+/// Процедурная молния / линия рикошета.
 ///
-/// Раньше цвет и затухание писались через MaterialPropertyBlock
-/// каждый кадр жизни эффекта. Это не бесплатная оптимизация:
-/// любой PropertyBlock выводит рендерер из SRP Batcher, поэтому
-/// весь этот VFX превращался в отдельные draw call.
+/// Своего рендерера у эффекта нет вообще. Все болты всех
+/// срабатываний собирает TraceBoltBatcher в один общий меш и
+/// рисует одним MeshRenderer'ом, то есть все молнии кадра -
+/// 1 draw call. Раньше каждая молния держала собственный меш и
+/// MeshRenderer, а цвет задавался материалом из кэша (на практике
+/// их два: молния и рикошет) - N болтов = N draw call'ов. Теперь
+/// цвет болта приходит через vertex color, а один материал
+/// обслуживает и молнию, и рикошет.
 ///
-/// Теперь цвет задаётся материалом из кэша (на практике их два:
-/// молния и рикошет), а затухание идёт через ширину ленты и
-/// размер искры — это свойства геометрии, не материалов, батч
-/// остаётся целым. Заодно эффект берётся из пула, а не создаётся
-/// Instantiate и не уничтожается Destroy на каждом срабатывании.
+/// Геометрия осталась прежней: лента из двух вершин на точку с
+/// тем же срезом ширины и билбордингом к камере, что у
+/// LineRenderer, плюс квад искры на конце. Обе части лежат в одном
+/// буфере, поэтому дают один draw call, а не два.
 ///
-/// Почему лента и искра в одном рендерере, а не два объекта.
-/// LineRenderer - это отдельный рендерер, и сфера-искра была
-/// вторым: одна молния = 2 draw call. Оба они на одном материале,
-/// но SRP Batcher не складывает рендереры в один вызов, а
-/// инстансинг здесь не применим - у ленты и у сферы разные меши.
-/// Единственный способ получить 1 draw call - построить обе
-/// части в один меш вручную, что и делает этот класс.
+/// Затухание идёт через ширину ленты, а не через альфу: это
+/// свойство геометрии, а не цвета, поэтому болт утончается и
+/// исчезает, оставаясь тем же оттенком.
 ///
-/// Про внешний вид: лента рисуется теми же четырьмя вершинами на
-/// точку с тем же срезом ширины и тем же билбордингом к камере,
-/// что и LineRenderer, а сфера заменена на квад того же
-/// размера. Под URP/Unlit сфера без освещения видна ровно своим
-/// силуэтом - кругом, - поэтому на неаддитивном материале квад
-/// выглядит так же. Отличие одно и незаметное: у LineRenderer с
-/// numCapVertices = 2 торцы чуть скруглены, здесь они плоские
-/// (разница в пару пикселей на ширине 0.12 единицы).
-///
-/// Меш перезаписывается каждый кадр жизни эффекта - меняется
-/// только ширина ленты и размер искры, - поэтому он динамический.
-/// Буферы выделяются один раз в Awake, в рантайме аллокаций нет.
+/// Объект остаётся в нуле с единичным масштабом, а вершины
+/// пишутся сразу в мировых координатах - батчеру остаётся только
+/// скопировать буферы. Буферы выделяются один раз в Awake, в
+/// рантайме аллокаций нет.
 /// </summary>
 public class TraceBoltEffect : MonoBehaviour
 {
@@ -50,46 +40,70 @@ public class TraceBoltEffect : MonoBehaviour
 
     // Потолок точек ленты. 64 сегмента за глаза хватает, поле
     // segments сериализовано, поэтому нужен запас и клампинг.
-    private const int MaxPoints = 65;
+    internal const int MaxPoints = 65;
 
-    private static Material sharedMaterial;
+    /// <summary>
+    /// Вершин на болт: по две на точку ленты плюс квад искры.
+    /// </summary>
+    internal const int VerticesPerBolt = MaxPoints * 2 + 4;
+
+    /// <summary>
+    /// Индексов на болт: по два треугольника на каждый отрезок
+    /// ленты плюс два на квад искры.
+    /// </summary>
+    internal const int IndicesPerBolt = (MaxPoints - 1) * 6 + 6;
+
     private static readonly Stack<TraceBoltEffect> pool =
         new Stack<TraceBoltEffect>(PoolSize);
-
-    private static readonly int BaseColorId =
-        Shader.PropertyToID("_BaseColor");
-    private static readonly int ColorId =
-        Shader.PropertyToID("_Color");
-    private static readonly int EmissionColorId =
-        Shader.PropertyToID("_EmissionColor");
-
-    // Кэш «цвет → материал». Ключ квантуется по 1/64, чтобы близкие
-    // оттенки не плодили почти одинаковые копии.
-    private static readonly Dictionary<int, Material> materialCache =
-        new Dictionary<int, Material>(8);
-
-    private static bool materialHasBaseColor;
-    private static bool materialHasColor;
-    private static bool materialHasEmission;
 
     // Осевая линия ленты: по две вершины на точку.
     private Vector3[] centerPoints;
     private Vector3[] pointPerp;
     private float[] pointHalfWidth;
 
-    // Искра - квад, добавленный в тот же меш.
+    // Искра - квад, добавленный в тот же буфер.
     private Vector3 sparkPosition;
     private float sparkScale;
     private bool sparkVisible;
 
+    // Позиции болта в мировых координатах; их забирает батчер.
     private Vector3[] vertexBuffer;
-    private Mesh mesh;
-    private MeshRenderer meshRenderer;
+
+    // Цвет болта на каждую вершину; задаётся один раз при
+    // инициализации - затухание идёт по ширине, не по альфе.
+    private Color32[] colorBuffer;
 
     private float targetSparkScale = 1f;
     private float elapsed;
     private int pointCount;
     private bool initialized;
+
+    /// <summary>
+    /// Эффект рисуется общим мешем TraceBoltBatcher, а не своим
+    /// MeshRenderer'ом.
+    /// </summary>
+    internal bool Batched;
+
+    /// <summary>
+    /// Позиция в статическом массиве TraceBoltBatcher: удаление
+    /// за O(1) вместо поиска по массиву.
+    /// </summary>
+    internal int BatchIndex = -1;
+
+    internal Vector3[] LocalVertices
+    {
+        get { return vertexBuffer; }
+    }
+
+    internal Color32[] LocalColors
+    {
+        get { return colorBuffer; }
+    }
+
+    internal bool IsActive
+    {
+        get { return initialized; }
+    }
 
     public static TraceBoltEffect Spawn(
         Vector3 from,
@@ -121,18 +135,21 @@ public class TraceBoltEffect : MonoBehaviour
         return go.AddComponent<TraceBoltEffect>();
     }
 
+    [RuntimeInitializeOnLoadMethod(
+        RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        pool.Clear();
+    }
+
     private void Awake()
     {
         AllocateState();
-        BuildMesh();
     }
 
     private void OnDestroy()
     {
-        // Меш создан в рантайме, а HideAndDontSave не спасает его от
-        // утечки: Unity не знает про него и не уберёт сам.
-        if (mesh != null)
-            Destroy(mesh);
+        TraceBoltBatcher.Unregister(this);
     }
 
     private void AllocateState()
@@ -141,83 +158,8 @@ public class TraceBoltEffect : MonoBehaviour
         pointPerp = new Vector3[MaxPoints];
         pointHalfWidth = new float[MaxPoints];
 
-        // Две вершины на каждую точку ленты плюс квад искры.
-        vertexBuffer = new Vector3[MaxPoints * 2 + 4];
-    }
-
-    private void BuildMesh()
-    {
-        mesh = new Mesh
-        {
-            name = "VfxTraceBolt",
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        mesh.MarkDynamic();
-
-        Vector2[] uvs = new Vector2[vertexBuffer.Length];
-        int[] triangles = new int[(MaxPoints - 1) * 6 + 6];
-
-        for (int i = 0; i < MaxPoints; i++)
-        {
-            int vertex = i * 2;
-
-            uvs[vertex + 0] = new Vector2(0f, 0f);
-            uvs[vertex + 1] = new Vector2(0f, 1f);
-
-            if (i < MaxPoints - 1)
-            {
-                int triangle = i * 6;
-
-                triangles[triangle + 0] = vertex + 0;
-                triangles[triangle + 1] = vertex + 2;
-                triangles[triangle + 2] = vertex + 1;
-                triangles[triangle + 3] = vertex + 2;
-                triangles[triangle + 4] = vertex + 3;
-                triangles[triangle + 5] = vertex + 1;
-            }
-        }
-
-        // Квад искры идёт последними четырьмя вершинами.
-        int sparkVertex = MaxPoints * 2;
-
-        uvs[sparkVertex + 0] = new Vector2(0f, 0f);
-        uvs[sparkVertex + 1] = new Vector2(0f, 1f);
-        uvs[sparkVertex + 2] = new Vector2(1f, 0f);
-        uvs[sparkVertex + 3] = new Vector2(1f, 1f);
-
-        int sparkTriangle = (MaxPoints - 1) * 6;
-
-        triangles[sparkTriangle + 0] = sparkVertex + 0;
-        triangles[sparkTriangle + 1] = sparkVertex + 2;
-        triangles[sparkTriangle + 2] = sparkVertex + 1;
-        triangles[sparkTriangle + 3] = sparkVertex + 2;
-        triangles[sparkTriangle + 4] = sparkVertex + 3;
-        triangles[sparkTriangle + 5] = sparkVertex + 1;
-
-        mesh.vertices = vertexBuffer;
-        mesh.uv = uvs;
-        mesh.triangles = triangles;
-
-        // Лента живёт в мировых координатах (объект остаётся в
-        // нуле с единичным масштабом), а разлетается она дальше
-        // размера бокса по умолчанию - поэтому бокс задаётся
-        // руками, иначе эффект вылетел бы из frustum culling.
-        mesh.bounds = new Bounds(
-            Vector3.zero,
-            new Vector3(200f, 200f, 200f)
-        );
-
-        meshRenderer = gameObject.GetComponent<MeshRenderer>();
-
-        if (meshRenderer == null)
-            meshRenderer = gameObject.AddComponent<MeshRenderer>();
-
-        VfxSharedAssets.SetupRenderer(
-            meshRenderer,
-            mesh,
-            GetSharedMaterial()
-        );
+        vertexBuffer = new Vector3[VerticesPerBolt];
+        colorBuffer = new Color32[VerticesPerBolt];
     }
 
     public void Initialize(
@@ -232,8 +174,10 @@ public class TraceBoltEffect : MonoBehaviour
 
         BuildBolt(from, to, zigZag);
 
-        if (meshRenderer != null)
-            meshRenderer.sharedMaterial = GetMaterialForColor(color);
+        Color32 tint = color;
+
+        for (int i = 0; i < VerticesPerBolt; i++)
+            colorBuffer[i] = tint;
 
         if (endSpark)
         {
@@ -248,6 +192,8 @@ public class TraceBoltEffect : MonoBehaviour
         }
 
         ApplyFade(1f);
+
+        TraceBoltBatcher.Register(this);
     }
 
     private void Update()
@@ -271,6 +217,8 @@ public class TraceBoltEffect : MonoBehaviour
     private void Release()
     {
         initialized = false;
+
+        TraceBoltBatcher.Unregister(this);
 
         if (pool.Count < PoolSize)
         {
@@ -376,110 +324,11 @@ public class TraceBoltEffect : MonoBehaviour
         }
     }
 
-    private static Material GetSharedMaterial()
-    {
-        if (sharedMaterial != null)
-            return sharedMaterial;
-
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-        if (shader == null)
-            shader = Shader.Find("Unlit/Color");
-
-        if (shader == null)
-            shader = Shader.Find("Standard");
-
-        if (shader == null)
-            return null;
-
-        sharedMaterial = new Material(shader)
-        {
-            name = "TraceBoltSharedMat"
-        };
-
-        sharedMaterial.SetOverrideTag("RenderType", "Transparent");
-
-        if (sharedMaterial.HasProperty("_Surface"))
-            sharedMaterial.SetFloat("_Surface", 1f);
-        if (sharedMaterial.HasProperty("_Blend"))
-            sharedMaterial.SetFloat("_Blend", 0f);
-        if (sharedMaterial.HasProperty("_SrcBlend"))
-            sharedMaterial.SetFloat("_SrcBlend", (int)BlendMode.SrcAlpha);
-        if (sharedMaterial.HasProperty("_DstBlend"))
-            sharedMaterial.SetFloat("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-        if (sharedMaterial.HasProperty("_ZWrite"))
-            sharedMaterial.SetFloat("_ZWrite", 0f);
-
-        sharedMaterial.renderQueue = (int)RenderQueue.Transparent;
-        materialHasBaseColor = sharedMaterial.HasProperty("_BaseColor");
-        materialHasColor = sharedMaterial.HasProperty("_Color");
-        materialHasEmission = sharedMaterial.HasProperty("_EmissionColor");
-
-        if (materialHasEmission)
-            sharedMaterial.EnableKeyword("_EMISSION");
-
-        sharedMaterial.enableInstancing = true;
-
-        return sharedMaterial;
-    }
-
-    private static Material GetMaterialForColor(Color color)
-    {
-        Material baseMaterial = GetSharedMaterial();
-
-        if (baseMaterial == null)
-            return null;
-
-        int key = QuantizeKey(color);
-
-        if (materialCache.TryGetValue(key, out Material cached) &&
-            cached != null)
-        {
-            return cached;
-        }
-
-        Color emission = new Color(
-            color.r * 2f,
-            color.g * 2f,
-            color.b * 2f,
-            1f
-        );
-
-        Material tinted = new Material(baseMaterial)
-        {
-            name = baseMaterial.name + " " + key
-        };
-
-        if (materialHasBaseColor)
-            tinted.SetColor(BaseColorId, color);
-
-        if (materialHasColor)
-            tinted.SetColor(ColorId, color);
-
-        if (materialHasEmission)
-            tinted.SetColor(EmissionColorId, emission);
-
-        tinted.enableInstancing = true;
-
-        materialCache[key] = tinted;
-
-        return tinted;
-    }
-
-    private static int QuantizeKey(Color color)
-    {
-        int r = Mathf.Clamp(Mathf.RoundToInt(color.r * 64f), 0, 64);
-        int g = Mathf.Clamp(Mathf.RoundToInt(color.g * 64f), 0, 64);
-        int b = Mathf.Clamp(Mathf.RoundToInt(color.b * 64f), 0, 64);
-
-        return (r * 64 + g) * 64 + b;
-    }
-
-    // Затухание идёт по ширине ленты и размеру искры: обе величины
-    // живут в вершинах меша, материал и батч не трогаются.
+    // Затухание идёт по ширине ленты: величина живёт в вершинах
+    // меша, цвет и батч не трогаются.
     private void ApplyFade(float alpha)
     {
-        if (mesh == null || pointCount <= 0)
+        if (pointCount <= 0)
             return;
 
         float width = Mathf.Max(0f, alpha);
@@ -488,9 +337,7 @@ public class TraceBoltEffect : MonoBehaviour
         {
             int vertex = i * 2;
 
-            // Точки за пределами pointCount держат прошлую молнию,
-            // их надо затереть, иначе она останется висеть.
-            if (i >= pointCount || width <= 0f)
+            if (width <= 0f)
             {
                 vertexBuffer[vertex + 0] = Vector3.zero;
                 vertexBuffer[vertex + 1] = Vector3.zero;
@@ -506,17 +353,23 @@ public class TraceBoltEffect : MonoBehaviour
                 centerPoints[i] + side;
         }
 
+        // Хвост схлопываем на последнюю живую пару, а не в ноль:
+        // иначе треугольник между концом ленты и началом
+        // координат вытянулся бы в длинную видимую полосу.
+        // Одинаковые вершины дают вырожденные треугольники,
+        // которые не растеризуются.
+        Vector3 tailA = vertexBuffer[(pointCount - 1) * 2];
+        Vector3 tailB = vertexBuffer[(pointCount - 1) * 2 + 1];
+
         for (int i = pointCount; i < MaxPoints; i++)
         {
             int vertex = i * 2;
 
-            vertexBuffer[vertex + 0] = Vector3.zero;
-            vertexBuffer[vertex + 1] = Vector3.zero;
+            vertexBuffer[vertex + 0] = tailA;
+            vertexBuffer[vertex + 1] = tailB;
         }
 
         WriteSpark();
-
-        mesh.vertices = vertexBuffer;
     }
 
     private void UpdateSpark(float progress)

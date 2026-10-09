@@ -18,6 +18,9 @@ using UnityEngine.Rendering;
 ///                    ромб, а не шар,
 ///   кровь           — единственный неаддитивный: альфа-смешивание,
 ///                    тёмно-красный, читает vertex color,
+///   молния          — вспышка и рикошет: голубой или жёлтый цвет
+///                    приходит из vertex color, поэтому один
+///                    материал обслуживает все болты кадра,
 ///   взрыв           — шар-огонь отдельным шейдером (ему нужен
 ///                    объём через N·V) и плоские слои углей и дыма
 ///                    общим шейдером; различает их _Additive,
@@ -37,6 +40,9 @@ public static class VfxSharedAssets
 
     private const string BloodShaderName =
         "Custom/Bullet Rush VFX Blood";
+
+    private const string TraceBoltShaderName =
+        "Custom/Bullet Rush VFX Trace Bolt";
 
     private const string BlastShaderName =
         "Custom/Bullet Rush VFX Blast";
@@ -113,6 +119,7 @@ public static class VfxSharedAssets
     private static Material bulletMaterial;
     private static Material enemyBulletMaterial;
     private static Material bloodMaterial;
+    private static Material traceBoltMaterial;
     private static Material explosionSphereMaterial;
     private static Material burnFlameMaterial;
     private static Material blastEmberMaterial;
@@ -291,6 +298,48 @@ public static class VfxSharedAssets
             material.SetFloat("_CorePower", 2f);
 
         ConfigureAlphaBlended(material);
+        return material;
+    }
+
+    /// <summary>
+    /// Материал молний и рикошетов: один на все болты кадра.
+    /// Цвет приходит из vertex color, поэтому материал белый, а
+    /// _Intensity = 3 повторяет старую схему «цвет + emission 2x»
+    /// и сохраняет яркость свечения под Bloom.
+    /// </summary>
+    public static Material TraceBoltMaterial
+    {
+        get
+        {
+            if (traceBoltMaterial == null)
+            {
+                traceBoltMaterial = CreateTraceBoltMaterial();
+            }
+
+            return traceBoltMaterial;
+        }
+    }
+
+    private static Material CreateTraceBoltMaterial()
+    {
+        Shader shader = ResolveShader(
+            TraceBoltShaderName,
+            "Assets/Materials/TraceBoltVfx.shader");
+
+        if (shader == null)
+            return null;
+
+        Material material = new Material(shader)
+        {
+            name = "TraceBoltVfxMat",
+            renderQueue = (int)RenderQueue.Transparent
+        };
+
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", Color.white);
+        if (material.HasProperty("_Intensity"))
+            material.SetFloat("_Intensity", 3f);
+
         return material;
     }
 
@@ -1101,6 +1150,7 @@ public static class VfxSharedAssets
         bulletMaterial = null;
         enemyBulletMaterial = null;
         bloodMaterial = null;
+        traceBoltMaterial = null;
         explosionSphereMaterial = null;
         burnFlameMaterial = null;
         blastEmberMaterial = null;
