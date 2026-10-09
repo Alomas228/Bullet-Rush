@@ -50,6 +50,9 @@ public static class VfxSharedAssets
     private const string ExplosionSphereShaderName =
         "Custom/Bullet Rush VFX Explosion Sphere";
 
+    private const string DangerZoneShaderName =
+        "Custom/Bullet Rush VFX Danger Zone";
+
     private const string FallbackShaderName =
         "Universal Render Pipeline/Unlit";
 
@@ -124,6 +127,7 @@ public static class VfxSharedAssets
     private static Material burnFlameMaterial;
     private static Material blastEmberMaterial;
     private static Material blastSmokeMaterial;
+    private static Material dangerZoneMaterial;
     private static bool shaderWarningLogged;
 
     /// <summary>
@@ -450,6 +454,69 @@ public static class VfxSharedAssets
     }
 
     /// <summary>
+    /// Материал опасных зон: элита, аое босса, событие волны.
+    /// Один на все зоны - цвет приходит per-instance массивом
+    /// _ZoneColor, поэтому элита, босс и волна делят один draw call.
+    /// Аддитивный: зона читается как энергия и не темнит пол.
+    /// </summary>
+    public static Material DangerZoneMaterial
+    {
+        get
+        {
+            if (dangerZoneMaterial == null)
+            {
+                dangerZoneMaterial =
+                    CreateDangerZoneMaterial();
+
+                EnableInstancing(dangerZoneMaterial);
+            }
+
+            return dangerZoneMaterial;
+        }
+    }
+
+    private static Material CreateDangerZoneMaterial()
+    {
+        Shader shader = ResolveShader(
+            DangerZoneShaderName,
+            "Assets/Materials/DangerZoneVfx.shader");
+
+        if (shader == null)
+            return null;
+
+        Material material = new Material(shader)
+        {
+            name = "DangerZoneVfxMat",
+            renderQueue = (int)RenderQueue.Transparent
+        };
+
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", Color.white);
+        if (material.HasProperty("_Intensity"))
+            material.SetFloat("_Intensity", 1.25f);
+        if (material.HasProperty("_FillPower"))
+            material.SetFloat("_FillPower", 1.5f);
+        if (material.HasProperty("_RingInner"))
+            material.SetFloat("_RingInner", 0.78f);
+        if (material.HasProperty("_RingOuter"))
+            material.SetFloat("_RingOuter", 0.9f);
+        if (material.HasProperty("_DashCount"))
+            material.SetFloat("_DashCount", 24f);
+        if (material.HasProperty("_StripeScale"))
+            material.SetFloat("_StripeScale", 7f);
+        if (material.HasProperty("_SpinSpeed"))
+            material.SetFloat("_SpinSpeed", 1.6f);
+        if (material.HasProperty("_PulseSpeed"))
+            material.SetFloat("_PulseSpeed", 6f);
+        if (material.HasProperty("_ShockWidth"))
+            material.SetFloat("_ShockWidth", 0.12f);
+
+        ConfigureAdditive(material);
+
+        return material;
+    }
+
+    /// <summary>
     /// Один из плоских слоёв взрыва (угли, дым). Один шейдер на
     /// оба, различает их _Additive: светится или дым.
     /// </summary>
@@ -710,6 +777,7 @@ public static class VfxSharedAssets
     private static Mesh centeredMesh;
     private static Mesh blastFireballMesh;
     private static Mesh blastQuadMesh;
+    private static Mesh dangerDiscMesh;
 
     /// <summary>
     /// Квад 1x1, pivot у головы: X от -1 до 0, Y от -0.5 до 0.5.
@@ -792,6 +860,82 @@ public static class VfxSharedAssets
 
             return blastFireballMesh;
         }
+    }
+
+    /// <summary>
+    /// Диск радиуса 0.5, лежащий в плоскости XZ, с центром в pivot.
+    /// Общий для всех зон: размер приходит из матрицы инстанса
+    /// (scale.x = scale.z = диаметр), а UV так раскладываются в
+    /// 0..1, чтобы шейдер посчитал радиус как length(uv*2-1).
+    ///
+    /// Веер из segments треугольников: центр - одна вершина, край -
+    /// segments+1 вершин. 64 сегмента дают ровный круг на любом
+    /// радиусе зон.
+    /// </summary>
+    public static Mesh DangerDiscMesh
+    {
+        get
+        {
+            if (dangerDiscMesh == null)
+                dangerDiscMesh = BuildDiscMesh(
+                    "VfxDangerDisc",
+                    64);
+
+            return dangerDiscMesh;
+        }
+    }
+
+    private static Mesh BuildDiscMesh(string name, int segments)
+    {
+        int vertexCount = segments + 2;
+
+        Vector3[] vertices = new Vector3[vertexCount];
+        Vector2[] uvs = new Vector2[vertexCount];
+        int[] triangles = new int[segments * 3];
+
+        // Центр веера.
+        vertices[0] = Vector3.zero;
+        uvs[0] = new Vector2(0.5f, 0.5f);
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float angle = (float)i / segments * Mathf.PI * 2f;
+
+            float x = Mathf.Cos(angle) * 0.5f;
+            float z = Mathf.Sin(angle) * 0.5f;
+
+            vertices[i + 1] = new Vector3(x, 0f, z);
+            uvs[i + 1] = new Vector2(x + 0.5f, z + 0.5f);
+
+            if (i == segments)
+                break;
+
+            int t = i * 3;
+
+            triangles[t] = 0;
+            triangles[t + 1] = i + 1;
+            triangles[t + 2] = i + 2;
+        }
+
+        Mesh mesh = new Mesh
+        {
+            name = name,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+
+        // Бокс задаётся руками: диск плоский, а по высоте оставляем
+        // запас, чтобы кольцо вспышки не срезалось у самой земли.
+        mesh.bounds = new Bounds(
+            Vector3.zero,
+            new Vector3(1f, 0.25f, 1f));
+
+        mesh.UploadMeshData(true);
+
+        return mesh;
     }
 
     private static Mesh BuildSphereMesh(
@@ -1155,11 +1299,13 @@ public static class VfxSharedAssets
         burnFlameMaterial = null;
         blastEmberMaterial = null;
         blastSmokeMaterial = null;
+        dangerZoneMaterial = null;
         shaderWarningLogged = false;
         streakMesh = null;
         centeredMesh = null;
         blastFireballMesh = null;
         blastQuadMesh = null;
+        dangerDiscMesh = null;
         tracerTailMesh = null;
         tracerCoreMesh = null;
         cachedCamera = null;

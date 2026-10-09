@@ -1,10 +1,17 @@
-using System.Collections;
 using UnityEngine;
 
 // Временная зона урона: сначала пульсирующее предупреждение, потом
 // расширяющийся круг, который жжёт игрока, пока он внутри. Игрок
 // вынужден покинуть зону — наказание за стояние на месте.
-public class HazardZone : MonoBehaviour
+//
+// Картинку целиком рисует DangerZoneBatcher одним инстансным
+// вызовом на все зоны сцены. У самой зоны нет ни дочерних
+// объектов, ни материалов, ни рендереров: она только считает
+// таймеры урона и отдаёт батчеру матрицу, цвет и фазы. Раньше
+// зона собирала диск, 16 кубиков бордюра и сферу вспышки — до 18
+// объектов и столько же draw call'ов на каждую, и залп элит или
+// событие волны упирались в отрисовку.
+public class HazardZone : MonoBehaviour, IDangerZone
 {
     [Header("Settings")]
     [SerializeField] private float warningDuration = 1.4f;
@@ -18,25 +25,19 @@ public class HazardZone : MonoBehaviour
     [SerializeField] private Color dangerColor =
         new Color(1f, 0.6f, 0.05f, 0.45f);
 
+    [Tooltip("Сколько секунд держится кольцо-вспышка после срабатывания.")]
+    [SerializeField] private float flashDuration = 0.35f;
+
     private bool activated;
+    private bool registered;
+
     private float timer;
     private float phaseTime;
     private float currentRadius;
     private float damageTickTimer;
 
-    private Material fillMaterial;
-    private Material borderMaterial;
-    private Material flashMaterial;
-
-    private Transform fillDisc;
-    private Transform borderParent;
-    private Transform flashSphere;
-
-    private MeshRenderer fillRenderer;
-    private MeshRenderer flashRenderer;
-
-    private MaterialPropertyBlock fillBlock;
-    private MaterialPropertyBlock flashBlock;
+    // Случайная фаза вращения бордюра: залп зон не крутится в такт.
+    private float spinPhase;
 
     private PlayerHealth playerHealth;
 
@@ -59,264 +60,76 @@ public class HazardZone : MonoBehaviour
         damageTickTimer = 0f;
         activated = false;
 
+        spinPhase = Random.value;
+
         transform.localScale = Vector3.one;
 
-        ResizeVisual(currentRadius);
-
-        if (flashSphere != null)
-        {
-            flashSphere.localScale = Vector3.zero;
-            flashSphere.gameObject.SetActive(false);
-        }
-
+        Register();
         PlayWarningSound();
     }
 
     private void Awake()
     {
-        HideOriginalChildren();
-        BuildVisual();
-
         playerHealth = PlayerHealth.Instance;
     }
 
-    private void HideOriginalChildren()
+    private void Register()
     {
-        MeshRenderer[] renderers =
-            GetComponentsInChildren<MeshRenderer>(true);
-
-        foreach (MeshRenderer renderer in renderers)
-        {
-            if (renderer.transform == transform)
-                continue;
-
-            renderer.enabled = false;
-        }
-    }
-
-    private void BuildVisual()
-    {
-        // Материалы берутся из общего кэша, а не создаются на каждую
-        // зону: раньше на спавн уходило три new Material и столько же
-        // Destroy, а зоны не батчились друг с другом.
-        fillMaterial =
-            DangerZoneMaterials.Get(dangerColor);
-
-        borderMaterial =
-            DangerZoneMaterials.Get(
-                new Color(
-                    dangerColor.r,
-                    dangerColor.g,
-                    dangerColor.b,
-                    0.9f
-                )
-            );
-
-        flashMaterial =
-            DangerZoneMaterials.Get(dangerColor);
-
-        fillDisc =
-            CreatePrimitive(
-                PrimitiveType.Cylinder,
-                "HazardFillDisc"
-            ).transform;
-
-        fillDisc.localPosition =
-            new Vector3(0f, 0f, 0f);
-
-        fillDisc.localScale =
-            new Vector3(
-                radius * 2f,
-                0.03f,
-                radius * 2f
-            );
-
-        fillRenderer = fillDisc.GetComponent<MeshRenderer>();
-        fillRenderer.sharedMaterial = fillMaterial;
-
-        borderParent =
-            new GameObject("HazardBorder").transform;
-
-        borderParent.SetParent(transform, false);
-
-        int count = 16;
-
-        for (int i = 0; i < count; i++)
-        {
-            float angle =
-                (float)i / count * Mathf.PI * 2f;
-
-            Vector3 offset =
-                new Vector3(
-                    Mathf.Cos(angle),
-                    0f,
-                    Mathf.Sin(angle)
-                );
-
-            Transform cube =
-                CreatePrimitive(
-                    PrimitiveType.Cube,
-                    "HazardBorderCube"
-                ).transform;
-
-            cube.SetParent(borderParent, false);
-
-            cube.localPosition =
-                new Vector3(
-                    offset.x * (radius * 0.95f),
-                    0.02f,
-                    offset.z * (radius * 0.95f)
-                );
-
-            cube.localScale =
-                new Vector3(0.45f, 0.05f, 0.45f);
-
-            cube.GetComponent<MeshRenderer>().sharedMaterial =
-                borderMaterial;
-        }
-
-        flashSphere =
-            CreatePrimitive(
-                PrimitiveType.Sphere,
-                "HazardFlash"
-            ).transform;
-
-        flashSphere.localPosition =
-            new Vector3(0f, 0.15f, 0f);
-
-        flashSphere.localScale = Vector3.zero;
-
-        flashRenderer = flashSphere.GetComponent<MeshRenderer>();
-        flashRenderer.sharedMaterial = flashMaterial;
-
-        flashSphere.gameObject.SetActive(false);
-
-        // Пульсация и вспышка едут через PropertyBlock: писать цвет
-        // в общий материал нельзя, иначе мигали бы сразу все зоны
-        // этого цвета на карте.
-        fillBlock = new MaterialPropertyBlock();
-        flashBlock = new MaterialPropertyBlock();
-    }
-
-    private GameObject CreatePrimitive(
-        PrimitiveType type,
-        string name)
-    {
-        GameObject go =
-            GameObject.CreatePrimitive(type);
-
-        go.name = name;
-
-        go.transform.SetParent(
-            transform,
-            false
-        );
-
-        Collider col = go.GetComponent<Collider>();
-
-        if (col != null)
-            Destroy(col);
-
-        MeshRenderer renderer =
-            go.GetComponent<MeshRenderer>();
-
-        if (renderer != null)
-        {
-            renderer.shadowCastingMode =
-                UnityEngine.Rendering.ShadowCastingMode.Off;
-
-            renderer.receiveShadows = false;
-        }
-
-        return go;
-    }
-
-    private Material CreateTransparentMaterial(Color color)
-    {
-        Shader shader =
-            Shader.Find("Universal Render Pipeline/Lit");
-
-        if (shader == null)
-            shader = Shader.Find("Universal Render Pipeline/Unlit");
-
-        if (shader == null)
-            shader = Shader.Find("Standard");
-
-        Material mat = new Material(shader);
-
-        mat.SetOverrideTag("RenderType", "Transparent");
-
-        if (mat.HasProperty("_Surface"))
-            mat.SetFloat("_Surface", 1f);
-
-        if (mat.HasProperty("_Blend"))
-            mat.SetFloat("_Blend", 0f);
-
-        if (mat.HasProperty("_SrcBlend"))
-            mat.SetFloat(
-                "_SrcBlend",
-                (int)UnityEngine.Rendering.BlendMode.SrcAlpha
-            );
-
-        if (mat.HasProperty("_DstBlend"))
-            mat.SetFloat(
-                "_DstBlend",
-                (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha
-            );
-
-        if (mat.HasProperty("_ZWrite"))
-            mat.SetFloat("_ZWrite", 0f);
-
-        mat.renderQueue = 3000;
-
-        if (mat.HasProperty("_BaseColor"))
-            mat.SetColor("_BaseColor", color);
-
-        if (mat.HasProperty("_Color"))
-            mat.SetColor("_Color", color);
-
-        mat.name = "HazardMat";
-
-        return mat;
-    }
-
-    private void ResizeVisual(float newRadius)
-    {
-        if (fillDisc != null)
-        {
-            fillDisc.localScale =
-                new Vector3(
-                    newRadius * 2f,
-                    0.03f,
-                    newRadius * 2f
-                );
-        }
-
-        if (borderParent == null)
+        if (registered)
             return;
 
-        for (int i = 0; i < borderParent.childCount; i++)
-        {
-            Transform cube = borderParent.GetChild(i);
+        registered = true;
 
-            Vector3 local = cube.localPosition;
+        DangerZoneBatcher.Register(this);
+    }
 
-            float distance =
-                newRadius * 0.95f;
+    private void OnDestroy()
+    {
+        DangerZoneBatcher.Unregister(this);
+    }
 
-            if (local.magnitude > 0.001f)
-            {
-                local =
-                    local.normalized *
-                    distance;
-            }
-            else
-            {
-                local = new Vector3(distance, local.y, 0f);
-            }
+    // =========================================================
+    // ВЫДАЧА ИНСТАНСА БАТЧЕРУ
+    // =========================================================
 
-            cube.localPosition = local;
-        }
+    public bool ZonePlaying =>
+        registered && isActiveAndEnabled;
+
+    public Vector3 ZoneOrigin => transform.position;
+
+    public float ZoneBoundsRadius => currentRadius * 1.2f;
+
+    public void AppendZone(DangerZoneBatchBuffer batch)
+    {
+        float warnProgress = activated
+            ? 1f
+            : Mathf.Clamp01(timer / Mathf.Max(warningDuration, 0.001f));
+
+        float flash = activated
+            ? Mathf.Clamp01(1f - phaseTime / Mathf.Max(flashDuration, 0.001f))
+            : 0f;
+
+        Vector4 color = new Vector4(
+            dangerColor.r,
+            dangerColor.g,
+            dangerColor.b,
+            1f);
+
+        Vector4 parameters = new Vector4(
+            warnProgress,
+            spinPhase,
+            activated ? 1f : 0f,
+            flash);
+
+        float diameter = currentRadius * 2f;
+
+        batch.Add(
+            Matrix4x4.TRS(
+                transform.position,
+                Quaternion.identity,
+                new Vector3(diameter, 1f, diameter)),
+            color,
+            parameters);
     }
 
     private void Update()
@@ -326,22 +139,7 @@ public class HazardZone : MonoBehaviour
         if (!activated)
         {
             if (timer >= warningDuration)
-            {
                 Activate();
-                return;
-            }
-
-            float pulse =
-                Mathf.Sin(timer * 8f) * 0.5f + 0.5f;
-
-            UpdateFillPulse(pulse);
-
-            if (borderParent != null)
-                borderParent.Rotate(
-                    0f,
-                    90f * Time.deltaTime,
-                    0f
-                );
 
             return;
         }
@@ -361,28 +159,10 @@ public class HazardZone : MonoBehaviour
                 eased
             );
 
-        ResizeVisual(currentRadius);
-
         TickDamage();
 
         if (phaseTime >= duration)
             Destroy(gameObject);
-    }
-
-    private void UpdateFillPulse(float pulse)
-    {
-        if (fillMaterial == null)
-            return;
-
-        float alpha =
-            Mathf.Lerp(0.15f, 0.45f, pulse);
-
-        DangerZoneMaterials.ApplyAlpha(
-            fillRenderer,
-            fillBlock,
-            dangerColor,
-            alpha
-        );
     }
 
     private void TickDamage()
@@ -434,79 +214,19 @@ public class HazardZone : MonoBehaviour
     private void Activate()
     {
         activated = true;
+        phaseTime = 0f;
+        currentRadius = radius;
+
+        // Вспышка срабатывания: настоящий огненный шар из общего
+        // пула. Он идёт через BlastBatcher, то есть взрыв тоже не
+        // стоит ни одного собственного draw call'а.
+        VfxFactory.TrySpawnExplosion(
+            transform.position,
+            radius * 1.1f,
+            dangerColor
+        );
 
         PlayActivateSound();
-
-        ResizeVisual(currentRadius);
-
-        if (flashSphere != null)
-        {
-            flashSphere.gameObject.SetActive(true);
-
-            StartCoroutine(FlashRoutine());
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
-
-    private IEnumerator FlashRoutine()
-    {
-        float t = 0f;
-
-        while (t < 0.35f)
-        {
-            t += Time.deltaTime;
-
-            float progress =
-                Mathf.Clamp01(t / 0.35f);
-
-            float eased =
-                1f - Mathf.Pow(1f - progress, 3f);
-
-            float diameter =
-                Mathf.Lerp(
-                    0.2f,
-                    currentRadius * 1.6f,
-                    eased
-                );
-
-            if (flashSphere != null)
-            {
-                flashSphere.localScale =
-                    new Vector3(
-                        diameter,
-                        diameter * 0.5f,
-                        diameter
-                    );
-
-                DangerZoneMaterials.ApplyAlpha(
-                    flashRenderer,
-                    flashBlock,
-                    dangerColor,
-                    1f - progress
-                );
-            }
-
-            yield return null;
-        }
-
-        if (flashSphere != null)
-            flashSphere.gameObject.SetActive(false);
-    }
-
-    // Материалы зоны теперь живут в общем кэше DangerZoneMaterials
-    // и переживают саму зону, поэтому Destroy-ить их здесь нельзя:
-    // на том же цвете могут стоять другие зоны и эффекты босса.
-    private void OnDestroy()
-    {
-        fillMaterial = null;
-        borderMaterial = null;
-        flashMaterial = null;
-
-        fillBlock = null;
-        flashBlock = null;
     }
 
     private void PlayWarningSound()
