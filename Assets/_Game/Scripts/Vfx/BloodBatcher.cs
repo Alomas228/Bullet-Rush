@@ -432,6 +432,12 @@ public sealed class BloodBatcher : MonoBehaviour
             triangles[triangle + 5] = vertex + 1;
         }
 
+        // Вершины нужны до uv и индексов: Unity не принимает triangles,
+        // пока в меше нет ни одной вершины ("indices referencing out of
+        // bounds vertices"), и меш остаётся без треугольников. LateUpdate
+        // перезаписывает вершины каждый кадр, но именно этот массив
+        // задаёт длину буфера, по которой валидируются индексы.
+        mesh.vertices = vertices;
         mesh.uv = uvs;
         mesh.triangles = triangles;
     }

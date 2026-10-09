@@ -3,21 +3,19 @@ using UnityEngine;
 
 // Лужа крови на земле.
 //
-// Раньше здесь на каждую смерть моба создавался новый GameObject, а
-// на каждое пятно — ещё и CreatePrimitive(Quad) с последующим
-// Destroy. На боссе это 11 MeshRenderer и 12 GameObject, которые
-// живут 10 секунд и потом уничтожаются (см. Enemy.SpawnBloodPool).
+// Раньше каждая лужа держала два MeshRenderer (центральное пятно и
+// брызги), поэтому 10 луж на поле стоили 20 draw call'ов. Теперь
+// геометрия лужи - это просто вершины в статическом массиве, которые
+// собирает BloodPoolBatcher: все пятна идут одним мешем, все брызги -
+// вторым. То есть вся кровь на карте - 2 draw call'а, сколько бы луж
+// ни лежало.
 //
-// Теперь пятна не объекты, а вершины. Один лужа держит два
-// MeshRenderer: центральное пятно и все брызги одним мешем, поэтому
-// вместо 11 рендереров на смерть моба приходится 2, а вместо
-// Instantiate/Destroy — перезапись вершин уже существующего меша.
-// Сам объект лужи берётся из пула и не уничтожается.
+// Здесь остаётся только жизненный цикл и рискование формы пятна:
+// объект лужи берётся из пула, не уничтожается и хранит локальные
+// (относительно точки смерти) вершины, а рендерит их батчер.
 //
-// Материалы два на весь забег: BloodPool.MainMaterial на центральное
-// пятно и BloodPool.SplatterMaterial на брызги. Цвет задаётся в
-// материале, а не в PropertyBlock, иначе лужи выпадали бы из
-// SRP Batcher — а их на поле может быть десяток за раз.
+// Затухание при уходе в меню тоже общее: WorldFadeOutManager зовёт
+// BloodPoolBatcher.FadeOut, и все лужи сжимаются разом.
 public sealed class BloodPool : MonoBehaviour
 {
     [Header("Main Pool")]
@@ -35,7 +33,7 @@ public sealed class BloodPool : MonoBehaviour
 
     // Больше 10 брызг не запрашивает ни один тип моба, но запас
     // оставлен на случай добавления нового.
-    private const int MaxSplatters = 12;
+    internal const int MaxSplatters = 12;
 
     // Больше 16 луж одновременно на карте не лежит: каждая живёт
     // lifetime секунд, а мобы за это время успевают закончиться.
@@ -43,71 +41,38 @@ public sealed class BloodPool : MonoBehaviour
 
     private const float GroundY = 0.006f;
 
-    private static Material mainMaterial;
-    private static Material splatterMaterial;
+    // Все живые лужи в одном списке: их обслуживает один Update,
+    // а геометрию собирает BloodPoolBatcher.
+    private static readonly List<BloodPool> active =
+        new List<BloodPool>(32);
 
     private static readonly Queue<BloodPool> pool =
         new Queue<BloodPool>(MaxPooled);
 
-    // Все живые лужи в одном списке: их обслуживает один Update,
-    // а не по MonoBehaviour на каждое пятно крови.
-    private static readonly List<BloodPool> active =
-        new List<BloodPool>(32);
-
     private static BloodPoolTicker ticker;
 
-    private MeshFilter mainFilter;
-    private MeshRenderer mainRenderer;
-    private MeshFilter splatterFilter;
-    private MeshRenderer splatterRenderer;
+    // Форма пятна в локальных координатах лужи. Трансформ ставится
+    // в точку смерти, поэтому вершины можно держать локальными и не
+    // пересобирать при переиспользовании объекта из пула.
+    private readonly Vector3[] mainQuad = new Vector3[4];
 
-    private Vector3[] mainVertices;
-    private Vector3[] mainNormals;
-    private Vector2[] mainUvs;
-    private int[] mainTriangles;
+    private readonly Vector3[] splatterQuads =
+        new Vector3[MaxSplatters * 4];
 
-    private Vector3[] splatterVertices;
-    private Vector3[] splatterNormals;
-    private Vector2[] splatterUvs;
-    private int[] splatterTriangles;
-
+    private int activeSplatters;
     private float remaining;
 
-    /// <summary>
-    /// Материал центрального пятна. Создаётся один раз на забег.
-    /// </summary>
-    public static Material MainMaterial
-    {
-        get
-        {
-            if (mainMaterial == null)
-                mainMaterial =
-                    CreateMaterial(
-                        new Color(0.52f, 0.03f, 0.04f),
-                        "BloodMain"
-                    );
+    // Геометрию читает BloodPoolBatcher.
+    internal Vector3[] MainQuad => mainQuad;
 
-            return mainMaterial;
-        }
-    }
+    internal Vector3[] SplatterQuads => splatterQuads;
+
+    internal int ActiveSplatters => activeSplatters;
 
     /// <summary>
-    /// Материал брызг. Создаётся один раз на забег.
+    /// Все живые лужи. Батчер обходит этот список разом.
     /// </summary>
-    public static Material SplatterMaterial
-    {
-        get
-        {
-            if (splatterMaterial == null)
-                splatterMaterial =
-                    CreateMaterial(
-                        new Color(0.44f, 0.025f, 0.035f),
-                        "BloodSplatter"
-                    );
-
-            return splatterMaterial;
-        }
-    }
+    internal static List<BloodPool> ActivePools => active;
 
     public static void SpawnAt(
         Vector3 position,
@@ -179,13 +144,16 @@ public sealed class BloodPool : MonoBehaviour
 
         transform.localScale = Vector3.one;
 
-        WriteMainDecal();
-        WriteSplatters();
+        WriteMainQuad();
+        WriteSplatterQuads();
+
+        // Форма изменилась - батчер пересоберёт общий меш.
+        BloodPoolBatcher.NotifyChanged();
     }
 
     // Пятно рисуется в плоскости земли: четыре вершины квадрата
     // лежат в XZ, нормаль смотрит вверх.
-    private void WriteMainDecal()
+    private void WriteMainQuad()
     {
         float size =
             mainPoolSize *
@@ -198,47 +166,20 @@ public sealed class BloodPool : MonoBehaviour
         );
 
         WriteQuad(
-            mainVertices,
-            mainNormals,
-            mainUvs,
-            mainTriangles,
+            mainQuad,
             0,
             center,
             size,
             Random.Range(0f, 360f)
         );
-
-        mainFilter.mesh.vertices = mainVertices;
-        mainFilter.mesh.normals = mainNormals;
-        mainFilter.mesh.uv = mainUvs;
-        mainFilter.mesh.triangles = mainTriangles;
-
-        mainRenderer.sharedMaterial = MainMaterial;
     }
 
-    private void WriteSplatters()
+    private void WriteSplatterQuads()
     {
-        int requested = Mathf.Clamp(splatterCount, 0, MaxSplatters);
+        activeSplatters = Mathf.Clamp(splatterCount, 0, MaxSplatters);
 
-        // Незапрошенные брызги остаются вырожденными: у них нулевой
-        // размер, поэтому они не видны и не стоят ничего. Так размеры
-        // массивов постоянны и меш не переаллоцируется каждый спавн.
-        for (int i = 0; i < MaxSplatters; i++)
+        for (int i = 0; i < activeSplatters; i++)
         {
-            int vertex = i * 4;
-            int triangle = i * 6;
-
-            if (i >= requested)
-            {
-                for (int v = 0; v < 4; v++)
-                    splatterVertices[vertex + v] = Vector3.zero;
-
-                for (int t = 0; t < 6; t++)
-                    splatterTriangles[triangle + t] = 0;
-
-                continue;
-            }
-
             float size =
                 Random.Range(minSplatterSize, maxSplatterSize);
 
@@ -246,42 +187,21 @@ public sealed class BloodPool : MonoBehaviour
                 Random.insideUnitCircle * maxSplatterOffset;
 
             WriteQuad(
-                splatterVertices,
-                splatterNormals,
-                splatterUvs,
-                splatterTriangles,
-                vertex,
+                splatterQuads,
+                i * 4,
                 new Vector3(offset.x, 0f, offset.y),
                 size,
-                Random.Range(0f, 360f),
-                triangle
+                Random.Range(0f, 360f)
             );
         }
-
-        splatterFilter.mesh.vertices = splatterVertices;
-        splatterFilter.mesh.normals = splatterNormals;
-        splatterFilter.mesh.uv = splatterUvs;
-        splatterFilter.mesh.triangles = splatterTriangles;
-
-        bool hasSplatters = requested > 0;
-
-        if (splatterRenderer.enabled != hasSplatters)
-            splatterRenderer.enabled = hasSplatters;
-
-        if (hasSplatters)
-            splatterRenderer.sharedMaterial = SplatterMaterial;
     }
 
     private static void WriteQuad(
         Vector3[] vertices,
-        Vector3[] normals,
-        Vector2[] uvs,
-        int[] triangles,
         int vertexBase,
         Vector3 center,
         float size,
-        float yawDegrees,
-        int triangleBase = 0)
+        float yawDegrees)
     {
         float half = size * 0.5f;
         float yaw = yawDegrees * Mathf.Deg2Rad;
@@ -294,22 +214,6 @@ public sealed class BloodPool : MonoBehaviour
         WriteCorner(vertices, vertexBase + 1, center, half, -half, cos, sin);
         WriteCorner(vertices, vertexBase + 2, center, half, half, cos, sin);
         WriteCorner(vertices, vertexBase + 3, center, -half, half, cos, sin);
-
-        uvs[vertexBase + 0] = new Vector2(0f, 0f);
-        uvs[vertexBase + 1] = new Vector2(1f, 0f);
-        uvs[vertexBase + 2] = new Vector2(1f, 1f);
-        uvs[vertexBase + 3] = new Vector2(0f, 1f);
-
-        for (int v = 0; v < 4; v++)
-            normals[vertexBase + v] = Vector3.up;
-
-        // Порядок обратный, чтобы нормаль треугольника смотрела вверх.
-        triangles[triangleBase + 0] = vertexBase + 0;
-        triangles[triangleBase + 1] = vertexBase + 2;
-        triangles[triangleBase + 2] = vertexBase + 1;
-        triangles[triangleBase + 3] = vertexBase + 0;
-        triangles[triangleBase + 4] = vertexBase + 3;
-        triangles[triangleBase + 5] = vertexBase + 2;
     }
 
     private static void WriteCorner(
@@ -326,83 +230,6 @@ public sealed class BloodPool : MonoBehaviour
             0f,
             center.z + x * sin + z * cos
         );
-    }
-
-    private void Awake()
-    {
-        CreateRenderers();
-    }
-
-    private void CreateRenderers()
-    {
-        mainVertices = new Vector3[4];
-        mainNormals = new Vector3[4];
-        mainUvs = new Vector2[4];
-        mainTriangles = new int[6];
-
-        splatterVertices = new Vector3[MaxSplatters * 4];
-        splatterNormals = new Vector3[MaxSplatters * 4];
-        splatterUvs = new Vector2[MaxSplatters * 4];
-        splatterTriangles = new int[MaxSplatters * 6];
-
-        CreateDecalRenderer("BloodMain", out mainFilter, out mainRenderer);
-        CreateDecalRenderer("BloodSplatters", out splatterFilter, out splatterRenderer);
-
-        splatterRenderer.enabled = false;
-    }
-
-    private void CreateDecalRenderer(
-        string name,
-        out MeshFilter filter,
-        out MeshRenderer meshRenderer)
-    {
-        GameObject quad = new GameObject(name);
-
-        quad.transform.SetParent(transform, false);
-
-        Mesh mesh = new Mesh
-        {
-            name = name
-        };
-
-        // Меш живёт столько же, сколько лужа, и переиспользуется
-        // вместе с ней, поэтому ручной вертикальный слепок не нужен.
-        mesh.MarkDynamic();
-
-        filter = quad.AddComponent<MeshFilter>();
-        filter.sharedMesh = mesh;
-
-        meshRenderer = quad.AddComponent<MeshRenderer>();
-        meshRenderer.shadowCastingMode =
-            UnityEngine.Rendering.ShadowCastingMode.Off;
-        meshRenderer.receiveShadows = false;
-        meshRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
-        meshRenderer.reflectionProbeUsage =
-            UnityEngine.Rendering.ReflectionProbeUsage.Off;
-    }
-
-    private static Material CreateMaterial(
-        Color color,
-        string name)
-    {
-        Shader shader =
-            Shader.Find("Universal Render Pipeline/Unlit");
-
-        if (shader == null)
-            shader = Shader.Find("Unlit/Color");
-
-        if (shader == null)
-            return null;
-
-        Material created = new Material(shader)
-        {
-            name = name
-        };
-
-        created.color = color;
-        created.enableInstancing = true;
-
-        return created;
     }
 
     private static void EnsureTicker()
@@ -445,6 +272,8 @@ public sealed class BloodPool : MonoBehaviour
                     pool.Enqueue(blood);
 
                 active.RemoveAt(i);
+
+                BloodPoolBatcher.NotifyChanged();
             }
 
             // Тикер нужен только пока есть живые лужи. Когда их не
@@ -452,21 +281,6 @@ public sealed class BloodPool : MonoBehaviour
             // пустым GameObject между волнами.
             if (active.Count == 0)
                 Destroy(gameObject);
-        }
-    }
-
-    private void OnDestroy()
-    {
-        if (mainFilter != null &&
-            mainFilter.sharedMesh != null)
-        {
-            Destroy(mainFilter.sharedMesh);
-        }
-
-        if (splatterFilter != null &&
-            splatterFilter.sharedMesh != null)
-        {
-            Destroy(splatterFilter.sharedMesh);
         }
     }
 }

@@ -25,15 +25,17 @@ public class WorldFadeOutManager : MonoBehaviour
         // переход в меню выделял массив по всем живым числам.
         DamageNumberSystem.HideAll();
 
+        float totalFade = EstimateCameraFlightTime() + 0.5f;
+
+        // Кровь больше не по объекту на лужу, а один общий батчер:
+        // масштабирование отдельных GameObject'ов её не задело бы.
+        // Поэтому все лужи затухают разом за всё время перелёта.
+        BloodPoolBatcher.FadeOut(totalFade);
+
         List<GameObject> objects = CollectObjects();
 
-        if (objects.Count == 0)
-        {
-            fading = false;
-            return;
-        }
-
-        float stagger = (EstimateCameraFlightTime() + 0.5f) / objects.Count;
+        float stagger =
+            objects.Count > 0 ? totalFade / objects.Count : 0f;
 
         StartCoroutine(FadeOutRoutine(objects, stagger));
     }
@@ -69,7 +71,6 @@ public class WorldFadeOutManager : MonoBehaviour
         CollectFrom(result, FindObjectsByType<EnemyProjectile>());
         CollectFrom(result, FindObjectsByType<Bullet>());
         CollectFrom(result, FindObjectsByType<WorldStructure>());
-        CollectFrom(result, FindObjectsByType<BloodPool>());
 
         return result;
     }
@@ -104,9 +105,6 @@ public class WorldFadeOutManager : MonoBehaviour
                 stagger
             );
 
-        WaitForSecondsRealtime staggerWait =
-            new WaitForSecondsRealtime(stagger);
-
         for (int i = 0; i < objects.Count; i++)
         {
             if (objects[i] != null)
@@ -117,8 +115,15 @@ public class WorldFadeOutManager : MonoBehaviour
                     )
                 );
 
-            yield return staggerWait;
+            if (stagger > 0f)
+                yield return new WaitForSecondsRealtime(stagger);
         }
+
+        // Кровь гасится своим батчером, а не объектами в списке,
+        // поэтому ждём его отдельно, чтобы сцена не перезагрузилась
+        // посреди затухания.
+        while (BloodPoolBatcher.IsFading)
+            yield return null;
 
         fading = false;
     }
