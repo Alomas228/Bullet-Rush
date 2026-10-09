@@ -52,6 +52,71 @@ public class SynergyData : ScriptableObject
 
         public int Target => target > 0 ? target : 1;
 
+public int GetCurrent(RunBuildState build)
+        {
+            if (build == null)
+                return 0;
+
+            switch (kind)
+            {
+                case RequirementKind.Upgrade:
+                    return upgrade != null
+                        ? UnityEngine.Mathf.Min(
+                            build.GetStacks(upgrade),
+                            Target
+                        )
+                        : 0;
+
+                case RequirementKind.Family:
+                    return family != UpgradeFamily.None
+                        ? UnityEngine.Mathf.Min(
+                            build.GetFamilyStacks(family),
+                            Count
+                        )
+                        : 0;
+
+                case RequirementKind.DistinctFamilies:
+                    return UnityEngine.Mathf.Min(
+                        build.GetDistinctFamilyCount(family),
+                        Count
+                    );
+
+                case RequirementKind.WeaponTaken:
+
+                    if (weapon != null)
+                        return build.HasTakenWeapon(weapon) ? 1 : 0;
+
+                    return UnityEngine.Mathf.Min(
+                        build.GetDistinctWeaponCount(),
+                        Count
+                    );
+
+                default:
+                    return 0;
+            }
+        }
+
+        public int GetRequired()
+        {
+            switch (kind)
+            {
+                case RequirementKind.Upgrade:
+                    return upgrade != null ? Target : 0;
+
+                case RequirementKind.Family:
+                    return family != UpgradeFamily.None ? Count : 0;
+
+                case RequirementKind.DistinctFamilies:
+                    return Count;
+
+                case RequirementKind.WeaponTaken:
+                    return weapon != null ? 1 : Count;
+
+                default:
+                    return 0;
+            }
+        }
+
         public bool IsSatisfied(RunBuildState build)
         {
             if (build == null)
@@ -254,6 +319,29 @@ public class SynergyData : ScriptableObject
         }
 
         return satisfied;
+    }
+
+    public void GetProgress(
+        RunBuildState build,
+        out int current,
+        out int required)
+    {
+        current = 0;
+        required = 0;
+
+        if (requirements == null)
+            return;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            SynergyRequirement req = requirements[i];
+
+            if (req == null)
+                continue;
+
+            current += req.GetCurrent(build);
+            required += req.GetRequired();
+        }
     }
 
     public bool HasAllOptional(RunBuildState build)

@@ -12,11 +12,13 @@ public class UpgradeUI : MonoBehaviour
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text descriptionText;
         [SerializeField] private Button button;
+        [SerializeField] private TMP_Text progressText;
 
         public GameObject Root => root;
         public TMP_Text NameText => nameText;
         public TMP_Text DescriptionText => descriptionText;
         public Button Button => button;
+        public TMP_Text ProgressText => progressText;
     }
 
     [Header("UI")]
@@ -25,11 +27,6 @@ public class UpgradeUI : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private WaveManager waveManager;
-
-    private TMP_Text[] badges;
-
-    private GameObject trackerRoot;
-    private TMP_Text trackerText;
 
     private GameObject toastRoot;
     private TMP_Text toastText;
@@ -143,16 +140,8 @@ public class UpgradeUI : MonoBehaviour
     private void RefreshSynergyWidgets(
         IReadOnlyList<UpgradeData> choices)
     {
-        UpdateBadges(choices);
-        UpdateTracker();
-    }
-
-    private void UpdateBadges(IReadOnlyList<UpgradeData> choices)
-    {
         if (cards == null)
             return;
-
-        EnsureBadges();
 
         IReadOnlyList<SynergyProgress> synergies =
             UpgradeManager.Instance != null
@@ -161,7 +150,9 @@ public class UpgradeUI : MonoBehaviour
 
         for (int i = 0; i < cards.Length; i++)
         {
-            if (badges == null || badges[i] == null)
+            TMP_Text slot = cards[i].ProgressText;
+
+            if (slot == null)
                 continue;
 
             UpgradeData upgrade =
@@ -176,43 +167,28 @@ public class UpgradeUI : MonoBehaviour
 
             if (best == null)
             {
-                badges[i].gameObject.SetActive(false);
+                slot.gameObject.SetActive(false);
                 continue;
             }
 
-            badges[i].gameObject.SetActive(true);
+            slot.gameObject.SetActive(true);
 
-            badges[i].text =
-                best.Synergy.ShortName + " " +
-                best.Current + "/" + best.Required;
+            if (best.IsComplete)
+            {
+                slot.color = Color.white;
+                slot.text =
+                    "<color=#FFC24D>✓ " +
+                    best.Synergy.ShortName +
+                    "</color>";
+            }
+            else
+            {
+                slot.text =
+                    best.Synergy.ShortName + " " +
+                    best.Current + "/" + best.Required;
 
-            badges[i].color =
-                RarityColor(best.Synergy.Rarity);
-        }
-    }
-
-    private void EnsureBadges()
-    {
-        if (badges != null)
-            return;
-
-        badges = new TMP_Text[cards.Length];
-
-        for (int i = 0; i < cards.Length; i++)
-        {
-            if (cards[i].Root == null)
-                continue;
-
-            badges[i] = CreateLabel(
-                cards[i].Root.transform,
-                "SynergyBadge",
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 5f),
-                new Vector2(260f, 24f),
-                16f,
-                TextAlignmentOptions.Center,
-                TextWrappingModes.NoWrap
-            );
+                slot.color = RarityColor(best.Synergy.Rarity);
+            }
         }
     }
 
@@ -230,8 +206,7 @@ public class UpgradeUI : MonoBehaviour
             SynergyProgress progress = synergies[i];
 
             if (progress == null ||
-                progress.Synergy == null ||
-                progress.IsComplete)
+                progress.Synergy == null)
             {
                 continue;
             }
@@ -251,94 +226,6 @@ public class UpgradeUI : MonoBehaviour
         }
 
         return best;
-    }
-
-    private void UpdateTracker()
-    {
-        if (upgradePanel == null)
-            return;
-
-        if (trackerRoot == null)
-            CreateTracker();
-
-        IReadOnlyList<SynergyProgress> synergies =
-            UpgradeManager.Instance != null
-                ? UpgradeManager.Instance.ActiveSynergies
-                : null;
-
-        string line = BuildProgressLine(synergies);
-
-        trackerText.text = line;
-        trackerRoot.SetActive(!string.IsNullOrEmpty(line));
-    }
-
-    private void CreateTracker()
-    {
-        trackerText = CreateLabel(
-            upgradePanel.transform,
-            "SynergyTracker",
-            new Vector2(0.5f, 0f),
-            new Vector2(0f, -46f),
-            new Vector2(660f, 72f),
-            15f,
-            TextAlignmentOptions.Center,
-            TextWrappingModes.Normal
-        );
-
-        trackerRoot = trackerText.gameObject;
-    }
-
-    private static string BuildProgressLine(
-        IReadOnlyList<SynergyProgress> synergies)
-    {
-        if (synergies == null || synergies.Count == 0)
-            return string.Empty;
-
-        var parts = new List<string>();
-
-        for (int i = 0; i < synergies.Count; i++)
-        {
-            SynergyProgress progress = synergies[i];
-
-            if (progress == null ||
-                progress.Synergy == null ||
-                !progress.IsComplete)
-            {
-                continue;
-            }
-
-            parts.Add(
-                "<color=#FFC24D>✓ " +
-                progress.Synergy.ShortName +
-                "</color>"
-            );
-
-            if (parts.Count >= 5)
-                return string.Join("  •  ", parts);
-        }
-
-        for (int i = 0; i < synergies.Count; i++)
-        {
-            SynergyProgress progress = synergies[i];
-
-            if (progress == null ||
-                progress.Synergy == null ||
-                progress.IsComplete ||
-                progress.Current <= 0)
-            {
-                continue;
-            }
-
-            parts.Add(
-                progress.Synergy.ShortName + " " +
-                progress.Current + "/" + progress.Required
-            );
-
-            if (parts.Count >= 5)
-                break;
-        }
-
-        return string.Join("  •  ", parts);
     }
 
     private void ShowDiscoveredToast()

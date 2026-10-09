@@ -18,15 +18,16 @@ public class SynergyProgress
     {
         Synergy = synergy;
 
-        Required =
-            synergy != null &&
-            synergy.Requirements != null
-                ? synergy.Requirements.Count
-                : 0;
+        if (synergy != null)
+        {
+            synergy.GetProgress(
+                build,
+                out int current,
+                out int required
+            );
 
-        Current =
-            synergy != null
-                ? synergy.CountSatisfied(build)
-                : 0;
+            Current = current;
+            Required = required;
+        }
     }
 }
