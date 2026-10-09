@@ -42,6 +42,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private GameObject tipsPanel;
     [SerializeField] private GameObject equipmentPanel;
     [SerializeField] private GameObject mapsPanel;
+    [SerializeField] private GameObject dailyRewardPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -91,14 +92,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             mapsButton.onClick.AddListener(OnMapsClicked);
 
         if (dailyRewardButton != null)
-        {
             dailyRewardButton.onClick.AddListener(OnDailyRewardClicked);
-            Debug.Log("[MainMenuUI] DailyRewardButton assigned: " + dailyRewardButton.name);
-        }
-        else
-        {
-            Debug.LogWarning("[MainMenuUI] DailyRewardButton NOT assigned in Inspector!");
-        }
     }
 
     private void OnEnable()
@@ -244,13 +238,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         SetMenuInteractive(!MenuReloadPending);
 
-        // Кнопка ежедневных наград всегда активна и кликабельна!
-        if (dailyRewardButton != null)
-        {
-            dailyRewardButton.interactable = true;
-            dailyRewardButton.gameObject.SetActive(true);
-        }
-
         if (ShowWithoutAnimation)
         {
             ShowWithoutAnimation = false;
@@ -342,7 +329,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     private void OnDailyRewardClicked()
     {
-        Debug.Log("[MainMenuUI] OnDailyRewardClicked called!");
         OpenDailyRewardPanel();
     }
 
@@ -357,21 +343,19 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     public void OpenDailyRewardPanel()
     {
-        Debug.Log("[MainMenuUI] OpenDailyRewardPanel called!");
-        
         CloseSubPanels();
         HideMenuButtons();
 
-        DailyRewardUI dailyRewardUI = FindObjectOfType<DailyRewardUI>();
+        if (dailyRewardPanel == null)
+            return;
+
+        DailyRewardUI dailyRewardUI =
+            dailyRewardPanel.GetComponent<DailyRewardUI>();
+
+        dailyRewardPanel.SetActive(true);
+
         if (dailyRewardUI != null)
-        {
-            Debug.Log("[MainMenuUI] Found DailyRewardUI: " + dailyRewardUI.gameObject.name);
             dailyRewardUI.ShowPanel();
-        }
-        else
-        {
-            Debug.LogError("[MainMenuUI] DailyRewardUI NOT FOUND!");
-        }
     }
 
     public void CloseSubPanels()
@@ -399,6 +383,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (mapsPanel != null)
             mapsPanel.SetActive(false);
+
+        if (dailyRewardPanel != null)
+            dailyRewardPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -434,12 +421,8 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         if (mapsButton != null)
             mapsButton.gameObject.SetActive(active);
 
-        // Кнопка ежедневных наград ВСЕГДА активна и кликабельна!
         if (dailyRewardButton != null)
-        {
-            dailyRewardButton.gameObject.SetActive(true);
-            dailyRewardButton.interactable = true;
-        }
+            dailyRewardButton.gameObject.SetActive(active);
     }
 
     private void OnPlayClicked()

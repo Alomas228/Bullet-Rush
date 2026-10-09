@@ -4,40 +4,20 @@ using TMPro;
 
 public class DailyRewardUI : MonoBehaviour, ILangRefreshable
 {
-    [Header("5 Reward Slots")]
     [SerializeField] private DailyRewardSlotUI[] rewardSlots;
-
-    [Header("Close Button")]
+    [SerializeField] private TMP_Text titleText;
     [SerializeField] private Button closeButton;
-
-    private bool _panelVisible;
 
     private void Awake()
     {
-        Debug.Log("[DailyRewardUI] Awake! Panel: " + gameObject.name);
-        
         if (closeButton != null)
-        {
-            closeButton.onClick.AddListener(OnCloseClicked);
-            Debug.Log("[DailyRewardUI] Close button assigned.");
-        }
-        else
-        {
-            Debug.LogWarning("[DailyRewardUI] Close button NOT assigned!");
-        }
+            closeButton.onClick.AddListener(HidePanel);
     }
 
     private void OnEnable()
     {
         if (DailyRewardManager.Instance != null)
-        {
             DailyRewardManager.Instance.OnRewardClaimed += OnRewardClaimed;
-            Debug.Log("[DailyRewardUI] Subscribed to OnRewardClaimed");
-        }
-        else
-        {
-            Debug.LogWarning("[DailyRewardUI] DailyRewardManager.Instance is NULL!");
-        }
     }
 
     private void OnDisable()
@@ -46,9 +26,14 @@ public class DailyRewardUI : MonoBehaviour, ILangRefreshable
             DailyRewardManager.Instance.OnRewardClaimed -= OnRewardClaimed;
     }
 
+    private void OnDestroy()
+    {
+        if (closeButton != null)
+            closeButton.onClick.RemoveListener(HidePanel);
+    }
+
     private void Start()
     {
-        Debug.Log("[DailyRewardUI] Start! Slots count: " + (rewardSlots != null ? rewardSlots.Length.ToString() : "NULL"));
         UpdateUI();
     }
 
@@ -59,58 +44,62 @@ public class DailyRewardUI : MonoBehaviour, ILangRefreshable
 
     public void ShowPanel()
     {
-        Debug.Log("[DailyRewardUI] ShowPanel() called! _panelVisible was: " + _panelVisible);
-        
-        _panelVisible = true;
-        UpdateUI();
         gameObject.SetActive(true);
-        
-        Debug.Log("[DailyRewardUI] Panel active: " + gameObject.activeSelf);
+        UpdateUI();
     }
 
-    private void OnCloseClicked()
+    public void HidePanel()
     {
-        Debug.Log("[DailyRewardUI] OnCloseClicked called!");
-        _panelVisible = false;
         gameObject.SetActive(false);
     }
 
-    private void UpdateUI()
+    public void UpdateUI()
     {
-        if (DailyRewardManager.Instance == null)
-        {
-            Debug.LogError("[DailyRewardUI] DailyRewardManager.Instance is NULL!");
+        DailyRewardManager manager = DailyRewardManager.Instance;
+
+        if (manager == null || rewardSlots == null || rewardSlots.Length == 0)
             return;
-        }
 
-        if (rewardSlots == null || rewardSlots.Length < 5)
+        if (titleText != null)
+            titleText.text = Lang.Get("daily.title");
+
+        int cycle = manager.CycleLength;
+        int shown = Mathf.Min(rewardSlots.Length, cycle);
+
+        for (int i = 0; i < shown; i++)
         {
-            Debug.LogWarning("[DailyRewardUI] rewardSlots is null or has less than 5 elements. Count: " + (rewardSlots != null ? rewardSlots.Length.ToString() : "NULL"));
-            return;
-        }
+            int day = i + 1;
 
-        for (int i = 0; i < 5; i++)
+            if (rewardSlots[i] == null)
+                continue;
+
+            rewardSlots[i].SetData(
+                day,
+                manager.CoinsForDay(day),
+                manager.XpForDay(day),
+                ResolveState(manager, day)
+            );
+        }
+    }
+
+    private static DailyRewardSlotUI.State ResolveState(
+        DailyRewardManager manager,
+        int day)
+    {
+        if (day == manager.ClaimedDayToday ||
+            manager.IsDayClaimed(day))
         {
-            int day = DailyRewardManager.Instance.CurrentDayCounter + i;
-            int coins = DailyRewardManager.Instance.GetCoinsForDay(day);
-            int xp = DailyRewardManager.Instance.GetXPForDay(day);
-            bool isToday = (i == 0);
-            bool isClaimed = !isToday;
-
-            if (rewardSlots[i] != null)
-            {
-                rewardSlots[i].SetData(day, coins, xp, isToday, isClaimed);
-            }
-            else
-            {
-                Debug.LogWarning("[DailyRewardUI] rewardSlots[" + i + "] is NULL!");
-            }
+            return DailyRewardSlotUI.State.Claimed;
         }
+
+        if (manager.IsAvailableToday && day == manager.NextDay)
+            return DailyRewardSlotUI.State.Today;
+
+        return DailyRewardSlotUI.State.Locked;
     }
 
     private void OnRewardClaimed(int day)
     {
-        Debug.Log("[DailyRewardUI] OnRewardClaimed! Day: " + day);
         UpdateUI();
     }
 }

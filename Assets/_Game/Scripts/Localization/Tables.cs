@@ -457,6 +457,8 @@ public static class Tables
             { "daily.locked", "ЗАКРЫТО" },
             { "daily.coins", "{0} монет" },
             { "daily.xp", "{0} XP" },
+            { "daily.btn", "ЕЖЕДНЕВНО" },
+            { "daily.back", "НАЗАД" },
         };
 
         _ru = t;
@@ -896,6 +898,8 @@ public static class Tables
             { "daily.locked", "KİLİTLİ" },
             { "daily.coins", "{0} jeton" },
             { "daily.xp", "{0} XP" },
+            { "daily.btn", "GÜNLÜK" },
+            { "daily.back", "GERİ" },
         };
 
         _tr = t;
@@ -1335,6 +1339,8 @@ public static class Tables
             { "daily.locked", "LOCKED" },
             { "daily.coins", "{0} coins" },
             { "daily.xp", "{0} XP" },
+            { "daily.btn", "DAILY" },
+            { "daily.back", "BACK" },
         };
 
         _en = t;
