@@ -1684,6 +1684,11 @@ public class EnemySpawner : MonoBehaviour
     private GameObject GetEnemyPrefabForWave(
         int wave)
     {
+        // Тема забега подмешивает свой тип поверх любой волны —
+        // это фон всего забега, а не акцент одной волны.
+        if (TryGetRunBiasPrefab(wave, out GameObject runBiased))
+            return runBiased;
+
         // Модификатор не добавляет новых типов — он перекачивает
         // часть существующих ролей в конкретный тип. Поэтому волна
         // выглядит и ощущается иначе, а пул врагов остаётся прежним.
@@ -1749,6 +1754,55 @@ public class EnemySpawner : MonoBehaviour
         {
             prefab = rangedPrefab;
             return true;
+        }
+
+        return false;
+    }
+
+    // Тема забега перекачивает часть врагов в свой тип на всей
+    // длине забега. Шанс небольшой: тема должна окрашивать состав,
+    // а не превращать каждую волну в один тип.
+    private bool TryGetRunBiasPrefab(
+        int wave,
+        out GameObject prefab)
+    {
+        prefab = null;
+
+        RunSpawnBias bias = RunModifierManager.SpawnBiasType;
+
+        if (bias == RunSpawnBias.None)
+            return false;
+
+        float chance = RunModifierManager.SpawnBiasProbability;
+
+        if (chance <= 0f || Random.value >= chance)
+            return false;
+
+        switch (bias)
+        {
+            case RunSpawnBias.Fast:
+                if (wave >= 2 && fastPrefab != null)
+                {
+                    prefab = fastPrefab;
+                    return true;
+                }
+                break;
+
+            case RunSpawnBias.Ranged:
+                if (wave >= 3 && rangedPrefab != null)
+                {
+                    prefab = rangedPrefab;
+                    return true;
+                }
+                break;
+
+            case RunSpawnBias.Tank:
+                if (wave >= 4 && tankPrefab != null)
+                {
+                    prefab = tankPrefab;
+                    return true;
+                }
+                break;
         }
 
         return false;

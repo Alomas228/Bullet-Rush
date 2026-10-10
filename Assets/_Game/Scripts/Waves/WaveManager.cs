@@ -184,6 +184,9 @@ public class WaveManager : MonoBehaviour
             if (eventDirector != null)
                 eventDirector.ResetRun();
 
+            if (RunModifierManager.Instance != null)
+                RunModifierManager.Instance.ResetRun();
+
             if (enemySpawner != null)
                 enemySpawner.StopSpawnQueue();
 
@@ -292,6 +295,10 @@ public class WaveManager : MonoBehaviour
         {
             ScoreManager.Instance.ResetRunStats();
         }
+
+        // Тема забега разыгрывается на его старте, до первой волны и
+        // до спавна врагов, чтобы все успели прочитать множители.
+        RunModifierManager.EnsureExists().RollForRun();
             
         // LEADERBOARD: сброс и старт метрик
         RunMetrics metrics = FindAnyObjectByType<RunMetrics>();
@@ -428,14 +435,24 @@ public class WaveManager : MonoBehaviour
         bool isFirstWave = CurrentWave <= 1;
         bool isBossWave = IsBossWave(CurrentWave);
 
-        if (waveUI != null)
-            waveUI.ShowWave(
-                CurrentWave,
-                GetWaveSubtitle(
-                    currentArchetype,
-                    currentModifier
-                )
+        // Заставка первой волны заодно объявляет тему забега: игрок
+        // должен понимать, чем этот забег отличается от прошлого, до
+        // первого выстрела, а не догадываться по поведению врагов.
+        string subtitle =
+            GetWaveSubtitle(
+                currentArchetype,
+                currentModifier
             );
+
+        if (isFirstWave &&
+            RunModifierManager.Instance != null &&
+            RunModifierManager.Instance.HasAny)
+        {
+            subtitle = RunModifierManager.Instance.ShortName;
+        }
+
+        if (waveUI != null)
+            waveUI.ShowWave(CurrentWave, subtitle);
 
         if (!isFirstWave && !isBossWave)
         {

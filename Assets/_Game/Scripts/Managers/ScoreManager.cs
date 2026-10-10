@@ -49,6 +49,9 @@ public class ScoreManager : MonoBehaviour
         if (playerStats != null)
             multiplier = playerStats.ScoreMultiplier;
 
+        // Тема забега может повышать счёт как компенсацию за риск.
+        multiplier *= RunModifierManager.ScoreScale;
+
         int finalAmount = Mathf.Max(Mathf.RoundToInt(amount * multiplier), 1);
 
         Score += finalAmount;
@@ -65,10 +68,16 @@ public class ScoreManager : MonoBehaviour
         if (amount <= 0)
             return;
 
-        Score += amount;
-        OnScoreAdded?.Invoke(amount, bonusName);
+        int finalAmount =
+            Mathf.Max(
+                Mathf.RoundToInt(amount * RunModifierManager.ScoreScale),
+                1
+            );
 
-        Debug.Log($"BONUS +{amount} [{bonusName}]");
+        Score += finalAmount;
+        OnScoreAdded?.Invoke(finalAmount, bonusName);
+
+        Debug.Log($"BONUS +{finalAmount} [{bonusName}]");
     }
 
     public void IncrementKills()

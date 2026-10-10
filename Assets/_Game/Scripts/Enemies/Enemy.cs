@@ -71,6 +71,13 @@ public class Enemy : MonoBehaviour
     private float scaledMaxHealth;
     private float scaledDamageMultiplier = 1f;
 
+    // Множители темы забега (RunModifier). Кэшируются один раз при
+    // спавне: за жизнь моба тема не меняется, а спрашивать менеджер
+    // каждый кадр в движении дороже.
+    private float runHealthMultiplier = 1f;
+    private float runDamageMultiplier = 1f;
+    private float runSpeedMultiplier = 1f;
+
     private float contactDamageTimer;
     private float attackTimer;
     private float abilityTimer;
@@ -489,6 +496,8 @@ public class Enemy : MonoBehaviour
 
         ApplyModifierRoleContext(modifier);
 
+        CacheRunModifierScaling();
+
         ApplyWaveScaling();
 
         CacheRoleAllyType();
@@ -893,6 +902,15 @@ public class Enemy : MonoBehaviour
         abilityTimer = grace * abilityCooldownMultiplier;
     }
 
+    // Тема забега — ещё один слой поверх номера волны и уровня
+    // «лёгкая / сложная». Берётся один раз, до ApplyWaveScaling.
+    private void CacheRunModifierScaling()
+    {
+        runHealthMultiplier = RunModifierManager.EnemyHealthScale;
+        runDamageMultiplier = RunModifierManager.EnemyDamageScale;
+        runSpeedMultiplier = RunModifierManager.EnemySpeedScale;
+    }
+
     private void ApplyWaveScaling()
     {
         float healthMultiplier =
@@ -915,7 +933,8 @@ public class Enemy : MonoBehaviour
         scaledMaxHealth =
             GetBaseMaxHealth() *
             healthMultiplier *
-            tierMultiplier;
+            tierMultiplier *
+            runHealthMultiplier;
 
         // Тот же уровень волны, но для урона множитель свой: смерть от
         // снаряда читается хуже долгого боя, поэтому на сложной волне
@@ -925,6 +944,9 @@ public class Enemy : MonoBehaviour
                 currentWave,
                 isBoss
             );
+
+        // Тема забега поверх номера волны и уровня сложности.
+        damageMultiplier *= runDamageMultiplier;
 
         scaledDamageMultiplier = damageMultiplier;
 
@@ -1290,6 +1312,7 @@ public class Enemy : MonoBehaviour
                 : 2f) *
             moveSpeedMultiplier *
             speedScale *
+            runSpeedMultiplier *
             knockbackSpeedScale;
 
         Vector3 moveDirection;

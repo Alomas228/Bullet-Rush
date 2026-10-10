@@ -106,6 +106,25 @@ public static class Tables
             { "wave.event_surge", "РЫВОК!" },
             { "wave.event_danger", "ОПАСНОСТЬ!" },
 
+            // ---------- Тема забега ----------
+            { "run.berserk", "БЕРСЕРК · БЫСТРЕЕ И ЗЛЕЕ" },
+            { "run.horde", "ОРДА · ИХ МНОГО, НО СЛАБЫ" },
+            { "run.bulwark", "БРОНЯ · ЖИВУЧЕ, НО МЕДЛЕННО" },
+            { "run.blitz", "НАБЕГ · ТОЛПЫ БЕГУНОВ" },
+            { "run.marksmen", "СТРЕЛКИ · БОЛЬШЕ ДАЛЬНИХ" },
+            { "run.iron_will", "ЖЕЛЕЗНАЯ ВОЛЯ · БОЛЬШЕ УРОНА, МЕНЬШЕ HP" },
+
+            // ---------- Выбор темы в меню ----------
+            { "menu.run.label", "ТЕМА ЗАБЕГА" },
+            { "menu.run.standard", "СТАНДАРТ" },
+            { "menu.run.berserk", "БЕРСЕРК" },
+            { "menu.run.horde", "ОРДА" },
+            { "menu.run.bulwark", "БРОНЯ" },
+            { "menu.run.blitz", "НАБЕГ" },
+            { "menu.run.marksmen", "СТРЕЛКИ" },
+            { "menu.run.iron_will", "ЖЕЛЕЗНАЯ ВОЛЯ" },
+            { "menu.run.random", "СЛУЧАЙНЫЙ" },
+
             // ---------- Личный рекорд ----------
             { "pb.menu", "ЛИЧНЫЙ РЕКОРД — ВОЛНА {0}" },
             { "pb.hud_line", "Волна {0} / Рекорд {1}" },
@@ -547,6 +566,25 @@ public static class Tables
             { "wave.event_surge", "DALGA!" },
             { "wave.event_danger", "TEHLİKE!" },
 
+            // ---------- Kosu temasi ----------
+            { "run.berserk", "ÖFKE · DAHA HIZLI, DAHA SERT" },
+            { "run.horde", "SÜRÜ · ÇOK AMA ZAYIF" },
+            { "run.bulwark", "ZIRH · DAYANIKLI, YAVAŞ" },
+            { "run.blitz", "AKIN · KOŞUCU SÜRÜLERİ" },
+            { "run.marksmen", "NİŞANCI · DAHA ÇOK MENZİL" },
+            { "run.iron_will", "DEMİR İRADE · HASAR+, CAN-" },
+
+            // ---------- Menude tema secimi ----------
+            { "menu.run.label", "KOSU TEMASI" },
+            { "menu.run.standard", "STANDART" },
+            { "menu.run.berserk", "ÖFKE" },
+            { "menu.run.horde", "SÜRÜ" },
+            { "menu.run.bulwark", "ZIRH" },
+            { "menu.run.blitz", "AKIN" },
+            { "menu.run.marksmen", "NİŞANCI" },
+            { "menu.run.iron_will", "DEMİR İRADE" },
+            { "menu.run.random", "RASTGELE" },
+
             // ---------- Kisisel rekor ----------
             { "pb.menu", "KİŞİSEL REKOR — DALGA {0}" },
             { "pb.hud_line", "Dalga {0} / Rekor {1}" },
@@ -987,6 +1025,25 @@ public static class Tables
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "SURGE!" },
             { "wave.event_danger", "DANGER!" },
+
+            // ---------- Run theme ----------
+            { "run.berserk", "BERSERK · FASTER AND MEANER" },
+            { "run.horde", "HORDE · MANY BUT WEAK" },
+            { "run.bulwark", "BULWARK · TOUGH BUT SLOW" },
+            { "run.blitz", "BLITZ · WAVES OF RUNNERS" },
+            { "run.marksmen", "MARKSMEN · MORE RANGED" },
+            { "run.iron_will", "IRON WILL · MORE DMG, LESS HP" },
+
+            // ---------- Run theme selection (menu) ----------
+            { "menu.run.label", "RUN THEME" },
+            { "menu.run.standard", "STANDARD" },
+            { "menu.run.berserk", "BERSERK" },
+            { "menu.run.horde", "HORDE" },
+            { "menu.run.bulwark", "BULWARK" },
+            { "menu.run.blitz", "BLITZ" },
+            { "menu.run.marksmen", "MARKSMEN" },
+            { "menu.run.iron_will", "IRON WILL" },
+            { "menu.run.random", "RANDOM" },
 
             // ---------- Personal best ----------
             { "pb.menu", "PERSONAL BEST — WAVE {0}" },

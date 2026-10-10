@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 
 public class MainMenuUI : MonoBehaviour, ILangRefreshable
 {
@@ -15,6 +16,32 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     public static MainMenuUI Instance { get; private set; }
 
+    private static readonly string[] ModifierOptionKeys =
+    {
+        "menu.run.standard",
+        "menu.run.berserk",
+        "menu.run.horde",
+        "menu.run.bulwark",
+        "menu.run.blitz",
+        "menu.run.marksmen",
+        "menu.run.iron_will",
+        "menu.run.random"
+    };
+
+    private static readonly RunModifier[] ModifierOptionValues =
+    {
+        RunModifier.None,
+        RunModifier.Berserk,
+        RunModifier.Horde,
+        RunModifier.Bulwark,
+        RunModifier.Blitz,
+        RunModifier.Marksmen,
+        RunModifier.IronWill,
+        RunModifier.None
+    };
+
+    private static int pendingModifierIndex = ModifierOptionValues.Length - 1;
+
     [Header("Panel")]
     [SerializeField] private GameObject menuPanel;
 
@@ -24,6 +51,10 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     [Header("Buttons")]
     [SerializeField] private Button playButton;
+
+    [Header("Run Modifier")]
+    [Tooltip("Выпадающий список выбора темы забега (TMP_Dropdown) в главном меню.")]
+    [SerializeField] private TMP_Dropdown modifierDropdown;
 
     [Header("Submenu Buttons")]
     [SerializeField] private Button shopButton;
@@ -93,6 +124,12 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardButton != null)
             dailyRewardButton.onClick.AddListener(OnDailyRewardClicked);
+
+        if (modifierDropdown != null)
+        {
+            RebuildModifierOptions();
+            modifierDropdown.onValueChanged.AddListener(OnModifierChanged);
+        }
     }
 
     private void OnEnable()
@@ -103,6 +140,8 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     public void RefreshLang()
     {
         RefreshPlayerDisplay();
+
+        RebuildModifierOptions();
     }
 
     private void OnDestroy()
@@ -133,6 +172,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardButton != null)
             dailyRewardButton.onClick.RemoveListener(OnDailyRewardClicked);
+
+        if (modifierDropdown != null)
+            modifierDropdown.onValueChanged.RemoveListener(OnModifierChanged);
     }
 
     private void Start()
@@ -423,6 +465,49 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardButton != null)
             dailyRewardButton.gameObject.SetActive(active);
+
+        if (modifierDropdown != null)
+            modifierDropdown.gameObject.SetActive(active);
+    }
+
+    private void RebuildModifierOptions()
+    {
+        if (modifierDropdown == null)
+            return;
+
+        List<string> options = new List<string>(ModifierOptionKeys.Length);
+
+        for (int i = 0; i < ModifierOptionKeys.Length; i++)
+            options.Add(Lang.Get(ModifierOptionKeys[i]));
+
+        modifierDropdown.ClearOptions();
+        modifierDropdown.AddOptions(options);
+
+        int index = Mathf.Clamp(pendingModifierIndex, 0, options.Count - 1);
+
+        modifierDropdown.SetValueWithoutNotify(index);
+        modifierDropdown.RefreshShownValue();
+
+        ApplyModifierSelection(index);
+    }
+
+    private void OnModifierChanged(int index)
+    {
+        pendingModifierIndex = index;
+
+        ApplyModifierSelection(index);
+    }
+
+    private static void ApplyModifierSelection(int index)
+    {
+        if (index < 0 || index >= ModifierOptionValues.Length)
+            return;
+
+        bool isRandom = index == ModifierOptionValues.Length - 1;
+
+        RunModifierManager.ManualSelection = !isRandom;
+        RunModifierManager.ManualModifier =
+            isRandom ? RunModifier.None : ModifierOptionValues[index];
     }
 
     private void OnPlayClicked()

@@ -37,10 +37,11 @@ MonoBehaviour:
   bossDie: {fileID: 8300000, guid: dcd0acdac7e0a3b47aad6265789fe0d2, type: 3}
   pickupSpawn: {fileID: 0}
   pickupCollect: {fileID: 0}
-  uiClick: {fileID: 0}
+  uiClick: {fileID: 8300000, guid: 271f4163f062a0d439db68985fa92081, type: 3}
   countdownTick: {fileID: 0}
   waveStart: {fileID: 0}
   upgradePick: {fileID: 0}
   menuOpen: {fileID: 0}
   startGame: {fileID: 8300000, guid: c80658310e8567541aeb73ee9abc415f, type: 3}
   gameOver: {fileID: 0}
+  mapChange: {fileID: 8300000, guid: e12f4c59b8617114fa1eade0ac737786, type: 3}

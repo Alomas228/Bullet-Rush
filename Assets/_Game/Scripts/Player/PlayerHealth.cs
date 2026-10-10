@@ -189,6 +189,26 @@ public class PlayerHealth : MonoBehaviour
         );
     }
 
+    /// <summary>
+    /// Масштабирует максимум здоровья (тема забега «Железная воля»).
+    /// В отличие от AddMaxHealthPercent, принимает и понижение:
+    /// текущее здоровье подрезается до нового максимума.
+    /// </summary>
+    public void ScaleMaxHealth(float multiplier)
+    {
+        if (multiplier <= 0f || Mathf.Approximately(multiplier, 1f))
+            return;
+
+        maxHealth *= multiplier;
+
+        if (CurrentHealth > maxHealth)
+            CurrentHealth = maxHealth;
+
+        Debug.Log(
+            $"Max HP scaled x{multiplier:0.##} -> {maxHealth:0.##}"
+        );
+    }
+
     public void AddHealthRegen(float regenPerSecond)
     {
         healthRegenPerSecond += regenPerSecond;

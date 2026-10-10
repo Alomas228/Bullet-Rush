@@ -73,6 +73,10 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip startGame;
     [SerializeField] private AudioClip gameOver;
 
+    [Header("Map")]
+    [Tooltip("Смена карты в меню выбора карт.")]
+    [SerializeField] private AudioClip mapChange;
+
     public AudioClip PlayerHit => playerHit;
     public AudioClip PlayerDie => playerDie;
     public AudioClip PlayerAbilityExplosion => playerAbilityExplosion;
@@ -102,6 +106,7 @@ public AudioClip BossDie => bossDie;
     public AudioClip StartGame => startGame;
     public AudioClip GameOver => gameOver;
     public AudioClip UiClick => uiClick;
+    public AudioClip MapChange => mapChange;
 
     public AudioClip PickupSpawn => pickupSpawn;
     public AudioClip PickupCollect => pickupCollect;

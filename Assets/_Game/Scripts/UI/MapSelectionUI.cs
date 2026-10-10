@@ -357,7 +357,7 @@ public class MapSelectionUI : MonoBehaviour
 
         ShowPage();
 
-        PlayUiClick();
+        PlayMapChange();
     }
 
     // =====================================================
@@ -403,6 +403,14 @@ public class MapSelectionUI : MonoBehaviour
 
         if (sfx != null && AudioManager.Instance != null)
             AudioManager.Instance.PlayUI(sfx.UiClick);
+    }
+
+    private void PlayMapChange()
+    {
+        SFXLibrary sfx = GetSfx();
+
+        if (sfx != null && AudioManager.Instance != null)
+            AudioManager.Instance.PlayUI(sfx.MapChange);
     }
 
     private static SFXLibrary GetSfx()
