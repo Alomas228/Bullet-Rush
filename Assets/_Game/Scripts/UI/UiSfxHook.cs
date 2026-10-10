@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class UiSfxHook : MonoBehaviour
 {
@@ -21,12 +22,31 @@ public class UiSfxHook : MonoBehaviour
             if (button == null)
                 continue;
 
-            button.onClick.AddListener(PlayUiClick);
+            if (button.GetComponent<UiSfxPointerDown>() != null)
+                continue;
+
+            button.gameObject.AddComponent<UiSfxPointerDown>();
         }
     }
+}
 
-    private void PlayUiClick()
+public class UiSfxPointerDown : MonoBehaviour, IPointerDownHandler
+{
+    private Button button;
+
+    private void Awake()
     {
+        button = GetComponent<Button>();
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        if (button != null && !button.IsInteractable())
+            return;
+
         AudioManager audio = AudioManager.Instance;
 
         if (audio == null)

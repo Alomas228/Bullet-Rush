@@ -90,6 +90,8 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        ApplyLowLatencyDspBuffer();
+
         BuildVoicePool();
 
         musicSource = gameObject.AddComponent<AudioSource>();
@@ -131,6 +133,23 @@ public class AudioManager : MonoBehaviour
             source.maxDistance = Mathf.Max(maxSfxDistance, 1f);
 
             voices[i] = source;
+        }
+    }
+
+    private void ApplyLowLatencyDspBuffer()
+    {
+        AudioConfiguration config = AudioSettings.GetConfiguration();
+
+        if (config.dspBufferSize == 256)
+            return;
+
+        config.dspBufferSize = 256;
+
+        if (!AudioSettings.Reset(config))
+        {
+            Debug.LogWarning(
+                "AudioManager: не удалось понизить DSP буфер до 256 сэмплов."
+            );
         }
     }
 
