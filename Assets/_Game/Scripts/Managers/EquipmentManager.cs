@@ -361,6 +361,64 @@ public static class EquipmentManager
     }
 
     // =========================================================
+    // ACHIEVEMENT GRANTS
+    // =========================================================
+
+    /// <summary>
+    /// Выдаёт оружие бесплатно, минуя уровень и цену. Используется
+    /// наградами за достижения. Идемпотентно.
+    /// </summary>
+    public static void GrantWeapon(string weaponName)
+    {
+        if (string.IsNullOrEmpty(weaponName))
+            return;
+
+        EnsureLoaded();
+
+        if (data.ownedWeapons.Contains(weaponName))
+            return;
+
+        data.ownedWeapons.Add(weaponName);
+        Save();
+
+        Debug.Log($"[Equipment] Выдано оружие: {weaponName}.");
+    }
+
+    /// <summary>Выдаёт способность бесплатно (награда за достижение). Идемпотентно.</summary>
+    public static void GrantAbility(string abilityName)
+    {
+        if (string.IsNullOrEmpty(abilityName))
+            return;
+
+        EnsureLoaded();
+
+        if (data.ownedAbilities.Contains(abilityName))
+            return;
+
+        data.ownedAbilities.Add(abilityName);
+        Save();
+
+        Debug.Log($"[Equipment] Выдана способность: {abilityName}.");
+    }
+
+    /// <summary>Выдаёт одежду бесплатно (награда за достижение). Идемпотентно.</summary>
+    public static void GrantClothing(string clothingName)
+    {
+        if (string.IsNullOrEmpty(clothingName))
+            return;
+
+        EnsureLoaded();
+
+        if (data.ownedClothing.Contains(clothingName))
+            return;
+
+        data.ownedClothing.Add(clothingName);
+        Save();
+
+        Debug.Log($"[Equipment] Выдана одежда: {clothingName}.");
+    }
+
+    // =========================================================
     // SHARED HELPERS
     // =========================================================
 

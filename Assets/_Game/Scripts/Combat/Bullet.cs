@@ -458,7 +458,8 @@ public class Bullet : MonoBehaviour
 
         enemy.TakeDamage(
             damage,
-            isCritical
+            isCritical,
+            DamageSource.Weapon
         );
 
         // Отдача: моб сбавляет разгон и чуть отходит назад.
@@ -679,6 +680,10 @@ public class Bullet : MonoBehaviour
 
         PlayExplosionSound();
 
+        // Один eventId на всю зону взрыва: все убийства, нанесённые
+        // этим взрывом, считаются одним событием (KillsInSingleEvent).
+        int explosionEventId = DamageEventId.Next();
+
         Collider[] colliders =
             StructureQuery.OverlapSphere(
                 transform.position,
@@ -700,7 +705,9 @@ public class Bullet : MonoBehaviour
 
             target.TakeDamage(
                 explosionDamage,
-                false
+                false,
+                DamageSource.Explosion,
+                explosionEventId
             );
 
             ApplyAreaDotEffects(target);

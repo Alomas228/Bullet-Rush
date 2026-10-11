@@ -105,6 +105,10 @@ public class PlayerHealth : MonoBehaviour
         PlayPlayerHitSound();
         TriggerScreenShake();
 
+        // Урон реально прошёл (не щит/дэш): достижения, связанные с
+        // «забегом без урона», сбрасывают прогресс именно здесь.
+        AchievementEvents.RaisePlayerDamaged();
+
         Debug.Log(
             $"Player HP: {CurrentHealth}/{maxHealth}"
         );

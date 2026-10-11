@@ -9,6 +9,10 @@ public class BossData : ScriptableObject
     [Header("Identity")]
     [SerializeField] private string bossName = "Boss";
 
+    [Tooltip("Стабильный идентификатор для достижений. Пусто — берётся bossName. " +
+             "Меняй только вместе с сохранениями: по нему считается коллекция.")]
+    [SerializeField] private string bossId = string.Empty;
+
     [Header("Base Stats")]
     [Tooltip("Все числа здесь — в масштабе ×10 к прежнему (игрок живёт 100 HP). Урон способностей по номеру волны НЕ масштабируется: к нему применяется только уровень «лёгкая / сложная», см. WaveDifficulty.")]
     [SerializeField] private float maxHealth = 10000f;
@@ -113,6 +117,15 @@ public class BossData : ScriptableObject
 
     public string BossName =>
         bossName;
+
+    /// <summary>
+    /// ID босса для достижений. Если явный ID не задан, используется имя —
+    /// так старые ассеты продолжают работать без ручной правки.
+    /// </summary>
+    public string BossId =>
+        string.IsNullOrEmpty(bossId)
+            ? bossName
+            : bossId;
 
     public float MaxHealth =>
         Mathf.Max(maxHealth, 1f);

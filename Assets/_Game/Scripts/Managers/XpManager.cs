@@ -341,6 +341,25 @@ public class XpManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Начисляет монеты только в постоянный баланс, не трогая счётчик
+    /// текущего забега. Нужно для наград за достижения, которые не должны
+    /// влиять на результат забега.
+    /// </summary>
+    public void AddGlobalCoins(int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        GlobalCoins += amount;
+
+        SaveGlobal();
+
+        OnCoinsChanged?.Invoke(RunCoins);
+
+        Debug.Log($"Coins: +{amount} global (Global: {GlobalCoins})");
+    }
+
+    /// <summary>
     /// Списывает монеты из постоянного баланса. Возвращает false,
     /// если монет недостаточно (ничего не списывается).
     /// </summary>

@@ -8,6 +8,11 @@ public class GameOverManager : MonoBehaviour
 
     public bool IsGameOver { get; private set; }
 
+    [Header("Achievements")]
+    [Tooltip("Сколько волн нужно пройти, чтобы забег считался победным (для ARSENAL). " +
+             "10 соответствует первой босс-волне.")]
+    [SerializeField] private int runWinWave = 10;
+
     private bool pendingRestart;
     private bool menuReturnPending;
 
@@ -48,6 +53,10 @@ public class GameOverManager : MonoBehaviour
     {
         if (IsGameOver)
             return;
+
+        // Сообщаем о конце забега достижениям: по числу пройденных
+        // волн определяется победа (для ARSENAL и подобных).
+        ReportRunEnd();
 
         IsGameOver = true;
 
@@ -96,6 +105,32 @@ public class GameOverManager : MonoBehaviour
     /// лучше сохранённой. Вызывается на всех выходах из забега:
     /// смерть, рестарт, выход в меню.
     /// </summary>
+    /// <summary>
+    /// Сообщает о завершении забега достижениям. Передаём имя
+    /// снаряжённого оружия, чтобы ARSENAL мог засчитать коллекцию.
+    /// </summary>
+    private void ReportRunEnd()
+    {
+        string weaponName = EquipmentManager.EquippedWeaponName;
+
+        int waveReached = 0;
+        WaveManager waves = FindAnyObjectByType<WaveManager>();
+
+        if (waves != null)
+            waveReached = waves.CurrentWave;
+
+        // Забег считается победным, если игрок дошёл до пороговой волны,
+        // даже если потом погиб. Порог настраивается в инспекторе.
+        bool won = waveReached >= runWinWave;
+
+        AchievementEvents.RaiseRunEnded(new RunEndInfo
+        {
+            won = won,
+            weaponName = weaponName,
+            waveReached = waveReached
+        });
+    }
+
     private void SubmitPersonalBest()
     {
         WaveManager waves = FindAnyObjectByType<WaveManager>();
@@ -140,6 +175,10 @@ public class GameOverManager : MonoBehaviour
     public void BackToMenu()
     {
         SubmitPersonalBest();
+
+        // Забег прерван (выход в меню до GameOver) — тоже фиксируем
+        // результат, порог победы общий.
+        ReportRunEnd();
 
         IsGameOver = false;
 

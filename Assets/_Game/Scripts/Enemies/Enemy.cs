@@ -276,6 +276,11 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private const int MaxBleedStacks = 4;
 
+    // Источник последнего урона: нужен, чтобы при смерти сообщить
+    // достижениям, чем именно добили врага (оружие, огонь, взрыв...).
+    private DamageSource lastDamageSource = DamageSource.Unknown;
+    private int lastDamageEventId;
+
     // Количество живых врагов в сцене. Позволяет волновому
     // менеджеру обходиться без FindGameObjectsWithTag каждый кадр.
     public static int AliveCount { get; private set; }
@@ -330,6 +335,16 @@ public class Enemy : MonoBehaviour
     public string BossDisplayName =>
         bossData != null
             ? bossData.BossName
+            : string.Empty;
+
+    /// <summary>
+    /// Стабильный идентификатор босса для достижений. Пусто у обычных
+    /// мобов. Отличается от отображаемого имени: имя может меняться
+    /// при локализации, а ID — нет.
+    /// </summary>
+    public string BossId =>
+        bossData != null
+            ? bossData.BossId
             : string.Empty;
 
     /// <summary>
@@ -1172,7 +1187,7 @@ public class Enemy : MonoBehaviour
                 while (burnTickTimer <= 0f)
                 {
                     burnTickTimer += burnTickInterval;
-                    TakeDamage(burnDamagePerTick, false);
+                    TakeDamage(burnDamagePerTick, false, DamageSource.Burn);
 
                     if (IsDead)
                         break;
@@ -1198,7 +1213,7 @@ public class Enemy : MonoBehaviour
                 while (bleedTickTimer <= 0f)
                 {
                     bleedTickTimer += bleedTickInterval;
-                    TakeDamage(bleedDamagePerTick, false);
+                    TakeDamage(bleedDamagePerTick, false, DamageSource.Bleed);
 
                     if (IsDead)
                         break;
@@ -3708,7 +3723,9 @@ public class Enemy : MonoBehaviour
 
     public void TakeDamage(
         float damage,
-        bool isCritical = false)
+        bool isCritical = false,
+        DamageSource source = DamageSource.Unknown,
+        int sourceEventId = 0)
     {
         if (IsDead)
             return;
@@ -3717,6 +3734,9 @@ public class Enemy : MonoBehaviour
             return;
 
         HasTakenDamage = true;
+
+        lastDamageSource = source;
+        lastDamageEventId = sourceEventId;
 
         currentHealth -= damage;
 
@@ -3867,6 +3887,11 @@ public class Enemy : MonoBehaviour
                 out int colliderCount
             );
 
+        // Один идентификатор на весь разряд: если молния убивает
+        // несколько врагов, достижения считают это одним событием
+        // (условие "убить N одной цепной реакцией").
+        int lightningEventId = DamageEventId.Next();
+
         int targetsHit = 0;
 
         for (int i = 0; i < colliderCount; i++)
@@ -3886,7 +3911,9 @@ public class Enemy : MonoBehaviour
 
             target.TakeDamage(
                 damage,
-                false
+                false,
+                DamageSource.ChainLightning,
+                lightningEventId
             );
 
             targetsHit++;
@@ -4069,6 +4096,17 @@ public class Enemy : MonoBehaviour
                 $"========== BOSS '{name}' DEFEATED =========="
             );
         }
+
+        // Сообщаем системам достижений, кого и чем убили. Источник
+        // урона хранится в lastDamageSource и заполняется в TakeDamage.
+        AchievementEvents.RaiseEnemyKilled(new EnemyKillInfo
+        {
+            enemy = this,
+            isBoss = isBoss,
+            bossId = BossId,
+            source = lastDamageSource,
+            sourceEventId = lastDamageEventId
+        });
 
         Destroy(gameObject);
     }

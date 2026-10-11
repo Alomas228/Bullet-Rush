@@ -64,6 +64,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private Button equipmentButton;
     [SerializeField] private Button mapsButton;
     [SerializeField] private Button dailyRewardButton;
+    [SerializeField] private Button achievementsButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -74,6 +75,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private GameObject equipmentPanel;
     [SerializeField] private GameObject mapsPanel;
     [SerializeField] private GameObject dailyRewardPanel;
+    [SerializeField] private GameObject achievementsPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -125,6 +127,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         if (dailyRewardButton != null)
             dailyRewardButton.onClick.AddListener(OnDailyRewardClicked);
 
+        if (achievementsButton != null)
+            achievementsButton.onClick.AddListener(OnAchievementsClicked);
+
         if (modifierDropdown != null)
         {
             RebuildModifierOptions();
@@ -172,6 +177,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardButton != null)
             dailyRewardButton.onClick.RemoveListener(OnDailyRewardClicked);
+
+        if (achievementsButton != null)
+            achievementsButton.onClick.RemoveListener(OnAchievementsClicked);
 
         if (modifierDropdown != null)
             modifierDropdown.onValueChanged.RemoveListener(OnModifierChanged);
@@ -374,6 +382,35 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         OpenDailyRewardPanel();
     }
 
+    private void OnAchievementsClicked()
+    {
+        OpenAchievementsPanel();
+    }
+
+    /// <summary>
+    /// Открывает экран достижений. Если панель не назначена в
+    /// инспекторе, поднимается рантайм-оверлей, чтобы кнопка в меню
+    /// работала и до прогона Editor-билдера.
+    /// </summary>
+    public void OpenAchievementsPanel()
+    {
+        if (achievementsPanel == null)
+        {
+            AchievementsUI.OpenStandalone();
+            return;
+        }
+
+        CloseSubPanels();
+        HideMenuButtons();
+
+        AchievementsUI ui = achievementsPanel.GetComponent<AchievementsUI>();
+
+        achievementsPanel.SetActive(true);
+
+        if (ui != null)
+            ui.ShowPanel();
+    }
+
     public void OpenSubPanel(GameObject panelToShow)
     {
         CloseSubPanels();
@@ -428,6 +465,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardPanel != null)
             dailyRewardPanel.SetActive(false);
+
+        if (achievementsPanel != null)
+            achievementsPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -465,6 +505,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (dailyRewardButton != null)
             dailyRewardButton.gameObject.SetActive(active);
+
+        if (achievementsButton != null)
+            achievementsButton.gameObject.SetActive(active);
 
         if (modifierDropdown != null)
             modifierDropdown.gameObject.SetActive(active);

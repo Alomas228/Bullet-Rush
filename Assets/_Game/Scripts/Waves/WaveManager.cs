@@ -229,14 +229,20 @@ public class WaveManager : MonoBehaviour
             // ============================================
             // LEADERBOARD METRICS
             // ============================================
+            PlayerHealth ph = FindAnyObjectByType<PlayerHealth>();
+            bool wasPerfect = ph != null && ph.CurrentHealth >= ph.MaxHealth;
+
             RunMetrics metrics =
                 FindAnyObjectByType<RunMetrics>();
             if (metrics != null)
             {
-                PlayerHealth ph = FindAnyObjectByType<PlayerHealth>();
-                bool wasPerfect = ph != null && ph.CurrentHealth >= ph.MaxHealth;
                 metrics.OnWaveCleared(wasPerfect);
             }
+
+            // Той же волной кормятся достижения: номер волны и признак
+            // Perfect Wave. Событие шлём независимо от RunMetrics, чтобы
+            // достижения не зависели от наличия метрик в сцене.
+            AchievementEvents.RaiseWaveCleared(CurrentWave, wasPerfect);
 
             if (waveUI != null)
             {
@@ -289,6 +295,10 @@ public class WaveManager : MonoBehaviour
     // либо сразу, либо через обучение, если оно ещё не пройдено.
     private void BeginRun()
     {
+        // Ачивки сбрасывают внутризабеговый прогресс на старте.
+        AchievementManager.EnsureExists();
+        AchievementEvents.RaiseRunStarted();
+
         CurrentWave = 0;
 
         if (ScoreManager.Instance != null)
@@ -324,6 +334,11 @@ public class WaveManager : MonoBehaviour
     /// </summary>
     public void StartFirstWave()
     {
+        // Если мы вышли в меню и вернулись (обучение повторно не запускается),
+        // тоже стартуем забег для достижений.
+        AchievementManager.EnsureExists();
+        AchievementEvents.RaiseRunStarted();
+
         if (CurrentWave != 0)
             return;
 

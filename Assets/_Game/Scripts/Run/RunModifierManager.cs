@@ -53,6 +53,14 @@ public class RunModifierManager : MonoBehaviour
     [Tooltip("Множитель максимального здоровья игрока (0.75 — минус четверть).")]
     [SerializeField] private float ironWillPlayerHealth = 0.75f;
 
+    [Header("Overcharge (achievement reward)")]
+    [SerializeField] private float overchargePlayerDamage = 0.4f;
+    [SerializeField] private float overchargePlayerHealth = 0.9f;
+
+    [Header("Glass Cannon (achievement reward)")]
+    [SerializeField] private float glassCannonPlayerDamage = 1.0f;
+    [SerializeField] private float glassCannonPlayerHealth = 0.5f;
+
     public static RunModifierManager Instance { get; private set; }
 
     /// <summary>
@@ -142,6 +150,16 @@ public class RunModifierManager : MonoBehaviour
         {
             if ((pool & Catalogue[i]) != RunModifier.None)
                 candidates.Add(Catalogue[i]);
+        }
+
+        // Наградные модификаторы попадают в пул только после того,
+        // как открыты достижением.
+        RunModifier[] achievementMods = RunModifierUnlocks.AchievementModifiers;
+
+        for (int i = 0; i < achievementMods.Length; i++)
+        {
+            if (RunModifierUnlocks.IsUnlocked(achievementMods[i]))
+                candidates.Add(achievementMods[i]);
         }
 
         if (candidates.Count == 0)
@@ -254,9 +272,18 @@ public class RunModifierManager : MonoBehaviour
     {
         get
         {
-            return Active.Has(RunModifier.IronWill)
-                ? ironWillPlayerDamage
-                : 0f;
+            float value = 0f;
+
+            if (Active.Has(RunModifier.IronWill))
+                value += ironWillPlayerDamage;
+
+            if (Active.Has(RunModifier.Overcharge))
+                value += overchargePlayerDamage;
+
+            if (Active.Has(RunModifier.GlassCannon))
+                value += glassCannonPlayerDamage;
+
+            return value;
         }
     }
 
@@ -264,9 +291,18 @@ public class RunModifierManager : MonoBehaviour
     {
         get
         {
-            return Active.Has(RunModifier.IronWill)
-                ? ironWillPlayerHealth
-                : 1f;
+            float value = 1f;
+
+            if (Active.Has(RunModifier.IronWill))
+                value *= ironWillPlayerHealth;
+
+            if (Active.Has(RunModifier.Overcharge))
+                value *= overchargePlayerHealth;
+
+            if (Active.Has(RunModifier.GlassCannon))
+                value *= glassCannonPlayerHealth;
+
+            return value;
         }
     }
 
@@ -330,6 +366,12 @@ public class RunModifierManager : MonoBehaviour
 
             if (Active.Has(RunModifier.IronWill))
                 return Lang.Get("run.iron_will");
+
+            if (Active.Has(RunModifier.Overcharge))
+                return RunModifierUnlocks.GetDisplayName(RunModifier.Overcharge);
+
+            if (Active.Has(RunModifier.GlassCannon))
+                return RunModifierUnlocks.GetDisplayName(RunModifier.GlassCannon);
 
             return string.Empty;
         }
