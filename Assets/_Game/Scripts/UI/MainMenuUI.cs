@@ -65,6 +65,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private Button mapsButton;
     [SerializeField] private Button dailyRewardButton;
     [SerializeField] private Button achievementsButton;
+    [SerializeField] private Button missionsButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -76,6 +77,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private GameObject mapsPanel;
     [SerializeField] private GameObject dailyRewardPanel;
     [SerializeField] private GameObject achievementsPanel;
+    [SerializeField] private GameObject missionsPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -98,6 +100,10 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     private Coroutine slideCoroutine;
     private bool subscribed;
     private bool slidingOut;
+
+    // Дочерние объекты menuPanel, которые скрыли при открытии панели,
+    // чтобы вернуть их в исходное состояние при закрытии.
+    private readonly List<GameObject> hiddenMenuContent = new List<GameObject>();
 
     private void Awake()
     {
@@ -129,6 +135,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (achievementsButton != null)
             achievementsButton.onClick.AddListener(OnAchievementsClicked);
+
+        if (missionsButton != null)
+            missionsButton.onClick.AddListener(OnMissionsClicked);
 
         if (modifierDropdown != null)
         {
@@ -180,6 +189,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (achievementsButton != null)
             achievementsButton.onClick.RemoveListener(OnAchievementsClicked);
+
+        if (missionsButton != null)
+            missionsButton.onClick.RemoveListener(OnMissionsClicked);
 
         if (modifierDropdown != null)
             modifierDropdown.onValueChanged.RemoveListener(OnModifierChanged);
@@ -387,6 +399,11 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         OpenAchievementsPanel();
     }
 
+    private void OnMissionsClicked()
+    {
+        OpenMissionsPanel();
+    }
+
     /// <summary>
     /// Открывает экран достижений. Если панель не назначена в
     /// инспекторе, поднимается рантайм-оверлей, чтобы кнопка в меню
@@ -406,6 +423,30 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         AchievementsUI ui = achievementsPanel.GetComponent<AchievementsUI>();
 
         achievementsPanel.SetActive(true);
+
+        if (ui != null)
+            ui.ShowPanel();
+    }
+
+    /// <summary>
+    /// Открывает экран ежедневных миссий. Если панель не назначена в
+    /// инспекторе, поднимается рантайм-оверлей, чтобы кнопка в меню
+    /// работала и до прогона Editor-билдера.
+    /// </summary>
+    public void OpenMissionsPanel()
+    {
+        if (missionsPanel == null)
+        {
+            DailyMissionUI.OpenStandalone();
+            return;
+        }
+
+        CloseSubPanels();
+        HideMenuButtons();
+
+        DailyMissionUI ui = missionsPanel.GetComponent<DailyMissionUI>();
+
+        missionsPanel.SetActive(true);
 
         if (ui != null)
             ui.ShowPanel();
@@ -468,6 +509,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (achievementsPanel != null)
             achievementsPanel.SetActive(false);
+
+        if (missionsPanel != null)
+            missionsPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -482,6 +526,21 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     private void SetMenuButtonsActive(bool active)
     {
+        // Когда открыта панель, прячем весь контент главного меню
+        // (кнопки, тексты, ползунки), а не только кнопки — иначе он
+        // просвечивает из-за панели. Панели-соседи это не затрагивает,
+        // а панели-дети (MapsPanel и т.п.) в этот момент уже скрыты.
+        if (menuPanel != null)
+        {
+            if (active)
+                RestoreMenuContent();
+            else
+                HideMenuContent();
+
+            return;
+        }
+
+        // Запасной путь, если menuPanel не назначена.
         if (playButton != null)
             playButton.gameObject.SetActive(active);
 
@@ -509,8 +568,40 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         if (achievementsButton != null)
             achievementsButton.gameObject.SetActive(active);
 
+        if (missionsButton != null)
+            missionsButton.gameObject.SetActive(active);
+
         if (modifierDropdown != null)
             modifierDropdown.gameObject.SetActive(active);
+    }
+
+    private void HideMenuContent()
+    {
+        hiddenMenuContent.Clear();
+
+        Transform root = menuPanel.transform;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            GameObject child = root.GetChild(i).gameObject;
+
+            if (!child.activeSelf)
+                continue;
+
+            child.SetActive(false);
+            hiddenMenuContent.Add(child);
+        }
+    }
+
+    private void RestoreMenuContent()
+    {
+        for (int i = 0; i < hiddenMenuContent.Count; i++)
+        {
+            if (hiddenMenuContent[i] != null)
+                hiddenMenuContent[i].SetActive(true);
+        }
+
+        hiddenMenuContent.Clear();
     }
 
     private void RebuildModifierOptions()
