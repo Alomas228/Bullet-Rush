@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Effect_Burn_
   m_EditorClassIdentifier: Assembly-CSharp::BurnEffectData
   chance: 0.2
-  damage: 30
+  damage: 40
   duration: 2
   tickInterval: 0.5
   spreadTargets: 1

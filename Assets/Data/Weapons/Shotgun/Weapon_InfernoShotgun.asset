@@ -22,7 +22,7 @@ MonoBehaviour:
   unlockLevel: 8
   price: 1500
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 70
+  damage: 105
   fireRate: 1.6
   projectileSpeed: 14
   projectileCount: 5
@@ -35,8 +35,8 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 60
-  burnDuration: 2.5
+  burnDamagePerSecond: 70
+  burnDuration: 3
   burnTickInterval: 0.5
   recoilForce: 0.45
   shakeOnFire: 1

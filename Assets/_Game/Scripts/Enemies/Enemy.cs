@@ -4160,7 +4160,7 @@ public class Enemy : MonoBehaviour
         if (isBoss)
         {
             LootPickup.SpawnHealth(position, 0.35f);
-            LootPickup.SpawnCoin(position, 5);
+            LootPickup.SpawnCoin(position, 12);
 
             return;
         }

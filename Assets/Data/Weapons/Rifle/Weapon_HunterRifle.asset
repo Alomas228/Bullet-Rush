@@ -24,12 +24,12 @@ MonoBehaviour:
   unlockLevel: 5
   price: 700
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 160
+  damage: 300
   fireRate: 3
   projectileSpeed: 18
   projectileCount: 1
   spreadAngle: 0
-  pierceCount: 1
+  pierceCount: 2
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
@@ -40,8 +40,8 @@ MonoBehaviour:
   burnDamagePerSecond: 0
   burnDuration: 0
   burnTickInterval: 0.5
-  recoilForce: 0
-  shakeOnFire: 0
+  recoilForce: 0.35
+  shakeOnFire: 0.12
   lightningChance: 0
   lightningDamage: 0
   lightningTargets: 1

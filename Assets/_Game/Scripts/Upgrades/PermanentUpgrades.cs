@@ -10,7 +10,8 @@ using UnityEngine;
 ///  - у каждого параметра ровно <see cref="MaxLevel"/> уровней;
 ///  - цена следующего уровня растёт в <see cref="CostMultiplier"/> раз
 ///    от базовых <see cref="BaseCost"/> монет (округление до
-///    <see cref="CostRoundStep"/>), то есть 10 -> 15 -> 20 -> ... -> 150;
+///    <see cref="CostRoundStep"/>), то есть 25 -> 35 -> 45 -> ... -> 370;
+///    полностью прокачать все параметры — долгая цель, а не пара забегов;
 ///  - бонусы небольшие: полностью прокачанный параметр даёт ощутимый
 ///    прирост, но не ломает геймплей (скорость бега, например,
 ///    растёт максимум примерно на треть);
@@ -32,7 +33,7 @@ public static class PermanentUpgrades
     /// <summary>Сколько уровней у каждого параметра.</summary>
     public const int MaxLevel = 10;
 
-    private const int BaseCost = 10;
+    private const int BaseCost = 25;
     private const float CostMultiplier = 1.35f;
     private const int CostRoundStep = 5;
 
@@ -159,7 +160,7 @@ public static class PermanentUpgrades
 
     /// <summary>
     /// Цена следующего уровня параметра (0, если максимум).
-    /// Рост: 10, 15, 20, 25, 35, 45, 60, 80, 110, 150.
+    /// Рост: 25, 35, 45, 60, 85, 110, 150, 205, 275, 370.
     /// </summary>
     public static int GetCost(PermanentUpgradeStat stat)
     {

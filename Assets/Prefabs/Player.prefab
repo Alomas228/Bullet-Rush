@@ -206,10 +206,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e506bf23653b964687250fe408bf40e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 5
+  moveSpeed: 6
   dashDistance: 4
   dashDuration: 0.15
-  dashCooldown: 1.2
+  dashCooldown: 1
   playerCamera: {fileID: 0}
   spawnGrowDuration: 0.25
   recoilDamping: 10
@@ -239,7 +239,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e90612e2045e8449a6f47899dbfbd9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BombAbility
-  baseDamage: 5
+  baseDamage: 50
   radius: 5
   cooldown: 8
   bombEffectPrefab: {fileID: 0}

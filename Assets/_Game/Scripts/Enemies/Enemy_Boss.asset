@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Boss
   enemyType: 5
-  maxHealth: 10000
+  maxHealth: 6000
   moveSpeed: 0.8
-  contactDamage: 100
+  contactDamage: 70
   damageCooldown: 1.5
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 38
+  projectileDamage: 30
   projectileSpeed: 8
   damageMultiplier: 1
-  healthMultiplier: 1.5
+  healthMultiplier: 1.2
   abilityCooldown: 5
   summonCooldown: 8
   summonCount: 3

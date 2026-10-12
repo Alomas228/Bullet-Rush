@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e6a2f15e137bff458218aaa638ada58, type: 3}
   m_Name: Effect_Lifesteal_
   m_EditorClassIdentifier: Assembly-CSharp::LifestealEffectData
-  percentage: 0.1
+  percentage: 0.12

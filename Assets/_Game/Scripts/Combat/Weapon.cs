@@ -57,6 +57,17 @@ public class Weapon : MonoBehaviour
             if (weaponData == null)
                 return 1f;
 
+            // Очередь задаёт свой темп сама: индикатор перезарядки должен
+            // совпадать с длительностью очереди, а не с «выстрелами в секунду».
+            if (weaponData.SpecialType == WeaponSpecialType.Burst)
+            {
+                return Mathf.Max(
+                    weaponData.ShotsPerBurst *
+                    weaponData.BurstInterval,
+                    0.01f
+                );
+            }
+
             float fireRate =
                 weaponData.FireRate *
                 GetFireRateMultiplier();
@@ -286,19 +297,25 @@ public class Weapon : MonoBehaviour
 
         fireRate = Mathf.Max(fireRate, 0.01f);
 
-        fireTimer = 1f / fireRate;
-
         switch (weaponData.SpecialType)
         {
             case WeaponSpecialType.Burst:
+                // Пауза до следующей очереди равна длительности самой очереди:
+                // при зажатой кнопке очереди идут встык, и оружие стреляет
+                // ровным потоком как автомат — паузы после серии нет.
+                fireTimer =
+                    weaponData.ShotsPerBurst *
+                    weaponData.BurstInterval;
                 StartBurst();
                 break;
 
             case WeaponSpecialType.DoubleShot:
+                fireTimer = 1f / fireRate;
                 StartDoubleShot();
                 break;
 
             default:
+                fireTimer = 1f / fireRate;
                 FireVolley();
                 break;
         }
