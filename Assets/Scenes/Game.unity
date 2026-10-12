@@ -9904,8 +9904,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e0299e6a1af681343971b774577e0ef2, type: 2}
   - {fileID: 11400000, guid: e5f03519e6bf9d24aa2606c88ae85e0b, type: 2}
   - {fileID: 11400000, guid: 03773f093a8776241863ac35e23ed326, type: 2}
-  availableAbilities: []
-  availableClothing: []
+  availableAbilities:
+  - {fileID: 11400000, guid: 4a0e3bb22c5f4d2b0d3f6c7e8f900112, type: 2}
+  - {fileID: 11400000, guid: 5b1f4cc33d6a5e3c1e4a7d8f90a12345, type: 2}
+  availableClothing:
+  - {fileID: 11400000, guid: 9f53800772ae927c5c8e1b2cde567890, type: 2}
+  - {fileID: 11400000, guid: 7d316ee55f8c705e3a6c9f0abc345678, type: 2}
+  - {fileID: 11400000, guid: 8e427ff6619d816f4b7d0a1bcd456789, type: 2}
   choicesCount: 3
   smartChoices:
     continuationAffinity: 1.9
