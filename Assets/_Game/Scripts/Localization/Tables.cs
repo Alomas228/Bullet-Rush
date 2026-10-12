@@ -426,10 +426,11 @@ public static class Tables
 
             // ---------- Карты ----------
             { "maps.title", "ВЫБОР КАРТЫ" },
-            { "maps.subtitle", "Мир уедет и приедет новый — арена та же, механики те же" },
+            { "maps.subtitle", "Мир уедет и приедет новый — у каждой локации своя механика" },
             { "maps.selected", "ВЫБРАНО" },
             { "maps.default_name", "Карта {0}" },
             { "maps.back", "НАЗАД" },
+            { "maps.locked_level", "ОТКРОЕТСЯ НА УР. {0}" },
 
             // ---------- Лидерборд ----------
             { "lb.loading", "ЗАГРУЗКА..." },
@@ -453,6 +454,18 @@ public static class Tables
             { "map.pustynya", "Пустыня" },
             { "map.plyazh", "Пляж" },
             { "map.kosmos", "Космос" },
+
+            // ---------- Механики карт ----------
+            { "mech.openfield.name", "ОТКРЫТАЯ МЕСТНОСТЬ" },
+            { "mech.openfield.desc", "Мало укрытий, дальние враги, лёгкая прибавка к урону" },
+            { "mech.highland.name", "ВЫСОТА" },
+            { "mech.highland.desc", "Медленные, но живучие враги" },
+            { "mech.urban.name", "КОРИДОРЫ" },
+            { "mech.urban.desc", "Плотнее поток врагов и засады дальников" },
+            { "mech.sandstorm.name", "ПЕСЧАНАЯ БУРЯ" },
+            { "mech.sandstorm.desc", "Вязкий песок замедляет, периодически жгут зоны бури" },
+            { "mech.lowgravity.name", "НИЗКАЯ ГРАВИТАЦИЯ" },
+            { "mech.lowgravity.desc", "Всё движется быстрее, падают метеориты" },
 
             // ---------- Оружие (названия) ----------
             { "wpn.basic_rifle", "Basic Rifle" },
@@ -957,10 +970,11 @@ public static class Tables
 
             // ---------- Haritalar ----------
             { "maps.title", "HARİTA SEÇİMİ" },
-            { "maps.subtitle", "Dünya değişecek, savaş alanı aynı" },
+            { "maps.subtitle", "Dünya değişecek — her bölgenin kendi mekaniği var" },
             { "maps.selected", "SEÇİLDİ" },
             { "maps.default_name", "Harita {0}" },
             { "maps.back", "GERİ" },
+            { "maps.locked_level", "SEVİYE {0}'DE AÇILIR" },
 
             // ---------- Sıralama tablosu ----------
             { "lb.loading", "YÜKLENİYOR..." },
@@ -984,6 +998,18 @@ public static class Tables
             { "map.pustynya", "Çöl" },
             { "map.plyazh", "Sahil" },
             { "map.kosmos", "Uzay" },
+
+            // ---------- Bölge mekanikleri ----------
+            { "mech.openfield.name", "AÇIK ARAZİ" },
+            { "mech.openfield.desc", "Az siper, uzaktan atış, hafif hasar bonusu" },
+            { "mech.highland.name", "YÜKSEKLİK" },
+            { "mech.highland.desc", "Yavaş ama dayanıklı düşmanlar" },
+            { "mech.urban.name", "KORİDORLAR" },
+            { "mech.urban.desc", "Daha yoğun düşman akını, nişancı pusuları" },
+            { "mech.sandstorm.name", "KUM FIRTINASI" },
+            { "mech.sandstorm.desc", "Viskoz kum yavaşlatır, zaman zaman fırtına bölgeleri yakar" },
+            { "mech.lowgravity.name", "DÜŞÜK YERÇEKİMİ" },
+            { "mech.lowgravity.desc", "Her şey daha hızlı, meteorlar düşüyor" },
 
             // ---------- Silah adları ----------
             { "wpn.basic_rifle", "Basic Rifle" },
@@ -1488,10 +1514,11 @@ public static class Tables
 
             // ---------- Maps ----------
             { "maps.title", "MAP SELECT" },
-            { "maps.subtitle", "The world changes, the arena and mechanics stay the same" },
+            { "maps.subtitle", "The world changes — every map has its own mechanics" },
             { "maps.selected", "SELECTED" },
             { "maps.default_name", "Map {0}" },
             { "maps.back", "BACK" },
+            { "maps.locked_level", "UNLOCKS AT LVL {0}" },
 
             // ---------- Leaderboard ----------
             { "lb.loading", "LOADING..." },
@@ -1515,6 +1542,18 @@ public static class Tables
             { "map.pustynya", "Desert" },
             { "map.plyazh", "Beach" },
             { "map.kosmos", "Space" },
+
+            // ---------- Map mechanics ----------
+            { "mech.openfield.name", "OPEN FIELD" },
+            { "mech.openfield.desc", "Fewer covers, ranged foes, a small damage bonus" },
+            { "mech.highland.name", "HIGHLAND" },
+            { "mech.highland.desc", "Slow but tougher enemies" },
+            { "mech.urban.name", "CITY BLOCKS" },
+            { "mech.urban.desc", "Denser waves and ranged ambushes" },
+            { "mech.sandstorm.name", "SANDSTORM" },
+            { "mech.sandstorm.desc", "Sticky sand slows you, storm zones burn periodically" },
+            { "mech.lowgravity.name", "LOW GRAVITY" },
+            { "mech.lowgravity.desc", "Everything moves faster, meteors keep falling" },
 
             // ---------- Weapon names ----------
             { "wpn.basic_rifle", "Basic Rifle" },

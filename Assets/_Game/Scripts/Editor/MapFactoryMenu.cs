@@ -43,7 +43,9 @@ public static class MapFactoryMenu
             new Color(0.16f, 0.22f, 0.18f),
             25f, 60f,
             new Color(0.24f, 0.31f, 0.20f),
-            3101
+            3101,
+            1,
+            MapMechanic.None
         );
 
         CreateMap(
@@ -54,7 +56,9 @@ public static class MapFactoryMenu
             new Color(0.55f, 0.66f, 0.72f),
             45f, 90f,
             new Color(0.83f, 0.76f, 0.58f),
-            2202
+            2202,
+            3,
+            MapMechanic.OpenField
         );
 
         CreateMap(
@@ -65,29 +69,9 @@ public static class MapFactoryMenu
             new Color(0.60f, 0.64f, 0.68f),
             30f, 80f,
             new Color(0.45f, 0.47f, 0.50f),
-            4404
-        );
-
-        CreateMap(
-            "Map_Pustynya", "Пустыня",
-            new Color(0.93f, 0.79f, 0.58f),
-            new Color(0.60f, 0.53f, 0.42f),
-            true,
-            new Color(0.85f, 0.75f, 0.60f),
-            40f, 95f,
-            new Color(0.87f, 0.71f, 0.44f),
-            5505
-        );
-
-        CreateMap(
-            "Map_Kosmos", "Космос",
-            new Color(0.01f, 0.01f, 0.04f),
-            new Color(0.10f, 0.10f, 0.14f),
-            false,
-            new Color(0.01f, 0.01f, 0.04f),
-            0f, 0f,
-            new Color(0.12f, 0.12f, 0.16f),
-            7707
+            4404,
+            6,
+            MapMechanic.Highland
         );
 
         CreateMap(
@@ -98,7 +82,35 @@ public static class MapFactoryMenu
             new Color(0.30f, 0.33f, 0.38f),
             30f, 75f,
             new Color(0.30f, 0.31f, 0.33f),
-            8808
+            8808,
+            10,
+            MapMechanic.Urban
+        );
+
+        CreateMap(
+            "Map_Pustynya", "Пустыня",
+            new Color(0.93f, 0.79f, 0.58f),
+            new Color(0.60f, 0.53f, 0.42f),
+            true,
+            new Color(0.85f, 0.75f, 0.60f),
+            40f, 95f,
+            new Color(0.87f, 0.71f, 0.44f),
+            5505,
+            15,
+            MapMechanic.Sandstorm
+        );
+
+        CreateMap(
+            "Map_Kosmos", "Космос",
+            new Color(0.01f, 0.01f, 0.04f),
+            new Color(0.10f, 0.10f, 0.14f),
+            false,
+            new Color(0.01f, 0.01f, 0.04f),
+            0f, 0f,
+            new Color(0.12f, 0.12f, 0.16f),
+            7707,
+            21,
+            MapMechanic.LowGravity
         );
 
         AssetDatabase.SaveAssets();
@@ -120,7 +132,9 @@ public static class MapFactoryMenu
         float fogStart,
         float fogEnd,
         Color groundColor,
-        int layoutSeed)
+        int layoutSeed,
+        int unlockLevel,
+        MapMechanic mechanic)
     {
         string path = Folder + "/" + assetName + ".asset";
 
@@ -141,6 +155,8 @@ public static class MapFactoryMenu
 
         map.name = assetName;
         map.mapName = displayName;
+        map.langKey =
+            assetName.Replace("Map_", string.Empty).ToLowerInvariant();
         map.groundMaterial = ground;
         map.skyColor = sky;
         map.ambientLightColor = ambient;
@@ -148,6 +164,12 @@ public static class MapFactoryMenu
         map.fogColor = fogColor;
         map.fogStartDistance = fogStart;
         map.fogEndDistance = fogEnd;
+
+        // Прогрессия и механика локации: карта открывается по уровню
+        // и играет по своим правилам боя.
+        map.unlockLevel = unlockLevel;
+        map.mechanic = mechanic;
+        map.mechanicStrength = 1f;
 
         // Блоки боевой зоны нейтральные — единый слой всех карт,
         // независимо от темы окружения.

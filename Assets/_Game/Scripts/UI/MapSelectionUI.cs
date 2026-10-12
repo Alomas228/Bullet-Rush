@@ -353,6 +353,10 @@ public class MapSelectionUI : MonoBehaviour
         if (mapIndex < 0 || mapIndex >= environment.MapsCount)
             return;
 
+        // Закрытая карта не выбирается: виден замок, клик молчит.
+        if (!card.Unlocked)
+            return;
+
         environment.SwitchTo(mapIndex);
 
         ShowPage();

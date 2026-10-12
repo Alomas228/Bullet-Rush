@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: gorod
   mapName: "\u0413\u043E\u0440\u043E\u0434"
   icon: {fileID: 0}
+  unlockLevel: 10
+  mechanic: 3
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: fad617c7c4d33f047b4a42290f1ae844, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

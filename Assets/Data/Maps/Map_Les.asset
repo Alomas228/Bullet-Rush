@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: les
   mapName: "\u041B\u0435\u0441"
   icon: {fileID: 0}
+  unlockLevel: 1
+  mechanic: 0
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: 2ad2ac89c43f8bb40ac8c167a99eaad6, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

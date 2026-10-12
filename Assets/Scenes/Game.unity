@@ -44275,6 +44275,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bee94309fdafdee42b70c6cac79888a0, type: 2}
   - {fileID: 11400000, guid: feb8cf4fe74146042b4e14ac0bfd614e, type: 2}
   - {fileID: 11400000, guid: af9b2e63d31ebcd4aa4d31deeb2d2285, type: 2}
+  - {fileID: 11400000, guid: 94a22be43a79bf44db1a7dd421126108, type: 2}
   - {fileID: 11400000, guid: b94d46d32e019de42babdadcd45031cb, type: 2}
   - {fileID: 11400000, guid: ede6f576a1794c64fb4159fda192dea4, type: 2}
   startMapIndex: 0

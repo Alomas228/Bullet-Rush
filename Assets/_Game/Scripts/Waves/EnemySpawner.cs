@@ -1689,6 +1689,10 @@ public class EnemySpawner : MonoBehaviour
         if (TryGetRunBiasPrefab(wave, out GameObject runBiased))
             return runBiased;
 
+        // Механика карты — второй, более слабый уклон поверх темы забега.
+        if (TryGetMapBiasPrefab(wave, out GameObject mapBiased))
+            return mapBiased;
+
         // Модификатор не добавляет новых типов — он перекачивает
         // часть существующих ролей в конкретный тип. Поэтому волна
         // выглядит и ощущается иначе, а пул врагов остаётся прежним.
@@ -1774,6 +1778,56 @@ public class EnemySpawner : MonoBehaviour
             return false;
 
         float chance = RunModifierManager.SpawnBiasProbability;
+
+        if (chance <= 0f || Random.value >= chance)
+            return false;
+
+        switch (bias)
+        {
+            case RunSpawnBias.Fast:
+                if (wave >= 2 && fastPrefab != null)
+                {
+                    prefab = fastPrefab;
+                    return true;
+                }
+                break;
+
+            case RunSpawnBias.Ranged:
+                if (wave >= 3 && rangedPrefab != null)
+                {
+                    prefab = rangedPrefab;
+                    return true;
+                }
+                break;
+
+            case RunSpawnBias.Tank:
+                if (wave >= 4 && tankPrefab != null)
+                {
+                    prefab = tankPrefab;
+                    return true;
+                }
+                break;
+        }
+
+        return false;
+    }
+
+    // Механика карты перекачивает часть врагов в свой тип: город —
+    // засады дальников, открытая местность — прострелы, горы — танки.
+    // Шанс ниже, чем у темы забега: локация окрашивает состав, а не
+    // заменяет его.
+    private bool TryGetMapBiasPrefab(
+        int wave,
+        out GameObject prefab)
+    {
+        prefab = null;
+
+        RunSpawnBias bias = MapMechanicManager.SpawnBiasType;
+
+        if (bias == RunSpawnBias.None)
+            return false;
+
+        float chance = MapMechanicManager.SpawnBiasProbability;
 
         if (chance <= 0f || Random.value >= chance)
             return false;

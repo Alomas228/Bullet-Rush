@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: plyazh
   mapName: "\u041F\u043B\u044F\u0436"
   icon: {fileID: 0}
+  unlockLevel: 3
+  mechanic: 1
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: 29ba719c72e54aa4f9773978a3398ade, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

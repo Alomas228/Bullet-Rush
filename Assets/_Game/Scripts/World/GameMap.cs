@@ -118,6 +118,22 @@ public class GameMap : ScriptableObject
     [Tooltip("Иконка для карточек выбора карты.")]
     public Sprite icon;
 
+    [Header("Progression")]
+    [Tooltip("Глобальный уровень игрока, с которого карта открывается. Лес — 1, каждая следующая локация требует всё больше опыта. Закрытая карта видна в списке с замком, но недоступна для выбора.")]
+    public int unlockLevel = 1;
+
+    [Header("Mechanic")]
+    [Tooltip("Уникальная боевая механика локации: состав волн, поведение врагов, баффы игрока, периодические зоны урона.")]
+    public MapMechanic mechanic = MapMechanic.None;
+
+    [Tooltip("Сила механики 0..1. Уменьшает отклонения от нейтральных значений (множители и баффы). 1 — полная сила, заданная механикой.")]
+    [Range(0f, 2f)]
+    public float mechanicStrength = 1f;
+
+    /// <summary>Локализованное имя механики для карточки карты (пусто для None).</summary>
+    public string LocalizedMechanicName =>
+        MapMechanicText.Name(mechanic);
+
     [Header("Ground")]
     [Tooltip("Материал подложки арены. Пусто — нейтральный серый.")]
     public Material groundMaterial;

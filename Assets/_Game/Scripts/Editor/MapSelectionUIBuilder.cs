@@ -46,9 +46,9 @@ public static class MapSelectionUIBuilder
         "Map_Les",
         "Map_Plyazh",
         "Map_Gory",
+        "Map_Gorod",
         "Map_Pustynya",
-        "Map_Kosmos",
-        "Map_Gorod"
+        "Map_Kosmos"
     };
 
     [MenuItem(MenuPath)]

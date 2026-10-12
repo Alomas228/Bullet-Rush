@@ -187,6 +187,9 @@ public class WaveManager : MonoBehaviour
             if (RunModifierManager.Instance != null)
                 RunModifierManager.Instance.ResetRun();
 
+            if (MapMechanicManager.Instance != null)
+                MapMechanicManager.Instance.ResetRun();
+
             if (enemySpawner != null)
                 enemySpawner.StopSpawnQueue();
 
@@ -309,6 +312,10 @@ public class WaveManager : MonoBehaviour
         // Тема забега разыгрывается на его старте, до первой волны и
         // до спавна врагов, чтобы все успели прочитать множители.
         RunModifierManager.EnsureExists().RollForRun();
+
+        // Механика карты — детерминирована выбранной локацией. Ставится
+        // здесь же, чтобы враги и спавнер видели её с первой волны.
+        MapMechanicManager.EnsureExists().BeginRun(GetCurrentMap());
             
         // LEADERBOARD: сброс и старт метрик
         RunMetrics metrics = FindAnyObjectByType<RunMetrics>();
@@ -397,6 +404,18 @@ public class WaveManager : MonoBehaviour
         return worldGenerator != null
             ? worldGenerator.BaseSeed
             : -1;
+    }
+
+    /// <summary>Карта, выбранная в данный момент на панели «Карты».</summary>
+    private GameMap GetCurrentMap()
+    {
+        if (cachedEnvironment == null)
+            cachedEnvironment =
+                FindAnyObjectByType<EnvironmentController>();
+
+        return cachedEnvironment != null
+            ? cachedEnvironment.CurrentMap
+            : null;
     }
 
     private IEnumerator StartWaveSequence()
@@ -683,6 +702,7 @@ public class WaveManager : MonoBehaviour
             compressed *
             GetWaveIntensity(wave) *
             WaveDifficulty.GetCountMultiplier(wave) *
+            MapMechanicManager.EnemyCountScale *
             ramp;
 
         return Mathf.Clamp(

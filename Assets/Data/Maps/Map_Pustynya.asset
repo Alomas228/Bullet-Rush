@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: pustynya
   mapName: "\u041F\u0443\u0441\u0442\u044B\u043D\u044F"
   icon: {fileID: 0}
+  unlockLevel: 15
+  mechanic: 4
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: ee78a8945672a98478b3f61635a93115, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

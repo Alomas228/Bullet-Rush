@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: gory
   mapName: "\u0413\u043E\u0440\u044B"
   icon: {fileID: 0}
+  unlockLevel: 6
+  mechanic: 2
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: e91a9f3952ffafc4790796a099d06b46, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

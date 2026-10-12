@@ -921,9 +921,17 @@ public class Enemy : MonoBehaviour
     // «лёгкая / сложная». Берётся один раз, до ApplyWaveScaling.
     private void CacheRunModifierScaling()
     {
-        runHealthMultiplier = RunModifierManager.EnemyHealthScale;
-        runDamageMultiplier = RunModifierManager.EnemyDamageScale;
-        runSpeedMultiplier = RunModifierManager.EnemySpeedScale;
+        runHealthMultiplier =
+            RunModifierManager.EnemyHealthScale *
+            MapMechanicManager.EnemyHealthScale;
+
+        runDamageMultiplier =
+            RunModifierManager.EnemyDamageScale *
+            MapMechanicManager.EnemyDamageScale;
+
+        runSpeedMultiplier =
+            RunModifierManager.EnemySpeedScale *
+            MapMechanicManager.EnemySpeedScale;
     }
 
     private void ApplyWaveScaling()

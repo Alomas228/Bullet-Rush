@@ -15,6 +15,9 @@ MonoBehaviour:
   langKey: kosmos
   mapName: "\u041A\u043E\u0441\u043C\u043E\u0441"
   icon: {fileID: 0}
+  unlockLevel: 21
+  mechanic: 5
+  mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: 51ce96bdc38b6904792e3022a0863f0b, type: 2}
   groundDecorPrefab: {fileID: 0}
   environmentPrefab: {fileID: 0}

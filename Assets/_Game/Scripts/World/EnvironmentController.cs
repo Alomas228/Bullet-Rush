@@ -87,6 +87,42 @@ public class EnvironmentController : MonoBehaviour
         return maps[index];
     }
 
+    /// <summary>Открыта ли карта по индексу для текущего уровня игрока.</summary>
+    public bool IsMapUnlocked(int index)
+    {
+        return MapProgression.IsUnlocked(GetMap(index));
+    }
+
+    /// <summary>
+    /// Ближайший открытый индекс к предпочтительному: сам предпочтительный,
+    /// иначе ближайший открытый снизу, затем сверху. Лес (уровень 1) открыт
+    /// всегда, поэтому метод никогда не вернёт закрытую карту.
+    /// </summary>
+    private int FindUnlockedIndex(int preferred)
+    {
+        if (maps == null || maps.Length == 0)
+            return 0;
+
+        preferred = Mathf.Clamp(preferred, 0, maps.Length - 1);
+
+        if (IsMapUnlocked(preferred))
+            return preferred;
+
+        for (int i = preferred - 1; i >= 0; i--)
+        {
+            if (IsMapUnlocked(i))
+                return i;
+        }
+
+        for (int i = preferred + 1; i < maps.Length; i++)
+        {
+            if (IsMapUnlocked(i))
+                return i;
+        }
+
+        return preferred;
+    }
+
     private void Awake()
     {
         cam =
@@ -114,12 +150,13 @@ public class EnvironmentController : MonoBehaviour
                 ? SelectedMapIndex
                 : startMapIndex;
 
+        // Нельзя стартовать на закрытой карте: если сохранённый выбор
+        // требует ещё не достигнутого уровня — откатываемся к ближайшей
+        // доступной локации.
         currentIndex =
-            Mathf.Clamp(
-                target,
-                0,
-                maps.Length - 1
-            );
+            FindUnlockedIndex(target);
+
+        SelectedMapIndex = currentIndex;
 
         currentLayer =
             EnvironmentLayer.Create(
@@ -161,6 +198,10 @@ public class EnvironmentController : MonoBehaviour
             return;
         }
 
+        // Закрытая карта недоступна: молча игнорируем выбор.
+        if (!IsMapUnlocked(index))
+            return;
+
         int step = ShortestStep(currentIndex, index, maps.Length);
 
         if (step == 0)
@@ -177,16 +218,30 @@ public class EnvironmentController : MonoBehaviour
             return;
         }
 
-        int next =
-            (currentIndex + step) % maps.Length;
-
-        if (next < 0)
-            next += maps.Length;
-
-        if (next == currentIndex)
+        if (step == 0)
             return;
 
-        SwitchToMap(maps[next], Math.Sign(step));
+        int direction = Math.Sign(step);
+        int next = currentIndex;
+
+        // Прыгаем через закрытые карты: листание не должно приводить
+        // на локацию, которая ещё не открыта.
+        for (int i = 0; i < maps.Length - 1; i++)
+        {
+            next = (next + direction) % maps.Length;
+
+            if (next < 0)
+                next += maps.Length;
+
+            if (next == currentIndex)
+                return;
+
+            if (IsMapUnlocked(next))
+            {
+                SwitchToMap(maps[next], direction);
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -217,6 +272,9 @@ public class EnvironmentController : MonoBehaviour
         {
             return;
         }
+
+        if (!MapProgression.IsUnlocked(target))
+            return;
 
         int targetIndex =
             Array.IndexOf(maps, target);
