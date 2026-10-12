@@ -3,7 +3,7 @@ mergeInto(LibraryManager.library,
 	// Возвращает код языка, полученный из environment.i18n.lang
 	// при инициализации SDK Яндекс Игр (см. index.html шаблона).
 	// Переменная ysdkLang заполняется до старта Unity.
-	GetSdkLang_js: function ()
+	GetSdkLangJs: function ()
 	{
 		var lang = (typeof ysdkLang !== 'undefined' && ysdkLang) ? ysdkLang : '';
 
