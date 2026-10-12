@@ -4,7 +4,8 @@ using UnityEngine;
 /// Применяет персистентное снаряжение на старте забега:
 ///  - снаряжённые способности разблокируются на AbilityManager
 ///    (бомба [E], щит [Q]);
-///  - снаряжённая одежда красит тело игрока (MeshRenderer на корне).
+///  - снаряжённая одежда натягивает текстуру скина на тело игрока
+///    (MeshRenderer на корне), а при её отсутствии красит куб цветом.
 ///
 /// Компонент добавляется на игрока панелью «Снаряжение»
 /// (Tools -> Bullet Rush -> Build Equipment UI).
@@ -16,6 +17,12 @@ public class PlayerEquipmentApplier : MonoBehaviour
 
     private static readonly int LegacyColorId =
         Shader.PropertyToID("_Color");
+
+    private static readonly int BaseMapId =
+        Shader.PropertyToID("_BaseMap");
+
+    private static readonly int LegacyMainTexId =
+        Shader.PropertyToID("_MainTex");
 
     private bool subscribed;
     private bool hasDefaultColor;
@@ -179,10 +186,12 @@ public class PlayerEquipmentApplier : MonoBehaviour
         if (bodyRenderer == null)
             return;
 
-        Color target =
+        Color targetColor =
             hasDefaultColor
                 ? defaultColor
                 : Color.white;
+
+        Texture2D targetTexture = null;
 
         string clothingName =
             EquipmentManager.EquippedClothingName;
@@ -203,12 +212,22 @@ public class PlayerEquipmentApplier : MonoBehaviour
                 if (data != null &&
                     EquipmentManager.IsOwned(data))
                 {
-                    target = data.BodyColor;
+                    if (data.HasSkinTexture)
+                    {
+                        // Текстура заменяет цвет: колор ставим белым,
+                        // чтобы URP/Lit не подкрашивал картинку.
+                        targetTexture = data.SkinTexture;
+                        targetColor = Color.white;
+                    }
+                    else
+                    {
+                        targetColor = data.BodyColor;
+                    }
                 }
             }
         }
 
-        ApplyBodyColor(target);
+        ApplyBodyVisual(targetTexture, targetColor);
 
         if (!string.IsNullOrEmpty(clothingName))
         {
@@ -218,7 +237,7 @@ public class PlayerEquipmentApplier : MonoBehaviour
         }
     }
 
-    private void ApplyBodyColor(Color color)
+    private void ApplyBodyVisual(Texture2D texture, Color color)
     {
         Material material = bodyRenderer.sharedMaterial;
 
@@ -230,9 +249,16 @@ public class PlayerEquipmentApplier : MonoBehaviour
         bool hasColor = material != null &&
                         material.HasProperty(LegacyColorId);
 
+        bool hasBaseMap = material != null &&
+                          material.HasProperty(BaseMapId);
+        bool hasMainTex = material != null &&
+                          material.HasProperty(LegacyMainTexId);
+
         if (bodyBlock == null)
             bodyBlock = new MaterialPropertyBlock();
 
+        // Clear снимает и текстуру прошлого скина, и цвет: без него
+        // после снятия текстуры на кубе остался бы прежний рисунок.
         bodyBlock.Clear();
 
         if (hasBaseColor)
@@ -240,6 +266,15 @@ public class PlayerEquipmentApplier : MonoBehaviour
 
         if (hasColor)
             bodyBlock.SetColor(LegacyColorId, color);
+
+        if (texture != null)
+        {
+            if (hasBaseMap)
+                bodyBlock.SetTexture(BaseMapId, texture);
+
+            if (hasMainTex)
+                bodyBlock.SetTexture(LegacyMainTexId, texture);
+        }
 
         bodyRenderer.SetPropertyBlock(bodyBlock);
     }

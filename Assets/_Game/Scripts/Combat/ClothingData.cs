@@ -7,8 +7,9 @@ using UnityEngine;
 /// список availableClothing на UpgradeManager — и появляется во вкладке
 /// «Одежда» магазина.
 ///
-/// Снаряжённая одежда меняет цвет тела игрока на старте забега
-/// (PlayerEquipmentApplier).
+/// Снаряжённая одежда меняет внешний вид тела игрока на старте
+/// забега (PlayerEquipmentApplier): натягивает текстуру скина, а
+/// если её нет — красит куб цветом.
 /// </summary>
 [CreateAssetMenu(
     fileName = "Clothing_",
@@ -40,7 +41,17 @@ public class ClothingData : ScriptableObject
     [SerializeField] private int price = 0;
 
     [Header("Visual")]
-    [Tooltip("Цвет тела игрока при выбранной одежде.")]
+    [Tooltip(
+        "Текстура скина, которая натягивается на куб игрока. " +
+        "Если задана — заменяет цвет тела (bodyColor игнорируется). " +
+        "Пусто — куб красится bodyColor."
+    )]
+    [SerializeField] private Texture2D skinTexture;
+
+    [Tooltip(
+        "Цвет тела игрока при выбранной одежде. " +
+        "Используется только когда текстура не задана."
+    )]
     [SerializeField] private Color bodyColor = Color.white;
 
     public string ClothingName => clothingName;
@@ -62,4 +73,10 @@ public class ClothingData : ScriptableObject
         Mathf.Max(price, 0);
 
     public Color BodyColor => bodyColor;
+
+    /// <summary>Текстура скина; null, если одежда только красит куб.</summary>
+    public Texture2D SkinTexture => skinTexture;
+
+    /// <summary>Задана ли текстура скина (тогда цвет тела не используется).</summary>
+    public bool HasSkinTexture => skinTexture != null;
 }
