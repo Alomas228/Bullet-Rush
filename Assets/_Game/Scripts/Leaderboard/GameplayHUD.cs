@@ -257,23 +257,68 @@ public class GameplayHUD : MonoBehaviour
 
     private void ShowBonusPopup(string bonusName, int amount)
     {
+        SpawnPopup(
+            bonusName + ": +" + amount.ToString("N0"),
+            new Color(1f, 0.84f, 0f),
+            FontStyles.Bold
+        );
+    }
+
+    // =========================================================
+    // MAP ANNOUNCEMENT — баннер входа на карту
+    // =========================================================
+
+    /// <summary>
+    /// Баннер на старте забега: название карты и подпись её механики.
+    /// Рисуется через тот же пул всплывающих бонусов, но холодным
+    /// цветом и подольше, чтобы успеть прочитаться.
+    /// </summary>
+    public void ShowMapAnnouncement(
+        string title,
+        string subtitle)
+    {
+        string body = title;
+
+        if (!string.IsNullOrEmpty(subtitle))
+        {
+            body += "\n<size=70%>" + subtitle + "</size>";
+        }
+
+        SpawnPopup(
+            body,
+            new Color(0.65f, 0.85f, 1f),
+            FontStyles.Bold
+        );
+    }
+
+    private GameObject SpawnPopup(
+        string text,
+        Color textColor,
+        FontStyles fontStyle)
+    {
         if (bonusPopupPrefab == null || bonusPopupContainer == null)
-            return;
+            return null;
 
         // Удаляем старую запись если переполнено
-        if (bonusPopupCount >= maxBonusPopups && bonusPopupContainer.childCount > 0)
+        if (bonusPopupCount >= maxBonusPopups &&
+            bonusPopupContainer.childCount > 0)
         {
             Destroy(bonusPopupContainer.GetChild(0).gameObject);
             bonusPopupCount--;
         }
 
         // Создаём новую запись
-        GameObject popup = Instantiate(bonusPopupPrefab, bonusPopupContainer);
-        TMP_Text popupText = popup.GetComponentInChildren<TMP_Text>();
+        GameObject popup =
+            Instantiate(bonusPopupPrefab, bonusPopupContainer);
+
+        TMP_Text popupText =
+            popup.GetComponentInChildren<TMP_Text>();
+
         if (popupText != null)
         {
-            popupText.text = bonusName + ": +" + amount.ToString("N0");
-            popupText.color = new Color(1f, 0.84f, 0f); // Золотой
+            popupText.text = text;
+            popupText.color = textColor;
+            popupText.fontStyle |= fontStyle;
         }
 
         // Анимация движения вверх и смещение вниз
@@ -298,6 +343,8 @@ public class GameplayHUD : MonoBehaviour
 
         // Удаляем через popupLifetime с пересчётом позиций
         StartCoroutine(DestroyWithShift(popup));
+
+        return popup;
     }
 
     private System.Collections.IEnumerator AnimatePopup(RectTransform rect, Vector3 endPos)

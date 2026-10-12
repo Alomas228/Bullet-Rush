@@ -7,7 +7,15 @@ public enum EnemyType
     Tank,
     Ranged,
     Elite,
-    Boss
+    Boss,
+
+    /// <summary>
+    /// Фугас: идёт на игрока и подрывается вблизи (или при смерти).
+    /// Подрывает и своих — цепные расчистки поля. Не выпадает
+    /// вариантов и не имеет дальнего боя: вся игра строится вокруг
+    /// «убить с дистанции или встретить взрыв».
+    /// </summary>
+    Bomber
 }
 
 /// <summary>
@@ -169,6 +177,14 @@ public class EnemyData : ScriptableObject
     [SerializeField] private float deathExplosionProjectileSpeed = 7f;
     [Tooltip("Урон каждого снаряда взрыва при смерти. Снаряды взрыва не понерфены вместе с обычными: кольцо летит вплотную и не уклоняется, поэтому делить его урон ещё сильнее было бы уже нечестно.")]
     [SerializeField] private float deathExplosionDamage = 60f;
+
+    [Header("Bomber Blast")]
+    [Tooltip("Дистанция, на которой фугас начинает детонацию (и радиус подрыва).")]
+    [SerializeField] private float blastRadius = 4f;
+    [Tooltip("Урон подрыва и по игроку, и по окрестным врагам.")]
+    [SerializeField] private float blastDamage = 60f;
+    [Tooltip("Замах перед детонацией (секунды): фугас замирает и светится, игрок успевает отойти или добить.")]
+    [SerializeField] private float blastWarning = 0.7f;
 
     [Header("Knockback")]
     [Tooltip("Устойчивость к отталкиванию: 0 — отлетает от попадания полностью, 1 — не двигается совсем (босс, элита, танк).")]
@@ -337,6 +353,15 @@ public class EnemyData : ScriptableObject
 
     public float DeathExplosionDamage =>
         Mathf.Max(deathExplosionDamage, 0f);
+
+    public float BlastRadius =>
+        Mathf.Max(blastRadius, 0.5f);
+
+    public float BlastDamage =>
+        Mathf.Max(blastDamage, 0f);
+
+    public float BlastWarning =>
+        Mathf.Max(blastWarning, 0.05f);
 
     public int ScoreValue => scoreValue;
 

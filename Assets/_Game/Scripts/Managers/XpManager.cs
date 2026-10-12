@@ -391,6 +391,33 @@ public class XpManager : MonoBehaviour
     }
 
     // =========================================================
+    // RESET
+    // =========================================================
+
+    /// <summary>
+    /// Полный сброс постоянного прогресса: XP, уровень и монеты.
+    /// </summary>
+    [ContextMenu("Reset Progress")]
+    public void ResetProgress()
+    {
+        GlobalXP = 0;
+        GlobalCoins = 0;
+
+        LastRunReward = 0;
+        LastLevelBeforeGrant = 0;
+        LevelsGainedLastRun = 0;
+
+        PlayerPrefs.DeleteKey(PrefsKey);
+        PlayerPrefs.Save();
+
+        OnPlayerXPChanged?.Invoke(GlobalXP);
+        OnPlayerLevelChanged?.Invoke(GlobalLevel);
+        OnCoinsChanged?.Invoke(RunCoins);
+
+        Debug.Log("[Xp] Прогресс игрока сброшен (XP, уровень, монеты).");
+    }
+
+    // =========================================================
     // LEVEL TABLE (single source of truth for level requirements)
     // =========================================================
 

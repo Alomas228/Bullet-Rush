@@ -98,6 +98,16 @@ public class Enemy : MonoBehaviour
     private float dashWindupTotalTime;
     private Vector3 dashWindupDirection;
 
+    // Фугас. Вся жизнь — приближение → замах → детонация. Замах обязан
+    // читаться: фугас замирает и светится, иначе взрыв из-за угла
+    // выглядел бы случайной смертью.
+    private bool bombFuseActive;
+    private float bombFuseRemainingTime;
+    private float bombFuseTotalTime;
+    private float blastRadius = 4f;
+    private float blastDamage = 60f;
+    private float blastWarning = 0.7f;
+
     // Роль и редкий вариант. Сами роли не хранятся в ассете: это
     // честные множители поверх EnemyData, которые двигают поведение,
     // а не характеристики (никакой накрутки HP).
@@ -419,6 +429,10 @@ public class Enemy : MonoBehaviour
 
         variantRenderer = GetComponentInChildren<MeshRenderer>();
 
+        // Тинт карты применяется сразу: даже моб без варианта обязан
+        // читаться как «местный».
+        ApplyVariantTint();
+
         if (player == null)
             return;
 
@@ -459,6 +473,19 @@ public class Enemy : MonoBehaviour
         }
 
         aliveEnemies.RemoveAt(lastIndex);
+    }
+
+    /// <summary>
+    /// Снимок живых мобов для разовых проверок (взрывы карты, волны
+    /// прибоя). Копия страхует от мутации списка во время обхода:
+    /// урон может убить моба, а UnregisterAlive делает swap-remove.
+    /// </summary>
+    public static Enemy[] SnapshotAlive()
+    {
+        if (aliveEnemies.Count == 0)
+            return System.Array.Empty<Enemy>();
+
+        return aliveEnemies.ToArray();
     }
 
     // Враги двигаются через transform (скрипт), а не через физику.
@@ -554,6 +581,12 @@ public class Enemy : MonoBehaviour
         abilityDpsMultiplier = 1f;
         abilityTargetsPlayerPosition = false;
 
+        bombFuseActive = false;
+        bombFuseRemainingTime = 0f;
+        blastRadius = 4f;
+        blastDamage = 60f;
+        blastWarning = 0.7f;
+
         supportCheckTimer = 0f;
         hasTankSupport = false;
         tankSupportAttackRateMultiplier = 1f;
@@ -561,6 +594,8 @@ public class Enemy : MonoBehaviour
         hasRepositionTarget = false;
         attackTelegraphActive = false;
         dashWindup = false;
+        bombFuseActive = false;
+        bombFuseRemainingTime = 0f;
 
         if (enemyData == null)
             return;
@@ -592,6 +627,10 @@ public class Enemy : MonoBehaviour
         // рассинхронизацию по построению.
         braceStopRange =
             GetContactRange() * enemyData.BraceStopScale;
+
+        blastRadius = enemyData.BlastRadius;
+        blastDamage = enemyData.BlastDamage;
+        blastWarning = enemyData.BlastWarning;
 
         allySearchInterval = enemyData.AllySearchInterval;
 
@@ -741,22 +780,27 @@ public class Enemy : MonoBehaviour
             baseVariantMaterial = baseMaterial;
         }
 
-        // Без варианта моб работает ровно на материале префаба:
-        // ни своей копии, ни PropertyBlock, ни единой лишней работы.
+        // Копия материала берётся всегда: через один и тот же кэш
+        // подкрашивается и редкий вариант, и тинт текущей карты.
+        // У варианта материал копится на пару (материал, вариант,
+        // механика карты), у обычного моба — на пару без варианта,
+        // поэтому дорогая копия лишь одна на сочетание, а не на моба.
         variantRenderer.sharedMaterial =
-            variant == EnemyVariant.None
-                ? baseMaterial
-                : GetVariantMaterial(baseMaterial, variant);
+            GetVariantMaterial(baseMaterial, variant);
     }
 
-    // Копия материала на пару (материал, вариант), общая для всех
-    // мобов этого сочетания. Копий получается 5 типов × 4 редких
-    // варианта = 20 за забег, а не по одной на каждого моба.
+    // Копия материала на тройку (материал, вариант, механика карты),
+    // общая для всех мобов этого сочетания. Копий получается
+    // 5 материалов × (варианты + None) × (механик карты) за забег,
+    // а не по одной на каждого моба.
     private static Material GetVariantMaterial(
         Material material,
         EnemyVariant target)
     {
-        int key = material.GetInstanceID() * 31 + (int)target;
+        int key =
+            material.GetInstanceID() * 12737 +
+            (int)target * 113 +
+            (int)MapMechanicManager.CurrentMechanic;
 
         if (variantMaterialCache.TryGetValue(key, out Material cached) &&
             cached != null)
@@ -771,7 +815,17 @@ public class Enemy : MonoBehaviour
         else if (material.HasProperty(LegacyColorId))
             baseColor = material.GetColor(LegacyColorId);
 
-        Color tint = GetVariantTint(target);
+        // Тинт карты перемножается на тинт варианта: вариант обязан
+        // оставаться узнаваемым поверх местного окраса.
+        Color tint = new Color(
+            GetVariantTint(target).r *
+                MapMechanicManager.EnemyTintColor.r,
+            GetVariantTint(target).g *
+                MapMechanicManager.EnemyTintColor.g,
+            GetVariantTint(target).b *
+                MapMechanicManager.EnemyTintColor.b,
+            1f
+        );
 
         Color tinted = new Color(
             baseColor.r * tint.r,
@@ -1107,6 +1161,10 @@ public class Enemy : MonoBehaviour
 
                 break;
 
+            case EnemyType.Bomber:
+                HandleBomberBehaviour();
+                break;
+
             default:
                 MoveTowardsPlayer();
                 break;
@@ -1157,6 +1215,14 @@ public class Enemy : MonoBehaviour
 
         if (dashTimer > 0f)
             dashTimer -= deltaTime;
+
+        if (bombFuseActive)
+        {
+            bombFuseRemainingTime -= deltaTime;
+
+            if (bombFuseRemainingTime <= 0f)
+                Detonate();
+        }
 
         if (flankTimer > 0f)
             flankTimer -= deltaTime;
@@ -1442,6 +1508,77 @@ public class Enemy : MonoBehaviour
 
 
     // =========================================================
+    // BOMBER (ФУГАС)
+    // =========================================================
+
+    // Фугас живёт по простой схеме: идёт на игрока, а войдя в радиус
+    // детонации — замирает, светится и подрывается. Взрыв бьёт и по
+    // игроку, и по окрестным врагам: своего подорванного соседа можно
+    // «кормить» фугасом. Телеграф здесь — весь цикл замаха, поэтому
+    // сам удар не предупреждает дополнительно.
+    private void HandleBomberBehaviour()
+    {
+        if (player == null)
+            return;
+
+        if (bombFuseActive)
+        {
+            // На замахе фугас не бежит: он даёт шанс уйти или добить.
+            // Пульс масштаба делает замах читаемым издалека.
+            float pulse =
+                1f + 0.22f * Mathf.Sin(
+                    (bombFuseTotalTime - bombFuseRemainingTime)
+                    * 18f
+                );
+
+            transform.localScale =
+                baseScale * pulse;
+
+            return;
+        }
+
+        Vector3 toPlayer =
+            player.position - transform.position;
+
+        toPlayer.y = 0f;
+
+        if (toPlayer.sqrMagnitude <=
+            blastRadius * blastRadius)
+        {
+            StartBombFuse();
+            return;
+        }
+
+        MoveTowardsPlayer();
+    }
+
+    private void StartBombFuse()
+    {
+        if (bombFuseActive)
+            return;
+
+        bombFuseActive = true;
+        bombFuseRemainingTime = blastWarning;
+        bombFuseTotalTime = Mathf.Max(blastWarning, 0.05f);
+
+        PlayBombFuseSound();
+    }
+
+    // Самоподрыв идёт тем же путём, что и смерть от урона: один
+    // конвейер наград, лут и метрики, только источник — окружение.
+    private void Detonate()
+    {
+        if (IsDead)
+            return;
+
+        TakeDamage(
+            CurrentHealth,
+            false,
+            DamageSource.Environment
+        );
+    }
+
+    // =========================================================
     // FAST DASH
     // =========================================================
 
@@ -1695,6 +1832,28 @@ public class Enemy : MonoBehaviour
                 knockbackSpeedScale,
                 1f - (1f - resistance) * knockbackSlowdown
             );
+    }
+
+    /// <summary>
+    /// Сильная разовая отдача мимо общего потолка knockbackMaxSpeed:
+    /// волна прибоя должна реально сносить мобов, а не двигать их на
+    /// пару десятков сантиметров. Направление и скорость задаёт
+    /// вызывающий, скорость затухает тем же knockbackDamping.
+    /// </summary>
+    public void ApplyShove(Vector3 velocity)
+    {
+        if (IsDead)
+            return;
+
+        velocity.y = 0f;
+
+        if (velocity.sqrMagnitude <= 0.0001f)
+            return;
+
+        knockbackVelocity = velocity;
+
+        knockbackSpeedScale =
+            Mathf.Min(knockbackSpeedScale, 1f);
     }
 
     // Погашение отдачи и возврат разгона. Идёт после поведения,
@@ -4033,7 +4192,16 @@ public class Enemy : MonoBehaviour
         if (!isBoss)
             RegisterFallenAlly(transform.position, cachedEnemyType);
 
-        SpawnDeathExplosion();
+        // Фугас не взрывается осколками, как танк: его смерть — это
+        // сам подрыв, поэтому осколочный взрыв ему не нужен (иначе
+        // двойной шум и двойной урон на одном месте).
+        bool isBomber =
+            enemyData != null &&
+            cachedEnemyType == EnemyType.Bomber;
+
+        if (!isBomber)
+            SpawnDeathExplosion();
+
         SpawnBloodPool();
         SpawnLoot();
 
@@ -4048,6 +4216,21 @@ public class Enemy : MonoBehaviour
         burnActive = false;
         bleedActive = false;
         bleedStacks = 0;
+
+        // Сам подрыв фугаса после смерти: удар и по игроку, и по
+        // окрестным врагам. Радиус и урон берутся из его EnemyData.
+        if (isBomber)
+        {
+            MapStrikeZone.Strike(
+                transform.position,
+                blastRadius,
+                blastDamage,
+                damagesEnemies: true,
+                knockback: 6f,
+                screenShake: 0.55f,
+                MapMechanicManager.BomberBlastColor
+            );
+        }
 
         // ============================================
         // LEADERBOARD METRICS
@@ -4150,6 +4333,24 @@ public class Enemy : MonoBehaviour
                 priority: SfxPriority.Medium
             );
         }
+    }
+
+    // Замах фугаса: тот же звук-предупреждение, что у опасных зон —
+    // игрок уже выучен на него реагировать.
+    private void PlayBombFuseSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx =
+            AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXAt(
+                sfx.BossAbility,
+                transform.position,
+                priority: SfxPriority.Medium
+            );
     }
 
 

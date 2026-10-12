@@ -16,6 +16,9 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private GameObject elitePrefab;
     [SerializeField] private GameObject bossPrefab;
 
+    [Tooltip("Фугас: идёт на игрока и подрывается вблизи. Появляется со средней волны и расчищает поле своими же взрывами.")]
+    [SerializeField] private GameObject bomberPrefab;
+
     [Header("Spawn Settings")]
     [SerializeField] private float minimumSpawnDistance = 1.5f;
     [SerializeField] private int spawnAttempts = 24;
@@ -129,6 +132,9 @@ public class EnemySpawner : MonoBehaviour
 
     [Tooltip("Боссы выходят с внешнего края кольца.")]
     [SerializeField] private float bossMinSpawnDistance = 22f;
+
+    [Tooltip("Фугасы выходят подальше: пока он добежит до радиуса детонации, игрок успевает обдумать дистанцию.")]
+    [SerializeField] private float bomberMinSpawnDistance = 17f;
 
     [Header("Arena Bounds")]
     [Tooltip("Полуширина квадратной арены: враги не спавнятся за её пределами (0 — без ограничения). Стены арены на ±50.")]
@@ -875,6 +881,10 @@ public class EnemySpawner : MonoBehaviour
                 value = bossMinSpawnDistance;
                 break;
 
+            case EnemyType.Bomber:
+                value = bomberMinSpawnDistance;
+                break;
+
             default:
                 value = playerRingMinDistance;
                 break;
@@ -903,6 +913,9 @@ public class EnemySpawner : MonoBehaviour
 
         if (prefab == bossPrefab)
             return EnemyType.Boss;
+
+        if (prefab == bomberPrefab)
+            return EnemyType.Bomber;
 
         if (prefab == fastPrefab)
             return EnemyType.Fast;
@@ -1672,6 +1685,9 @@ public class EnemySpawner : MonoBehaviour
 
             case EnemyType.Boss:
                 return bossPrefab;
+
+            case EnemyType.Bomber:
+                return bomberPrefab;
         }
 
         return null;
@@ -1880,6 +1896,9 @@ public class EnemySpawner : MonoBehaviour
         if (wave >= 4 && tankPrefab != null)
             totalWeight += 1;
 
+        if (wave >= 5 && bomberPrefab != null)
+            totalWeight += 2;
+
         if (wave >= 7 && elitePrefab != null)
             totalWeight += 1 + Mathf.FloorToInt((wave - 7) / 12f);
 
@@ -1916,6 +1935,13 @@ public class EnemySpawner : MonoBehaviour
                 return tankPrefab;
         }
 
+        if (wave >= 5 && bomberPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return bomberPrefab;
+        }
+
         if (wave >= 7 && elitePrefab != null)
             return elitePrefab;
 
@@ -1935,6 +1961,9 @@ public class EnemySpawner : MonoBehaviour
             totalWeight += 9;
 
         if (wave >= 4 && rangedPrefab != null)
+            totalWeight += 1;
+
+        if (wave >= 5 && bomberPrefab != null)
             totalWeight += 1;
 
         if (wave >= 8 && elitePrefab != null)
@@ -1966,6 +1995,13 @@ public class EnemySpawner : MonoBehaviour
                 return rangedPrefab;
         }
 
+        if (wave >= 5 && bomberPrefab != null)
+        {
+            roll -= 1;
+            if (roll < 0)
+                return bomberPrefab;
+        }
+
         if (wave >= 8 && elitePrefab != null)
             return elitePrefab;
 
@@ -1989,6 +2025,9 @@ public class EnemySpawner : MonoBehaviour
 
         if (wave >= 4 && tankPrefab != null)
             totalWeight += 3;
+
+        if (wave >= 5 && bomberPrefab != null)
+            totalWeight += 2;
 
         if (wave >= 9 && elitePrefab != null)
             totalWeight += 1;
@@ -2026,6 +2065,13 @@ public class EnemySpawner : MonoBehaviour
                 return tankPrefab;
         }
 
+        if (wave >= 5 && bomberPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return bomberPrefab;
+        }
+
         if (wave >= 9 && elitePrefab != null)
             return elitePrefab;
 
@@ -2055,6 +2101,9 @@ public class EnemySpawner : MonoBehaviour
 
         if (wave >= 4 && tankPrefab != null)
             totalWeight += 1;
+
+        if (wave >= 5 && bomberPrefab != null)
+            totalWeight += 2;
 
         if (!huntActive && wave >= 7 && elitePrefab != null)
             totalWeight += 2;
@@ -2090,6 +2139,13 @@ public class EnemySpawner : MonoBehaviour
             roll -= 1;
             if (roll < 0)
                 return tankPrefab;
+        }
+
+        if (wave >= 5 && bomberPrefab != null)
+        {
+            roll -= 2;
+            if (roll < 0)
+                return bomberPrefab;
         }
 
         if (!huntActive && wave >= 7 && elitePrefab != null)

@@ -5955,10 +5955,10 @@ RectTransform:
   - {fileID: 1476298413}
   m_Father: {fileID: 2081600827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 1494.929, y: -260}
+  m_SizeDelta: {x: 300, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &234273739
 MonoBehaviour:
@@ -6042,6 +6042,9 @@ MonoBehaviour:
   iconDisc: {fileID: 220435840}
   iconImage: {fileID: 826616695}
   nameText: {fileID: 1227650195}
+  mechanicText: {fileID: 0}
+  lockOverlay: {fileID: 0}
+  lockText: {fileID: 0}
   selectedChip: {fileID: 1476298413}
   selectButton: {fileID: 234273739}
   wired: 0
@@ -6428,7 +6431,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4286871147
   m_fontColor: {r: 0.41960785, g: 0.4627451, b: 0.5176471, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6441,7 +6444,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -8736,7 +8739,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -8749,7 +8752,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -17595,7 +17598,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -17608,7 +17611,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -18051,7 +18054,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -18064,7 +18067,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -20201,7 +20204,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -20214,7 +20217,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -32450,7 +32453,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4286871147
   m_fontColor: {r: 0.41960785, g: 0.4627451, b: 0.5176471, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -32463,7 +32466,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -35968,7 +35971,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -35981,7 +35984,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -36474,10 +36477,10 @@ RectTransform:
   - {fileID: 1432719262}
   m_Father: {fileID: 2081600827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 534.929, y: -260}
+  m_SizeDelta: {x: 300, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1254964512
 MonoBehaviour:
@@ -36561,6 +36564,9 @@ MonoBehaviour:
   iconDisc: {fileID: 901775355}
   iconImage: {fileID: 1970543323}
   nameText: {fileID: 733366276}
+  mechanicText: {fileID: 0}
+  lockOverlay: {fileID: 0}
+  lockText: {fileID: 0}
   selectedChip: {fileID: 1432719262}
   selectButton: {fileID: 1254964512}
   wired: 0
@@ -40031,7 +40037,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4281542943
   m_fontColor: {r: 0.12156863, g: 0.16078432, b: 0.2, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -40044,7 +40050,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -40715,10 +40721,10 @@ RectTransform:
   - {fileID: 788026875}
   m_Father: {fileID: 2081600827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 214.92902, y: -260}
+  m_SizeDelta: {x: 300, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1406720438
 MonoBehaviour:
@@ -40802,6 +40808,9 @@ MonoBehaviour:
   iconDisc: {fileID: 910522323}
   iconImage: {fileID: 936747312}
   nameText: {fileID: 349395817}
+  mechanicText: {fileID: 0}
+  lockOverlay: {fileID: 0}
+  lockText: {fileID: 0}
   selectedChip: {fileID: 788026875}
   selectButton: {fileID: 1406720438}
   wired: 0
@@ -42541,7 +42550,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4286871147
   m_fontColor: {r: 0.41960785, g: 0.4627451, b: 0.5176471, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -42554,7 +42563,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -51302,10 +51311,10 @@ RectTransform:
   - {fileID: 887114579}
   m_Father: {fileID: 2081600827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 1174.929, y: -260}
+  m_SizeDelta: {x: 300, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1703510932
 MonoBehaviour:
@@ -51389,6 +51398,9 @@ MonoBehaviour:
   iconDisc: {fileID: 10332592}
   iconImage: {fileID: 1792275664}
   nameText: {fileID: 1388520878}
+  mechanicText: {fileID: 0}
+  lockOverlay: {fileID: 0}
+  lockText: {fileID: 0}
   selectedChip: {fileID: 887114579}
   selectButton: {fileID: 1703510932}
   wired: 0
@@ -51569,10 +51581,10 @@ RectTransform:
   - {fileID: 61025602}
   m_Father: {fileID: 2081600827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 854.929, y: -260}
+  m_SizeDelta: {x: 300, y: 420}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1707567992
 MonoBehaviour:
@@ -51656,6 +51668,9 @@ MonoBehaviour:
   iconDisc: {fileID: 1389777861}
   iconImage: {fileID: 114837034}
   nameText: {fileID: 795137351}
+  mechanicText: {fileID: 0}
+  lockOverlay: {fileID: 0}
+  lockText: {fileID: 0}
   selectedChip: {fileID: 61025602}
   selectButton: {fileID: 1707567992}
   wired: 0
@@ -52277,7 +52292,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4286871147
   m_fontColor: {r: 0.41960785, g: 0.4627451, b: 0.5176471, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -52290,7 +52305,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
