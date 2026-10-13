@@ -8,6 +8,13 @@ public class GameOverManager : MonoBehaviour
 
     public bool IsGameOver { get; private set; }
 
+    /// <summary>
+    /// Итог последнего завершения забега. Считается один раз и
+    /// используется и лидербордом, и экраном итогов, чтобы оба
+    /// показывали одинаковый счёт.
+    /// </summary>
+    public RunResult LastResult { get; private set; }
+
     [Header("Achievements")]
     [Tooltip("Сколько волн нужно пройти, чтобы забег считался победным (для ARSENAL). " +
              "10 соответствует первой босс-волне.")]
@@ -15,6 +22,11 @@ public class GameOverManager : MonoBehaviour
 
     private bool pendingRestart;
     private bool menuReturnPending;
+
+    // Итоги забега фиксируются один раз на его завершение. При
+    // возрождении флаг снимается: забег продолжается, и следующий
+    // его конец должен снова зафиксировать (уже улучшенный) результат.
+    private bool runFinalized;
 
     private void Awake()
     {
@@ -43,6 +55,8 @@ public class GameOverManager : MonoBehaviour
         if (pendingRestart)
         {
             pendingRestart = false;
+            runFinalized = false;
+            LastResult = null;
 
             if (GameStateManager.Instance != null)
                 GameStateManager.Instance.SetState(GameState.Playing);
@@ -54,40 +68,29 @@ public class GameOverManager : MonoBehaviour
         if (IsGameOver)
             return;
 
-        // Сообщаем о конце забега достижениям: по числу пройденных
-        // волн определяется победа (для ARSENAL и подобных).
-        ReportRunEnd();
-
         IsGameOver = true;
 
-        // Рекорд фиксируется в момент смерти: волна, на которой игрок
-        // погиб, и есть его достижение («добраться хотя бы до 18»).
-        SubmitPersonalBest();
-
-        // ============================================
-        // LEADERBOARD: Собираем метрики
-        // ============================================
+        // Результат собирается ровно один раз: и лидерборд, и экран
+        // итогов читают один и тот же объект, поэтому расхождений
+        // между показанным счётом и отправленным больше нет.
         RunMetrics metrics =
             FindAnyObjectByType<RunMetrics>();
-        
-        if (metrics != null)
-        {
-            RunResult result = metrics.CollectResult();
-            
-            // Отправляем на сервер
-            LeaderboardService.Instance?.SubmitResult(result);
-            
-            // Показываем UI
-            GameOverLeaderboardUI lbUI =
-                FindAnyObjectByType<GameOverLeaderboardUI>();
-            if (lbUI != null)
-                lbUI.ShowResults(metrics);
-        }
+
+        LastResult = metrics != null
+            ? metrics.CollectResult()
+            : null;
+
+        // Фиксируем завершение забега (достижения, рекорд, лидерборд,
+        // награда) один раз. При возрождении флаг снимется.
+        FinalizeRun();
+
+        GameOverLeaderboardUI lbUI =
+            FindAnyObjectByType<GameOverLeaderboardUI>();
+
+        if (lbUI != null)
+            lbUI.ShowResults(LastResult);
 
         Debug.Log("[GameOver] entered; XpManager.Instance present: " + (XpManager.Instance != null) + ", IsRunActive: " + (XpManager.Instance != null ? XpManager.Instance.IsRunActive.ToString() : "n/a"));
-
-        if (XpManager.Instance != null)
-            XpManager.Instance.ProcessRunEnd();
 
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.SetState(GameState.GameOver);
@@ -98,6 +101,43 @@ public class GameOverManager : MonoBehaviour
             AudioManager.Instance.StopMusic();
 
         Time.timeScale = 0f;
+    }
+
+    /// <summary>
+    /// Фиксирует завершение забега один раз: достижения, личный рекорд,
+    /// лидерборд и награда игрока. Повторные вызовы до возрождения
+    /// или нового забега игнорируются.
+    /// </summary>
+    private void FinalizeRun()
+    {
+        if (runFinalized)
+            return;
+
+        runFinalized = true;
+
+        if (LastResult == null)
+        {
+            RunMetrics metrics =
+                FindAnyObjectByType<RunMetrics>();
+
+            LastResult = metrics != null
+                ? metrics.CollectResult()
+                : null;
+        }
+
+        // Сообщаем о конце забега достижениям: по числу пройденных
+        // волн определяется победа (для ARSENAL и подобных).
+        ReportRunEnd();
+
+        // Рекорд фиксируется в момент смерти: волна, на которой игрок
+        // погиб, и есть его достижение («добраться хотя бы до 18»).
+        SubmitPersonalBest();
+
+        if (LastResult != null && LeaderboardService.Instance != null)
+            LeaderboardService.Instance.SubmitResult(LastResult);
+
+        if (XpManager.Instance != null)
+            XpManager.Instance.ProcessRunEnd();
     }
 
     /// <summary>
@@ -141,8 +181,9 @@ public class GameOverManager : MonoBehaviour
 
     public void RestartGame()
     {
-        SubmitPersonalBest();
+        FinalizeRun();
 
+        runFinalized = false;
         IsGameOver = false;
         pendingRestart = true;
         Time.timeScale = 1f;
@@ -161,6 +202,10 @@ public class GameOverManager : MonoBehaviour
         if (!IsGameOver)
             return;
 
+        // Забег продолжается: снимаем фиксацию, чтобы следующий конец
+        // снова зафиксировал уже улучшенный результат.
+        runFinalized = false;
+
         IsGameOver = false;
 
         if (GameStateManager.Instance != null)
@@ -174,18 +219,12 @@ public class GameOverManager : MonoBehaviour
 
     public void BackToMenu()
     {
-        SubmitPersonalBest();
+        // Забег прерван (выход из паузы или с экрана итогов) — фиксируем
+        // результат один раз: рекорд, лидерборд, достижения и награда.
+        FinalizeRun();
 
-        // Забег прерван (выход в меню до GameOver) — тоже фиксируем
-        // результат, порог победы общий.
-        ReportRunEnd();
-
+        runFinalized = false;
         IsGameOver = false;
-
-        // Если забег не был завершён через GameOver() (выход из паузы),
-        // начисляем награду сейчас. Повторная выдача заблокирована внутри XpManager.
-        if (XpManager.Instance != null)
-            XpManager.Instance.ProcessRunEnd();
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.SwitchToMainMusic();

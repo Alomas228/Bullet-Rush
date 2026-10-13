@@ -11,6 +11,8 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private WorldStructureGenerator worldGenerator;
     [Tooltip("События посреди волны. Если не назначен — создаётся на этом объекте.")]
     [SerializeField] private WaveEventDirector eventDirector;
+    [Tooltip("Источник урона игрока для правила «идеальная волна». Если не назначен — ищется в сцене.")]
+    [SerializeField] private PlayerHealth playerHealth;
 
     [Header("Wave Settings")]
     [Tooltip("Общий множитель количества противников во всех волнах. Умножается последним, поверх сжатия, высоты слота и надбавки, поэтому кривая остаётся той же — растёт только количество. 1 — без изменений, 2 — вдвое больше.")]
@@ -121,6 +123,11 @@ public class WaveManager : MonoBehaviour
 
     private EnvironmentController cachedEnvironment;
 
+    // Получал ли игрок урон в текущей волне. Лечение до максимума
+    // больше не выдаёт волну за идеальную, как делала проверка
+    // CurrentHealth >= MaxHealth.
+    private bool tookDamageThisWave;
+
     private void Start()
     {
         if (waveUI != null)
@@ -138,6 +145,12 @@ public class WaveManager : MonoBehaviour
         cachedEnvironment =
             FindAnyObjectByType<EnvironmentController>();
 
+        if (playerHealth == null)
+            playerHealth = FindAnyObjectByType<PlayerHealth>();
+
+        if (playerHealth != null)
+            playerHealth.OnDamaged += HandlePlayerDamaged;
+
         if (GameStateManager.Instance != null)
         {
             GameStateManager.Instance.OnGameStateChanged += HandleStateChanged;
@@ -154,6 +167,14 @@ public class WaveManager : MonoBehaviour
     {
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
+
+        if (playerHealth != null)
+            playerHealth.OnDamaged -= HandlePlayerDamaged;
+    }
+
+    private void HandlePlayerDamaged(float damage)
+    {
+        tookDamageThisWave = true;
     }
 
     private void HandleStateChanged(GameState state)
@@ -232,8 +253,11 @@ public class WaveManager : MonoBehaviour
             // ============================================
             // LEADERBOARD METRICS
             // ============================================
-            PlayerHealth ph = FindAnyObjectByType<PlayerHealth>();
-            bool wasPerfect = ph != null && ph.CurrentHealth >= ph.MaxHealth;
+            // Идеальная волна — та, в которой игрок не получил урона.
+            // Проверка по текущему здоровью ошибочно засчитывала волну
+            // после лечения регеном или подбора.
+            bool wasPerfect =
+                playerHealth == null || !tookDamageThisWave;
 
             RunMetrics metrics =
                 FindAnyObjectByType<RunMetrics>();
@@ -424,6 +448,7 @@ public class WaveManager : MonoBehaviour
         waveActive = false;
         waitingForNextWave = false;
         waveCompleteShown = false;
+        tookDamageThisWave = false;
 
         currentArchetype =
             GetArchetypeForWave(CurrentWave);

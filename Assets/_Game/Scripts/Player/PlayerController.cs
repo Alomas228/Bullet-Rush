@@ -346,8 +346,7 @@ public class PlayerController : MonoBehaviour
             rm.RecordDashDodged();
 
         if (bonusSettings == null)
-            bonusSettings =
-                FindAnyObjectByType<BonusSettings>();
+            bonusSettings = BonusSettings.Instance;
 
         ScoreManager sm = ScoreManager.Instance;
         if (sm != null &&

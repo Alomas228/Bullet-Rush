@@ -23,6 +23,13 @@ public class PlayerHealth : MonoBehaviour
 
     public float MaxHealth => maxHealth;
 
+    /// <summary>
+    /// Урон реально прошёл (не щит и не рывок). Нужен правилу
+    /// «идеальная волна»: лечение до максимума не должно выдавать
+    /// волну за пройденную без урона.
+    /// </summary>
+    public event System.Action<float> OnDamaged;
+
     public float HealthRegenPerSecond => healthRegenPerSecond;
 
     private void Start()
@@ -108,6 +115,9 @@ public class PlayerHealth : MonoBehaviour
         // Урон реально прошёл (не щит/дэш): достижения, связанные с
         // «забегом без урона», сбрасывают прогресс именно здесь.
         AchievementEvents.RaisePlayerDamaged();
+
+        // Волна, в которой игрок получал урон, не может быть идеальной.
+        OnDamaged?.Invoke(damage);
 
         Debug.Log(
             $"Player HP: {CurrentHealth}/{maxHealth}"

@@ -4254,6 +4254,16 @@ public class Enemy : MonoBehaviour
 
         float baseScore = scoreValue * scoreMultiplier;
 
+        // Комбо считаем ДО начисления очков: убийство само повышает
+        // множитель, и очки за него должны учитывать новое значение.
+        // Раньше вызов жил внутри проверки метрик, из-за чего без
+        // RunMetrics комбо не работало вовсе.
+        ComboSystem combo =
+            FindAnyObjectByType<ComboSystem>();
+
+        if (combo != null)
+            combo.OnEnemyKilled();
+
         if (ScoreManager.Instance != null)
         {
             ScoreManager.Instance.IncrementKills();
@@ -4273,11 +4283,6 @@ public class Enemy : MonoBehaviour
                 baseScore,
                 false
             );
-
-            ComboSystem combo =
-                FindAnyObjectByType<ComboSystem>();
-            if (combo != null)
-                combo.OnEnemyKilled();
         }
 
         if (enemyData != null &&

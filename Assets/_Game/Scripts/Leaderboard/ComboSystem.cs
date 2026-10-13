@@ -10,6 +10,12 @@ public class ComboSystem : MonoBehaviour
     [SerializeField] private float comboResetTime = 3f;
     [SerializeField] private float multiKillWindow = 3f;
 
+    [Header("Bonuses")]
+    [Tooltip("Пороги и размеры бонусов за комбо. Если не назначен — берётся из ScoreManager.")]
+    [SerializeField] private BonusSettings bonusSettings;
+    [Tooltip("Куда начислять бонусы за пороги. Если не назначен — ищется в сцене.")]
+    [SerializeField] private ScoreManager scoreManager;
+
     private int comboCount;
     private float comboTimer;
     private float lastKillTime;
@@ -36,6 +42,23 @@ public class ComboSystem : MonoBehaviour
     /// Несколько убийств подряд за короткий промежуток.
     /// </summary>
     public event System.Action<int> OnMultiKill;
+
+    private void Awake()
+    {
+        ResolveRefs();
+    }
+
+    private void ResolveRefs()
+    {
+        if (scoreManager == null)
+            scoreManager = FindAnyObjectByType<ScoreManager>();
+
+        if (bonusSettings == null && scoreManager != null)
+            bonusSettings = scoreManager.Settings;
+
+        if (bonusSettings == null)
+            bonusSettings = BonusSettings.Instance;
+    }
 
     private void Update()
     {
@@ -81,6 +104,10 @@ public class ComboSystem : MonoBehaviour
             OnMaxComboReached?.Invoke(20);
         else if (comboCount >= 10 && comboCount == 10)
             OnMaxComboReached?.Invoke(10);
+
+        // Бонусы за пройденные пороги комбо выдаёт сама система комбо —
+        // это правило начисления очков, а не отрисовка интерфейса.
+        CheckThresholds();
     }
 
     /// <summary>
@@ -120,6 +147,47 @@ public class ComboSystem : MonoBehaviour
         comboCount += 5;
         comboTimer = comboResetTime;
         OnComboChanged?.Invoke(comboCount);
+
+        // Идеальная волна может перескочить через порог — проверяем бонусы.
+        CheckThresholds();
+    }
+
+    /// <summary>
+    /// Начисляет бонус за каждый пройденный порог комбо. Пороги и
+    /// размеры берутся из BonusSettings — единого источника правды.
+    /// </summary>
+    private void CheckThresholds()
+    {
+        if (scoreManager == null || bonusSettings == null)
+            ResolveRefs();
+
+        if (scoreManager == null || bonusSettings == null)
+            return;
+
+        if (comboCount >= bonusSettings.comboThreshold50 &&
+            lastComboThresholdReached < 50)
+        {
+            scoreManager.AddBonus(bonusSettings.comboBonus50, Lang.Get("bonus.combo50"));
+            lastComboThresholdReached = 50;
+        }
+        else if (comboCount >= bonusSettings.comboThreshold30 &&
+            lastComboThresholdReached < 30)
+        {
+            scoreManager.AddBonus(bonusSettings.comboBonus30, Lang.Get("bonus.combo30"));
+            lastComboThresholdReached = 30;
+        }
+        else if (comboCount >= bonusSettings.comboThreshold20 &&
+            lastComboThresholdReached < 20)
+        {
+            scoreManager.AddBonus(bonusSettings.comboBonus20, Lang.Get("bonus.combo20"));
+            lastComboThresholdReached = 20;
+        }
+        else if (comboCount >= bonusSettings.comboThreshold10 &&
+            lastComboThresholdReached < 10)
+        {
+            scoreManager.AddBonus(bonusSettings.comboBonus10, Lang.Get("bonus.combo10"));
+            lastComboThresholdReached = 10;
+        }
     }
 
     /// <summary>

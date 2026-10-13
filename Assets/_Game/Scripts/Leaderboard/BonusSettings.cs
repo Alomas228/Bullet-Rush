@@ -7,6 +7,18 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "BonusSettings", menuName = "Bullet Rush/Bonus Settings")]
 public class BonusSettings : ScriptableObject
 {
+    /// <summary>
+    /// Последний загруженный ассет настроек. Позволяет системам без
+    /// прямой ссылки (например, ComboSystem) получить единый источник
+    /// правил начисления очков без ручного назначения в инспекторе.
+    /// </summary>
+    public static BonusSettings Instance { get; private set; }
+
+    private void OnEnable()
+    {
+        Instance = this;
+    }
+
     [Header("Движения")]
     [Tooltip("Бонус за рывок (dash dodge)")]
     public int dashDodgeBonus = 20;
@@ -35,14 +47,14 @@ public class BonusSettings : ScriptableObject
     [Tooltip("Бонус за идеальную волну (без урона)")]
     public int perfectWaveBonus = 500;
 
-    [Header("Скорость")]
-    [Tooltip("Бонус за быстрый забег (< 3 мин)")]
-    public int speedBonusFast = 2000;
-    public float speedThresholdFast = 180f; // 3 минуты
+    [Header("Глубина забега")]
+    [Tooltip("Бонус за каждую пройденную волну. Забег бесконечный, поэтому " +
+             "итог награждает глубину, а не скорость завершения.")]
+    public int waveBonusPerWave = 200;
 
-    [Tooltip("Бонус за средний забег (< 5 мин)")]
-    public int speedBonusMedium = 1000;
-    public float speedThresholdMedium = 300f; // 5 минут
+    [Tooltip("Дополнительный бонус за достижение глубоких волн.")]
+    public int deepWaveThreshold = 20;
+    public int deepWaveBonus = 3000;
 
     [Header("Эффективность")]
     [Tooltip("Бонус за высокий урон / низкий полученный")]

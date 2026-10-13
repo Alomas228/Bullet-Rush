@@ -87,6 +87,9 @@ public class RunMetrics : MonoBehaviour
         if (comboSystem == null)
             comboSystem = GetComponent<ComboSystem>();
 
+        if (scoreManager == null)
+            scoreManager = FindAnyObjectByType<ScoreManager>();
+
         ResetAll();
     }
 
@@ -305,8 +308,29 @@ public class RunMetrics : MonoBehaviour
         if (totalDamageTaken > 0f)
             result.damageEfficiency = totalDamageDealt / totalDamageTaken;
 
+        // Контекст забега: карта и тема. Нужен, чтобы рекорды и
+        // локальная таблица сравнивали забеги в одинаковых условиях.
+        EnvironmentController env =
+            FindAnyObjectByType<EnvironmentController>();
+
+        if (env != null)
+        {
+            result.mapIndex = env.CurrentIndex;
+
+            if (env.CurrentMap != null)
+                result.mapName = env.CurrentMap.LocalizedName;
+        }
+
+        result.runModifier =
+            RunModifierManager.Instance != null
+                ? RunModifierManager.Instance.Active.ToString()
+                : "None";
+
+        BonusSettings settings =
+            scoreManager != null ? scoreManager.Settings : null;
+
         result.CalculateRank();
-        result.CalculateStyleBonus();
+        result.CalculateStyleBonus(settings);
 
         return result;
     }

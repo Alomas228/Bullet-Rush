@@ -8,9 +8,15 @@ public class ScoreManager : MonoBehaviour
     [Header("References")]
     [SerializeField] private PlayerStats playerStats;
     [SerializeField] private BonusSettings bonusSettings;
+    [Tooltip("Источник множителя комбо. Если не назначен — ищется в сцене.")]
+    [SerializeField] private ComboSystem comboSystem;
 
     public int Score { get; private set; }
     public int Kills { get; private set; }
+
+    /// <summary>Настройки бонусов. Единый источник правды для правил начисления.</summary>
+    public BonusSettings Settings =>
+        bonusSettings != null ? bonusSettings : BonusSettings.Instance;
 
     public event Action<int, string> OnScoreAdded; // amount, bonusName
 
@@ -29,6 +35,9 @@ public class ScoreManager : MonoBehaviour
     {
         if (playerStats == null)
             playerStats = FindAnyObjectByType<PlayerStats>();
+
+        if (comboSystem == null)
+            comboSystem = FindAnyObjectByType<ComboSystem>();
     }
 
     public void ResetRunStats()
@@ -48,6 +57,11 @@ public class ScoreManager : MonoBehaviour
         float multiplier = 1f;
         if (playerStats != null)
             multiplier = playerStats.ScoreMultiplier;
+
+        // Комбо — часть правил начисления очков за убийство, поэтому
+        // множитель применяется здесь, а не только в отрисовке HUD.
+        if (comboSystem != null)
+            multiplier *= comboSystem.ComboMultiplier;
 
         // Тема забега может повышать счёт как компенсацию за риск.
         multiplier *= RunModifierManager.ScoreScale;

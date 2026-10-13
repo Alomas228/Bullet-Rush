@@ -17,10 +17,6 @@ public class GameplayHUD : MonoBehaviour
     [SerializeField] private TMP_Text comboCountText;
     [SerializeField] private TMP_Text comboMultiplierText;
 
-    [Header("Bonuses")]
-    [Tooltip("Пороги комбо и размеры бонусов. Если не назначен — ищется автоматически.")]
-    [SerializeField] private BonusSettings bonusSettings;
-
     [Header("Bonus Popups")]
     [SerializeField] private GameObject bonusPopupPrefab;
     [SerializeField] private Transform bonusPopupContainer;
@@ -54,9 +50,6 @@ public class GameplayHUD : MonoBehaviour
         cachedCombo = FindAnyObjectByType<ComboSystem>();
         cachedWaveManager = FindAnyObjectByType<WaveManager>();
         cachedScoreManager = FindAnyObjectByType<ScoreManager>();
-
-        if (bonusSettings == null)
-            bonusSettings = FindAnyObjectByType<BonusSettings>();
 
         if (comboPanel != null)
             comboPanel.SetActive(false);
@@ -175,7 +168,13 @@ public class GameplayHUD : MonoBehaviour
 
         if (comboMultiplierText != null)
         {
-            float multiplier = GetComboMultiplier(combo);
+            // Значение берём у самой системы комбо: HUD только показывает,
+            // он не задаёт правила начисления.
+            float multiplier =
+                cachedCombo != null
+                    ? cachedCombo.ComboMultiplier
+                    : 1f;
+
             if (multiplier >= 1.5f)
             {
                 comboMultiplierText.text = multiplier.ToString("0.0") + "x";
@@ -186,51 +185,6 @@ public class GameplayHUD : MonoBehaviour
                 comboMultiplierText.text = "";
             }
         }
-
-        // Проверяем пороги комбо и начисляем бонусы
-        CheckComboThresholds(combo);
-    }
-
-    private void CheckComboThresholds(int combo)
-    {
-        if (bonusSettings == null || cachedScoreManager == null)
-            return;
-
-        int lastThreshold = cachedCombo.GetLastComboThresholdReached();
-
-        // Проверяем каждый порог
-        if (combo >= bonusSettings.comboThreshold50 && lastThreshold < 50)
-        {
-            cachedScoreManager.AddBonus(
-                bonusSettings.comboBonus50,
-                Lang.Get("bonus.combo50")
-            );
-            cachedCombo.SetLastComboThresholdReached(50);
-        }
-        else if (combo >= bonusSettings.comboThreshold30 && lastThreshold < 30)
-        {
-            cachedScoreManager.AddBonus(
-                bonusSettings.comboBonus30,
-                Lang.Get("bonus.combo30")
-            );
-            cachedCombo.SetLastComboThresholdReached(30);
-        }
-        else if (combo >= bonusSettings.comboThreshold20 && lastThreshold < 20)
-        {
-            cachedScoreManager.AddBonus(
-                bonusSettings.comboBonus20,
-                Lang.Get("bonus.combo20")
-            );
-            cachedCombo.SetLastComboThresholdReached(20);
-        }
-        else if (combo >= bonusSettings.comboThreshold10 && lastThreshold < 10)
-        {
-            cachedScoreManager.AddBonus(
-                bonusSettings.comboBonus10,
-                Lang.Get("bonus.combo10")
-            );
-            cachedCombo.SetLastComboThresholdReached(10);
-        }
     }
 
     private Color GetComboColor(int combo)
@@ -240,15 +194,6 @@ public class GameplayHUD : MonoBehaviour
         if (combo >= 20) return new Color(0f, 1f, 0f);     // Зелёный
         if (combo >= 10) return new Color(0f, 0.6f, 1f);   // Синий
         return Color.white;
-    }
-
-    private float GetComboMultiplier(int combo)
-    {
-        if (combo >= 50) return 5f;
-        if (combo >= 30) return 3f;
-        if (combo >= 20) return 2f;
-        if (combo >= 10) return 1.5f;
-        return 1f;
     }
 
     // =========================================================

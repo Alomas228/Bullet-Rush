@@ -71,6 +71,19 @@ public class RunResult
     public string buildHash;
 
     // =========================================================
+    // RUN CONTEXT (map + theme)
+    // =========================================================
+
+    [Tooltip("Индекс карты, на которой прошёл забег. -1 — карта неизвестна.")]
+    public int mapIndex = -1;
+
+    [Tooltip("Локализованное имя карты для отображения в локальном списке.")]
+    public string mapName;
+
+    [Tooltip("Идентификатор темы забега (RunModifier) для локального списка.")]
+    public string runModifier;
+
+    // =========================================================
     // CONSTRUCTION
     // =========================================================
 
@@ -110,6 +123,10 @@ public class RunResult
 
         timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         buildHash = Application.buildGUID;
+
+        mapIndex = -1;
+        mapName = string.Empty;
+        runModifier = string.Empty;
     }
 
     // =========================================================
@@ -137,34 +154,41 @@ public class RunResult
     // RANK CALCULATION
     // =========================================================
 
+    /// <summary>
+    /// Ранг забега. Игра бесконечная, поэтому длительность НЕ влияет
+    /// на оценку: награждается глубина (пройденные волны), чистота
+    /// (идеальные волны) и стиль (максимальное комбо). Прежняя
+    /// формула с бонусом за скорость противоречила бесконечному
+    /// режиму — долгий забег никогда не мог получить высокий ранг.
+    /// </summary>
     public void CalculateRank()
     {
-        // S+ : время < 3 мин, комбо > 50, perfect waves > 5
-        if (runTime < 180f && maxCombo > 50 && perfectWaves > 5)
+        // S+ : очень глубокий, чистый и стильный забег.
+        if (wavesCleared >= 30 && maxCombo >= 50 && perfectWaves >= 10)
         {
             rank = "S+";
         }
-        // S  : время < 5 мин, комбо > 30, perfect waves > 3
-        else if (runTime < 300f && maxCombo > 30 && perfectWaves > 3)
+        // S  : глубокий забег с высоким комбо и чистыми волнами.
+        else if (wavesCleared >= 25 && maxCombo >= 30 && perfectWaves >= 5)
         {
             rank = "S";
         }
-        // A  : время < 8 мин, комбо > 20
-        else if (runTime < 480f && maxCombo > 20)
+        // A  : уверенная глубина и высокое комбо.
+        else if (wavesCleared >= 18 && maxCombo >= 20)
         {
             rank = "A";
         }
-        // B  : время < 12 мин, комбо > 10
-        else if (runTime < 720f && maxCombo > 10)
+        // B  : крепкий забег.
+        else if (wavesCleared >= 12 && maxCombo >= 10)
         {
             rank = "B";
         }
-        // C  : просто финиш (пройдено хотя бы 3 волны)
-        else if (wavesCleared >= 3)
+        // C  : забег состоялся.
+        else if (wavesCleared >= 5)
         {
             rank = "C";
         }
-        // F  : провал
+        // F  : провал.
         else
         {
             rank = "F";
@@ -175,36 +199,71 @@ public class RunResult
     // STYLE BONUS CALCULATION
     // =========================================================
 
-    public void CalculateStyleBonus()
+    /// <summary>
+    /// Бонус за стиль. Все числа берутся из BonusSettings — единого
+    /// источника правды для правил начисления очков. Скорость здесь
+    /// намеренно не участвует: бесконечный режим не должен поощрять
+    /// быстрое завершение забега.
+    /// </summary>
+    public void CalculateStyleBonus(BonusSettings settings)
     {
         int bonus = 0;
 
-        // Speed bonus: чем быстрее — тем больше
-        if (runTime < 180f) bonus += 5000;
-        else if (runTime < 300f) bonus += 3000;
-        else if (runTime < 480f) bonus += 1500;
-        else if (runTime < 720f) bonus += 500;
-
-        // No-hit bonus: за perfect waves
-        bonus += perfectWaves * 1000;
-
-        // Combo bonus: за макс. комбо
-        if (maxCombo >= 50) bonus += 4000;
-        else if (maxCombo >= 30) bonus += 2500;
-        else if (maxCombo >= 20) bonus += 1500;
-        else if (maxCombo >= 10) bonus += 500;
-
-        // Efficiency bonus: урон/полученный урон
-        if (totalDamageTaken > 0f)
+        if (settings != null)
         {
-            float efficiency = totalDamageDealt / totalDamageTaken;
-            if (efficiency > 10f) bonus += 3000;
-            else if (efficiency > 5f) bonus += 2000;
-            else if (efficiency > 2f) bonus += 1000;
-        }
+            // Глубина забега — основной вклад вместо скорости.
+            bonus += wavesCleared * settings.waveBonusPerWave;
 
-        // Multi-kill streak bonus
-        bonus += multiKillStreaks * 500;
+            if (settings.deepWaveThreshold > 0 &&
+                wavesCleared >= settings.deepWaveThreshold)
+            {
+                bonus += settings.deepWaveBonus;
+            }
+
+            // No-hit bonus: за perfect waves
+            bonus += perfectWaves * settings.perfectWaveBonus;
+
+            // Combo bonus: за макс. комбо
+            if (maxCombo >= settings.comboThreshold50) bonus += settings.comboBonus50;
+            else if (maxCombo >= settings.comboThreshold30) bonus += settings.comboBonus30;
+            else if (maxCombo >= settings.comboThreshold20) bonus += settings.comboBonus20;
+            else if (maxCombo >= settings.comboThreshold10) bonus += settings.comboBonus10;
+
+            // Efficiency bonus: урон / полученный урон
+            if (totalDamageTaken > 0f)
+            {
+                float efficiency = totalDamageDealt / totalDamageTaken;
+
+                if (efficiency >= settings.efficiencyThresholdHigh)
+                    bonus += settings.efficiencyBonusHigh;
+                else if (efficiency >= settings.efficiencyThresholdMedium)
+                    bonus += settings.efficiencyBonusMedium;
+            }
+
+            // Multi-kill streak bonus
+            bonus += multiKillStreaks * settings.multiKillBonus;
+        }
+        else
+        {
+            // Резервные значения, если настройки не назначены: форма та
+            // же, что и в BonusSettings по умолчанию, без скорости.
+            bonus += wavesCleared * 200;
+            bonus += perfectWaves * 500;
+
+            if (maxCombo >= 50) bonus += 1000;
+            else if (maxCombo >= 30) bonus += 500;
+            else if (maxCombo >= 20) bonus += 250;
+            else if (maxCombo >= 10) bonus += 100;
+
+            if (totalDamageTaken > 0f)
+            {
+                float efficiency = totalDamageDealt / totalDamageTaken;
+                if (efficiency >= 10f) bonus += 1500;
+                else if (efficiency >= 5f) bonus += 750;
+            }
+
+            bonus += multiKillStreaks * 100;
+        }
 
         styleBonus = bonus;
         finalScore = score + bonus;

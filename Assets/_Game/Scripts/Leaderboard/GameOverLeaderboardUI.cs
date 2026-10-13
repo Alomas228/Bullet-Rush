@@ -44,8 +44,6 @@ public class GameOverLeaderboardUI : MonoBehaviour
     [SerializeField] private TMP_Text dashDodgesText;
     [SerializeField] private TMP_Text multiKillStreaksText;
 
-    private RunMetrics cachedMetrics;
-
     private void Awake()
     {
         HideAll();
@@ -82,20 +80,17 @@ public class GameOverLeaderboardUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Показать результаты забега.
+    /// Показать результаты забега. Результат приходит уже посчитанным:
+    /// экран итогов не пересчитывает метрики, поэтому его счёт совпадает
+    /// с отправленным в лидерборд.
     /// </summary>
-    public void ShowResults(RunMetrics metrics)
+    public void ShowResults(RunResult result)
     {
-        cachedMetrics = metrics;
-
-        if (metrics == null)
+        if (result == null)
         {
-            Debug.LogWarning("[LeaderboardUI] RunMetrics is null");
+            Debug.LogWarning("[LeaderboardUI] RunResult is null");
             return;
         }
-
-        // Собираем результат
-        RunResult result = metrics.CollectResult();
 
         // Показываем ранг
         ShowRank(result.rank);
@@ -104,9 +99,9 @@ public class GameOverLeaderboardUI : MonoBehaviour
         ShowScores(result);
 
         // Показываем детали
-        ShowStats(metrics, result);
-        ShowSpeedStats(metrics);
-        ShowStyleStats(metrics);
+        ShowStats(result);
+        ShowSpeedStats(result);
+        ShowStyleStats(result);
 
         // Показываем панели
         ShowAll();
@@ -183,72 +178,68 @@ public class GameOverLeaderboardUI : MonoBehaviour
     // STATS DISPLAY
     // =========================================================
 
-        private void ShowStats(RunMetrics metrics, RunResult result)
+    private void ShowStats(RunResult result)
     {
         if (statsPanel != null)
             statsPanel.SetActive(true);
 
         if (killsText != null)
-            killsText.text = Lang.Get("stat.kills", metrics.Kills);
+            killsText.text = Lang.Get("stat.kills", result.kills);
 
         if (wavesText != null)
             wavesText.text = Lang.Get("stat.waves", result.wavesCleared);
 
         if (runTimeText != null)
-            runTimeText.text = Lang.Get("stat.time", FormatTime(metrics.RunTime));
+            runTimeText.text = Lang.Get("stat.time", FormatTime(result.runTime));
 
         if (maxComboText != null)
-            maxComboText.text = Lang.Get("stat.max_combo", metrics.MaxCombo);
+            maxComboText.text = Lang.Get("stat.max_combo", result.maxCombo);
 
         if (perfectWavesText != null)
-            perfectWavesText.text = Lang.Get("stat.perfect_waves", metrics.PerfectWaves);
+            perfectWavesText.text = Lang.Get("stat.perfect_waves", result.perfectWaves);
 
         if (criticalHitsText != null)
-            criticalHitsText.text = Lang.Get("stat.critical_hits", metrics.CriticalHits);
+            criticalHitsText.text = Lang.Get("stat.critical_hits", result.totalCriticalHits);
 
         if (abilitiesUsedText != null)
-            abilitiesUsedText.text = Lang.Get("stat.abilities_used", metrics.AbilitiesUsed);
+            abilitiesUsedText.text = Lang.Get("stat.abilities_used", result.abilitiesUsed);
 
         if (dashDodgesText != null)
-            dashDodgesText.text = Lang.Get("stat.dash_dodges", metrics.DashDodges);
+            dashDodgesText.text = Lang.Get("stat.dash_dodges", result.dashDodges);
 
         if (multiKillStreaksText != null)
-            multiKillStreaksText.text = Lang.Get("stat.multi_kills", metrics.MultiKillStreaks);
+            multiKillStreaksText.text = Lang.Get("stat.multi_kills", result.multiKillStreaks);
     }
 
-    private void ShowSpeedStats(RunMetrics metrics)
+    private void ShowSpeedStats(RunResult result)
     {
         if (speedPanel != null)
             speedPanel.SetActive(true);
 
         if (avgKillTimeText != null)
-            avgKillTimeText.text = Lang.Get("stat.avg_kill_time", FormatTime(metrics.AverageKillTime));
+            avgKillTimeText.text = Lang.Get("stat.avg_kill_time", FormatTime(result.averageKillTime));
 
         if (fastestKillTimeText != null)
-            fastestKillTimeText.text = Lang.Get("stat.fastest_kill", FormatTime(metrics.FastestKillTime));
+            fastestKillTimeText.text = Lang.Get("stat.fastest_kill", FormatTime(result.fastestKillTime));
 
         if (timeToFirstKillText != null)
-            timeToFirstKillText.text = Lang.Get("stat.time_to_first_kill", FormatTime(metrics.TimeToFirstKill));
+            timeToFirstKillText.text = Lang.Get("stat.time_to_first_kill", FormatTime(result.timeToFirstKill));
 
         if (timeToFirstBossText != null)
-            timeToFirstBossText.text = Lang.Get("stat.time_to_first_boss", FormatTime(metrics.TimeToFirstBoss));
+            timeToFirstBossText.text = Lang.Get("stat.time_to_first_boss", FormatTime(result.timeToFirstBoss));
 
         if (bestWaveClearTimeText != null)
-            bestWaveClearTimeText.text = Lang.Get("stat.best_wave_clear", FormatTime(metrics.BestWaveClearTime));
+            bestWaveClearTimeText.text = Lang.Get("stat.best_wave_clear", FormatTime(result.bestWaveClearTime));
     }
 
-    private void ShowStyleStats(RunMetrics metrics)
+    private void ShowStyleStats(RunResult result)
     {
         if (stylePanel != null)
             stylePanel.SetActive(true);
 
         if (damageEfficiencyText != null)
         {
-            float efficiency = 0f;
-            if (metrics.TotalDamageTaken > 0f)
-                efficiency = metrics.TotalDamageDealt / metrics.TotalDamageTaken;
-
-            damageEfficiencyText.text = Lang.Get("stat.damage_efficiency", efficiency.ToString("F1"));
+            damageEfficiencyText.text = Lang.Get("stat.damage_efficiency", result.damageEfficiency.ToString("F1"));
         }
     }
 

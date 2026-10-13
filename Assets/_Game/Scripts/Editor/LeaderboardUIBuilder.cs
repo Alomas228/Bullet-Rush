@@ -723,7 +723,6 @@ public static class LeaderboardUIBuilder
             ("comboPanel", comboPanel),
             ("comboCountText", comboCountText),
             ("comboMultiplierText", comboMultiplierText),
-            ("bonusSettings", LoadBonusSettings()),
         });
 
         Undo.RegisterCreatedObjectUndo(

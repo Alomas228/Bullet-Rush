@@ -119,6 +119,9 @@ public class LeaderboardService : MonoBehaviour
             combo = result.maxCombo,
             styleBonus = result.styleBonus,
             timestamp = result.timestamp,
+            mapIndex = result.mapIndex,
+            mapName = result.mapName,
+            runModifier = result.runModifier,
         });
 
         // Сортируем по score (по убыванию)
@@ -184,6 +187,11 @@ public class LeaderboardEntry
     public int combo;
     public int styleBonus;
     public long timestamp;
+
+    [Tooltip("Карта забега и тема — для честного сравнения записей.")]
+    public int mapIndex = -1;
+    public string mapName;
+    public string runModifier;
 }
 
 [System.Serializable]

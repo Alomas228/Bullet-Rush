@@ -37,7 +37,10 @@ public class XpManager : MonoBehaviour
 
     public bool IsRunActive { get; private set; }
 
-    private bool runRewardGranted;
+    // Сколько награды уже выдано за ТЕКУЩИЙ забег. Повторный конец
+    // (после возрождения) начисляет только разницу — игрок получает
+    // награду за более глубокий забег, но не дважды за один и тот же.
+    private int grantedRunReward;
 
     /// <summary>XP granted by the most recent run end.</summary>
     public int LastRunReward { get; private set; }
@@ -118,6 +121,12 @@ public class XpManager : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
+
+        // Сброс данных забега привязан к старту НОВОГО забега, а не к
+        // входу в состояние Playing: возрождение (GameOver -> Playing)
+        // не должно обнулять заработанные монеты и уже выданную награду.
+        AchievementEvents.RunStarted += HandleRunStarted;
+
         EnsureSubscribed();
     }
 
@@ -125,11 +134,19 @@ public class XpManager : MonoBehaviour
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
 
+        AchievementEvents.RunStarted -= HandleRunStarted;
+
         if (subscribedManager != null)
             subscribedManager.OnGameStateChanged -= HandleStateChanged;
 
         subscribedManager = null;
         subscribed = false;
+    }
+
+    private void HandleRunStarted()
+    {
+        IsRunActive = true;
+        ResetRunData();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -164,12 +181,13 @@ public class XpManager : MonoBehaviour
 
     private void HandleStateChanged(GameState state)
     {
-        if (state == GameState.Playing && !IsRunActive)
+        // Данные забега сбрасываются в HandleRunStarted (новый забег),
+        // поэтому здесь только фиксируем, что забег идёт или прерван.
+        if (state == GameState.Playing)
         {
             IsRunActive = true;
-            ResetRunData();
         }
-        else if (state != GameState.Playing && IsRunActive)
+        else if (IsRunActive)
         {
             IsRunActive = false;
         }
@@ -178,7 +196,9 @@ public class XpManager : MonoBehaviour
     private void ResetRunData()
     {
         RunCoins = 0;
-        runRewardGranted = false;
+        grantedRunReward = 0;
+        LastRunReward = 0;
+        LevelsGainedLastRun = 0;
 
         OnCoinsChanged?.Invoke(RunCoins);
     }
@@ -237,9 +257,6 @@ public class XpManager : MonoBehaviour
     /// </summary>
     public void ProcessRunEnd()
     {
-        if (runRewardGranted)
-            return;
-
         Debug.Log("[Xp.ProcessRunEnd] entered, IsRunActive=" + IsRunActive + ", RunCoins=" + RunCoins);
 
         if (!IsRunActive)
@@ -262,7 +279,31 @@ public class XpManager : MonoBehaviour
                 waveReached
             );
 
-        GrantPlayerXP(reward);
+        // Награда за забег выдаётся по частям: при возрождении забег
+        // продолжается, и следующий конец начисляет только прирост.
+        if (reward <= grantedRunReward)
+            return;
+
+        int delta = reward - grantedRunReward;
+
+        grantedRunReward = reward;
+
+        LastLevelBeforeGrant = GlobalLevel;
+
+        AddPlayerXP(delta);
+
+        // Суммарная награда за забег — по ней UI рисует рост полосы
+        // от старта забега до текущего уровня.
+        LastRunReward = reward;
+        LevelsGainedLastRun =
+            Mathf.Max(GlobalLevel - LastLevelBeforeGrant, 0);
+
+        Debug.Log(
+            $"Player XP +{delta} (run total {LastRunReward}, " +
+            $"Levels gained: {LevelsGainedLastRun}, " +
+            $"Level now: {GlobalLevel}, " +
+            $"XP: {GlobalXP}/{GlobalXPToNextLevel})"
+        );
     }
 
     /// <summary>Computes the Player XP reward for a finished run.</summary>
@@ -296,29 +337,6 @@ public class XpManager : MonoBehaviour
         );
 
         return result;
-    }
-
-    private void GrantPlayerXP(int amount)
-    {
-        if (runRewardGranted)
-            return;
-
-        runRewardGranted = true;
-
-        LastLevelBeforeGrant = GlobalLevel;
-
-        AddPlayerXP(amount);
-
-        LastRunReward = Mathf.Max(amount, 0);
-        LevelsGainedLastRun =
-            Mathf.Max(GlobalLevel - LastLevelBeforeGrant, 0);
-
-        Debug.Log(
-            $"Player XP +{LastRunReward} " +
-            $"(Levels gained: {LevelsGainedLastRun}, " +
-            $"Level now: {GlobalLevel}, " +
-            $"XP: {GlobalXP}/{GlobalXPToNextLevel})"
-        );
     }
 
     // =========================================================

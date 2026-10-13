@@ -37,6 +37,7 @@ public class GameOverUI : MonoBehaviour
 
     private Coroutine xpAnimCoroutine;
     private bool subscribed;
+    private bool coinsDoubled;
 
     private void Awake()
     {
@@ -115,9 +116,24 @@ public class GameOverUI : MonoBehaviour
     private void ShowGameOver()
     {
         gameOverPanel.SetActive(true);
+        coinsDoubled = false;
 
-        if (scoreText != null && ScoreManager.Instance != null)
-            scoreText.text = Lang.Get("menu.score", ScoreManager.Instance.Score);
+        // Показываем итоговый счёт (с бонусом за стиль) — то же число,
+        // что ушло в лидерборд и показано на панели результатов.
+        if (scoreText != null)
+        {
+            RunResult result =
+                GameOverManager.Instance != null
+                    ? GameOverManager.Instance.LastResult
+                    : null;
+
+            int score =
+                result != null
+                    ? result.finalScore
+                    : (ScoreManager.Instance != null ? ScoreManager.Instance.Score : 0);
+
+            scoreText.text = Lang.Get("menu.score", score);
+        }
 
         if (waveText != null)
         {
@@ -359,12 +375,21 @@ public class GameOverUI : MonoBehaviour
         if (xp == null)
             return;
 
-        xp.AddCoins(xp.RunCoins);
+        // Монеты забега уже начислены в постоянный баланс при подборе.
+        // Награда удваивает их: добавляем ровно заработанную сумму
+        // в глобальный баланс и НЕ трогаем RunCoins, иначе счётчик
+        // забега раздувается, а повторное нажатие удваивает дважды.
+        if (coinsDoubled)
+            return;
+
+        coinsDoubled = true;
+
+        xp.AddGlobalCoins(xp.RunCoins);
 
         if (coinsText != null)
             coinsText.text = Lang.Get(
                 "menu.coins_earned",
-                xp.RunCoins
+                xp.RunCoins * 2
             );
     }
 
