@@ -92,7 +92,7 @@ public class PermanentUpgradeCardView : MonoBehaviour
             categoryText.text =
                 PermanentUpgradeCategories.GetLabel(category);
 
-            categoryText.color = UpgradesWireframeTheme.Shade(accent, 0.85f);
+            categoryText.color = accent;
         }
 
         if (nameText != null)
@@ -177,7 +177,7 @@ public class PermanentUpgradeCardView : MonoBehaviour
         }
 
         Color textColor = affordable
-            ? Color.white
+            ? ArcadeUiPalette.BackgroundDeep
             : UpgradesWireframeTheme.TextMuted;
 
         if (buyLabel != null)

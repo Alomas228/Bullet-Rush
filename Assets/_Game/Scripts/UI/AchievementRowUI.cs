@@ -13,7 +13,7 @@ public class AchievementRowUI : MonoBehaviour
     [SerializeField] private TMP_Text descriptionLabel;
     [SerializeField] private TMP_Text progressLabel;
     [SerializeField] private Image background;
-    [SerializeField] private Image progressFill;
+    [SerializeField] private Slider progressBar;
     [SerializeField] private TMP_Text rewardLabel;
 
     [Header("Colors")]
@@ -56,11 +56,11 @@ public class AchievementRowUI : MonoBehaviour
         if (progressLabel != null)
             progressLabel.text = BuildProgressText(data, unlocked, progress, required);
 
-        if (progressFill != null)
+        if (progressBar != null)
         {
             float fill = required > 0f ? Mathf.Clamp01(progress / required) : (unlocked ? 1f : 0f);
-            progressFill.fillAmount = fill;
-            progressFill.gameObject.SetActive(data.HasProgressBar);
+            progressBar.value = fill;
+            progressBar.gameObject.SetActive(data.HasProgressBar);
         }
     }
 

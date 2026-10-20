@@ -1,40 +1,34 @@
 using UnityEngine;
 
 /// <summary>
-/// Светлая палитра экрана «Улучшения».
-///
-/// Это заглушка, а не финальный арт: здесь собраны все цвета
-/// макета в одном месте, чтобы потом перенести их в Figma и
-/// заменить одним набором переменных.
-///
-/// Акценты намеренно приглушённые — без неона и свечения.
+/// Тёмная неоновая палитра экрана «Улучшения».
 /// </summary>
 public static class UpgradesWireframeTheme
 {
-    public static readonly Color PanelBackground = Rgb(0xF1F4F8);
-    public static readonly Color PanelWash = Rgb(0xE4EAF2);
-    public static readonly Color DecorWash = Rgb(0xDDE5EF);
+    public static readonly Color PanelBackground = ArcadeUiPalette.PanelBackground;
+    public static readonly Color PanelWash = ArcadeUiPalette.PanelWash;
+    public static readonly Color DecorWash = ArcadeUiPalette.DecorWash;
 
-    public static readonly Color Surface = Rgb(0xFFFFFF);
-    public static readonly Color SurfaceMuted = Rgb(0xE9EEF4);
-    public static readonly Color SurfaceDisabled = Rgb(0xD5DDE6);
-    public static readonly Color Track = Rgb(0xE6EAF0);
+    public static readonly Color Surface = ArcadeUiPalette.Surface;
+    public static readonly Color SurfaceMuted = ArcadeUiPalette.SurfaceMuted;
+    public static readonly Color SurfaceDisabled = ArcadeUiPalette.SurfaceDisabled;
+    public static readonly Color Track = ArcadeUiPalette.Track;
 
-    public static readonly Color TextPrimary = Rgb(0x1F2933);
-    public static readonly Color TextSecondary = Rgb(0x6B7684);
-    public static readonly Color TextMuted = Rgb(0x9AA5B1);
+    public static readonly Color TextPrimary = ArcadeUiPalette.TextPrimary;
+    public static readonly Color TextSecondary = ArcadeUiPalette.TextSecondary;
+    public static readonly Color TextMuted = ArcadeUiPalette.TextMuted;
 
-    public static readonly Color Action = Rgb(0x3A4552);
-    public static readonly Color ActionDisabled = Rgb(0xAFBAC7);
-    public static readonly Color CardShadow = new Color(0f, 0f, 0f, 0.10f);
+    public static readonly Color Action = ArcadeUiPalette.Cyan;
+    public static readonly Color ActionDisabled = ArcadeUiPalette.SurfaceMuted;
+    public static readonly Color CardShadow = new Color(0f, 0f, 0f, 0.45f);
 
-    public static readonly Color DotActive = Rgb(0x3A4552);
-    public static readonly Color DotInactive = Rgb(0xCFD7E0);
+    public static readonly Color DotActive = ArcadeUiPalette.Cyan;
+    public static readonly Color DotInactive = ArcadeUiPalette.Track;
 
-    public static readonly Color DamageAccent = Rgb(0x4A8FD4);
-    public static readonly Color HealthAccent = Rgb(0xE09B3E);
-    public static readonly Color SpeedAccent = Rgb(0x8B72C7);
-    public static readonly Color CriticalAccent = Rgb(0x54A06A);
+    public static readonly Color DamageAccent = ArcadeUiPalette.Magenta;
+    public static readonly Color HealthAccent = ArcadeUiPalette.Lime;
+    public static readonly Color SpeedAccent = ArcadeUiPalette.Cyan;
+    public static readonly Color CriticalAccent = ArcadeUiPalette.Gold;
 
     public static Color GetAccent(PermanentUpgradeCategory category)
     {

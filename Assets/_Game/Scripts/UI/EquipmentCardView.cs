@@ -170,6 +170,13 @@ public class EquipmentCardView : MonoBehaviour
                 : EquipmentWireframeTheme.ActionDisabled;
         }
 
+        if (actionLabel != null)
+        {
+            actionLabel.color = interactable
+                ? ArcadeUiPalette.BackgroundDeep
+                : EquipmentWireframeTheme.TextMuted;
+        }
+
         ApplyPrice(data);
     }
 
@@ -202,7 +209,12 @@ public class EquipmentCardView : MonoBehaviour
         }
 
         if (priceText != null)
+        {
             priceText.text = text;
+            priceText.color = data.Unlocked && !data.Owned
+                ? ArcadeUiPalette.Gold
+                : EquipmentWireframeTheme.TextSecondary;
+        }
 
         if (priceImage != null)
             priceImage.color = background;

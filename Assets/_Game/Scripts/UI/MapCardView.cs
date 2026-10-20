@@ -146,7 +146,7 @@ public class MapCardView : MonoBehaviour
             ground.b * 0.114f;
 
         Color lightText = Color.white;
-        Color darkText = MapSelectionTheme.TextPrimary;
+        Color darkText = MapSelectionTheme.DarkText;
 
         if (nameText != null)
         {

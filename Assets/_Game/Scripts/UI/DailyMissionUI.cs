@@ -346,16 +346,18 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         rowProgressRect.sizeDelta = new Vector2(200f, 34f);
         rowProgressRect.anchoredPosition = new Vector2(-12f, -14f);
 
-        Image fill = CreateImage(rowRect, "ProgressFill", new Color(0.3f, 0.75f, 0.45f, 0.9f));
-        RectTransform fillRect = fill.rectTransform;
-        fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(1f, 0f);
-        fillRect.pivot = new Vector2(0f, 0f);
-        fillRect.sizeDelta = new Vector2(-24f, 6f);
-        fillRect.anchoredPosition = new Vector2(0f, 46f);
-        fill.type = Image.Type.Filled;
-        fill.fillMethod = Image.FillMethod.Horizontal;
-        fill.fillAmount = 0f;
+        Slider progressBar = CreateProgressBar(
+            rowRect,
+            "ProgressBar",
+            new Color(0.3f, 0.75f, 0.45f, 0.9f)
+        );
+
+        RectTransform barRect = progressBar.GetComponent<RectTransform>();
+        barRect.anchorMin = new Vector2(0f, 0f);
+        barRect.anchorMax = new Vector2(1f, 0f);
+        barRect.pivot = new Vector2(0f, 0f);
+        barRect.sizeDelta = new Vector2(-24f, 6f);
+        barRect.anchoredPosition = new Vector2(0f, 46f);
 
         Image claimImage = CreateImage(rowRect, "ClaimButton", new Color(0.2f, 0.55f, 0.3f, 1f));
         RectTransform claimRect = claimImage.rectTransform;
@@ -373,7 +375,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         Stretch(claimLabel.rectTransform);
 
         DailyMissionRowUI row = rowGo.AddComponent<DailyMissionRowUI>();
-        row.Configure(rowTitle, rowDesc, rowProgress, rowReward, bg, fill, claim, claimLabel);
+        row.Configure(rowTitle, rowDesc, rowProgress, rowReward, bg, progressBar, claim, claimLabel);
 
         rowGo.SetActive(false);
 
@@ -383,6 +385,48 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     // =========================================================
     // SMALL UI HELPERS
     // =========================================================
+
+    private static Slider CreateProgressBar(
+        Transform parent,
+        string name,
+        Color fillColor)
+    {
+        GameObject root = new GameObject(name, typeof(RectTransform));
+        root.transform.SetParent(parent, false);
+
+        Image background = CreateImage(
+            root.transform,
+            "Background",
+            new Color(1f, 1f, 1f, 0.12f)
+        );
+
+        background.raycastTarget = false;
+        Stretch(background.rectTransform);
+
+        Image fill = CreateImage(root.transform, "Fill", fillColor);
+
+        fill.raycastTarget = false;
+        Stretch(fill.rectTransform);
+
+        Slider slider = root.AddComponent<Slider>();
+
+        slider.fillRect = fill.rectTransform;
+        slider.handleRect = null;
+        slider.targetGraphic = null;
+        slider.transition = Selectable.Transition.None;
+        slider.navigation = new Navigation
+        {
+            mode = Navigation.Mode.None
+        };
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.interactable = false;
+        slider.value = 0f;
+
+        return slider;
+    }
 
     private static Image CreateImage(Transform parent, string name, Color color)
     {

@@ -67,15 +67,18 @@ public class DailyRewardSlotUI : MonoBehaviour
             switch (state)
             {
                 case State.Today:
-                    slotBackground.color = new Color(1f, 0.84f, 0f, 0.55f);
+                    slotBackground.color =
+                        ArcadeUiPalette.Wash(ArcadeUiPalette.Gold, 0.55f);
                     break;
 
                 case State.Claimed:
-                    slotBackground.color = new Color(0.25f, 0.8f, 0.45f, 0.45f);
+                    slotBackground.color =
+                        ArcadeUiPalette.Wash(ArcadeUiPalette.Lime, 0.35f);
                     break;
 
                 default:
-                    slotBackground.color = new Color(0.5f, 0.5f, 0.5f, 0.35f);
+                    slotBackground.color =
+                        ArcadeUiPalette.Wash(ArcadeUiPalette.TextMuted, 0.18f);
                     break;
             }
         }

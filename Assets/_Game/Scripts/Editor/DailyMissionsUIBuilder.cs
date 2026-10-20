@@ -462,16 +462,15 @@ public static class DailyMissionsUIBuilder
                 new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-12f, -14f), new Vector2(200f, 34f));
 
-        Image fill = CreateImage(row.transform, "ProgressFill", FillColor);
-        RectTransform fillRect = fill.rectTransform;
-        fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(1f, 0f);
-        fillRect.pivot = new Vector2(0f, 0f);
-        fillRect.offsetMin = new Vector2(12f, 46f);
-        fillRect.offsetMax = new Vector2(-12f, 52f);
-        fill.type = Image.Type.Filled;
-        fill.fillMethod = Image.FillMethod.Horizontal;
-        fill.fillAmount = 0f;
+        Slider progressBar =
+            CreateProgressBar(row.transform, "ProgressBar", FillColor);
+
+        RectTransform barRect = progressBar.GetComponent<RectTransform>();
+        barRect.anchorMin = new Vector2(0f, 0f);
+        barRect.anchorMax = new Vector2(1f, 0f);
+        barRect.pivot = new Vector2(0f, 0f);
+        barRect.offsetMin = new Vector2(12f, 46f);
+        barRect.offsetMax = new Vector2(-12f, 52f);
 
         Button claimButton = CreateClaimButton(row.transform, font, out TextMeshProUGUI claimLabel);
 
@@ -484,7 +483,7 @@ public static class DailyMissionsUIBuilder
         SetRef(rowSo, "progressLabel", progress);
         SetRef(rowSo, "rewardLabel", reward);
         SetRef(rowSo, "background", background);
-        SetRef(rowSo, "progressFill", fill);
+        SetRef(rowSo, "progressBar", progressBar);
         SetRef(rowSo, "claimButton", claimButton);
         SetRef(rowSo, "claimLabel", claimLabel);
 
@@ -562,6 +561,46 @@ public static class DailyMissionsUIBuilder
         SetFullStretch(label.rectTransform);
 
         return button;
+    }
+
+    private static Slider CreateProgressBar(
+        Transform parent,
+        string name,
+        Color fillColor)
+    {
+        GameObject root = new GameObject(name, typeof(RectTransform));
+        root.transform.SetParent(parent, false);
+
+        Image background = CreateImage(
+            root.transform,
+            "Background",
+            new Color(1f, 1f, 1f, 0.12f)
+        );
+
+        SetFullStretch(background.rectTransform);
+
+        Image fill = CreateImage(root.transform, "Fill", fillColor);
+
+        SetFullStretch(fill.rectTransform);
+
+        Slider slider = root.AddComponent<Slider>();
+
+        slider.fillRect = fill.rectTransform;
+        slider.handleRect = null;
+        slider.targetGraphic = null;
+        slider.transition = Selectable.Transition.None;
+        slider.navigation = new Navigation
+        {
+            mode = Navigation.Mode.None
+        };
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.interactable = false;
+        slider.value = 0f;
+
+        return slider;
     }
 
     private static Image CreateImage(Transform parent, string name, Color color)

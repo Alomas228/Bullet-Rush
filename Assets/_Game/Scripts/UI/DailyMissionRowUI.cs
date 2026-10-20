@@ -14,7 +14,7 @@ public class DailyMissionRowUI : MonoBehaviour
     [SerializeField] private TMP_Text progressLabel;
     [SerializeField] private TMP_Text rewardLabel;
     [SerializeField] private Image background;
-    [SerializeField] private Image progressFill;
+    [SerializeField] private Slider progressBar;
     [SerializeField] private Button claimButton;
     [SerializeField] private TMP_Text claimLabel;
 
@@ -37,7 +37,7 @@ public class DailyMissionRowUI : MonoBehaviour
         TMP_Text progress,
         TMP_Text reward,
         Image bg,
-        Image fill,
+        Slider bar,
         Button claim,
         TMP_Text claimText)
     {
@@ -46,7 +46,7 @@ public class DailyMissionRowUI : MonoBehaviour
         progressLabel = progress;
         rewardLabel = reward;
         background = bg;
-        progressFill = fill;
+        progressBar = bar;
         claimButton = claim;
         claimLabel = claimText;
 
@@ -98,10 +98,10 @@ public class DailyMissionRowUI : MonoBehaviour
         if (progressLabel != null)
             progressLabel.text = BuildProgressText(completed, claimed, entry.progress, target);
 
-        if (progressFill != null)
+        if (progressBar != null)
         {
-            progressFill.fillAmount = Mathf.Clamp01(progress / target);
-            progressFill.gameObject.SetActive(!claimed);
+            progressBar.value = Mathf.Clamp01(progress / target);
+            progressBar.gameObject.SetActive(!claimed);
         }
 
         if (background != null)
