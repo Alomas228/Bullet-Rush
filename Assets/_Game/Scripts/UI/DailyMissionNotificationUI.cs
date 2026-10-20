@@ -116,6 +116,8 @@ public class DailyMissionNotificationUI : MonoBehaviour
             if (rewardLabel != null)
                 rewardLabel.text = DailyMissionText.GetRewardLabel(entry);
 
+            PlayNotificationSound();
+
             yield return FadeTo(1f);
             yield return new WaitForSecondsRealtime(visibleSeconds);
             yield return FadeTo(0f);
@@ -140,6 +142,19 @@ public class DailyMissionNotificationUI : MonoBehaviour
         }
 
         group.alpha = target;
+    }
+
+    private static void PlayNotificationSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlayUI(
+                sfx.Notification
+            );
     }
 
     // =========================================================

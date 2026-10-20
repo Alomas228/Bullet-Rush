@@ -100,8 +100,16 @@ public class WaveEventDirector : MonoBehaviour
     // в начало следующей.
     private float lastEventTime = -999f;
 
-// Было ли событие именно на текущей волне.
+    // Было ли событие именно на текущей волне.
     private bool eventFiredThisWave;
+
+    /// <summary>
+    /// Идёт ли прямо сейчас показ события (от телеграфа до конца
+    /// баннера). Читают фоновые механики карты, чтобы не накладывать
+    /// свой залп на событие волны: два источника давления в один
+    /// момент нечестны и нечитаемы.
+    /// </summary>
+    public bool IsEventActive { get; private set; }
 
     // Номер волны, на которой сейчас идёт событие. Нужен урону
     // опасной зоны: по номеру волны она не масштабируется, но уровень
@@ -165,6 +173,7 @@ public class WaveEventDirector : MonoBehaviour
     public void OnWaveEnded()
     {
         waveRunning = false;
+        IsEventActive = false;
 
         // Волна засчитывается как «тихая», если события на ней не
         // было. Раньше счётчик рос только когда шанс не сработал,
@@ -192,6 +201,7 @@ public class WaveEventDirector : MonoBehaviour
     public void Stop()
     {
         waveRunning = false;
+        IsEventActive = false;
 
         CancelSchedule();
     }
@@ -467,6 +477,7 @@ public class WaveEventDirector : MonoBehaviour
         consecutiveEventWaves++;
         eventFiredThisWave = true;
         lastEventTime = Time.time;
+        IsEventActive = true;
 
         switch (type)
         {
@@ -487,6 +498,8 @@ public class WaveEventDirector : MonoBehaviour
 
         if (waveUI != null)
             waveUI.Hide();
+
+        IsEventActive = false;
     }
 
     private void RunAmbush(int wave)

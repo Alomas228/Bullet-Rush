@@ -332,6 +332,11 @@ public class RunMetrics : MonoBehaviour
         result.CalculateRank();
         result.CalculateStyleBonus(settings);
 
+        // Хеш сборки читаем здесь (во время игры), а не в конструкторе
+        // RunResult: конструктор Unity вызывает при десериализации, где
+        // обращение к Application.buildGUID запрещено.
+        result.EnsureBuildHash();
+
         return result;
     }
 

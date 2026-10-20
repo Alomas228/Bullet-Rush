@@ -23,6 +23,7 @@ public class AudioManager : MonoBehaviour
     [Header("Music")]
     [SerializeField] private AudioClip mainMusic;
     [SerializeField] private AudioClip bossMusic;
+    [SerializeField] private AudioClip menuMusic;
 
     [Header("Settings")]
     [Range(0f, 1f)]
@@ -62,6 +63,7 @@ public class AudioManager : MonoBehaviour
     private const float MaxPitch = 1.1f;
 
     private AudioSource musicSource;
+    private AudioClip desiredMusicClip;
 
     private AudioSource[] voices;
     private int[] voicePriorities;
@@ -109,7 +111,9 @@ public class AudioManager : MonoBehaviour
     {
         ApplyPersistedVolumes();
 
-        if (mainMusic != null)
+        if (menuMusic != null)
+            PlayMusic(menuMusic);
+        else if (mainMusic != null)
             PlayMusic(mainMusic);
     }
 
@@ -471,6 +475,8 @@ public class AudioManager : MonoBehaviour
         if (clip == null)
             return;
 
+        desiredMusicClip = clip;
+
         if (musicSource.clip == clip && musicSource.isPlaying)
             return;
 
@@ -565,5 +571,15 @@ public class AudioManager : MonoBehaviour
     public void SwitchToMainMusic()
     {
         PlayMusic(mainMusic);
+    }
+
+    public void SwitchToMenuMusic()
+    {
+        PlayMusic(menuMusic);
+    }
+
+    public void ResumeMusic()
+    {
+        PlayMusic(desiredMusicClip);
     }
 }

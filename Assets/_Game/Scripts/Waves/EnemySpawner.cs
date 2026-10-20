@@ -1344,6 +1344,8 @@ public class EnemySpawner : MonoBehaviour
         GameObject enemyObject,
         float duration)
     {
+        PlayEnemySpawnSound(enemyObject.transform.position);
+
         if (duration <= 0f)
             return;
 
@@ -1351,6 +1353,21 @@ public class EnemySpawner : MonoBehaviour
             enemyObject.AddComponent<SpawnInEffect>();
 
         effect.Initialize(duration);
+    }
+
+    private static void PlayEnemySpawnSound(Vector3 position)
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXVariationAt(
+                sfx.EnemySpawn,
+                position,
+                priority: SfxPriority.Low
+            );
     }
 
     // =========================================================

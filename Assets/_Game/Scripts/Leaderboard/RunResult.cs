@@ -122,7 +122,13 @@ public class RunResult
         finalScore = 0;
 
         timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        buildHash = Application.buildGUID;
+
+        // ВАЖНО: конструктор [Serializable]-типа Unity вызывает при
+        // десериализации объектов (в т.ч. полей MonoBehaviour), и в этот
+        // момент запрещены обращения к движку вроде Application.buildGUID
+        // ("get_buildGUID is not allowed to be called during serialization").
+        // Хеш сборки заполняется лениво, уже во время игры.
+        buildHash = string.Empty;
 
         mapIndex = -1;
         mapName = string.Empty;
@@ -135,7 +141,28 @@ public class RunResult
 
     public string ToJson()
     {
+        EnsureBuildHash();
         return JsonUtility.ToJson(this, true);
+    }
+
+    /// <summary>
+    /// Заполняет хеш сборки, если он ещё не задан. Читать
+    /// Application.buildGUID можно только вне сериализации, поэтому
+    /// вызывается из рантайм-путей, а не из конструктора.
+    /// </summary>
+    public void EnsureBuildHash()
+    {
+        if (!string.IsNullOrEmpty(buildHash))
+            return;
+
+        try
+        {
+            buildHash = Application.buildGUID;
+        }
+        catch
+        {
+            buildHash = string.Empty;
+        }
     }
 
     public static RunResult FromJson(string json)

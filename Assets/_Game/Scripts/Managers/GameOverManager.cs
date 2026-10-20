@@ -188,6 +188,9 @@ public class GameOverManager : MonoBehaviour
         pendingRestart = true;
         Time.timeScale = 1f;
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SwitchToMainMusic();
+
         SceneManager.LoadScene(
             SceneManager.GetActiveScene().buildIndex
         );
@@ -213,6 +216,9 @@ public class GameOverManager : MonoBehaviour
 
         Time.timeScale = 1f;
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.ResumeMusic();
+
         if (PlayerHealth.Instance != null)
             PlayerHealth.Instance.Revive();
     }
@@ -227,7 +233,7 @@ public class GameOverManager : MonoBehaviour
         IsGameOver = false;
 
         if (AudioManager.Instance != null)
-            AudioManager.Instance.SwitchToMainMusic();
+            AudioManager.Instance.SwitchToMenuMusic();
 
         Time.timeScale = 1f;
 

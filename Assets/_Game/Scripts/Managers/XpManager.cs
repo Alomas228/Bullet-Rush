@@ -230,7 +230,22 @@ public class XpManager : MonoBehaviour
             );
 
             OnPlayerLevelChanged?.Invoke(levelAfter);
+            PlayLevelUpSound();
         }
+    }
+
+    private void PlayLevelUpSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(
+                sfx.LevelUp,
+                priority: SfxPriority.High
+            );
     }
 
     /// <summary>Current persistent Player XP.</summary>

@@ -90,6 +90,23 @@ public class MapMechanicManager : MonoBehaviour
     private MapMechanic mechanic = MapMechanic.None;
     private float strength = 1f;
     private Coroutine hazardRoutine;
+    private WaveEventDirector waveEvents;
+
+    // Событие волны и залп механики — два независимых источника
+    // давления. Их наложение превращает читаемую угрозу в хаос, где
+    // неясно, от чего уходить. Поэтому залп ждёт, пока событие волны
+    // закончится, и не пропадает — сработает на следующем круге.
+    private WaveEventDirector WaveEvents
+    {
+        get
+        {
+            if (waveEvents == null)
+                waveEvents =
+                    FindAnyObjectByType<WaveEventDirector>();
+
+            return waveEvents;
+        }
+    }
 
     // =========================================================
     // STATIC QUERIES (для врагов/спавнера; безопасны без Instance)
@@ -442,11 +459,15 @@ public class MapMechanicManager : MonoBehaviour
 
         while (true)
         {
-            if (GameStateManager.Instance == null ||
-                GameStateManager.Instance.CurrentState == GameState.Playing)
-            {
+            bool playing =
+                GameStateManager.Instance == null ||
+                GameStateManager.Instance.CurrentState == GameState.Playing;
+
+            WaveEventDirector events = WaveEvents;
+            bool eventBusy = events != null && events.IsEventActive;
+
+            if (playing && !eventBusy)
                 SpawnHazardBurst();
-            }
 
             yield return new WaitForSeconds(LoopInterval);
         }
@@ -633,15 +654,42 @@ public class MapMechanicManager : MonoBehaviour
         float radius = HazardRadius;
         float damage = HazardDamage;
 
-        for (int i = 0; i < Mathf.Max(hazardBurst, 1); i++)
+        int count = Mathf.Max(hazardBurst, 1);
+
+        // Итоговый радиус зоны после роста: по нему считаем зазор,
+        // иначе зона, поставленная «рядом» с игроком, дотягивается
+        // до него при расширении — это уже не задача «обойди», а
+        // ловушка без выхода.
+        float finalRadius =
+            radius * Mathf.Max(hazardGrow, 1f);
+
+        float minFromPlayer = finalRadius * 1.2f;
+        float minBetween = finalRadius * 1.1f;
+
+        Vector2 playerXZ = PlayerPositionXZ();
+
+        Vector2[] placed = new Vector2[count];
+        int placedCount = 0;
+
+        for (int i = 0; i < count; i++)
         {
-            Vector2 offset =
-                Random.insideUnitCircle * arenaHalfSize;
+            if (!TryFindStormCenter(
+                    playerXZ,
+                    minFromPlayer,
+                    minBetween,
+                    placed,
+                    placedCount,
+                    out Vector2 center))
+            {
+                continue;
+            }
+
+            placed[placedCount++] = center;
 
             GameObject host = new GameObject("MapHazardZone");
 
             host.transform.position =
-                new Vector3(offset.x, 0f, offset.y);
+                new Vector3(center.x, 0f, center.y);
 
             HazardZone zone = host.AddComponent<HazardZone>();
 
@@ -653,6 +701,71 @@ public class MapMechanicManager : MonoBehaviour
                 hazardGrow
             );
         }
+    }
+
+    // Центр песчаной зоны: внутри арены, не ближе minFromPlayer к
+    // игроку и не ближе minBetween к уже поставленным зонам. Две
+    // зоны в одной точке читаются как одна — теряется смысл залпа.
+    private bool TryFindStormCenter(
+        Vector2 playerXZ,
+        float minFromPlayer,
+        float minBetween,
+        Vector2[] placed,
+        int placedCount,
+        out Vector2 center)
+    {
+        const int attempts = 24;
+
+        bool hasPlayer =
+            PlayerHealth.Instance != null;
+
+        for (int attempt = 0; attempt < attempts; attempt++)
+        {
+            Vector2 candidate =
+                Random.insideUnitCircle * arenaHalfSize;
+
+            if (hasPlayer &&
+                (candidate - playerXZ).sqrMagnitude <
+                minFromPlayer * minFromPlayer)
+            {
+                continue;
+            }
+
+            bool tooClose = false;
+
+            for (int i = 0; i < placedCount; i++)
+            {
+                if ((candidate - placed[i]).sqrMagnitude <
+                    minBetween * minBetween)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (tooClose)
+                continue;
+
+            center = candidate;
+
+            return true;
+        }
+
+        center = Vector2.zero;
+
+        return false;
+    }
+
+    private static Vector2 PlayerPositionXZ()
+    {
+        PlayerHealth player = PlayerHealth.Instance;
+
+        if (player == null)
+            return Vector2.zero;
+
+        Vector3 position = player.transform.position;
+
+        return new Vector2(position.x, position.z);
     }
 
     // ---------------------------------------------------------

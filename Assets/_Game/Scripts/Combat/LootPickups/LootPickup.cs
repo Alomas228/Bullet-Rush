@@ -98,6 +98,23 @@ public class LootPickup : MonoBehaviour
             healPercent,
             coins
         );
+
+        PlayPickupSpawnSound(position);
+    }
+
+    private static void PlayPickupSpawnSound(Vector3 position)
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFXAt(
+                sfx.PickupSpawn,
+                position,
+                priority: SfxPriority.Low
+            );
     }
 
     // =========================================================
@@ -203,7 +220,7 @@ public class LootPickup : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXAt(
+            AudioManager.Instance.PlaySFXVariationAt(
                 sfx.PickupCollect,
                 transform.position,
                 priority: SfxPriority.Medium

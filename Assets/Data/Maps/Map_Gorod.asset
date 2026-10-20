@@ -25,6 +25,17 @@ MonoBehaviour:
   buildThemeEnvironment: 1
   fixedDecor: []
   layoutSeed: 8808
+  arenaLayout:
+    style: 5
+    minStructures: 26
+    maxStructures: 38
+    minWidth: 2
+    maxWidth: 4
+    minHeight: 3
+    maxHeight: 6
+    minSpacing: 1
+    halfSize: 30
+    centerClearRadius: 9
   structureMaterials: []
   structurePalette:
   - {r: 0.58, g: 0.62, b: 0.66, a: 1}

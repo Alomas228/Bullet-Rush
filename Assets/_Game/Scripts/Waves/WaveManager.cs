@@ -250,6 +250,8 @@ public class WaveManager : MonoBehaviour
 
             waveCompleteShown = true;
 
+            PlayWaveCompleteSound();
+
             // ============================================
             // LEADERBOARD METRICS
             // ============================================
@@ -477,7 +479,12 @@ public class WaveManager : MonoBehaviour
         // паузы между волнами не появляется. На первой волне мир
         // уже собран обучением — перестраивать в ту же раскладку
         // незачем.
+        //
+        // При стабильной раскладке (StableLayout) геометрия держится
+        // весь забег: пересборка не просто даёт ту же карту, а зря
+        // тратит кадры на fade-in блоков — поэтому пропускается.
         if (worldGenerator != null &&
+            !worldGenerator.StableLayout &&
             generatedWorldWave != CurrentWave)
         {
             worldGenerator.RebuildForWave(
@@ -1244,6 +1251,21 @@ private static readonly float[] SlotIntensity =
                 priority: SfxPriority.High
             );
     }
+
+    private void PlayWaveCompleteSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(
+                sfx.WaveComplete,
+                priority: SfxPriority.High
+            );
+    }
+
 
     private void PlayBossSpawnSound()
     {

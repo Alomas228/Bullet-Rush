@@ -169,25 +169,43 @@ public class ComboSystem : MonoBehaviour
         {
             scoreManager.AddBonus(bonusSettings.comboBonus50, Lang.Get("bonus.combo50"));
             lastComboThresholdReached = 50;
+            PlayComboMilestoneSound();
         }
         else if (comboCount >= bonusSettings.comboThreshold30 &&
             lastComboThresholdReached < 30)
         {
             scoreManager.AddBonus(bonusSettings.comboBonus30, Lang.Get("bonus.combo30"));
             lastComboThresholdReached = 30;
+            PlayComboMilestoneSound();
         }
         else if (comboCount >= bonusSettings.comboThreshold20 &&
             lastComboThresholdReached < 20)
         {
             scoreManager.AddBonus(bonusSettings.comboBonus20, Lang.Get("bonus.combo20"));
             lastComboThresholdReached = 20;
+            PlayComboMilestoneSound();
         }
         else if (comboCount >= bonusSettings.comboThreshold10 &&
             lastComboThresholdReached < 10)
         {
             scoreManager.AddBonus(bonusSettings.comboBonus10, Lang.Get("bonus.combo10"));
             lastComboThresholdReached = 10;
+            PlayComboMilestoneSound();
         }
+    }
+
+    private void PlayComboMilestoneSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(
+                sfx.ComboMilestone,
+                priority: SfxPriority.High
+            );
     }
 
     /// <summary>

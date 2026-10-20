@@ -15,12 +15,17 @@ using UnityEngine.UI;
 ///  - удаляет старую панель «Карты», если она есть;
 ///  - создаёт панель: заголовок, ряд карточек карт со стрелками,
 ///    точки пагинации и кнопку «Назад»;
+///  - собирает каждую карточку ЦЕЛИКОМ (рамка, фон, земля, иконка,
+///    название, подпись механики, описание, замок с требованием
+///    уровня и чипы уровня/рекорда) и привязывает все ссылки в
+///    MapCardView. Раньше часть этих элементов дорисовывалась в
+///    рантайме и была недоступна для настройки — теперь весь вид
+///    панели можно править прямо в сцене;
 ///  - создаёт/находит кнопку «Карты» в главном меню;
 ///  - подключает ссылки на MainMenuUI / MapSelectionUI / SubPanelUI;
 ///  - создаёт объект EnvironmentController в сцене (если его нет)
-///    и подставляет в него пять заготовленных карт из
-///    Assets/Data/Maps (если они созданы пунктом
-///    ArcadeSurvivor -> Create Demo Maps).
+///    и подставляет в него заготовленные карты из Assets/Data/Maps
+///    (если они созданы пунктом ArcadeSurvivor -> Create Demo Maps).
 ///
 /// Дизайн — светлая wireframe-заглушка в конвенции «Улучшений» и
 /// «Снаряжения»: цвета собраны в MapSelectionTheme, формы — в
@@ -499,6 +504,111 @@ public static class MapSelectionUIBuilder
 
         chip.gameObject.SetActive(false);
 
+        // ---- Всё, что раньше дорисовывалось в рантайме ----
+        // (MapCardView.EnsureDecor): механика, описание, замок и чипы
+        // прогресса. Теперь они настоящие дети карточки, поэтому их
+        // можно настраивать в инспекторе. Порядок совпадает с тем,
+        // что раньше выстраивал рантайм: тело -> оверлей -> чипы.
+
+        TextMeshProUGUI mechanicText = AddText(
+            cardRect,
+            "MechanicText",
+            string.Empty,
+            18,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            MapSelectionTheme.TextSecondary
+        );
+
+        SetBlock(
+            mechanicText.rectTransform,
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 100f),
+            new Vector2(280f, 30f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        mechanicText.textWrappingMode = TextWrappingModes.Normal;
+        mechanicText.raycastTarget = false;
+
+        TextMeshProUGUI descriptionText = AddText(
+            cardRect,
+            "DescriptionText",
+            string.Empty,
+            13,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal,
+            MapSelectionTheme.TextSecondary
+        );
+
+        SetBlock(
+            descriptionText.rectTransform,
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 134f),
+            new Vector2(272f, 38f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        descriptionText.textWrappingMode = TextWrappingModes.Normal;
+        descriptionText.raycastTarget = false;
+
+        Image lockOverlay = AddImage(
+            cardRect,
+            "LockOverlay",
+            new Color(0.05f, 0.07f, 0.11f, 0.66f),
+            null,
+            false
+        );
+
+        lockOverlay.rectTransform.offsetMin = new Vector2(6f, 6f);
+        lockOverlay.rectTransform.offsetMax = new Vector2(-6f, -6f);
+        lockOverlay.raycastTarget = false;
+        lockOverlay.gameObject.SetActive(false);
+
+        TextMeshProUGUI lockText = AddText(
+            cardRect,
+            "LockText",
+            string.Empty,
+            28,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            Color.white
+        );
+
+        SetBlock(
+            lockText.rectTransform,
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(260f, 100f),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        lockText.textWrappingMode = TextWrappingModes.Normal;
+        lockText.raycastTarget = false;
+        lockText.gameObject.SetActive(false);
+
+        GameObject levelChipRoot = BuildChip(
+            cardRect,
+            "LevelChip",
+            new Vector2(1f, 1f),
+            new Vector2(-14f, -14f),
+            new Vector2(110f, 36f),
+            barSprite,
+            out TextMeshProUGUI levelChipText
+        );
+
+        GameObject recordRoot = BuildChip(
+            cardRect,
+            "RecordChip",
+            new Vector2(1f, 1f),
+            new Vector2(-14f, -54f),
+            new Vector2(110f, 34f),
+            barSprite,
+            out TextMeshProUGUI recordText
+        );
+
+        recordRoot.SetActive(false);
+
         Button button = cardObject.AddComponent<Button>();
 
         button.transition = Selectable.Transition.None;
@@ -518,9 +628,76 @@ public static class MapSelectionUIBuilder
             chip.rectTransform;
         viewSo.FindProperty("selectButton").objectReferenceValue = button;
 
+        viewSo.FindProperty("mechanicText").objectReferenceValue =
+            mechanicText;
+        viewSo.FindProperty("descriptionText").objectReferenceValue =
+            descriptionText;
+        viewSo.FindProperty("levelChipText").objectReferenceValue =
+            levelChipText;
+        viewSo.FindProperty("levelChipRoot").objectReferenceValue =
+            levelChipRoot;
+        viewSo.FindProperty("recordText").objectReferenceValue =
+            recordText;
+        viewSo.FindProperty("recordRoot").objectReferenceValue =
+            recordRoot;
+        viewSo.FindProperty("lockOverlay").objectReferenceValue =
+            lockOverlay;
+        viewSo.FindProperty("lockText").objectReferenceValue =
+            lockText;
+
         viewSo.ApplyModifiedProperties();
 
         return view;
+    }
+
+    /// <summary>
+    /// Чип с тёмной подложкой: уровень разблокировки или личный
+    /// рекорд. Читается на любом цвете неба карты.
+    /// </summary>
+    private static GameObject BuildChip(
+        RectTransform parent,
+        string objectName,
+        Vector2 anchor,
+        Vector2 position,
+        Vector2 size,
+        Sprite sprite,
+        out TextMeshProUGUI label)
+    {
+        Image background = AddImage(
+            parent,
+            objectName,
+            new Color(0.05f, 0.07f, 0.11f, 0.72f),
+            sprite,
+            true
+        );
+
+        SetBlock(
+            background.rectTransform,
+            anchor,
+            position,
+            size,
+            anchor
+        );
+
+        background.raycastTarget = false;
+
+        label = AddText(
+            background.transform,
+            "Label",
+            string.Empty,
+            15,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            Color.white
+        );
+
+        label.rectTransform.anchorMin = Vector2.zero;
+        label.rectTransform.anchorMax = Vector2.one;
+        label.rectTransform.offsetMin = new Vector2(4f, 0f);
+        label.rectTransform.offsetMax = new Vector2(-4f, 0f);
+        label.raycastTarget = false;
+
+        return background.gameObject;
     }
 
     // =====================================================

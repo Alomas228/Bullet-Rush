@@ -103,6 +103,8 @@ public class AchievementNotificationUI : MonoBehaviour
             if (rewardLabel != null)
                 rewardLabel.text = BuildRewardText(data);
 
+            PlayNotificationSound();
+
             yield return FadeTo(1f);
             yield return new WaitForSecondsRealtime(visibleSeconds);
             yield return FadeTo(0f);
@@ -127,6 +129,19 @@ public class AchievementNotificationUI : MonoBehaviour
         }
 
         group.alpha = target;
+    }
+
+    private static void PlayNotificationSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlayUI(
+                sfx.Notification
+            );
     }
 
     private static string BuildRewardText(AchievementData data)

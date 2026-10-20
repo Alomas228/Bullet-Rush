@@ -431,6 +431,8 @@ public static class Tables
             { "maps.default_name", "Карта {0}" },
             { "maps.back", "НАЗАД" },
             { "maps.locked_level", "ОТКРОЕТСЯ НА УР. {0}" },
+            { "maps.level_chip", "УР. {0}" },
+            { "maps.record", "РЕКОРД: {0}" },
 
             // ---------- Лидерборд ----------
             { "lb.loading", "ЗАГРУЗКА..." },
@@ -975,6 +977,8 @@ public static class Tables
             { "maps.default_name", "Harita {0}" },
             { "maps.back", "GERİ" },
             { "maps.locked_level", "SEVİYE {0}'DE AÇILIR" },
+            { "maps.level_chip", "SV. {0}" },
+            { "maps.record", "REKOR: {0}" },
 
             // ---------- Sıralama tablosu ----------
             { "lb.loading", "YÜKLENİYOR..." },
@@ -1519,6 +1523,8 @@ public static class Tables
             { "maps.default_name", "Map {0}" },
             { "maps.back", "BACK" },
             { "maps.locked_level", "UNLOCKS AT LVL {0}" },
+            { "maps.level_chip", "LVL {0}" },
+            { "maps.record", "BEST: {0}" },
 
             // ---------- Leaderboard ----------
             { "lb.loading", "LOADING..." },

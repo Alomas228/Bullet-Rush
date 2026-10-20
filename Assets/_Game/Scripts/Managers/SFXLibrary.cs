@@ -35,6 +35,8 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip playerAbilityExplosion;
     [Tooltip("Рывок игрока (пробел).")]
     [SerializeField] private AudioClip dash;
+    [Tooltip("Активация щита.")]
+    [SerializeField] private AudioClip shieldActivate;
 
     [Header("Weapon")]
     [SerializeField] private AudioClip weaponFire;
@@ -72,6 +74,14 @@ public class SFXLibrary : ScriptableObject
     [SerializeField] private AudioClip menuOpen;
     [SerializeField] private AudioClip startGame;
     [SerializeField] private AudioClip gameOver;
+    [Tooltip("Все враги волны уничтожены.")]
+    [SerializeField] private AudioClip waveComplete;
+    [Tooltip("Повышение уровня игрока.")]
+    [SerializeField] private AudioClip levelUp;
+    [Tooltip("Достигнут новый порог комбо.")]
+    [SerializeField] private AudioClip comboMilestone;
+    [Tooltip("Всплывающее уведомление (достижение, миссия).")]
+    [SerializeField] private AudioClip notification;
 
     [Header("Map")]
     [Tooltip("Смена карты в меню выбора карт.")]
@@ -81,6 +91,7 @@ public class SFXLibrary : ScriptableObject
     public AudioClip PlayerDie => playerDie;
     public AudioClip PlayerAbilityExplosion => playerAbilityExplosion;
     public AudioClip Dash => dash;
+    public AudioClip ShieldActivate => shieldActivate;
 
     public AudioClip WeaponFire => weaponFire;
     public AudioClip WeaponSwitch => weaponSwitch;
@@ -105,6 +116,10 @@ public AudioClip BossDie => bossDie;
     public AudioClip MenuOpen => menuOpen;
     public AudioClip StartGame => startGame;
     public AudioClip GameOver => gameOver;
+    public AudioClip WaveComplete => waveComplete;
+    public AudioClip LevelUp => levelUp;
+    public AudioClip ComboMilestone => comboMilestone;
+    public AudioClip Notification => notification;
     public AudioClip UiClick => uiClick;
     public AudioClip MapChange => mapChange;
 

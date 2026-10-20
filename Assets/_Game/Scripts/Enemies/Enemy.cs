@@ -3935,7 +3935,7 @@ public class Enemy : MonoBehaviour
         SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
 
         if (sfx != null)
-            AudioManager.Instance.PlaySFXAt(
+            AudioManager.Instance.PlaySFXVariationAt(
                 sfx.EnemyHit,
                 transform.position,
                 priority: SfxPriority.Low
@@ -4332,7 +4332,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            AudioManager.Instance.PlaySFXAt(
+            AudioManager.Instance.PlaySFXVariationAt(
                 sfx.EnemyDie,
                 transform.position,
                 priority: SfxPriority.Medium

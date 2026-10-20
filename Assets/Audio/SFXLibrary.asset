@@ -13,35 +13,102 @@ MonoBehaviour:
   m_Name: SFXLibrary
   m_EditorClassIdentifier: Assembly-CSharp::SFXLibrary
   sfxVolumeOverrides:
-  - clip: {fileID: 8300000, guid: 323182bf5b6f60b4c836fcf87387b116, type: 3}
-    volume: 0.375
-  - clip: {fileID: 8300000, guid: e9002e75893321945b7bd77e7e7c7cc0, type: 3}
-    volume: 1
-  playerHit: {fileID: 0}
-  playerDie: {fileID: 0}
-  playerAbilityExplosion: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
-  dash: {fileID: 8300000, guid: 1f11e2509ba6e4a46af058ddf2f7e55d, type: 3}
-  weaponFire: {fileID: 8300000, guid: 6f238096a9d162f42834b86c5ec74ee4, type: 3}
-  weaponSwitch: {fileID: 0}
-  bulletExplosion: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
-  ricochet: {fileID: 8300000, guid: 323182bf5b6f60b4c836fcf87387b116, type: 3}
-  lightning: {fileID: 8300000, guid: e9002e75893321945b7bd77e7e7c7cc0, type: 3}
-  enemySpawn: {fileID: 0}
-  enemyHit: {fileID: 8300000, guid: 113ae2175de02134e84f7702f04976b5, type: 3}
-  enemyDie: {fileID: 8300000, guid: db7c8a7df55b00d40a9b6f6348ffa0b7, type: 3}
-  enemyShot: {fileID: 0}
-  bossSpawn: {fileID: 8300000, guid: 07a042b9012653245b78cb10445ae85c, type: 3}
-  bossPhaseChange: {fileID: 8300000, guid: 5d2b9fd2ca2134742a6078ef1b2ab029, type: 3}
-  bossAbility: {fileID: 8300000, guid: 8d39216f5d1321a4ab2116da49fa6d0a, type: 3}
-  bossAoeExplode: {fileID: 8300000, guid: 51f4eea1271068f449afe0661af866d8, type: 3}
-  bossDie: {fileID: 8300000, guid: dcd0acdac7e0a3b47aad6265789fe0d2, type: 3}
-  pickupSpawn: {fileID: 0}
-  pickupCollect: {fileID: 0}
-  uiClick: {fileID: 8300000, guid: 271f4163f062a0d439db68985fa92081, type: 3}
-  countdownTick: {fileID: 0}
-  waveStart: {fileID: 0}
-  upgradePick: {fileID: 0}
-  menuOpen: {fileID: 0}
-  startGame: {fileID: 8300000, guid: c80658310e8567541aeb73ee9abc415f, type: 3}
-  gameOver: {fileID: 0}
-  mapChange: {fileID: 8300000, guid: e12f4c59b8617114fa1eade0ac737786, type: 3}
+  - clip: {fileID: 8300000, guid: d50cf1d2d9c245579922710d2b07a555, type: 3}
+    volume: 0.8
+  - clip: {fileID: 8300000, guid: 1fa192506083484695cb7ff5c49f9f3a, type: 3}
+    volume: 0.85
+  - clip: {fileID: 8300000, guid: c3a155d5a6d64491b889d128ae5b0021, type: 3}
+    volume: 0.8
+  - clip: {fileID: 8300000, guid: 05a90d52e3e446dc81867232e58a5ff7, type: 3}
+    volume: 0.55
+  - clip: {fileID: 8300000, guid: 1c1e94fe262946d1942d20a9682add04, type: 3}
+    volume: 0.7
+  - clip: {fileID: 8300000, guid: d12084cc4dc848f2a6abbe763039fb30, type: 3}
+    volume: 0.6
+  - clip: {fileID: 8300000, guid: c00777b28eec47d08f8b5955e14e09d9, type: 3}
+    volume: 0.5
+  - clip: {fileID: 8300000, guid: 93d8e3b8559d4d8ca0c2d78933b316f4, type: 3}
+    volume: 0.6
+  - clip: {fileID: 8300000, guid: be5b01a75c9e4313ab6ebf6e85543177, type: 3}
+    volume: 0.35
+  - clip: {fileID: 8300000, guid: 995714f98ab1451d8c9b7354877b54fd, type: 3}
+    volume: 0.7
+  - clip: {fileID: 8300000, guid: 36cb591b26a2438b8be266714d5fdc54, type: 3}
+    volume: 0.25
+  - clip: {fileID: 8300000, guid: 9301fe9b31bc408f97ac87c3a0a58fd0, type: 3}
+    volume: 0.4
+  - clip: {fileID: 8300000, guid: 957ee41181e54a208d71ef4fd3e78823, type: 3}
+    volume: 0.5
+  - clip: {fileID: 8300000, guid: 556ef70bb6d34d4a951c9f7287817425, type: 3}
+    volume: 0.4
+  - clip: {fileID: 8300000, guid: 990fb6d3cdbe482d9ecba349a014e4a7, type: 3}
+    volume: 0.85
+  - clip: {fileID: 8300000, guid: b5c6ee6129cc444ea29bc0385433a979, type: 3}
+    volume: 0.75
+  - clip: {fileID: 8300000, guid: 1c99a4f71a674fe7b3ca0508cb7bffbd, type: 3}
+    volume: 0.7
+  - clip: {fileID: 8300000, guid: ea3bbd146d54492e9f855bd61d25eb61, type: 3}
+    volume: 0.85
+  - clip: {fileID: 8300000, guid: 2b408ea7811f47d5b3197a1b01e2a749, type: 3}
+    volume: 0.95
+  - clip: {fileID: 8300000, guid: 854348b1d78b40a7a979ba8b5a00b70b, type: 3}
+    volume: 0.25
+  - clip: {fileID: 8300000, guid: cc213165bd2e4dd6bd50841711ca311c, type: 3}
+    volume: 0.6
+  - clip: {fileID: 8300000, guid: f35f69d1fa7f45b39e8055562674fe85, type: 3}
+    volume: 0.5
+  - clip: {fileID: 8300000, guid: 7bbd6da64c984b10be1c4e5481e41d10, type: 3}
+    volume: 0.7
+  - clip: {fileID: 8300000, guid: eec74d54a0444812a8acf513d71a0bcf, type: 3}
+    volume: 0.85
+  - clip: {fileID: 8300000, guid: cbc0401c80964da6afe233b0ff473b4a, type: 3}
+    volume: 0.65
+  - clip: {fileID: 8300000, guid: e9f30c37d8f14f7289cfbb516c62a5a0, type: 3}
+    volume: 0.45
+  - clip: {fileID: 8300000, guid: a58fb2ee0e79437481af5e891fdc27c7, type: 3}
+    volume: 0.65
+  - clip: {fileID: 8300000, guid: f300da759b674c61832244c9aca1c95d, type: 3}
+    volume: 0.85
+  - clip: {fileID: 8300000, guid: b7acd596991147df88ff954d1a3ffd03, type: 3}
+    volume: 0.75
+  - clip: {fileID: 8300000, guid: fb1de5042ced411ab2c6de1405f99497, type: 3}
+    volume: 0.65
+  - clip: {fileID: 8300000, guid: 85f4422b617e448db18592be8536a3f1, type: 3}
+    volume: 0.6
+  - clip: {fileID: 8300000, guid: 5b9dd65de9224fd9b4623abea0d6661e, type: 3}
+    volume: 0.55
+  - clip: {fileID: 8300000, guid: 021572c9bd98419abfadbc7f74436bac, type: 3}
+    volume: 0.55
+  playerHit: {fileID: 8300000, guid: d50cf1d2d9c245579922710d2b07a555, type: 3}
+  playerDie: {fileID: 8300000, guid: 1fa192506083484695cb7ff5c49f9f3a, type: 3}
+  playerAbilityExplosion: {fileID: 8300000, guid: c3a155d5a6d64491b889d128ae5b0021, type: 3}
+  dash: {fileID: 8300000, guid: 05a90d52e3e446dc81867232e58a5ff7, type: 3}
+  shieldActivate: {fileID: 8300000, guid: 1c1e94fe262946d1942d20a9682add04, type: 3}
+  weaponFire: {fileID: 8300000, guid: d12084cc4dc848f2a6abbe763039fb30, type: 3}
+  weaponSwitch: {fileID: 8300000, guid: c00777b28eec47d08f8b5955e14e09d9, type: 3}
+  bulletExplosion: {fileID: 8300000, guid: 93d8e3b8559d4d8ca0c2d78933b316f4, type: 3}
+  ricochet: {fileID: 8300000, guid: be5b01a75c9e4313ab6ebf6e85543177, type: 3}
+  lightning: {fileID: 8300000, guid: 995714f98ab1451d8c9b7354877b54fd, type: 3}
+  enemySpawn: {fileID: 8300000, guid: 36cb591b26a2438b8be266714d5fdc54, type: 3}
+  enemyHit: {fileID: 8300000, guid: 9301fe9b31bc408f97ac87c3a0a58fd0, type: 3}
+  enemyDie: {fileID: 8300000, guid: 957ee41181e54a208d71ef4fd3e78823, type: 3}
+  enemyShot: {fileID: 8300000, guid: 556ef70bb6d34d4a951c9f7287817425, type: 3}
+  bossSpawn: {fileID: 8300000, guid: 990fb6d3cdbe482d9ecba349a014e4a7, type: 3}
+  bossPhaseChange: {fileID: 8300000, guid: b5c6ee6129cc444ea29bc0385433a979, type: 3}
+  bossAbility: {fileID: 8300000, guid: 1c99a4f71a674fe7b3ca0508cb7bffbd, type: 3}
+  bossAoeExplode: {fileID: 8300000, guid: ea3bbd146d54492e9f855bd61d25eb61, type: 3}
+  bossDie: {fileID: 8300000, guid: 2b408ea7811f47d5b3197a1b01e2a749, type: 3}
+  pickupSpawn: {fileID: 8300000, guid: 854348b1d78b40a7a979ba8b5a00b70b, type: 3}
+  pickupCollect: {fileID: 8300000, guid: cc213165bd2e4dd6bd50841711ca311c, type: 3}
+  uiClick: {fileID: 8300000, guid: f35f69d1fa7f45b39e8055562674fe85, type: 3}
+  countdownTick: {fileID: 8300000, guid: 7bbd6da64c984b10be1c4e5481e41d10, type: 3}
+  waveStart: {fileID: 8300000, guid: eec74d54a0444812a8acf513d71a0bcf, type: 3}
+  upgradePick: {fileID: 8300000, guid: cbc0401c80964da6afe233b0ff473b4a, type: 3}
+  menuOpen: {fileID: 8300000, guid: e9f30c37d8f14f7289cfbb516c62a5a0, type: 3}
+  startGame: {fileID: 8300000, guid: a58fb2ee0e79437481af5e891fdc27c7, type: 3}
+  gameOver: {fileID: 8300000, guid: f300da759b674c61832244c9aca1c95d, type: 3}
+  waveComplete: {fileID: 8300000, guid: b7acd596991147df88ff954d1a3ffd03, type: 3}
+  levelUp: {fileID: 8300000, guid: fb1de5042ced411ab2c6de1405f99497, type: 3}
+  comboMilestone: {fileID: 8300000, guid: 85f4422b617e448db18592be8536a3f1, type: 3}
+  notification: {fileID: 8300000, guid: 5b9dd65de9224fd9b4623abea0d6661e, type: 3}
+  mapChange: {fileID: 8300000, guid: 021572c9bd98419abfadbc7f74436bac, type: 3}

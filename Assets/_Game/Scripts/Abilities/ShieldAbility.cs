@@ -55,10 +55,25 @@ public class ShieldAbility : MonoBehaviour
 
         cooldownTimer = cooldown;
 
+        PlayShieldSound();
         StartCoroutine(ShieldRoutine());
         NotifyAbilityUsed();
 
         return true;
+    }
+
+    private void PlayShieldSound()
+    {
+        if (AudioManager.Instance == null)
+            return;
+
+        SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+
+        if (sfx != null)
+            AudioManager.Instance.PlaySFX(
+                sfx.ShieldActivate,
+                priority: SfxPriority.High
+            );
     }
 
     private void NotifyAbilityUsed()

@@ -20,7 +20,10 @@ public enum ArenaLayoutStyle
     Walls = 3,
 
     /// <summary>Гроздья укрытий с широкими просветами между ними.</summary>
-    Clusters = 4
+    Clusters = 4,
+
+    /// <summary>Кварталы построек, разделённые прямыми улицами. Городская карта.</summary>
+    Grid = 5
 }
 
 /// <summary>

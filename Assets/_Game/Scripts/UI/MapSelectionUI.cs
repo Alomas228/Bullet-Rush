@@ -245,7 +245,7 @@ public class MapSelectionUI : MonoBehaviour
             if (!visible)
                 continue;
 
-            slot.Bind(environment.GetMap(index));
+            slot.Bind(environment.GetMap(index), index);
 
             slot.SetSelected(index == environment.CurrentIndex);
         }

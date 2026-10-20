@@ -34,6 +34,22 @@ public class MapCardView : MonoBehaviour
     [Tooltip("Подпись боевой механики карты. Пусто — создаётся в рантайме.")]
     [SerializeField] private TMP_Text mechanicText;
 
+    [Tooltip("Короткое описание стиля боя карты. Пусто — создаётся в рантайме.")]
+    [SerializeField] private TMP_Text descriptionText;
+
+    [Header("Progression Info")]
+    [Tooltip("Чип уровня, с которого открывается карта. Пусто — создаётся в рантайме.")]
+    [SerializeField] private TMP_Text levelChipText;
+
+    [Tooltip("Корень чипа уровня (фон + подпись). Пусто — создаётся в рантайме.")]
+    [SerializeField] private GameObject levelChipRoot;
+
+    [Tooltip("Чип личного рекорда (лучшая волна) по этой карте. Пусто — создаётся в рантайме.")]
+    [SerializeField] private TMP_Text recordText;
+
+    [Tooltip("Корень чипа рекорда (фон + подпись). Пусто — создаётся в рантайме.")]
+    [SerializeField] private GameObject recordRoot;
+
     [Header("Lock")]
     [Tooltip("Оверлей, затеняющий закрытую карту. Пусто — создаётся в рантайме.")]
     [SerializeField] private Image lockOverlay;
@@ -75,10 +91,20 @@ public class MapCardView : MonoBehaviour
     }
 
     /// <summary>
-    /// Заполняет карточку данными карты. Иконку берёт из GameMap,
-    /// а если её нет — рисует цветной диск цвета подложки.
+    /// Заполняет карточку данными карты без привязки к рекорду.
     /// </summary>
     public void Bind(GameMap map)
+    {
+        Bind(map, -1);
+    }
+
+    /// <summary>
+    /// Заполняет карточку данными карты. Иконку берёт из GameMap,
+    /// а если её нет — рисует цветной диск цвета подложки.
+    /// mapIndex — позиция карты в карусели EnvironmentController,
+    /// по ней читается личный рекорд (лучшая волна). -1 — без рекорда.
+    /// </summary>
+    public void Bind(GameMap map, int mapIndex)
     {
         if (map == null)
             return;
@@ -161,11 +187,75 @@ public class MapCardView : MonoBehaviour
             }
         }
 
+        // Описание стиля боя висит на фоне «неба», а не на земле,
+        // поэтому контраст считаем по цвету неба.
+        if (descriptionText != null)
+        {
+            string description =
+                MapMechanicText.Description(map.mechanic);
+
+            bool hasDescription =
+                !string.IsNullOrEmpty(description);
+
+            descriptionText.gameObject.SetActive(hasDescription);
+
+            if (hasDescription)
+            {
+                float skyLuminance =
+                    sky.r * 0.299f +
+                    sky.g * 0.587f +
+                    sky.b * 0.114f;
+
+                Color baseColor = skyLuminance < 0.45f
+                    ? lightText
+                    : darkText;
+
+                descriptionText.text = description;
+                descriptionText.color = new Color(
+                    baseColor.r,
+                    baseColor.g,
+                    baseColor.b,
+                    0.85f
+                );
+            }
+        }
+
         RequiredLevel = MapProgression.RequiredLevel(map);
+
+        if (levelChipText != null && levelChipRoot != null)
+        {
+            levelChipRoot.SetActive(true);
+            levelChipText.text =
+                Lang.Get("maps.level_chip", RequiredLevel);
+        }
+
+        ApplyRecord(mapIndex);
 
         ApplyLock(MapProgression.IsUnlocked(map));
 
         SetSelected(false);
+    }
+
+    /// <summary>
+    /// Чип личного рекорда: лучшая волна, до которой игрок дошёл
+    /// на этой карте. Нет рекорда — чип скрыт, чтобы не занимать
+    /// карточку пустой подписью.
+    /// </summary>
+    private void ApplyRecord(int mapIndex)
+    {
+        if (recordRoot == null || recordText == null)
+            return;
+
+        int best = mapIndex >= 0
+            ? PersonalBestRecord.BestWaveFor(mapIndex)
+            : 0;
+
+        bool hasRecord = best > 0;
+
+        recordRoot.SetActive(hasRecord);
+
+        if (hasRecord)
+            recordText.text = Lang.Get("maps.record", best);
     }
 
     public void SetSelected(bool value)
@@ -226,6 +316,10 @@ public class MapCardView : MonoBehaviour
 
         TMP_FontAsset font = TMP_Settings.defaultFontAsset;
 
+        // Оверлей мог быть создан билдером (тогда его порядок уже
+        // задан в сцене и трогать его не нужно).
+        bool createdOverlay = false;
+
         if (mechanicText == null)
         {
             mechanicText = CreateLabel(
@@ -235,6 +329,9 @@ public class MapCardView : MonoBehaviour
                 new Vector2(280f, 30f),
                 18f
             );
+
+            if (font != null)
+                mechanicText.font = font;
         }
 
         if (lockOverlay == null)
@@ -257,6 +354,8 @@ public class MapCardView : MonoBehaviour
             lockOverlay = overlay.GetComponent<Image>();
             lockOverlay.color = LockVeil;
             lockOverlay.raycastTarget = false;
+
+            createdOverlay = true;
         }
 
         if (lockText == null)
@@ -274,16 +373,123 @@ public class MapCardView : MonoBehaviour
             lockText.color = Color.white;
 
             lockText.transform.SetAsLastSibling();
+
+            if (font != null)
+                lockText.font = font;
         }
 
-        if (font == null)
-            return;
+        if (descriptionText == null)
+        {
+            descriptionText = CreateLabel(
+                "DescriptionText",
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, 134f),
+                new Vector2(272f, 38f),
+                13f
+            );
 
-        if (mechanicText != null)
-            mechanicText.font = font;
+            descriptionText.fontStyle = FontStyles.Normal;
 
-        if (lockText != null)
-            lockText.font = font;
+            if (font != null)
+                descriptionText.font = font;
+        }
+
+        if (levelChipRoot == null)
+        {
+            levelChipRoot = CreateChip(
+                "LevelChip",
+                new Vector2(1f, 1f),
+                new Vector2(-14f, -14f),
+                new Vector2(110f, 36f),
+                out levelChipText
+            );
+        }
+
+        if (recordRoot == null)
+        {
+            recordRoot = CreateChip(
+                "RecordChip",
+                new Vector2(1f, 1f),
+                new Vector2(-14f, -54f),
+                new Vector2(110f, 34f),
+                out recordText
+            );
+
+            recordRoot.SetActive(false);
+        }
+
+        // Описание — часть «тела» карты: на закрытой карте оно должно
+        // так же уходить под затеняющий оверлей, как имя и механика.
+        // Чипы уровня и рекорда, наоборот, остаются поверх оверлея.
+        // Переставляем только если оверлей создали мы сами: у оверлея
+        // из билдера порядок уже выставлен в сцене.
+        if (createdOverlay &&
+            descriptionText != null &&
+            lockOverlay != null)
+        {
+            descriptionText.transform.SetSiblingIndex(
+                lockOverlay.transform.GetSiblingIndex()
+            );
+        }
+    }
+
+    // Плашка со своей тёмной подложкой: уровень разблокировки и
+    // рекорд должны читаться на любом цвете неба карты.
+    private GameObject CreateChip(
+        string objectName,
+        Vector2 anchor,
+        Vector2 position,
+        Vector2 size,
+        out TMP_Text label)
+    {
+        GameObject root = new GameObject(
+            objectName,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image)
+        );
+
+        RectTransform rt = root.GetComponent<RectTransform>();
+        rt.SetParent(transform, false);
+        rt.anchorMin = anchor;
+        rt.anchorMax = anchor;
+        rt.pivot = anchor;
+        rt.anchoredPosition = position;
+        rt.sizeDelta = size;
+        rt.SetAsLastSibling();
+
+        Image background = root.GetComponent<Image>();
+        background.color = new Color(0.05f, 0.07f, 0.11f, 0.72f);
+        background.raycastTarget = false;
+
+        GameObject labelObject = new GameObject(
+            "Label",
+            typeof(RectTransform)
+        );
+
+        labelObject.transform.SetParent(root.transform, false);
+
+        RectTransform labelRect =
+            labelObject.GetComponent<RectTransform>();
+
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = new Vector2(4f, 0f);
+        labelRect.offsetMax = new Vector2(-4f, 0f);
+
+        TextMeshProUGUI text = labelObject.AddComponent<TextMeshProUGUI>();
+
+        text.font = TMP_Settings.defaultFontAsset;
+        text.fontSize = 15f;
+        text.alignment = TextAlignmentOptions.Center;
+        text.fontStyle = FontStyles.Bold;
+        text.color = Color.white;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.raycastTarget = false;
+
+        label = text;
+
+        return root;
     }
 
     private TMP_Text CreateLabel(

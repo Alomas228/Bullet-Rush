@@ -34,6 +34,10 @@ public class WorldStructureGenerator : MonoBehaviour
     [Tooltip("Полуширина квадрата расстановки блоков. Стены арены на ±50; держи меньше, чтобы блоки не стояли вплотную к стенам.")]
     [SerializeField] private float structureHalfSize = 32f;
 
+    [Header("Arena Stability")]
+    [Tooltip("Держать одну и ту же раскладку блоков в течение всего забега, чтобы игрок изучал маршруты, а не перепривыкал каждую волну. Выключено — старое поведение: геометрия меняется по номеру волны.")]
+    [SerializeField] private bool stableLayoutAcrossWaves = true;
+
     [Header("Prefabs")]
     [Tooltip("Префабы, которые будут спавниться вместо кубов. Для каждой структуры выбирается один случайный из списка. Пусто — фолбэк на примитивный куб.")]
     [SerializeField] private GameObject[] structurePrefabs;
@@ -184,6 +188,13 @@ public class WorldStructureGenerator : MonoBehaviour
     public int BaseSeed =>
         baseSeed;
 
+    /// <summary>
+    /// true — раскладка блоков не зависит от номера волны и держится
+    /// весь забег. Тогда пересборка между волнами не нужна.
+    /// </summary>
+    public bool StableLayout =>
+        stableLayoutAcrossWaves;
+
     private void Awake()
     {
         if (baseSeed == 0)
@@ -251,26 +262,36 @@ public class WorldStructureGenerator : MonoBehaviour
     {
         BeginGeneration(
             new System.Random(
-                mapSeed * 31 + wave * 131
+                LayoutSeed(mapSeed, wave)
             )
         );
     }
 
     /// <summary>
-    /// Перестройка арены под новую волну. Раскладка зависит и от
-    /// карты, и от номера волны: блоки меняются каждый забег, но
-    /// одна и та же волна на одной карте всегда даёт одну и ту же
-    /// геометрию. Анимация короткая, чтобы пауза между волнами
-    /// почти не росла, но переход не выглядел скачком.
+    /// Перестройка арены под новую волну. Если включена стабильная
+    /// раскладка (StableLayout), номер волны в seed не входит, и
+    /// геометрия остаётся прежней — тогда эту пересборку вызывать
+    /// незачем (WaveManager её пропускает). Иначе раскладка зависит
+    /// и от карты, и от номера волны.
     /// </summary>
     public void RebuildForWave(int mapSeed, int wave)
     {
         BeginGeneration(
             new System.Random(
-                mapSeed * 31 + wave * 131
+                LayoutSeed(mapSeed, wave)
             ),
             RebuildProfile()
         );
+    }
+
+    // Зерно раскладки. Стабильный режим держит одну конфигурацию
+    // блоков на всю карту; иначе добавляется номер волны, и арена
+    // меняется каждый забег волны, но воспроизводимо.
+    private int LayoutSeed(int mapSeed, int wave)
+    {
+        return stableLayoutAcrossWaves
+            ? mapSeed * 31
+            : mapSeed * 31 + wave * 131;
     }
 
     // Короткие тайминги нужны только чтобы ускорить смену одной
@@ -888,6 +909,104 @@ public class WorldStructureGenerator : MonoBehaviour
             case ArenaLayoutStyle.Clusters:
                 BuildClusterPlan(rng, budget, half);
                 break;
+
+            case ArenaLayoutStyle.Grid:
+                BuildGridPlan(rng, budget, half);
+                break;
+        }
+    }
+
+    // Кварталы: постройки стоят на ровной сетке, между ними —
+    // прямые улицы. В отличие от стен, здесь нет длинных сплошных
+    // линий: игрок видит город сверху и читает кварталы как
+    // ориентиры, но бой идёт в просветах улиц, а не в коридорах.
+    private void BuildGridPlan(
+        System.Random rng,
+        int budget,
+        float half)
+    {
+        int dim =
+            Mathf.Clamp(
+                Mathf.CeilToInt(
+                    Mathf.Sqrt(Mathf.Max(budget, 1))
+                ),
+                3,
+                8
+            );
+
+        float cell = (half * 2f) / dim;
+
+        // Доля клетки под само здание; остаток — улица. Больше 0.7 —
+        // кварталы срастаются и улицы исчезают.
+        float blockScale =
+            NextFloat(rng, 0.5f, 0.68f);
+
+        int planned = 0;
+
+        for (int gx = 0; gx < dim && planned < budget; gx++)
+        {
+            for (int gz = 0; gz < dim && planned < budget; gz++)
+            {
+                // Редкая пустая клетка — площадь: место, где можно
+                // передохнуть и развернуться, а не только лавировать.
+                if (rng.NextDouble() < 0.12)
+                    continue;
+
+                float cx = -half + cell * (gx + 0.5f);
+                float cz = -half + cell * (gz + 0.5f);
+
+                float jitter = cell * 0.06f;
+
+                float w =
+                    cell * blockScale *
+                    NextFloat(rng, 0.85f, 1.1f);
+
+                float d =
+                    cell * blockScale *
+                    NextFloat(rng, 0.85f, 1.1f);
+
+                layoutPlan.Add(
+                    new PlannedStructure
+                    {
+                        position = new Vector2(
+                            cx + NextFloat(rng, -jitter, jitter),
+                            cz + NextFloat(rng, -jitter, jitter)
+                        ),
+                        dimensions = new Vector3(
+                            w,
+                            NextFloat(rng, minHeight, maxHeight),
+                            d
+                        ),
+                        // Кварталы ориентированы по осям с лёгким
+                        // разбросом: читаются как здания, а не как
+                        // случайные коробки.
+                        yaw = NextFloat(rng, -4f, 4f),
+                        spacingOverride = minSpacing * 1.5f
+                    }
+                );
+
+                planned++;
+            }
+        }
+
+        // Остаток бюджета — мелкие блоки внутри улиц: пустые
+        // перекрёстки выглядят недорисованными.
+        for (int i = planned; i < budget; i++)
+        {
+            layoutPlan.Add(
+                new PlannedStructure
+                {
+                    position = RandomPoint(rng, half),
+                    dimensions =
+                        new Vector3(
+                            NextFloat(rng, minWidth, maxWidth),
+                            NextFloat(rng, minHeight, maxHeight),
+                            NextFloat(rng, minWidth, maxWidth)
+                        ),
+                    yaw = (float)(rng.NextDouble() * 360.0),
+                    spacingOverride = -1f
+                }
+            );
         }
     }
 
