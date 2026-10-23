@@ -48,6 +48,8 @@ public class EquipmentCardView : MonoBehaviour
     [Tooltip("Ставится на true, когда на карточку повешен обработчик.")]
     [SerializeField] private bool wired;
 
+    private Image iconGlyph;
+
     private static readonly Color PriceAffordable =
         EquipmentWireframeTheme.White(0.22f);
 
@@ -125,6 +127,7 @@ public class EquipmentCardView : MonoBehaviour
         }
 
         ApplyAction(data, coins);
+        ApplyUnifiedStyle(data);
     }
 
     private void ApplyAction(EquipmentCardData data, int coins)
@@ -218,5 +221,226 @@ public class EquipmentCardView : MonoBehaviour
 
         if (priceImage != null)
             priceImage.color = background;
+    }
+
+    private void ApplyUnifiedStyle(EquipmentCardData data)
+    {
+        Color accent = data.Accent;
+
+        if (frameImage != null)
+            frameImage.color = ArcadeUiTheme.Line;
+
+        if (surfaceImage != null)
+        {
+            surfaceImage.sprite = ArcadeKitAssets.RoundRect;
+            surfaceImage.type = Image.Type.Sliced;
+            surfaceImage.pixelsPerUnitMultiplier = 1f;
+            surfaceImage.color = ArcadeUiTheme.Panel;
+        }
+
+        if (accentLine != null)
+        {
+            accentLine.sprite = ArcadeKitAssets.RoundRect;
+            accentLine.type = Image.Type.Sliced;
+            accentLine.pixelsPerUnitMultiplier = 1f;
+            accentLine.color = accent;
+
+            RectTransform lineRect = accentLine.rectTransform;
+            lineRect.sizeDelta = new Vector2(320f, 4f);
+            lineRect.anchoredPosition = new Vector2(0f, -10f);
+        }
+
+        Transform art = iconWash != null
+            ? iconWash.transform
+            : transform.Find("CardFace/IconArea");
+
+        if (iconWash != null)
+        {
+            iconWash.sprite = ArcadeKitAssets.RoundRect;
+            iconWash.type = Image.Type.Sliced;
+            iconWash.pixelsPerUnitMultiplier = 1f;
+            iconWash.color = ArcadeCardVisuals.ArtTint(accent);
+        }
+
+        if (art is RectTransform artRect)
+            ArcadeCardVisuals.Pattern(artRect);
+
+        if (iconDisc != null)
+        {
+            iconDisc.sprite = ArcadeKitAssets.Glow;
+            iconDisc.preserveAspect = true;
+            iconDisc.color = ArcadeUiTheme.Alpha(accent, 0.22f);
+
+            RectTransform discRect = iconDisc.rectTransform;
+            discRect.sizeDelta = new Vector2(178f, 178f);
+            discRect.anchoredPosition = new Vector2(0f, 4f);
+        }
+
+        if (art != null)
+        {
+            string key = string.IsNullOrEmpty(data.IconKey)
+                ? "sword"
+                : data.IconKey;
+
+            iconGlyph = ArcadeCardVisuals.EnsureImage(
+                art,
+                "CardGlyph",
+                ArcadeKitAssets.Icon(key),
+                Color.white
+            );
+
+            iconGlyph.preserveAspect = true;
+            iconGlyph.color = Color.Lerp(accent, Color.white, 0.28f);
+
+            RectTransform glyphRect = iconGlyph.rectTransform;
+            glyphRect.anchorMin = new Vector2(0.5f, 0.5f);
+            glyphRect.anchorMax = new Vector2(0.5f, 0.5f);
+            glyphRect.pivot = new Vector2(0.5f, 0.5f);
+            glyphRect.sizeDelta = new Vector2(82f, 82f);
+            glyphRect.anchoredPosition = new Vector2(0f, 6f);
+            iconGlyph.transform.SetAsLastSibling();
+        }
+
+        if (typeText != null)
+        {
+            RectTransform rect = typeText.rectTransform;
+
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0f, 0f);
+            rect.sizeDelta = new Vector2(270f, 20f);
+            rect.anchoredPosition = new Vector2(14f, 12f);
+
+            ArcadeCardVisuals.Text(
+                typeText,
+                ArcadeKitAssets.BodyBold,
+                13f,
+                accent,
+                TextAlignmentOptions.Left,
+                FontStyles.Bold | FontStyles.UpperCase
+            );
+        }
+
+        PlaceText(nameText, 247f, 34f, 28f, ArcadeUiTheme.TextPrimary,
+            FontStyles.Bold);
+        PlaceText(statsText, 350f, 92f, 15f, ArcadeUiTheme.TextSecondary,
+            FontStyles.Normal);
+
+        if (rarityText != null)
+        {
+            rarityText.font = ArcadeKitAssets.BodyBold;
+            rarityText.fontSize = 14f;
+            rarityText.color = accent;
+            rarityText.alignment = TextAlignmentOptions.Left;
+            rarityText.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        }
+
+        if (rarityRow != null)
+        {
+            rarityRow.sizeDelta = new Vector2(314f, 22f);
+            rarityRow.anchoredPosition = new Vector2(177f, -284f);
+        }
+
+        Transform face = statsText != null ? statsText.transform.parent : null;
+
+        if (face != null)
+        {
+            Image statsPanel = ArcadeCardVisuals.InfoPanel(
+                face,
+                "CardStats",
+                304f,
+                92f
+            );
+
+            if (statsText != null)
+            {
+                statsPanel.transform.SetSiblingIndex(
+                    statsText.transform.GetSiblingIndex()
+                );
+            }
+        }
+
+        if (stateImage != null)
+        {
+            stateImage.sprite = ArcadeKitAssets.RoundRect;
+            stateImage.type = Image.Type.Sliced;
+            stateImage.pixelsPerUnitMultiplier = 1f;
+            stateImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.42f);
+        }
+
+        if (stateText != null)
+        {
+            stateText.font = ArcadeKitAssets.BodyBold;
+            stateText.fontSize = 13f;
+            stateText.color = ArcadeUiTheme.TextSecondary;
+            stateText.alignment = TextAlignmentOptions.Center;
+            stateText.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        }
+
+        if (stateText != null && stateText.transform.parent is RectTransform stateRow)
+        {
+            stateRow.sizeDelta = new Vector2(314f, 32f);
+            stateRow.anchoredPosition = new Vector2(177f, -422f);
+        }
+
+        ArcadeCardVisuals.Divider(transform, 442f);
+
+        if (actionButton != null &&
+            actionButton.transform is RectTransform actionRect)
+        {
+            actionRect.sizeDelta = new Vector2(314f, 64f);
+            actionRect.anchoredPosition = new Vector2(177f, -481f);
+        }
+
+        ArcadeCardVisuals.Action(
+            actionImage,
+            actionLabel,
+            actionButton != null && actionButton.interactable
+        );
+
+        if (priceImage != null)
+        {
+            priceImage.sprite = ArcadeKitAssets.RoundRect;
+            priceImage.type = Image.Type.Sliced;
+            priceImage.pixelsPerUnitMultiplier = 1f;
+            priceImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.82f);
+        }
+
+        if (priceText != null)
+        {
+            priceText.font = ArcadeKitAssets.BodyBold;
+            priceText.color = data.Unlocked && !data.Owned
+                ? ArcadeUiTheme.Gold
+                : ArcadeUiTheme.TextMuted;
+        }
+    }
+
+    private static void PlaceText(
+        TMP_Text text,
+        float top,
+        float height,
+        float size,
+        Color color,
+        FontStyles style)
+    {
+        if (text == null)
+            return;
+
+        RectTransform rect = text.rectTransform;
+
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(314f, height);
+        rect.anchoredPosition = new Vector2(177f, -top);
+
+        ArcadeCardVisuals.Text(
+            text,
+            size >= 26f ? ArcadeKitAssets.Display : ArcadeKitAssets.Body,
+            size,
+            color,
+            TextAlignmentOptions.Left,
+            style
+        );
     }
 }

@@ -20,6 +20,9 @@ public class AchievementRowUI : MonoBehaviour
     [SerializeField] private Color unlockedTint = new Color(0.16f, 0.32f, 0.2f, 0.55f);
     [SerializeField] private Color lockedTint = new Color(1f, 1f, 1f, 0.05f);
 
+    private Image progressFill;
+    private bool barBuilt;
+
     public void Configure(
         TMP_Text title,
         TMP_Text description,
@@ -56,12 +59,60 @@ public class AchievementRowUI : MonoBehaviour
         if (progressLabel != null)
             progressLabel.text = BuildProgressText(data, unlocked, progress, required);
 
+        if (data.HasProgressBar && progressBar == null)
+            EnsureProgressBar();
+
         if (progressBar != null)
         {
             float fill = required > 0f ? Mathf.Clamp01(progress / required) : (unlocked ? 1f : 0f);
             progressBar.value = fill;
             progressBar.gameObject.SetActive(data.HasProgressBar);
+
+            if (progressFill != null)
+                progressFill.color = unlocked ? ArcadeUiTheme.Green : ArcadeUiTheme.Gold;
         }
+    }
+
+    private void EnsureProgressBar()
+    {
+        if (barBuilt)
+            return;
+
+        barBuilt = true;
+
+        Transform existing = transform.Find("ProgressBar");
+
+        if (existing != null)
+            progressBar = existing.GetComponent<Slider>();
+
+        if (progressBar == null)
+        {
+            GameObject go = new GameObject("ProgressBar", typeof(RectTransform));
+            RectTransform rect = (RectTransform)go.transform;
+
+            rect.SetParent(transform, false);
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 3f);
+            rect.sizeDelta = new Vector2(-72f, 8f);
+
+            progressBar = ArcadeUiFactory.Bar(
+                rect,
+                0f,
+                false,
+                ArcadeUiTheme.BackgroundDeep,
+                ArcadeUiTheme.Gold,
+                0f
+            );
+        }
+
+        Transform fill = progressBar.transform.Find("Fill Area/Fill");
+
+        if (fill != null)
+            progressFill = fill.GetComponent<Image>();
+
+        progressBar.gameObject.SetActive(false);
     }
 
     private static string BuildProgressText(

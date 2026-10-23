@@ -288,52 +288,64 @@ public class UpgradeUI : MonoBehaviour
         rect.offsetMax = Vector2.zero;
 
         var image = root.GetComponent<Image>();
-        image.color = new Color(0f, 0f, 0f, 0.85f);
+        image.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.88f);
         image.raycastTarget = false;
 
-        toastText = CreateLabel(
-            root.transform,
-            "Label",
+        RectTransform card = ArcadeUiFactory.At(
+            rect,
+            "Card",
+            new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
             Vector2.zero,
-            new Vector2(820f, 260f),
-            18f,
+            new Vector2(880f, 300f)
+        );
+        ArcadeUiFactory.Image(
+            card,
+            ArcadeKitAssets.Panel,
+            ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f),
+            true
+        );
+
+        ArcadeUiFactory.Image(
+            ArcadeUiFactory.At(
+                card,
+                "Accent",
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(28f, -26f),
+                new Vector2(10f, 64f)
+            ),
+            ArcadeKitAssets.Pill,
+            ArcadeUiTheme.Gold,
+            true
+        );
+
+        ArcadeUiFactory.Icon(
+            card,
+            "Icon",
+            "spark",
+            ArcadeUiTheme.Gold,
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(56f, -28f),
+            new Vector2(38f, 38f)
+        );
+
+        toastText = ArcadeUiFactory.Label(
+            card,
+            "Label",
+            "",
+            ArcadeKitAssets.Display,
+            22f,
+            ArcadeUiTheme.Gold,
             TextAlignmentOptions.Center,
-            TextWrappingModes.Normal
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            new Vector2(800f, 240f)
         );
 
         toastRoot = root;
-    }
-
-    private static TMP_Text CreateLabel(
-        Transform parent,
-        string name,
-        Vector2 anchor,
-        Vector2 anchoredPosition,
-        Vector2 size,
-        float fontSize,
-        TextAlignmentOptions alignment,
-        TextWrappingModes wrapping)
-    {
-        var root = new GameObject(name, typeof(RectTransform));
-
-        var rect = root.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = anchor;
-        rect.anchorMax = anchor;
-        rect.pivot = anchor;
-        rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = size;
-
-        var text = root.AddComponent<TextMeshProUGUI>();
-        text.font = TMP_Settings.defaultFontAsset;
-        text.fontSize = fontSize;
-        text.alignment = alignment;
-        text.textWrappingMode = wrapping;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = false;
-
-        return text;
     }
 
     private void ChooseUpgrade(int index)
@@ -431,19 +443,19 @@ public class UpgradeUI : MonoBehaviour
         switch (rarity)
         {
             case Rarity.Uncommon:
-                return new Color(0.42f, 0.8f, 0.35f);
+                return ArcadeUiTheme.Green;
 
             case Rarity.Rare:
-                return new Color(0.4f, 0.58f, 0.95f);
+                return ArcadeUiTheme.Cyan;
 
             case Rarity.Epic:
-                return new Color(0.66f, 0.42f, 0.92f);
+                return ArcadeUiTheme.Purple;
 
             case Rarity.Legendary:
-                return new Color(0.96f, 0.62f, 0.22f);
+                return ArcadeUiTheme.Gold;
 
             default:
-                return new Color(0.58f, 0.6f, 0.64f);
+                return ArcadeUiTheme.TextSecondary;
         }
     }
 

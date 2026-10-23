@@ -981,10 +981,19 @@ public static class ArcadeUiRedesignBuilder
             return;
         }
 
+        if (name == "ComboPanel")
+        {
+            // Комбо показывается без плашки — только текст.
+            image.sprite = null;
+            image.color = Color.clear;
+            image.raycastTarget = false;
+
+            return;
+        }
+
         if (name == "BossHpPanel" ||
             name == "CooldownUI" ||
             name == "LevelPanel" ||
-            name == "ComboPanel" ||
             name == "PersonalBestHUD")
         {
             SetSprite(

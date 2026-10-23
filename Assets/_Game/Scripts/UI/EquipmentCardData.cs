@@ -20,6 +20,7 @@ public class EquipmentCardData
     public string RarityLabel;
     public string Stats;
     public string State;
+    public string IconKey;
 
     public int Price;
     public int UnlockLevel;

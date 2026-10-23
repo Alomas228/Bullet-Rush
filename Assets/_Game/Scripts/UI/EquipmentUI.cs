@@ -807,6 +807,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.GetRarityColor(data.Rarity),
+            IconKey = "target",
             Toggles = false
         };
     }
@@ -825,6 +826,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.AbilityAccent,
+            IconKey = "flame",
             Toggles = true
         };
     }
@@ -841,6 +843,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.ClothingAccent,
+            IconKey = "shield",
             Toggles = false
         };
     }

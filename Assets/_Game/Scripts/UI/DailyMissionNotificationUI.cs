@@ -179,19 +179,50 @@ public class DailyMissionNotificationUI : MonoBehaviour
 
         Image panel = CreatePanel();
 
-        titleLabel = CreateText(panel.rectTransform, "Title", 26f, new Color(0.75f, 1f, 0.8f, 1f));
-        RectTransform titleRect = titleLabel.rectTransform;
-        titleRect.anchorMin = new Vector2(0f, 0.5f);
-        titleRect.anchorMax = new Vector2(1f, 1f);
-        titleRect.offsetMin = new Vector2(20f, 0f);
-        titleRect.offsetMax = new Vector2(-20f, -12f);
+        ArcadeUiFactory.Image(
+            ArcadeUiFactory.At(
+                panel.rectTransform,
+                "Accent",
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(22f, 0f),
+                new Vector2(8f, 64f)
+            ),
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.Green,
+            true
+        );
 
-        rewardLabel = CreateText(panel.rectTransform, "Reward", 20f, new Color(0.8f, 0.9f, 1f, 1f));
-        RectTransform rewardRect = rewardLabel.rectTransform;
-        rewardRect.anchorMin = new Vector2(0f, 0f);
-        rewardRect.anchorMax = new Vector2(1f, 0.5f);
-        rewardRect.offsetMin = new Vector2(20f, 10f);
-        rewardRect.offsetMax = new Vector2(-20f, 0f);
+        ArcadeUiFactory.Icon(
+            panel.rectTransform,
+            "Icon",
+            "target",
+            ArcadeUiTheme.Green,
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f),
+            new Vector2(44f, 0f),
+            new Vector2(32f, 32f)
+        );
+
+        titleLabel = CreateText(
+            panel.rectTransform,
+            "Title",
+            new Vector2(86f, 20f),
+            new Vector2(600f, 46f),
+            23f,
+            ArcadeUiTheme.Gold,
+            ArcadeKitAssets.Display
+        );
+
+        rewardLabel = CreateText(
+            panel.rectTransform,
+            "Reward",
+            new Vector2(86f, -24f),
+            new Vector2(600f, 30f),
+            18f,
+            ArcadeUiTheme.TextSecondary,
+            ArcadeKitAssets.BodyBold
+        );
     }
 
     private Image CreatePanel()
@@ -200,14 +231,17 @@ public class DailyMissionNotificationUI : MonoBehaviour
         go.transform.SetParent(transform, false);
 
         Image image = go.AddComponent<Image>();
-        image.color = new Color(0.1f, 0.14f, 0.12f, 0.96f);
+        image.sprite = ArcadeKitAssets.RoundRect;
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 1f;
+        image.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f);
         image.raycastTarget = false;
 
         RectTransform rect = image.rectTransform;
         rect.anchorMin = new Vector2(0.5f, 1f);
         rect.anchorMax = new Vector2(0.5f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(720f, 120f);
+        rect.sizeDelta = new Vector2(720f, 118f);
         rect.anchoredPosition = new Vector2(0f, -40f);
 
         return image;
@@ -216,17 +250,27 @@ public class DailyMissionNotificationUI : MonoBehaviour
     private static TMP_Text CreateText(
         Transform parent,
         string name,
-        float size,
-        Color color)
+        Vector2 position,
+        Vector2 size,
+        float fontSize,
+        Color color,
+        TMP_FontAsset font)
     {
-        GameObject go = new GameObject(name, typeof(RectTransform));
-        go.transform.SetParent(parent, false);
+        RectTransform rect = ArcadeUiFactory.At(
+            (RectTransform)parent,
+            name,
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f),
+            position,
+            size
+        );
 
-        TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
-        text.fontSize = size;
+        TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        text.font = font;
+        text.fontSize = fontSize;
         text.color = color;
-        text.alignment = TextAlignmentOptions.Center;
-        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.alignment = TextAlignmentOptions.Left;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.raycastTarget = false;
 
         return text;

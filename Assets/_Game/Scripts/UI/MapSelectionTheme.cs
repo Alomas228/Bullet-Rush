@@ -6,10 +6,10 @@ using UnityEngine;
 public static class MapSelectionTheme
 {
     public static readonly Color PanelBackground =
-        new Color(0.02f, 0.04f, 0.09f, 0.94f);
+        ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.94f);
 
     public static readonly Color PanelWash =
-        new Color(0.07f, 0.12f, 0.23f, 0.72f);
+        ArcadeUiTheme.Alpha(ArcadeUiTheme.PanelRaised, 0.72f);
 
     public static readonly Color Surface = ArcadeUiPalette.Surface;
     public static readonly Color SurfaceMuted = ArcadeUiPalette.SurfaceMuted;
@@ -28,10 +28,10 @@ public static class MapSelectionTheme
     public static readonly Color FrameIdle = ArcadeUiPalette.Frame;
 
     /// <summary>Рамка выбранной карточки.</summary>
-    public static readonly Color FrameSelected = ArcadeUiPalette.Cyan;
+    public static readonly Color FrameSelected = ArcadeUiPalette.Gold;
 
     /// <summary>Фон чипа «ВЫБРАНО».</summary>
-    public static readonly Color ChipBackground = ArcadeUiPalette.Cyan;
+    public static readonly Color ChipBackground = ArcadeUiPalette.Gold;
 
     public static readonly Color DotActive = ArcadeUiPalette.Cyan;
     public static readonly Color DotInactive = ArcadeUiPalette.Track;

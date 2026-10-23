@@ -46,6 +46,8 @@ public class YandexGameManager : MonoBehaviour
 
     public const string RewardId_DoubleCoins = "double_coins";
     public const string RewardId_Revive = "revive";
+    public const string RewardId_MenuBonus = "menu_bonus";
+    public const string RewardId_MenuWeapon = "menu_weapon";
 
     private Action pendingReward;
     private string pendingRewardId;
