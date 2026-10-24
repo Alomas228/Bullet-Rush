@@ -542,6 +542,7 @@ public class Weapon : MonoBehaviour
             weaponData.LightningRange
         );
 
+        bullet.SetWeaponIdentity(weaponData.WeaponName);
         bullet.SetRunEffects(
             runUpgrades,
             playerHealth,

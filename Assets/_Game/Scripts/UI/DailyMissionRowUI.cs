@@ -24,6 +24,7 @@ public class DailyMissionRowUI : MonoBehaviour
     [SerializeField] private Color activeTint = new Color(1f, 1f, 1f, 0.06f);
 
     private DailyMissionSaveData.Entry boundEntry;
+    private MissionTrack boundTrack = MissionTrack.Daily;
     private bool claimBound;
 
     private void Awake()
@@ -70,16 +71,22 @@ public class DailyMissionRowUI : MonoBehaviour
 
     public void Bind(DailyMissionSaveData.Entry entry)
     {
+        Bind(entry, MissionTrack.Daily);
+    }
+
+    public void Bind(DailyMissionSaveData.Entry entry, MissionTrack track)
+    {
         boundEntry = entry;
+        boundTrack = track;
 
         if (entry == null)
             return;
 
-        DailyMissionManager manager = DailyMissionManager.Instance;
-
-        bool completed = manager != null
-            ? manager.IsCompleted(entry)
-            : entry.progress >= entry.target;
+        DailyMissionManager daily = DailyMissionManager.Instance;
+        WeeklyMissionManager weekly = WeeklyMissionManager.Instance;
+        bool completed = boundTrack == MissionTrack.Weekly
+            ? (weekly != null && weekly.IsCompleted(entry))
+            : (daily != null && daily.IsCompleted(entry));
 
         bool claimed = entry.claimed;
 
@@ -90,7 +97,7 @@ public class DailyMissionRowUI : MonoBehaviour
             titleLabel.text = DailyMissionText.GetTitle(entry);
 
         if (descriptionLabel != null)
-            descriptionLabel.text = DailyMissionText.GetDescription(entry);
+            descriptionLabel.text = DailyMissionText.GetDescription(entry, boundTrack);
 
         if (rewardLabel != null)
             rewardLabel.text = DailyMissionText.GetRewardLabel(entry);
@@ -149,12 +156,16 @@ public class DailyMissionRowUI : MonoBehaviour
 
     private void HandleClaimClicked()
     {
-        DailyMissionManager manager = DailyMissionManager.Instance;
-
-        if (manager == null || boundEntry == null)
+        if (boundEntry == null)
             return;
 
-        if (manager.Claim(boundEntry))
-            Bind(boundEntry);
+        bool claimed = boundTrack == MissionTrack.Weekly
+            ? WeeklyMissionManager.Instance != null &&
+              WeeklyMissionManager.Instance.Claim(boundEntry)
+            : DailyMissionManager.Instance != null &&
+              DailyMissionManager.Instance.Claim(boundEntry);
+
+        if (claimed)
+            Bind(boundEntry, boundTrack);
     }
 }

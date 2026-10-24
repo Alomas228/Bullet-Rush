@@ -67,6 +67,14 @@ public static class Tables
             { "ach.bosslayer.desc", "Победи всех уникальных боссов игры." },
             { "ach.perfectionist.title", "PERFECTIONIST" },
             { "ach.perfectionist.desc", "Получи 10 Perfect Waves за один забег." },
+            { "ach.milestone.kills.title", "ИСТРЕБИТЕЛЬ" },
+            { "ach.milestone.kills.desc", "Убей 10 000 врагов в общем." },
+            { "ach.milestone.bosses.title", "ОХОТНИК НА БОССОВ" },
+            { "ach.milestone.bosses.desc", "Убей 50 боссов в общем." },
+            { "ach.milestone.waves.title", "ВЕТЕРАН ВОЛН" },
+            { "ach.milestone.waves.desc", "Достигни суммарно 1000 волн." },
+            { "ach.milestone.runs.title", "ВЕТЕРАН" },
+            { "ach.milestone.runs.desc", "Заверши 100 забегов." },
             { "run.overcharge", "Перегрузка" },
             { "run.glass_cannon", "Стеклянная пушка" },
 
@@ -76,6 +84,21 @@ public static class Tables
             { "menu.equipment", "Снаряжение" },
             { "menu.maps", "Карты" },
             { "menu.profile", "Профиль" },
+            { "progression.mastery.title", "МАСТЕРСТВО И КОЛЛЕКЦИЯ" },
+            { "progression.mastery.button", "МАСТЕРСТВО" },
+            { "progression.prestige.button", "ПРЕСТИЖ" },
+            { "progression.prestige.status", "Престиж: {0} · {1}" },
+            { "progression.prestige.available", "ДОСТУПЕН" },
+            { "progression.prestige.locked", "Достигни 50 уровня" },
+            { "progression.collection.summary", "Титулы: {0} · Косметика: {1}" },
+            { "progression.weapon.row", "{0} · Мастерство {1} · {2}/{3} убийств" },
+            { "progression.weapon.progress", "Мастерство {0} · {1}/{2} убийств" },
+            { "progression.mastery.effect.locked", "Следующая награда: титул · 100 убийств" },
+            { "progression.mastery.effect.skin", "Получен титул · следующая награда: скин" },
+            { "progression.mastery.effect.effect", "Получен скин · следующая награда: эффект" },
+            { "progression.mastery.effect.master", "Получен эффект · следующая награда: титул мастера" },
+            { "progression.mastery.effect.aura", "Получен титул мастера · следующая награда: аура" },
+            { "progression.mastery.effect.max", "Мастерство завершено · все награды получены" },
             { "menu.tips", "Подсказки" },
             { "menu.level", "УРОВЕНЬ {0}" },
             { "menu.xp", "{0} / {1} XP" },
@@ -141,6 +164,7 @@ public static class Tables
             { "wave.event_ambush", "ЗАСАДА!" },
             { "wave.event_surge", "РЫВОК!" },
             { "wave.event_danger", "ОПАСНОСТЬ!" },
+            { "wave.event_arena_hazard", "ОПАСНАЯ ЗОНА!" },
 
             // ---------- Тема забега ----------
             { "run.berserk", "БЕРСЕРК · БЫСТРЕЕ И ЗЛЕЕ" },
@@ -376,7 +400,8 @@ public static class Tables
             { "synergy.arsenal.short", "Арсенал" },
             { "synergy.arsenal.desc", "Несколько оружий в забеге: урон и темп растут вместе с арсеналом." },
 
-            { "synergy.discovered", "СИНЕРГИЯ ОТКРЫТА 🔥\n{0}" },
+            { "synergy.discovered", "СИНЕРГИЯ ОТКРЫТА!\n{0}" },
+            { "synergy.progress", "{0} · {1}/{2}" },
 
             // ---------- Снаряжение ----------
             { "eq.title", "СНАРЯЖЕНИЕ" },
@@ -444,11 +469,18 @@ public static class Tables
             { "lb.combo", "КОМБО" },
 
             // ---------- Обучение ----------
+            { "tut.move", "ДВИГАЙСЯ: WASD ИЛИ СТРЕЛКИ" },
+            { "tut.aim", "НАВЕДИ МЫШЬ НА ПРОТИВНИКА, ЧТОБЫ ПРИЦЕЛИТЬСЯ" },
+            { "tut.shoot", "ЗАЖМИ ЛКМ, ЧТОБЫ СТРЕЛЯТЬ. ЦЕЛЬСЯ В ПРОТИВНИКА И НЕ ПРЕКРАЩАЙ ОГОНЬ, ПОКА ОН НЕ ПОГИБНЕТ." },
+            { "tut.normal", "ОБЫЧНЫЙ ПРОТИВНИК ИДЁТ К ТЕБЕ. НАВЕДИСЬ И УДЕРЖИВАЙ ЛКМ, ЧТОБЫ УНИЧТОЖИТЬ ЕГО." },
+            { "tut.fast", "БЫСТРЫЙ ПРОТИВНИК СБЛИЖАЕТСЯ РЫВКОМ. ДЕРЖИ ДИСТАНЦИЮ, ДВИГАЙСЯ И ПРОДОЛЖАЙ СТРЕЛЯТЬ." },
+            { "tut.ranged", "СТРЕЛОК ДЕРЖИТСЯ ВДАЛИ И ЦЕЛИТСЯ ПЕРЕД ВЫСТРЕЛОМ. УВИДЕЛ СНАРЯД — СМЕСТИСЬ В СТОРОНУ." },
+            { "tut.upgrade", "ВЫБЕРИ УЛУЧШЕНИЕ: ОНО УСИЛИТ ТЕБЯ ДО КОНЦА ЗАБЕГА. ЧИТАЙ ОПИСАНИЯ; ЦВЕТ НАЗВАНИЯ ПОКАЗЫВАЕТ РЕДКОСТЬ." },
+            { "tut.complete", "ОБУЧЕНИЕ ЗАВЕРШЕНО. ПЕРВАЯ ВОЛНА НАЧИНАЕТСЯ!" },
             { "tut.skip", "ПРОПУСТИТЬ" },
             { "tut.kill_one", "УБЕЙ ЕГО!" },
             { "tut.mobs", "БЫСТРЫЕ НАБЕГАЮТ, СТРЕЛКИ БЬЮТ ИЗДАЛЕКА.\nНЕ СТОЙ НА МЕСТЕ!" },
             { "tut.dodge", "УКЛОНЯЙСЯ ОТ СНАРЯДОВ!" },
-            { "tut.upgrade", "ТЕПЕРЬ ВЫБЕРИ ОДНО УЛУЧШЕНИЕ — ОНО УСИЛИТ ТЕБЯ В ЭТОМ ЗАБЕГЕ.\nЦВЕТ НАЗВАНИЯ = РЕДКОСТЬ:\nСЕРЫЙ — ОБЫЧНОЕ · ЗЕЛЁНЫЙ — НЕОБЫЧНОЕ · СИНИЙ — РЕДКОЕ\nФИОЛЕТОВЫЙ — ЭПИЧЕСКОЕ · ОРАНЖЕВЫЙ — ЛЕГЕНДАРНОЕ" },
             { "tut.step", "ШАГ {0}/{1}" },
 
             // ---------- Карты (названия) ----------
@@ -534,6 +566,7 @@ public static class Tables
 
             // ---------- Ежедневные миссии ----------
             { "mission.title", "ЕЖЕДНЕВНЫЕ МИССИИ" },
+            { "mission.weekly.title", "ЕЖЕНЕДЕЛЬНЫЕ МИССИИ" },
             { "mission.btn", "МИССИИ" },
             { "mission.progress", "{0} / {1}" },
             { "mission.completed", "Выполнено: {0} / {1}" },
@@ -545,6 +578,7 @@ public static class Tables
             { "mission.reward.xp", "XP" },
             { "mission.kill_enemies.title", "Охотник" },
             { "mission.kill_enemies.desc", "Убей {0} врагов за сегодня." },
+            { "mission.weekly.kill_enemies.desc", "Убей {0} врагов." },
             { "mission.kill_by_source.title", "Стихийный урон" },
             { "mission.kill_by_source.desc", "Убей {0} врагов ({1})." },
             { "mission.single_event.title", "Цепная реакция" },
@@ -665,6 +699,14 @@ public static class Tables
             { "ach.bosslayer.desc", "Oyunun tüm benzersiz patronlarını yen." },
             { "ach.perfectionist.title", "PERFECTIONIST" },
             { "ach.perfectionist.desc", "Tek bir koşuda 10 Mükemmel Dalga al." },
+            { "ach.milestone.kills.title", "İMHA MAKİNESİ" },
+            { "ach.milestone.kills.desc", "Toplam 10.000 düşman öldür." },
+            { "ach.milestone.bosses.title", "PATRON AVCISI" },
+            { "ach.milestone.bosses.desc", "Toplam 50 patron öldür." },
+            { "ach.milestone.waves.title", "DALGA VETERANI" },
+            { "ach.milestone.waves.desc", "Toplam 1000 dalgaya ulaş." },
+            { "ach.milestone.runs.title", "VETERAN" },
+            { "ach.milestone.runs.desc", "100 koşuyu tamamla." },
             { "run.overcharge", "Aşırı yükleme" },
             { "run.glass_cannon", "Cam top" },
 
@@ -674,6 +716,21 @@ public static class Tables
             { "menu.equipment", "Teçhizat" },
             { "menu.maps", "Haritalar" },
             { "menu.profile", "Profil" },
+            { "progression.mastery.title", "USTALIK VE KOLEKSİYON" },
+            { "progression.mastery.button", "USTALIK" },
+            { "progression.prestige.button", "PRESTİJ" },
+            { "progression.prestige.status", "Prestij: {0} · {1}" },
+            { "progression.prestige.available", "HAZIR" },
+            { "progression.prestige.locked", "50. seviyeye ulaş" },
+            { "progression.collection.summary", "Unvanlar: {0} · Kozmetikler: {1}" },
+            { "progression.weapon.row", "{0} · Ustalık {1} · {2}/{3} öldürme" },
+            { "progression.weapon.progress", "Ustalık {0} · {1}/{2} öldürme" },
+            { "progression.mastery.effect.locked", "Sonraki ödül: unvan · 100 öldürme" },
+            { "progression.mastery.effect.skin", "Unvan alındı · sonraki ödül: görünüm" },
+            { "progression.mastery.effect.effect", "Görünüm alındı · sonraki ödül: efekt" },
+            { "progression.mastery.effect.master", "Efekt alındı · sonraki ödül: usta unvanı" },
+            { "progression.mastery.effect.aura", "Usta unvanı alındı · sonraki ödül: aura" },
+            { "progression.mastery.effect.max", "Ustalık tamamlandı · tüm ödüller alındı" },
             { "menu.tips", "İpuçları" },
             { "menu.level", "SEVİYE {0}" },
             { "menu.xp", "{0} / {1} XP" },
@@ -739,6 +796,7 @@ public static class Tables
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "DALGA!" },
             { "wave.event_danger", "TEHLİKE!" },
+            { "wave.event_arena_hazard", "TEHLİKELİ ALAN!" },
 
             // ---------- Kosu temasi ----------
             { "run.berserk", "ÖFKE · DAHA HIZLI, DAHA SERT" },
@@ -974,7 +1032,8 @@ public static class Tables
             { "synergy.arsenal.short", "Cephanelik" },
             { "synergy.arsenal.desc", "Zinde birden fazla silah: hasar ve tempo cephanelikle birlikte büyür." },
 
-            { "synergy.discovered", "SİNERJİ AÇILDI 🔥\n{0}" },
+            { "synergy.discovered", "SİNERJİ AÇILDI!\n{0}" },
+            { "synergy.progress", "{0} · {1}/{2}" },
 
             // ---------- Teçhizat ----------
             { "eq.title", "TEÇHİZAT" },
@@ -1042,11 +1101,18 @@ public static class Tables
             { "lb.combo", "KOMBO" },
 
             // ---------- Eğitim ----------
+            { "tut.move", "HAREKET ET: WASD VEYA OK TUŞLARI" },
+            { "tut.aim", "NİŞAN ALMAK İÇİN FAREYİ DÜŞMANA YÖNELT" },
+            { "tut.shoot", "ATEŞ ETMEK İÇİN SOL TIKLAMAYI BASILI TUT. NİŞAN AL VE DÜŞMAN ÖLENE KADAR ATEŞ ET." },
+            { "tut.normal", "NORMAL DÜŞMAN SANA DOĞRU GELİR. NİŞAN AL VE ONU YOK ETMEK İÇİN SOL TIKLAMAYI BASILI TUT." },
+            { "tut.fast", "HIZLI DÜŞMAN ATILARAK YAKLAŞIR. MESAFENİ KORU, HAREKET ET VE ATEŞ ETMEYE DEVAM ET." },
+            { "tut.ranged", "NİŞANCILAR UZAKTAN SALDIRIR VE ATEŞ ETMEDEN ÖNCE HEDEF ALIR. MERMİYİ GÖRÜNCE YANA KAÇ." },
+            { "tut.upgrade", "BİR GELİŞTİRME SEÇ: KOŞUNUN SONUNA KADAR SENİ GÜÇLENDİRİR. AÇIKLAMALARI OKU; İSİM RENGİ NADİRLİĞİ GÖSTERİR." },
+            { "tut.complete", "EĞİTİM TAMAMLANDI. İLK DALGA BAŞLIYOR!" },
             { "tut.skip", "ATLA" },
             { "tut.kill_one", "ONUNU ÖLDÜR!" },
             { "tut.mobs", "HIZLILAR GELİYOR, NIŞANCILAR UZAKTAN ATEŞ EDİYOR.\nYERİNDE DURMA!" },
             { "tut.dodge", "MERMİLERDEN KAÇ!" },
-            { "tut.upgrade", "ŞİMDİ BİR YÜKSELTME SEÇ — BU KOŞUDA SENİ GÜÇLENDİRECEK.\nİSİM RENGİ = NADİRLİK:\nGRİ — YAYGIN · YEŞİL — SIRA DIŞI · MAVİ — NADİR\nMOR — DESTANSI · TURUNCU — EFSANEVİ" },
             { "tut.step", "ADIM {0}/{1}" },
 
             // ---------- Harita adları ----------
@@ -1132,6 +1198,7 @@ public static class Tables
 
             // ---------- Günlük görevler ----------
             { "mission.title", "GÜNLÜK GÖREVLER" },
+            { "mission.weekly.title", "HAFTALIK GÖREVLER" },
             { "mission.btn", "GÖREVLER" },
             { "mission.progress", "{0} / {1}" },
             { "mission.completed", "Tamamlanan: {0} / {1}" },
@@ -1143,6 +1210,7 @@ public static class Tables
             { "mission.reward.xp", "XP" },
             { "mission.kill_enemies.title", "Avcı" },
             { "mission.kill_enemies.desc", "Bugün {0} düşman öldür." },
+            { "mission.weekly.kill_enemies.desc", "{0} düşman öldür." },
             { "mission.kill_by_source.title", "Element Hasarı" },
             { "mission.kill_by_source.desc", "{1} ile {0} düşman öldür." },
             { "mission.single_event.title", "Zincirleme Tepki" },
@@ -1263,6 +1331,14 @@ public static class Tables
             { "ach.bosslayer.desc", "Defeat every unique boss in the game." },
             { "ach.perfectionist.title", "PERFECTIONIST" },
             { "ach.perfectionist.desc", "Get 10 Perfect Waves in a single run." },
+            { "ach.milestone.kills.title", "EXTERMINATOR" },
+            { "ach.milestone.kills.desc", "Kill 10,000 enemies in total." },
+            { "ach.milestone.bosses.title", "BOSS HUNTER" },
+            { "ach.milestone.bosses.desc", "Kill 50 bosses in total." },
+            { "ach.milestone.waves.title", "WAVE VETERAN" },
+            { "ach.milestone.waves.desc", "Reach 1,000 waves in total." },
+            { "ach.milestone.runs.title", "VETERAN" },
+            { "ach.milestone.runs.desc", "Complete 100 runs." },
             { "run.overcharge", "Overcharge" },
             { "run.glass_cannon", "Glass Cannon" },
 
@@ -1272,6 +1348,21 @@ public static class Tables
             { "menu.equipment", "Equipment" },
             { "menu.maps", "Maps" },
             { "menu.profile", "Profile" },
+            { "progression.mastery.title", "MASTERY & COLLECTION" },
+            { "progression.mastery.button", "MASTERY" },
+            { "progression.prestige.button", "PRESTIGE" },
+            { "progression.prestige.status", "Prestige: {0} · {1}" },
+            { "progression.prestige.available", "READY" },
+            { "progression.prestige.locked", "Reach level 50" },
+            { "progression.collection.summary", "Titles: {0} · Cosmetics: {1}" },
+            { "progression.weapon.row", "{0} · Mastery {1} · {2}/{3} kills" },
+            { "progression.weapon.progress", "Mastery {0} · {1}/{2} kills" },
+            { "progression.mastery.effect.locked", "Next reward: title · 100 kills" },
+            { "progression.mastery.effect.skin", "Title unlocked · next reward: skin" },
+            { "progression.mastery.effect.effect", "Skin unlocked · next reward: effect" },
+            { "progression.mastery.effect.master", "Effect unlocked · next reward: master title" },
+            { "progression.mastery.effect.aura", "Master title unlocked · next reward: aura" },
+            { "progression.mastery.effect.max", "Mastery complete · all rewards unlocked" },
             { "menu.tips", "Tips" },
             { "menu.level", "LEVEL {0}" },
             { "menu.xp", "{0} / {1} XP" },
@@ -1337,6 +1428,7 @@ public static class Tables
             { "wave.event_ambush", "AMBUSH!" },
             { "wave.event_surge", "SURGE!" },
             { "wave.event_danger", "DANGER!" },
+            { "wave.event_arena_hazard", "DANGER ZONE!" },
 
             // ---------- Run theme ----------
             { "run.berserk", "BERSERK · FASTER AND MEANER" },
@@ -1572,7 +1664,8 @@ public static class Tables
             { "synergy.arsenal.short", "Arsenal" },
             { "synergy.arsenal.desc", "More than one weapon per run: damage and pace grow with the arsenal." },
 
-            { "synergy.discovered", "SYNERGY UNLOCKED 🔥\n{0}" },
+            { "synergy.discovered", "SYNERGY UNLOCKED!\n{0}" },
+            { "synergy.progress", "{0} · {1}/{2}" },
 
             // ---------- Equipment ----------
             { "eq.title", "EQUIPMENT" },
@@ -1640,11 +1733,18 @@ public static class Tables
             { "lb.combo", "COMBO" },
 
             // ---------- Tutorial ----------
+            { "tut.move", "MOVE: WASD OR ARROW KEYS" },
+            { "tut.aim", "MOVE THE MOUSE TO AIM AT ENEMIES" },
+            { "tut.shoot", "HOLD LEFT MOUSE TO FIRE. AIM AT AN ENEMY AND KEEP SHOOTING UNTIL IT FALLS." },
+            { "tut.normal", "A NORMAL ENEMY APPROACHES YOU. AIM AND HOLD LEFT MOUSE TO TAKE IT DOWN." },
+            { "tut.fast", "FAST ENEMIES CLOSE IN WITH A DASH. KEEP MOVING, CREATE SPACE, AND KEEP FIRING." },
+            { "tut.ranged", "RANGED ENEMIES KEEP THEIR DISTANCE AND TELEGRAPH SHOTS. WHEN YOU SEE A PROJECTILE, MOVE SIDEWAYS." },
+            { "tut.upgrade", "CHOOSE AN UPGRADE TO POWER UP FOR THIS RUN. READ EACH DESCRIPTION; THE NAME COLOUR SHOWS ITS RARITY." },
+            { "tut.complete", "TUTORIAL COMPLETE. THE FIRST WAVE IS STARTING!" },
             { "tut.skip", "SKIP" },
             { "tut.kill_one", "KILL IT!" },
             { "tut.mobs", "FAST ONES ARE COMING, SNIPERS SHOOT FROM FAR.\nDON'T STAND STILL!" },
             { "tut.dodge", "DODGE THE BULLETS!" },
-            { "tut.upgrade", "NOW PICK ONE UPGRADE — IT WILL POWER YOU UP FOR THIS RUN.\nNAME COLOUR = RARITY:\nGREY — COMMON · GREEN — UNCOMMON · BLUE — RARE\nPURPLE — EPIC · ORANGE — LEGENDARY" },
             { "tut.step", "STEP {0}/{1}" },
 
             // ---------- Map names ----------
@@ -1730,6 +1830,7 @@ public static class Tables
 
             // ---------- Daily Missions ----------
             { "mission.title", "DAILY MISSIONS" },
+            { "mission.weekly.title", "WEEKLY MISSIONS" },
             { "mission.btn", "MISSIONS" },
             { "mission.progress", "{0} / {1}" },
             { "mission.completed", "Completed: {0} / {1}" },
@@ -1741,6 +1842,7 @@ public static class Tables
             { "mission.reward.xp", "XP" },
             { "mission.kill_enemies.title", "Hunter" },
             { "mission.kill_enemies.desc", "Kill {0} enemies today." },
+            { "mission.weekly.kill_enemies.desc", "Kill {0} enemies." },
             { "mission.kill_by_source.title", "Elemental Damage" },
             { "mission.kill_by_source.desc", "Kill {0} enemies ({1})." },
             { "mission.single_event.title", "Chain Reaction" },

@@ -27,6 +27,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         ("MenuPanelUI/Menu/DailyRewardPanel", ArcadePanelKind.Menu),
         ("MenuPanelUI/Menu/AchievementsPanel", ArcadePanelKind.Menu),
         ("MenuPanelUI/Menu/DailyMissionsPanel", ArcadePanelKind.Menu),
+        ("MenuPanelUI/Menu/MasteryPanel", ArcadePanelKind.Menu),
         ("Canvas/GameOverPanel", ArcadePanelKind.GameOver),
         ("Canvas/UpgradePanel", ArcadePanelKind.LevelUp),
         ("Canvas/WavePanel", ArcadePanelKind.Wave),
@@ -481,7 +482,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
 
                     if (handle != null)
                     {
-                        handle.sprite = ArcadeKitAssets.Knob;
+                        handle.sprite = ArcadeKitAssets.SliderHandle;
                         handle.type = Image.Type.Simple;
                         handle.color = Color.white;
                         handle.raycastTarget = true;

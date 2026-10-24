@@ -9,20 +9,14 @@ using UnityEngine.UI;
 /// Обучение нового игрока. Запускается автоматически при нажатии «Играть»,
 /// если игрок ещё не проходил его (флаг хранится в PlayerPrefs).
 ///
-/// Шаги:
-///  1. Картинка WASD — ждём, пока игрок реально нажмёт движение;
-///  2. Картинка прицеливания мышью — ждём движения мыши;
-///  3. Картинка стрельбы — ждём клика ЛКМ;
-///  4. Картинка рывка — ждём нажатия Пробела;
-///  5. Один враг с меткой — ждём его смерти;
-///  6. Разные враги (быстрый + стрелок) — ждём, пока всех убьют;
-///  7. Снаряды — ждём, пока игрок уклонится от залпа;
-///  8. Окно улучшений с пояснением редкости — ждём выбора игрока.
-/// После этого обучение помечается пройденным и стартует первая волна.
+/// Информативное обучение первого запуска:
+/// движение и прицеливание → стрельба → обычный враг → быстрый враг
+/// → дальний враг и уклонение → выбор улучшения. Каждый этап показывает
+/// короткое объяснение и практическое действие, после чего стартует первая волна.
 /// </summary>
 public class TutorialManager : MonoBehaviour
 {
-    private const int TotalSteps = 8;
+    private const int TotalSteps = 7;
 
     public const string CompletedPrefsKey =
         "ArcadeSurvivor.TutorialDone";
@@ -54,65 +48,53 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private GameObject aimImage;
     [SerializeField] private GameObject shootImage;
     [SerializeField] private GameObject dashImage;
-    [Tooltip("Текст задачи сверху («УБЕЙ ЕГО!» и т.д.).")]
+    [Tooltip("Краткая инструкция для текущего шага.")]
     [SerializeField] private TMP_Text objectiveText;
-    [Tooltip("Счётчик «ШАГ X/8».")]
+    [Tooltip("Счётчик шагов короткого обучения.")]
     [SerializeField] private TMP_Text progressText;
     [Tooltip("Кнопка «Пропустить обучение» (опционально).")]
     [SerializeField] private Button skipButton;
 
-    [Header("Enemy Marker")]
-    [Tooltip("Спрайт метки над врагом (стрелка). Если пусто — генерируется простая жёлтая стрелка.")]
-    [SerializeField] private Sprite markerSprite;
-    [SerializeField] private Vector3 markerOffset =
-        new Vector3(0f, 2.4f, 0f);
-    [SerializeField] private float markerBobSpeed = 3.5f;
-    [SerializeField] private float markerBobHeight = 0.3f;
-
     [Header("Input Steps")]
     [Tooltip("Суммарное движение мыши, необходимое для завершения шага прицеливания.")]
     [SerializeField] private float aimDistanceRequired = 400f;
-
-    [Header("Combat Steps")]
-    [Tooltip("На каком радиусе от игрока появляются обычные враги обучения.")]
+    [SerializeField] private float combatStepTimeout = 25f;
     [SerializeField] private float enemySpawnRadius = 8f;
-    [Tooltip("Сколько быстрых врагов появляется на шаге «разные враги».")]
-    [SerializeField] private int mobsFastCount = 1;
-    [Tooltip("Сколько стрелков появляется на шаге «разные враги».")]
-    [SerializeField] private int mobsRangedCount = 1;
-    [Tooltip("Ставить метку над стрелком на шаге «разные враги».")]
-    [SerializeField] private bool markerOnMobsStep = true;
-    [Tooltip("Пауза между шагами обучения.")]
-    [SerializeField] private float pauseBetweenSteps = 0.6f;
-
-    [Header("Dodge Step")]
-    [Tooltip("Радиус появления стрелка на шаге уклонения.")]
-    [SerializeField] private float dodgeSpawnRange = 10f;
-    [Tooltip("Насколько нужно сдвинуться, пока летит снаряд, чтобы шаг считался пройденным.")]
     [SerializeField] private float dodgeMoveDistance = 1.5f;
-    [Tooltip("Переспавнивать стрелка, если он умер, раз в N секунд.")]
-    [SerializeField] private float dodgeRespawnInterval = 6f;
-    [Tooltip("Ставить метку над стрелком на шаге уклонения.")]
-    [SerializeField] private bool markerOnDodgeStep = true;
+    [SerializeField] private float minimumInputHoldDuration = 0.5f;
+    [SerializeField] private Sprite markerSprite;
+
+    [Header("Tutorial Timing")]
+    [Tooltip("Короткая пауза между этапами обучения.")]
+    [SerializeField] private float pauseBetweenSteps = 0.6f;
 
     [Header("Feedback")]
     [Tooltip("Проигрывать короткий звук при успешном прохождении шага.")]
     [SerializeField] private bool stepCompleteSound = true;
 
     [Header("Texts")]
-    [Tooltip("Ключи переводов вида {tut.kill_one}. Разворачиваются в язык, определённый при запуске.")]
-    [SerializeField] private string killOneText = "{tut.kill_one}";
-    [SerializeField] private string mobsStepText = "{tut.mobs}";
-    [SerializeField] private string dodgeText = "{tut.dodge}";
+    [Tooltip("Ключи локализации для этапов обучения.")]
+    [SerializeField] private string moveHintText = "{tut.move}";
+    [SerializeField] private string aimHintText = "{tut.aim}";
+    [SerializeField] private string shootHintText = "{tut.shoot}";
+    [SerializeField] private string normalHintText = "{tut.normal}";
+    [SerializeField] private string fastHintText = "{tut.fast}";
+    [SerializeField] private string rangedHintText = "{tut.ranged}";
     [SerializeField] private string upgradeHintText = "{tut.upgrade}";
+    [SerializeField] private string completeHintText = "{tut.complete}";
+
+    private bool tutorialFinished;
+    private bool upgradeChosen;
+    private bool upgradeSubscribed;
+    private Enemy tutorialEnemy;
+    private Enemy rangedTutorialEnemy;
+    private Vector3 dodgeStartPosition;
+    private readonly List<EnemyProjectile> observedProjectiles = new List<EnemyProjectile>();
 
     /// <summary>True — обучение прямо сейчас идёт.</summary>
     public bool IsRunning { get; private set; }
 
     private Transform player;
-    private Enemy dodgeEnemy;
-    private bool upgradeChosen;
-    private bool upgradeSubscribed;
     private bool subscribedState;
     private bool skipWired;
 
@@ -159,7 +141,6 @@ public class TutorialManager : MonoBehaviour
     private void OnDestroy()
     {
         UnwireSkipButton();
-
         UnsubscribeUpgrade();
 
         if (Instance == this)
@@ -238,10 +219,8 @@ public class TutorialManager : MonoBehaviour
 
         if (waveManager == null)
             waveManager = FindAnyObjectByType<WaveManager>();
-
         if (enemySpawner == null)
             enemySpawner = FindAnyObjectByType<EnemySpawner>();
-
         if (upgradeUI == null)
             upgradeUI = FindAnyObjectByType<UpgradeUI>();
 
@@ -266,8 +245,8 @@ public class TutorialManager : MonoBehaviour
         WireSkipButton();
 
         IsRunning = true;
-        upgradeChosen = false;
-        dodgeEnemy = null;
+        tutorialFinished = false;
+        Time.timeScale = 1f;
 
         if (tutorialPanel != null)
             tutorialPanel.SetActive(true);
@@ -290,17 +269,11 @@ public class TutorialManager : MonoBehaviour
         UnwireSkipButton();
 
         StopAllCoroutines();
-
-        UnsubscribeUpgrade();
-
-        if (upgradeUI != null && upgradeUI.IsShowing)
-            upgradeUI.Hide();
-
-        Time.timeScale = 1f;
+        CloseUpgradeIfShowing();
+        ClearTutorialEnemy();
 
         IsRunning = false;
-        upgradeChosen = false;
-        dodgeEnemy = null;
+        tutorialFinished = false;
 
         IsCompleted = true;
         HideAllSteps();
@@ -325,27 +298,16 @@ public class TutorialManager : MonoBehaviour
         UnwireSkipButton();
 
         StopAllCoroutines();
-
-        UnsubscribeUpgrade();
-
-        // Паузу держит только окно улучшений — его и размораживаем.
-        bool upgradeWasShowing =
-            upgradeUI != null && upgradeUI.IsShowing;
-
-        if (upgradeUI != null && upgradeUI.IsShowing)
-            upgradeUI.Hide();
+        CloseUpgradeIfShowing();
+        ClearTutorialEnemy();
 
         IsRunning = false;
-        upgradeChosen = false;
-        dodgeEnemy = null;
+        tutorialFinished = false;
 
         HideAllSteps();
 
         if (tutorialPanel != null)
             tutorialPanel.SetActive(false);
-
-        if (upgradeWasShowing)
-            Time.timeScale = 1f;
 
         WireSkipButton();
     }
@@ -363,87 +325,57 @@ public class TutorialManager : MonoBehaviour
         // Даём камере начать полёт из меню.
         yield return null;
 
-        // 1. Движение
         int step = 1;
+
         SetStepProgress(step);
+        SetObjective(moveHintText);
         yield return ImageStep(wasdImage, WaitForMove());
         PlayStepComplete();
-        step++;
+        yield return new WaitForSeconds(pauseBetweenSteps);
 
-        // 2. Прицеливание
+        step++;
         SetStepProgress(step);
+        SetObjective(aimHintText);
         yield return ImageStep(aimImage, WaitForAim());
         PlayStepComplete();
-        step++;
-
-        // 3. Стрельба
-        SetStepProgress(step);
-        yield return ImageStep(shootImage, WaitForShoot());
-        PlayStepComplete();
-        step++;
-
-        // 4. Рывок
-        SetStepProgress(step);
-        yield return ImageStep(dashImage, WaitForDash());
-        PlayStepComplete();
-        step++;
-
         yield return new WaitForSeconds(pauseBetweenSteps);
 
-        // 5. Один враг
-        SetStepProgress(step);
-        SetObjective(killOneText);
-
-        yield return WaitAllDead(SpawnEnemies(1, true));
-
-        PlayStepComplete();
         step++;
-
+        SetStepProgress(step);
+        SetObjective(shootHintText);
+        yield return ImageStep(shootImage, WaitForAttack());
+        PlayStepComplete();
+        yield return WaitForAttackRelease();
         yield return new WaitForSeconds(pauseBetweenSteps);
 
-        // 6. Разные враги
-        SetStepProgress(step);
-        SetObjective(mobsStepText);
-
-        yield return WaitAllDead(SpawnMobsStep());
-
-        PlayStepComplete();
         step++;
+        SetStepProgress(step);
+        SetObjective(normalHintText);
+        yield return WaitForTutorialEnemy(EnemyType.Normal, true, true);
 
+        step++;
+        SetStepProgress(step);
+        SetObjective(fastHintText);
+        yield return WaitForTutorialEnemy(EnemyType.Fast, false, true);
+
+        step++;
+        SetStepProgress(step);
+        SetObjective(rangedHintText);
+        yield return WaitForRangedDodge();
+        if (rangedTutorialEnemy != null && !rangedTutorialEnemy.IsDead)
+        {
+            SetObjective(rangedHintText);
+            yield return WaitForEnemyKilledByPlayer(rangedTutorialEnemy);
+        }
+        ClearRangedTutorialEnemy();
         yield return new WaitForSeconds(pauseBetweenSteps);
 
-        // 7. Уклонение от снарядов
-        SetStepProgress(step);
-        SetObjective(dodgeText);
-
-        yield return WaitForDodge();
-
-        PlayStepComplete();
         step++;
-
-        yield return new WaitForSeconds(pauseBetweenSteps);
-
-        // 8. Окно улучшений
         SetStepProgress(step);
         SetObjective(upgradeHintText);
-
-        if (upgradeUI != null)
-        {
-            upgradeChosen = false;
-
-            upgradeUI.OnUpgradeChosen += HandleUpgradeChosen;
-            upgradeSubscribed = true;
-
-            upgradeUI.Show();
-
-            while (!upgradeChosen)
-                yield return null;
-
-            UnsubscribeUpgrade();
-
-            upgradeUI.Hide();
-            Time.timeScale = 1f;
-        }
+        yield return ShowUpgradeStep();
+        SetObjective(completeHintText);
+        yield return new WaitForSeconds(2f);
 
         FinishTutorial();
     }
@@ -476,23 +408,39 @@ public class TutorialManager : MonoBehaviour
     // =========================================================
 
     private static bool IsGamePaused =>
-        PauseManager.Instance != null &&
-        PauseManager.Instance.IsPaused;
+        Time.timeScale <= 0f ||
+        (PauseManager.Instance != null &&
+         PauseManager.Instance.IsPaused);
 
     private IEnumerator WaitForMove()
     {
-        while (true)
+        float elapsed = 0f;
+        float activeMoveDuration = 0f;
+        while (elapsed < combatStepTimeout &&
+               activeMoveDuration < minimumInputHoldDuration)
         {
-            if (!IsGamePaused &&
-                Keyboard.current != null &&
+            bool moving = !IsGamePaused && Keyboard.current != null &&
                 (Keyboard.current.wKey.isPressed ||
                  Keyboard.current.aKey.isPressed ||
                  Keyboard.current.sKey.isPressed ||
-                 Keyboard.current.dKey.isPressed))
+                 Keyboard.current.dKey.isPressed ||
+                 Keyboard.current.upArrowKey.isPressed ||
+                 Keyboard.current.leftArrowKey.isPressed ||
+                 Keyboard.current.downArrowKey.isPressed ||
+                 Keyboard.current.rightArrowKey.isPressed);
+
+            if (moving)
             {
-                yield break;
+                activeMoveDuration += Time.unscaledDeltaTime;
+                if (activeMoveDuration >= minimumInputHoldDuration)
+                    yield break;
+            }
+            else
+            {
+                activeMoveDuration = 0f;
             }
 
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
@@ -500,209 +448,73 @@ public class TutorialManager : MonoBehaviour
     private IEnumerator WaitForAim()
     {
         float distance = 0f;
+        float elapsed = 0f;
+        float activeAimDuration = 0f;
 
-        while (distance < aimDistanceRequired)
+        while ((distance < aimDistanceRequired ||
+                activeAimDuration < minimumInputHoldDuration) &&
+               elapsed < combatStepTimeout)
         {
-            if (!IsGamePaused && Mouse.current != null)
+            float delta = !IsGamePaused && Mouse.current != null
+                ? Mouse.current.delta.ReadValue().magnitude
+                : 0f;
+
+            if (delta > 0.01f)
             {
-                distance +=
-                    Mouse.current.delta.ReadValue().magnitude;
+                distance += delta;
+                activeAimDuration += Time.unscaledDeltaTime;
+            }
+            else
+            {
+                activeAimDuration = 0f;
             }
 
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
-    private IEnumerator WaitForShoot()
+    private IEnumerator WaitForAttack()
     {
-        // Пропускаем кадр, чтобы клик с прошлого шага не засчитался.
         yield return null;
-
-        while (true)
+        float elapsed = 0f;
+        while (elapsed < combatStepTimeout)
         {
-            if (!IsGamePaused &&
-                Mouse.current != null &&
-                Mouse.current.leftButton.wasPressedThisFrame)
-            {
+            if (!IsGamePaused && Mouse.current != null &&
+                Mouse.current.leftButton.isPressed)
                 yield break;
-            }
-
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
-    private IEnumerator WaitForDash()
+    private IEnumerator WaitForAttackRelease()
     {
-        // Пропускаем кадр, чтобы Пробел с прошлого шага не засчитался.
-        yield return null;
-
-        while (true)
+        float elapsed = 0f;
+        while (elapsed < 2f &&
+               (Mouse.current == null || Mouse.current.leftButton.isPressed))
         {
-            if (!IsGamePaused &&
-                Keyboard.current != null &&
-                Keyboard.current.spaceKey.wasPressedThisFrame)
-            {
-                yield break;
-            }
-
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
-    // =========================================================
-    // COMBAT STEPS
-    // =========================================================
-
-    private List<Enemy> SpawnEnemies(
-        int count,
-        bool withMarker)
+    private IEnumerator WaitForTutorialEnemy(
+        EnemyType type, bool marked, bool waitForDeath)
     {
-        List<Enemy> result = new List<Enemy>();
-
-        for (int i = 0; i < count; i++)
-        {
-            Enemy enemy = SpawnEnemy(
-                EnemyType.Normal,
-                withMarker
-            );
-
-            if (enemy != null)
-                result.Add(enemy);
-        }
-
-        return result;
-    }
-
-    private List<Enemy> SpawnMobsStep()
-    {
-        List<Enemy> result = new List<Enemy>();
-
-        // Стрелок — главная опасность, его помечаем меткой.
-        for (int i = 0; i < mobsFastCount; i++)
-        {
-            Enemy enemy = SpawnEnemy(EnemyType.Fast, false);
-
-            if (enemy != null)
-                result.Add(enemy);
-        }
-
-        for (int i = 0; i < mobsRangedCount; i++)
-        {
-            Enemy enemy = SpawnEnemy(
-                EnemyType.Ranged,
-                markerOnMobsStep
-            );
-
-            if (enemy != null)
-                result.Add(enemy);
-        }
-
-        return result;
-    }
-
-    private Enemy SpawnEnemy(
-        EnemyType enemyType,
-        bool withMarker)
-    {
-        if (enemySpawner == null || player == null)
+        ClearTutorialEnemy();
+        tutorialEnemy = SpawnTutorialEnemy(type, marked);
+        if (tutorialEnemy == null)
         {
             Debug.LogWarning(
-                "TutorialManager: Нет EnemySpawner или игрока — " +
-                "враги обучения не заспавнены.",
+                $"TutorialManager: Could not spawn {type}; skipping tutorial step.",
                 this
             );
-
-            return null;
-        }
-
-        float angle = Random.Range(0f, 360f);
-
-        Vector3 position =
-            player.position +
-            new Vector3(
-                Mathf.Cos(angle * Mathf.Deg2Rad) *
-                enemySpawnRadius,
-                0f,
-                Mathf.Sin(angle * Mathf.Deg2Rad) *
-                enemySpawnRadius
-            );
-
-        position.y = player.position.y;
-
-        Enemy enemy =
-            enemySpawner.SpawnEnemyAtPosition(
-                enemyType,
-                position
-            );
-
-        if (enemy == null || !withMarker)
-            return enemy;
-
-        TutorialEnemyMarker.Attach(
-            enemy,
-            markerSprite,
-            markerOffset,
-            markerBobSpeed,
-            markerBobHeight
-        );
-
-        return enemy;
-    }
-
-    private void SpawnDodgeEnemy()
-    {
-        if (enemySpawner == null || player == null)
-            return;
-
-        float angle = Random.Range(0f, 360f);
-
-        Vector3 position =
-            player.position +
-            new Vector3(
-                Mathf.Cos(angle * Mathf.Deg2Rad) *
-                dodgeSpawnRange,
-                0f,
-                Mathf.Sin(angle * Mathf.Deg2Rad) *
-                dodgeSpawnRange
-            );
-
-        position.y = player.position.y;
-
-        dodgeEnemy =
-            enemySpawner.SpawnEnemyAtPosition(
-                EnemyType.Ranged,
-                position
-            );
-
-        if (dodgeEnemy != null && markerOnDodgeStep)
-        {
-            TutorialEnemyMarker.Attach(
-                dodgeEnemy,
-                markerSprite,
-                markerOffset,
-                markerBobSpeed,
-                markerBobHeight
-            );
-        }
-    }
-
-    /// <summary>
-    /// Ждём, пока игрок реально уклонится: двигаелся (или делал рывок)
-    /// в те моменты, когда в сцене есть летящий снаряд.
-    /// Если стрелок умер и не стреляет — спавним нового.
-    /// </summary>
-    private IEnumerator WaitForDodge()
-    {
-        if (player == null)
             yield break;
+        }
 
-        SpawnDodgeEnemy();
-
-        float movedWhileProjectile = 0f;
-        Vector3 prevPosition = player.position;
-        float respawnTimer = dodgeRespawnInterval;
-
-        while (true)
+        float elapsed = 0f;
+        while (elapsed < combatStepTimeout)
         {
             if (IsGamePaused)
             {
@@ -710,94 +522,219 @@ public class TutorialManager : MonoBehaviour
                 continue;
             }
 
-            Vector3 current =
-                player.position;
+            if (tutorialEnemy == null || tutorialEnemy.IsDead)
+                yield break;
+            if (!waitForDeath && tutorialEnemy.HasTakenDamage)
+                yield break;
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
 
-            Vector3 delta =
-                current - prevPosition;
+    private void ClearTutorialEnemy()
+    {
+        if (tutorialEnemy != null && !tutorialEnemy.IsDead)
+            tutorialEnemy.Kill();
 
-            prevPosition = current;
+        tutorialEnemy = null;
+        ClearRangedTutorialEnemy();
+    }
 
-            if (AnyEnemyProjectileActive())
+    private void ClearRangedTutorialEnemy()
+    {
+        if (rangedTutorialEnemy != null && !rangedTutorialEnemy.IsDead)
+            rangedTutorialEnemy.Kill();
+
+        rangedTutorialEnemy = null;
+    }
+
+    private IEnumerator WaitForEnemyKilledByPlayer(Enemy enemy)
+    {
+        while (true)
+        {
+            if (enemy == null)
+                yield break;
+
+            if (enemy.IsDead)
             {
-                movedWhileProjectile +=
-                    delta.magnitude;
-
-                if (movedWhileProjectile >= dodgeMoveDistance)
+                if (enemy.LastDamageSource == DamageSource.Weapon)
                     yield break;
-            }
-            else
-            {
-                movedWhileProjectile = 0f;
-            }
 
-            bool enemyAlive =
-                dodgeEnemy != null &&
-                !dodgeEnemy.IsDead;
-
-            if (!enemyAlive)
-            {
-                respawnTimer -= Time.deltaTime;
-
-                if (respawnTimer <= 0f)
-                {
-                    SpawnDodgeEnemy();
-                    respawnTimer = dodgeRespawnInterval;
-                }
-            }
-            else
-            {
-                respawnTimer = dodgeRespawnInterval;
+                // If environmental damage or another effect kills the demo enemy,
+                // replace it instead of advancing to the upgrade step.
+                ClearRangedTutorialEnemy();
+                enemy = SpawnTutorialEnemy(EnemyType.Ranged, true);
+                rangedTutorialEnemy = enemy;
+                if (enemy == null)
+                    yield break;
             }
 
             yield return null;
         }
     }
 
-    private static bool AnyEnemyProjectileActive()
+    private Enemy SpawnTutorialEnemy(EnemyType type, bool marked)
     {
-        return
-            Object.FindObjectsByType<EnemyProjectile>().Length > 0;
+        if (enemySpawner == null || player == null)
+            return null;
+
+        float angle = Random.Range(0f, Mathf.PI * 2f);
+        Vector3 position = player.position +
+            new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * enemySpawnRadius;
+        Enemy enemy = enemySpawner.SpawnEnemyAtPosition(
+            type,
+            position,
+            spawnDuration: 0f
+        );
+        if (enemy != null && marked)
+            TutorialEnemyMarker.Attach(
+                enemy,
+                markerSprite,
+                new Vector3(0f, 2.4f, 0f),
+                3.5f,
+                0.3f
+            );
+        return enemy;
     }
 
-    private static IEnumerator WaitAllDead(List<Enemy> enemies)
+    private IEnumerator WaitForRangedDodge()
     {
-        while (true)
+        observedProjectiles.Clear();
+        ClearTutorialEnemy();
+        ClearRangedTutorialEnemy();
+        rangedTutorialEnemy = SpawnTutorialEnemy(EnemyType.Ranged, true);
+        if (rangedTutorialEnemy == null)
         {
-            bool anyAlive = false;
+            Debug.LogWarning("TutorialManager: Ranged enemy unavailable; skipping dodge demonstration.", this);
+            yield break;
+        }
 
-            for (int i = 0; i < enemies.Count; i++)
+        float elapsed = 0f;
+        while (elapsed < combatStepTimeout)
+        {
+            if (rangedTutorialEnemy == null || rangedTutorialEnemy.IsDead)
+                yield break;
+
+            if (IsGamePaused)
             {
-                Enemy enemy = enemies[i];
+                yield return null;
+                continue;
+            }
 
-                if (enemy != null && !enemy.IsDead)
+            if (player != null)
+            {
+                EnemyProjectile[] projectiles =
+                    FindObjectsByType<EnemyProjectile>(FindObjectsSortMode.None);
+                bool foundNewProjectile = false;
+
+                for (int i = 0; i < projectiles.Length; i++)
                 {
-                    anyAlive = true;
+                    EnemyProjectile projectile = projectiles[i];
+                    if (projectile == null || observedProjectiles.Contains(projectile))
+                        continue;
+
+                    observedProjectiles.Add(projectile);
+                    foundNewProjectile = true;
+                }
+
+                if (foundNewProjectile)
+                {
+                    dodgeStartPosition = player.position;
                     break;
                 }
             }
 
-            if (!anyAlive)
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (elapsed >= combatStepTimeout ||
+            rangedTutorialEnemy == null ||
+            rangedTutorialEnemy.IsDead)
+            yield break;
+
+        float moved = 0f;
+        while (elapsed < combatStepTimeout && moved < dodgeMoveDistance)
+        {
+            if (IsGamePaused)
+            {
+                yield return null;
+                continue;
+            }
+
+            if (player != null)
+            {
+                moved += Vector3.Distance(player.position, dodgeStartPosition);
+                dodgeStartPosition = player.position;
+            }
+
+            for (int i = observedProjectiles.Count - 1; i >= 0; i--)
+            {
+                if (observedProjectiles[i] == null ||
+                    !observedProjectiles[i].gameObject.activeInHierarchy)
+                    observedProjectiles.RemoveAt(i);
+            }
+
+            if (moved >= dodgeMoveDistance)
                 yield break;
 
+            if (observedProjectiles.Count == 0 ||
+                rangedTutorialEnemy == null ||
+                rangedTutorialEnemy.IsDead)
+                yield break;
+
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
-    private void HandleUpgradeChosen(int index)
+    private IEnumerator ShowUpgradeStep()
     {
-        upgradeChosen = true;
+        if (upgradeUI == null || UpgradeManager.Instance == null)
+        {
+            Debug.LogWarning(
+                "TutorialManager: Upgrade UI is unavailable; skipping tutorial step.",
+                this
+            );
+            yield break;
+        }
+
+        upgradeChosen = false;
+        upgradeUI.OnUpgradeChosen += HandleUpgradeChosen;
+        upgradeSubscribed = true;
+        upgradeUI.Show();
+        if (!upgradeUI.IsShowing)
+        {
+            UnsubscribeUpgrade();
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (!upgradeChosen && elapsed < 60f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        UnsubscribeUpgrade();
+        if (upgradeUI.IsShowing)
+            CloseUpgradeIfShowing();
     }
+
+    private void HandleUpgradeChosen(int index) => upgradeChosen = true;
 
     private void UnsubscribeUpgrade()
     {
-        if (!upgradeSubscribed)
-            return;
-
-        if (upgradeUI != null)
-            upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
-
+        if (!upgradeSubscribed) return;
+        if (upgradeUI != null) upgradeUI.OnUpgradeChosen -= HandleUpgradeChosen;
         upgradeSubscribed = false;
+    }
+
+    private void CloseUpgradeIfShowing()
+    {
+        UnsubscribeUpgrade();
+        if (upgradeUI == null || !upgradeUI.IsShowing) return;
+        upgradeUI.Hide();
+        Time.timeScale = 1f;
     }
 
     // =========================================================
@@ -806,6 +743,12 @@ public class TutorialManager : MonoBehaviour
 
     private void FinishTutorial()
     {
+        if (tutorialFinished)
+            return;
+
+        ClearTutorialEnemy();
+        CloseUpgradeIfShowing();
+        tutorialFinished = true;
         IsCompleted = true;
         IsRunning = false;
 
@@ -826,8 +769,7 @@ public class TutorialManager : MonoBehaviour
         objectiveText.text =
             string.IsNullOrEmpty(text) ? string.Empty : LangBinder.ResolveKey(text);
 
-        if (!objectiveText.gameObject.activeSelf)
-            objectiveText.gameObject.SetActive(true);
+        objectiveText.gameObject.SetActive(!string.IsNullOrEmpty(text));
     }
 
     private void SetStepProgress(int step)

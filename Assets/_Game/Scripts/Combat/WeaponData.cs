@@ -245,9 +245,10 @@ public class WeaponData : ScriptableObject
         );
 
     public float LightningRange =>
-        Mathf.Max(
+        Mathf.Clamp(
             lightningRange,
-            0f
+            0f,
+            6f
         );
 
 

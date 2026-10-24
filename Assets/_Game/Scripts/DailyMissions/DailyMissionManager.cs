@@ -433,23 +433,20 @@ public class DailyMissionManager : MonoBehaviour
         if (!CanClaim(entry))
             return false;
 
-        entry.claimed = true;
-
         XpManager xp = XpManager.Instance;
-
-        if (xp != null)
-        {
-            if (entry.coinReward > 0)
-                xp.AddGlobalCoins(entry.coinReward);
-
-            if (entry.xpReward > 0)
-                xp.AddPlayerXP(entry.xpReward);
-        }
-        else
+        if (xp == null)
         {
             Debug.LogWarning("[DailyMissions] XpManager.Instance is null — награда не выдана.");
+            return false;
         }
 
+        if (entry.coinReward > 0)
+            xp.AddGlobalCoins(entry.coinReward);
+
+        if (entry.xpReward > 0)
+            xp.AddPlayerXP(entry.xpReward);
+
+        entry.claimed = true;
         SaveState();
 
         OnProgressChanged?.Invoke();

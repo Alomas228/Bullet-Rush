@@ -10,6 +10,12 @@ using TMPro;
 /// а если её нет — экран поднимает собственный рантайм-оверлей
 /// (OpenStandalone), чтобы система работала и до прогона билдера.
 /// </summary>
+public enum MissionTrack
+{
+    Daily,
+    Weekly
+}
+
 public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 {
     [Header("Panel (optional — build happens in editor)")]
@@ -19,6 +25,10 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private RectTransform content;
     [SerializeField] private DailyMissionRowUI rowTemplate;
 
+    [Header("Mission tabs")]
+    [SerializeField] private Button dailyTabButton;
+    [SerializeField] private Button weeklyTabButton;
+
     [Header("Standalone fallback")]
     [Tooltip("Размер окна, если UI собран в рантайме (OpenStandalone).")]
     [SerializeField] private Vector2 standaloneSize = new Vector2(1040f, 720f);
@@ -26,6 +36,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     private static DailyMissionUI standalone;
     private readonly List<DailyMissionRowUI> rows = new List<DailyMissionRowUI>();
     private int builtCount = -1;
+    private MissionTrack currentTrack = MissionTrack.Daily;
 
     // =========================================================
     // LIFECYCLE
@@ -46,6 +57,12 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 
         if (closeButton != null)
             closeButton.onClick.AddListener(HidePanel);
+
+        EnsureTabButtons();
+        if (dailyTabButton != null)
+            dailyTabButton.onClick.AddListener(ShowDaily);
+        if (weeklyTabButton != null)
+            weeklyTabButton.onClick.AddListener(ShowWeekly);
     }
 
     private void OnEnable()
@@ -64,28 +81,93 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 
         if (closeButton != null)
             closeButton.onClick.RemoveListener(HidePanel);
+        if (dailyTabButton != null)
+            dailyTabButton.onClick.RemoveListener(ShowDaily);
+        if (weeklyTabButton != null)
+            weeklyTabButton.onClick.RemoveListener(ShowWeekly);
     }
 
     private void Subscribe()
     {
-        DailyMissionManager manager = DailyMissionManager.Instance;
-
-        if (manager == null)
-            return;
-
-        manager.OnProgressChanged += Refresh;
-        manager.OnMissionsRefreshed += HandleMissionsRefreshed;
+        DailyMissionManager daily = DailyMissionManager.Instance;
+        WeeklyMissionManager weekly = WeeklyMissionManager.Instance;
+        if (daily != null)
+        {
+            daily.OnProgressChanged += Refresh;
+            daily.OnMissionsRefreshed += HandleMissionsRefreshed;
+        }
+        if (weekly != null)
+        {
+            weekly.OnProgressChanged += Refresh;
+            weekly.OnMissionsRefreshed += HandleMissionsRefreshed;
+        }
     }
 
     private void Unsubscribe()
     {
-        DailyMissionManager manager = DailyMissionManager.Instance;
+        DailyMissionManager daily = DailyMissionManager.Instance;
+        WeeklyMissionManager weekly = WeeklyMissionManager.Instance;
+        if (daily != null)
+        {
+            daily.OnProgressChanged -= Refresh;
+            daily.OnMissionsRefreshed -= HandleMissionsRefreshed;
+        }
+        if (weekly != null)
+        {
+            weekly.OnProgressChanged -= Refresh;
+            weekly.OnMissionsRefreshed -= HandleMissionsRefreshed;
+        }
+    }
 
-        if (manager == null)
+    private void EnsureTabButtons()
+    {
+        if (dailyTabButton == null)
+        {
+            Transform daily = FindDeep(transform, "DailyTab");
+            if (daily != null)
+                dailyTabButton = daily.GetComponent<Button>();
+        }
+
+        if (weeklyTabButton == null)
+        {
+            Transform weekly = FindDeep(transform, "WeeklyTab");
+            if (weekly != null)
+                weeklyTabButton = weekly.GetComponent<Button>();
+        }
+
+        if (dailyTabButton != null && weeklyTabButton != null)
             return;
 
-        manager.OnProgressChanged -= Refresh;
-        manager.OnMissionsRefreshed -= HandleMissionsRefreshed;
+        Transform parent = titleText != null
+            ? titleText.transform.parent
+            : transform;
+
+        if (dailyTabButton == null)
+            dailyTabButton = CreateTabButton(parent, "DailyTab", "DAILY", -180f);
+        if (weeklyTabButton == null)
+            weeklyTabButton = CreateTabButton(parent, "WeeklyTab", "WEEKLY", -20f);
+    }
+
+    private static Button CreateTabButton(
+        Transform parent,
+        string name,
+        string fallback,
+        float x)
+    {
+        Image image = CreateImage(parent, name, new Color(0.12f, 0.2f, 0.3f, 1f));
+        RectTransform rect = image.rectTransform;
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.sizeDelta = new Vector2(140f, 42f);
+        rect.anchoredPosition = new Vector2(x, -86f);
+
+        Button button = image.gameObject.AddComponent<Button>();
+        button.targetGraphic = image;
+        TMP_Text label = CreateText(image.transform, "Label", 18f, TextAlignmentOptions.Center);
+        label.text = fallback;
+        Stretch(label.rectTransform);
+        return button;
     }
 
     private void HandleMissionsRefreshed()
@@ -101,6 +183,16 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     public void ShowPanel()
     {
         gameObject.SetActive(true);
+        Refresh();
+    }
+
+    public void ShowDaily() => SetTrack(MissionTrack.Daily);
+    public void ShowWeekly() => SetTrack(MissionTrack.Weekly);
+
+    private void SetTrack(MissionTrack track)
+    {
+        currentTrack = track;
+        builtCount = -1;
         Refresh();
     }
 
@@ -140,11 +232,33 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 
     public void Refresh()
     {
-        DailyMissionManager manager = DailyMissionManager.EnsureExists();
-        manager.EnsureToday();
+        DailyMissionManager daily = null;
+        WeeklyMissionManager weekly = null;
+        IReadOnlyList<DailyMissionSaveData.Entry> missions;
+        int completed;
+        int total;
+
+        if (currentTrack == MissionTrack.Weekly)
+        {
+            weekly = WeeklyMissionManager.EnsureExists();
+            weekly.EnsureCurrentWeek();
+            missions = weekly.Missions;
+            completed = weekly.CompletedCount;
+            total = weekly.TotalCount;
+        }
+        else
+        {
+            daily = DailyMissionManager.EnsureExists();
+            daily.EnsureToday();
+            missions = daily.Missions;
+            completed = daily.CompletedCount;
+            total = daily.TotalCount;
+        }
 
         if (titleText != null)
-            titleText.text = Lang.GetOr("mission.title", "ЕЖЕДНЕВНЫЕ МИССИИ");
+            titleText.text = currentTrack == MissionTrack.Weekly
+                ? Lang.GetOr("mission.weekly.title", "ЕЖЕНЕДЕЛЬНЫЕ МИССИИ")
+                : Lang.GetOr("mission.title", "ЕЖЕДНЕВНЫЕ МИССИИ");
 
         if (progressText != null)
         {
@@ -152,23 +266,23 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
             progressText.text = string.Format(
                 System.Globalization.CultureInfo.InvariantCulture,
                 progressText.text,
-                manager.CompletedCount,
-                manager.TotalCount);
+                completed,
+                total);
         }
 
         if (content == null || rowTemplate == null)
             return;
 
-        RebuildRowsIfNeeded(manager);
-        UpdateRows(manager);
+        RebuildRowsIfNeeded(total);
+        UpdateRows(missions);
     }
 
-    private void RebuildRowsIfNeeded(DailyMissionManager manager)
+    private void RebuildRowsIfNeeded(int total)
     {
-        if (builtCount == manager.TotalCount && rows.Count == manager.TotalCount)
+        if (builtCount == total && rows.Count == total)
             return;
 
-        builtCount = manager.TotalCount;
+        builtCount = total;
 
         for (int i = 0; i < rows.Count; i++)
         {
@@ -178,7 +292,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 
         rows.Clear();
 
-        for (int i = 0; i < manager.TotalCount; i++)
+        for (int i = 0; i < total; i++)
         {
             DailyMissionRowUI row = Instantiate(rowTemplate, content);
             row.gameObject.SetActive(true);
@@ -186,12 +300,10 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         }
     }
 
-    private void UpdateRows(DailyMissionManager manager)
+    private void UpdateRows(IReadOnlyList<DailyMissionSaveData.Entry> missions)
     {
-        IReadOnlyList<DailyMissionSaveData.Entry> missions = manager.Missions;
-
         for (int i = 0; i < rows.Count && i < missions.Count; i++)
-            rows[i].Bind(missions[i]);
+            rows[i].Bind(missions[i], currentTrack);
     }
 
     // =========================================================

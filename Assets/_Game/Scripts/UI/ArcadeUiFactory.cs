@@ -217,7 +217,7 @@ public static class ArcadeUiFactory
             Vector2.zero,
             new Vector2(handleSize, handleSize)
         );
-        Image handle = Image(handleRect, ArcadeKitAssets.Knob, Color.white);
+        Image handle = Image(handleRect, ArcadeKitAssets.SliderHandle, Color.white);
 
         slider.fillRect = fillRect;
         slider.handleRect = handleRect;

@@ -15,10 +15,33 @@ public static class DailyMissionGenerator
         DateTime date,
         int count)
     {
+        return GenerateFromPool(
+            date,
+            count,
+            DailyMissionPool.Templates
+        );
+    }
+
+    public static List<DailyMissionSaveData.Entry> GenerateWeekly(
+        DateTime weekStart,
+        int count)
+    {
+        return GenerateFromPool(
+            weekStart,
+            count,
+            WeeklyMissionPool.Templates
+        );
+    }
+
+    private static List<DailyMissionSaveData.Entry> GenerateFromPool(
+        DateTime date,
+        int count,
+        IReadOnlyList<DailyMissionTemplate> sourcePool)
+    {
         count = Math.Max(count, 1);
 
         List<DailyMissionTemplate> pool =
-            new List<DailyMissionTemplate>(DailyMissionPool.Templates);
+            new List<DailyMissionTemplate>(sourcePool);
 
         if (pool.Count == 0)
             return new List<DailyMissionSaveData.Entry>();

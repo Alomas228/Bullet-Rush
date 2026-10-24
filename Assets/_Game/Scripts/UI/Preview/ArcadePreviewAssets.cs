@@ -52,7 +52,7 @@ public static class ArcadePreviewAssets
             ButtonGrey = Sliced(Load(KenneyRoot + "btn_grey"), 120f, 72f, 40f, 40f);
 
         if (BarTrack == null)
-            BarTrack = Sliced(Load(KenneyRoot + "bar_track"), 14f, 14f, 14f, 14f);
+            BarTrack = ArcadeKitAssets.BarTrack;
 
         if (BarGreen == null)
             BarGreen = Sliced(Load(KenneyRoot + "bar_green"), 14f, 14f, 14f, 14f);

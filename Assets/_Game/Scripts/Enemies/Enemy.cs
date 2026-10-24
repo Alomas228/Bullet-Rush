@@ -290,6 +290,9 @@ public class Enemy : MonoBehaviour
     // достижениям, чем именно добили врага (оружие, огонь, взрыв...).
     private DamageSource lastDamageSource = DamageSource.Unknown;
     private int lastDamageEventId;
+    private string lastDamageWeaponId = string.Empty;
+    private string burnWeaponId = string.Empty;
+    private string bleedWeaponId = string.Empty;
 
     // Количество живых врагов в сцене. Позволяет волновому
     // менеджеру обходиться без FindGameObjectsWithTag каждый кадр.
@@ -377,6 +380,9 @@ public class Enemy : MonoBehaviour
     /// успевает вернуться к полному, и полоса мигала бы.
     /// </summary>
     public bool HasTakenDamage { get; private set; }
+
+    /// <summary>Последний источник урона. Используется обучением для проверки убийства игроком.</summary>
+    public DamageSource LastDamageSource => lastDamageSource;
 
     // Служебное: связь с EnemyHealthBarSystem - индекс в реестре
     // мобов и привязанная полоса. Руками не трогать.
@@ -1261,7 +1267,7 @@ public class Enemy : MonoBehaviour
                 while (burnTickTimer <= 0f)
                 {
                     burnTickTimer += burnTickInterval;
-                    TakeDamage(burnDamagePerTick, false, DamageSource.Burn);
+                    TakeDamage(burnDamagePerTick, false, DamageSource.Burn, 0, burnWeaponId);
 
                     if (IsDead)
                         break;
@@ -1287,7 +1293,7 @@ public class Enemy : MonoBehaviour
                 while (bleedTickTimer <= 0f)
                 {
                     bleedTickTimer += bleedTickInterval;
-                    TakeDamage(bleedDamagePerTick, false, DamageSource.Bleed);
+                    TakeDamage(bleedDamagePerTick, false, DamageSource.Bleed, 0, bleedWeaponId);
 
                     if (IsDead)
                         break;
@@ -3892,7 +3898,8 @@ public class Enemy : MonoBehaviour
         float damage,
         bool isCritical = false,
         DamageSource source = DamageSource.Unknown,
-        int sourceEventId = 0)
+        int sourceEventId = 0,
+        string weaponId = null)
     {
         if (IsDead)
             return;
@@ -3904,6 +3911,7 @@ public class Enemy : MonoBehaviour
 
         lastDamageSource = source;
         lastDamageEventId = sourceEventId;
+        lastDamageWeaponId = weaponId ?? string.Empty;
 
         currentHealth -= damage;
 
@@ -3950,7 +3958,8 @@ public class Enemy : MonoBehaviour
     public void ApplyBurn(
         float damagePerSecond,
         float duration,
-        float tickInterval)
+        float tickInterval,
+        string weaponId = null)
     {
         if (IsDead)
             return;
@@ -3979,6 +3988,7 @@ public class Enemy : MonoBehaviour
             burnTickTimer = tickInterval;
 
         burnActive = true;
+        burnWeaponId = weaponId ?? string.Empty;
     }
 
 
@@ -3989,7 +3999,8 @@ public class Enemy : MonoBehaviour
     public void ApplyBleeding(
         float damagePerSecond,
         float duration,
-        float tickInterval)
+        float tickInterval,
+        string weaponId = null)
     {
         if (IsDead)
             return;
@@ -4022,6 +4033,7 @@ public class Enemy : MonoBehaviour
             bleedTickTimer = tickInterval;
 
         bleedActive = true;
+        bleedWeaponId = weaponId ?? string.Empty;
     }
 
 
@@ -4047,10 +4059,11 @@ public class Enemy : MonoBehaviour
                 1
             );
 
+        float effectiveRange = Mathf.Min(range, 6f);
         Collider[] nearbyColliders =
             StructureQuery.OverlapSphere(
                 transform.position,
-                range,
+                effectiveRange,
                 out int colliderCount
             );
 
@@ -4301,7 +4314,8 @@ public class Enemy : MonoBehaviour
             isBoss = isBoss,
             bossId = BossId,
             source = lastDamageSource,
-            sourceEventId = lastDamageEventId
+            sourceEventId = lastDamageEventId,
+            weaponId = lastDamageWeaponId
         });
 
         Destroy(gameObject);
@@ -4465,9 +4479,9 @@ public class Enemy : MonoBehaviour
         float projectileSpeed =
             enemyData.DeathExplosionProjectileSpeed;
 
-        Vector3 origin =
-            transform.position +
-            Vector3.up * 0.6f;
+        Vector3 origin = transform.position;
+        if (PlayerHealth.Instance != null)
+            origin.y = PlayerHealth.Instance.transform.position.y;
 
         for (int i = 0; i < projectileCount; i++)
         {

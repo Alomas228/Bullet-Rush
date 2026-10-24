@@ -60,6 +60,7 @@ public class Bullet : MonoBehaviour
 
     private PlayerHealth cachedPlayerHealth;
     private GameObject bulletPrefab;
+    private string weaponId;
 
     // Враг, в которого снаряд уже попал (нужен рикошету,
     // чтобы новая пуля не ударила в ту же цель повторно).
@@ -265,6 +266,7 @@ public class Bullet : MonoBehaviour
         float newLightningRange = 0f
     )
     {
+        weaponId = string.Empty;
         damage = newDamage;
         speed = newSpeed;
         isCritical = critical;
@@ -304,6 +306,13 @@ public class Bullet : MonoBehaviour
         // рикошетная пуля уже попала.
         ignoredEnemy = null;
     }
+
+    public void SetWeaponIdentity(string id)
+    {
+        weaponId = id ?? string.Empty;
+    }
+
+    public string WeaponId => weaponId;
 
     /// <summary>
     /// Переносит параметры временных улучшений забега на снаряд.
@@ -459,7 +468,9 @@ public class Bullet : MonoBehaviour
         enemy.TakeDamage(
             damage,
             isCritical,
-            DamageSource.Weapon
+            DamageSource.Weapon,
+            0,
+            weaponId
         );
 
         // Отдача: моб сбавляет разгон и чуть отходит назад.
@@ -505,7 +516,8 @@ public class Bullet : MonoBehaviour
             enemy.ApplyBurn(
                 burnDamagePerSecond,
                 burnDuration,
-                burnTickInterval
+                burnTickInterval,
+                weaponId
             );
         }
 
@@ -574,7 +586,8 @@ public class Bullet : MonoBehaviour
                 enemy.ApplyBurn(
                     runBurnDamage,
                     runBurnDuration,
-                    runBurnTickInterval
+                    runBurnTickInterval,
+                    weaponId
                 );
             }
         }
@@ -597,7 +610,8 @@ public class Bullet : MonoBehaviour
                 enemy.ApplyBleeding(
                     bleedDamage,
                     bleedDuration,
-                    bleedTickInterval
+                    bleedTickInterval,
+                    weaponId
                 );
             }
         }
@@ -707,7 +721,8 @@ public class Bullet : MonoBehaviour
                 explosionDamage,
                 false,
                 DamageSource.Explosion,
-                explosionEventId
+                explosionEventId,
+                weaponId
             );
 
             ApplyAreaDotEffects(target);
@@ -828,10 +843,11 @@ public class Bullet : MonoBehaviour
         // цепи до них. Из-за этого молния ходила не наружу от
         // цепи, а постоянно возвращалась к месту выстрела -
         // в бою у центра карты это и читалось как «бьёт в центр».
+        float effectiveRadius = Mathf.Min(chainLightningRadius, 5f);
         Collider[] colliders =
             StructureQuery.OverlapSphere(
                 fromPosition,
-                chainLightningRadius,
+                effectiveRadius,
                 out int colliderCount
             );
 
@@ -855,7 +871,10 @@ public class Bullet : MonoBehaviour
 
             target.TakeDamage(
                 chainLightningDamage,
-                false
+                false,
+                DamageSource.ChainLightning,
+                0,
+                weaponId
             );
 
             VfxFactory.SpawnLightning(
@@ -977,6 +996,7 @@ public class Bullet : MonoBehaviour
             lightningRange
         );
 
+        bullet.SetWeaponIdentity(weaponId);
         bullet.CopyRunEffectsFrom(
             this
         );
@@ -1007,7 +1027,8 @@ public class Bullet : MonoBehaviour
                 target.ApplyBurn(
                     runBurnDamage,
                     runBurnDuration,
-                    runBurnTickInterval
+                    runBurnTickInterval,
+                    weaponId
                 );
             }
         }
@@ -1026,7 +1047,8 @@ public class Bullet : MonoBehaviour
                 target.ApplyBleeding(
                     bleedDamage,
                     bleedDuration,
-                    bleedTickInterval
+                    bleedTickInterval,
+                    weaponId
                 );
             }
         }

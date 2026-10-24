@@ -436,8 +436,8 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
             if (image != null)
             {
-                image.sprite = ArcadeKitAssets.Knob;
-                image.type = Image.Type.Simple;
+                image.sprite = ArcadeKitAssets.SliderHandle;
+                image.type = Image.Type.Sliced;
                 image.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.PanelRaised, 0.94f);
             }
 

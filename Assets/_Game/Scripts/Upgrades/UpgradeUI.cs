@@ -183,9 +183,12 @@ public class UpgradeUI : MonoBehaviour
             }
             else
             {
-                slot.text =
-                    best.Synergy.ShortName + " " +
-                    best.Current + "/" + best.Required;
+                slot.text = Lang.Get(
+                    "synergy.progress",
+                    best.Synergy.ShortName,
+                    best.Current,
+                    best.Required
+                );
 
                 slot.color = RarityColor(best.Synergy.Rarity);
             }

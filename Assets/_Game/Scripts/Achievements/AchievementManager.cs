@@ -78,6 +78,7 @@ public class AchievementManager : MonoBehaviour
 
         SanitizeAchievements();
         LoadState();
+        CheckStoredMilestones();
 
         // Готовим слой уведомлений заранее, чтобы показать всплывашку
         // в момент разблокировки без задержки на создание UI.
@@ -258,15 +259,26 @@ public class AchievementManager : MonoBehaviour
                type == AchievementConditionType.UniqueBosses;
     }
 
+    private void CheckStoredMilestones()
+    {
+        for (int i = 0; i < achievements.Count; i++)
+        {
+            AchievementData achievement = achievements[i];
+            if (achievement == null || IsUnlocked(achievement.Id)) continue;
+            if (achievement.ConditionType == AchievementConditionType.CumulativeKills ||
+                achievement.ConditionType == AchievementConditionType.CumulativeBossKills ||
+                achievement.ConditionType == AchievementConditionType.CumulativeWaves ||
+                achievement.ConditionType == AchievementConditionType.CumulativeRuns)
+                TryComplete(achievement);
+        }
+    }
+
     // =========================================================
     // EVENT HANDLERS
     // =========================================================
 
     private void HandleEnemyKilled(EnemyKillInfo info)
     {
-        if (!runActive)
-            return;
-
         bool changed = false;
 
         for (int i = 0; i < achievements.Count; i++)
@@ -279,12 +291,23 @@ public class AchievementManager : MonoBehaviour
             switch (achievement.ConditionType)
             {
                 case AchievementConditionType.CumulativeKills:
-                    AddStoredProgress(achievement, 1f);
-                    changed = true;
+                    if (runActive)
+                    {
+                        AddStoredProgress(achievement, 1f);
+                        changed = true;
+                    }
+                    break;
+
+                case AchievementConditionType.CumulativeBossKills:
+                    if (runActive && info.isBoss)
+                    {
+                        AddStoredProgress(achievement, 1f);
+                        changed = true;
+                    }
                     break;
 
                 case AchievementConditionType.KillsWithoutDamageInRun:
-                    if (!runTookDamage)
+                    if (runActive && !runTookDamage)
                     {
                         runKillsSinceDamage++;
                         SetRunProgress(achievement.Id, runKillsSinceDamage);
@@ -293,7 +316,7 @@ public class AchievementManager : MonoBehaviour
                     break;
 
                 case AchievementConditionType.KillsByDamageSource:
-                    if (info.source == achievement.DamageSource)
+                    if (runActive && info.source == achievement.DamageSource)
                     {
                         AddStoredProgress(achievement, 1f);
                         changed = true;
@@ -301,7 +324,7 @@ public class AchievementManager : MonoBehaviour
                     break;
 
                 case AchievementConditionType.KillsInSingleEvent:
-                    if (info.sourceEventId != 0)
+                    if (runActive && info.sourceEventId != 0)
                     {
                         int count = IncrementEventCount(info.sourceEventId);
 
@@ -316,7 +339,7 @@ public class AchievementManager : MonoBehaviour
                     break;
 
                 case AchievementConditionType.UniqueBosses:
-                    if (info.isBoss && !string.IsNullOrEmpty(info.bossId))
+                    if (runActive && info.isBoss && !string.IsNullOrEmpty(info.bossId))
                     {
                         AddCollected(achievement, info.bossId);
                         changed = true;
@@ -358,6 +381,8 @@ public class AchievementManager : MonoBehaviour
         if (!runActive)
             return;
 
+        bool changed = false;
+
         for (int i = 0; i < achievements.Count; i++)
         {
             AchievementData achievement = achievements[i];
@@ -367,6 +392,11 @@ public class AchievementManager : MonoBehaviour
 
             switch (achievement.ConditionType)
             {
+                case AchievementConditionType.CumulativeWaves:
+                    AddStoredProgress(achievement, Mathf.Max(wave, 0));
+                    changed = true;
+                    break;
+
                 case AchievementConditionType.ReachWaveWithoutDamage:
                     if (runTookDamage)
                         break;
@@ -428,6 +458,20 @@ public class AchievementManager : MonoBehaviour
                 }
             }
         }
+
+        for (int i = 0; i < achievements.Count; i++)
+        {
+            AchievementData achievement = achievements[i];
+            if (achievement == null || IsUnlocked(achievement.Id))
+                continue;
+            if (achievement.ConditionType == AchievementConditionType.CumulativeRuns)
+            {
+                AddStoredProgress(achievement, 1f);
+                TryComplete(achievement);
+            }
+        }
+
+        runActive = false;
 
         // Накопительный прогресс фиксируем в конце забега, чтобы не
         // писать в PlayerPrefs на каждом убийстве.

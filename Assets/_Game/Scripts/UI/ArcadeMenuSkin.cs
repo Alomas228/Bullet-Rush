@@ -70,6 +70,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private StatTile tipsTile;
     private StatTile missionsTile;
     private StatTile achievementsTile;
+    private StatTile masteryTile;
 
     private readonly List<LangPill> langPills = new List<LangPill>();
     private readonly List<LangBinding> langBindings = new List<LangBinding>();
@@ -280,6 +281,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         legacyPlayButton = FindLegacyButton("StartButton");
         modifierDropdown = FindLegacyComponent<TMP_Dropdown>("RunModifierDropdown");
+        HideLegacyButton("MasteryButton");
 
         for (int i = menuRoot.childCount - 1; i >= 0; i--)
         {
@@ -293,6 +295,16 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
             legacyHidden.Add(child);
             child.SetActive(false);
+        }
+    }
+
+    private void HideLegacyButton(string name)
+    {
+        Transform found = menuRoot.Find(name);
+        if (found != null && found.gameObject.activeSelf)
+        {
+            legacyHidden.Add(found.gameObject);
+            found.gameObject.SetActive(false);
         }
     }
 
@@ -974,6 +986,20 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         if (menu != null)
             menu.OpenAchievementsPanel();
+    }
+
+    private void OpenMastery()
+    {
+        if (menu == null)
+            return;
+
+        menu.OpenSubPanel(menu.MasteryPanel);
+        if (menu.MasteryPanel != null)
+        {
+            MasteryPanelUI ui = menu.MasteryPanel.GetComponent<MasteryPanelUI>();
+            if (ui != null)
+                ui.Refresh();
+        }
     }
 
     private void OpenMissions()

@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 // Случайные события посреди волны: вынуждают игрока двигаться,
@@ -73,16 +74,26 @@ public class WaveEventDirector : MonoBehaviour
     [Header("Presentation")]
     [SerializeField] private float bannerDuration = 1.6f;
 
+    [Header("Arena Hazard Event")]
+    [SerializeField] private float arenaHazardRadius = 2f;
+    [SerializeField] private float arenaHazardWarning = 1.8f;
+    [SerializeField] private float arenaHazardDuration = 3f;
+    [SerializeField] private float arenaHazardDamagePerSecond = 18f;
+    [SerializeField] private float arenaHazardMinDistance = 6f;
+    [SerializeField] private float arenaHazardMaxDistance = 10f;
+
     private enum WaveEventType
     {
         Ambush,
         DangerZone,
-        Rush
+        Rush,
+        ArenaHazard
     }
 
     private WaveEventType lastEventType;
     private bool waveRunning;
     private Coroutine scheduleCoroutine;
+    private readonly List<HazardZone> activeHazardZones = new List<HazardZone>();
 
     // Сколько волн подряд прошло без события. Нужно, чтобы тихие
     // волны не копились: иначе после серии спокойных волн событие
@@ -174,6 +185,7 @@ public class WaveEventDirector : MonoBehaviour
     {
         waveRunning = false;
         IsEventActive = false;
+        ClearActiveHazardZones();
 
         // Волна засчитывается как «тихая», если события на ней не
         // было. Раньше счётчик рос только когда шанс не сработал,
@@ -202,6 +214,7 @@ public class WaveEventDirector : MonoBehaviour
     {
         waveRunning = false;
         IsEventActive = false;
+        ClearActiveHazardZones();
 
         CancelSchedule();
     }
@@ -314,6 +327,9 @@ public class WaveEventDirector : MonoBehaviour
 
             case WaveEventType.DangerZone:
                 return GetZoneCount(wave);
+
+            case WaveEventType.ArenaHazard:
+                return 1;
         }
 
         return 0;
@@ -341,7 +357,8 @@ public class WaveEventDirector : MonoBehaviour
         {
             WaveEventType.Ambush,
             WaveEventType.DangerZone,
-            WaveEventType.Rush
+            WaveEventType.Rush,
+            WaveEventType.ArenaHazard
         };
 
         // Совместимые с акцентом волны типы — это пул, из которого идёт
@@ -439,11 +456,8 @@ public class WaveEventDirector : MonoBehaviour
                     !modifier.Has(WaveModifier.Ambush);
 
             case WaveEventType.DangerZone:
-                // Мины — единственное событие, которое не добавляет
-                // врагов, а меняет геометрию боя. Оно не дублирует
-                // ни один акцент, поэтому совместимо со всеми, и
-                // в том числе с «опасными зонами»: там просто
-                // ставится одна зона вместо двух.
+            case WaveEventType.ArenaHazard:
+                // Зоны меняют геометрию боя, не добавляя врагов.
                 return true;
         }
 
@@ -491,6 +505,10 @@ public class WaveEventDirector : MonoBehaviour
 
             case WaveEventType.DangerZone:
                 SpawnDangerZones(wave);
+                break;
+
+            case WaveEventType.ArenaHazard:
+                SpawnArenaHazard(wave);
                 break;
         }
 
@@ -660,9 +678,50 @@ public class WaveEventDirector : MonoBehaviour
                 zoneDuration,
                 zoneGrowMultiplier
             );
+            activeHazardZones.Add(zone);
         }
 
         ShowBanner(Lang.Get("wave.event_danger"));
+    }
+
+    private void SpawnArenaHazard(int wave)
+    {
+        PlayerHealth player = PlayerHealth.Instance;
+        if (player == null)
+            return;
+
+        float nearLimit = Mathf.Max(arenaHazardMinDistance, arenaHazardRadius * 1.5f);
+        float farLimit = Mathf.Max(arenaHazardMaxDistance, nearLimit);
+        float angle = Random.Range(0f, 360f);
+
+        if (!TryFindZoneCenter(player.transform.position, angle, nearLimit, farLimit, out Vector3 position))
+            return;
+
+        position.y = 0.02f;
+        GameObject zoneObject = new GameObject("ArenaHazard_Event");
+        zoneObject.transform.position = position;
+        HazardZone zone = zoneObject.AddComponent<HazardZone>();
+        zone.Initialize(
+            arenaHazardWarning,
+            arenaHazardRadius,
+            arenaHazardDamagePerSecond * WaveDifficulty.GetDamageMultiplier(currentWave),
+            arenaHazardDuration,
+            1f
+        );
+        activeHazardZones.Add(zone);
+
+        ShowBanner(Lang.Get("wave.event_arena_hazard"));
+    }
+
+    private void ClearActiveHazardZones()
+    {
+        for (int i = activeHazardZones.Count - 1; i >= 0; i--)
+        {
+            if (activeHazardZones[i] != null)
+                Destroy(activeHazardZones[i].gameObject);
+        }
+
+        activeHazardZones.Clear();
     }
 
     // Перебирает направления вокруг игрока, пока не найдёт место,

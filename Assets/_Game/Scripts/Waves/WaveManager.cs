@@ -484,8 +484,8 @@ public class WaveManager : MonoBehaviour
         // весь забег: пересборка не просто даёт ту же карту, а зря
         // тратит кадры на fade-in блоков — поэтому пропускается.
         if (worldGenerator != null &&
-            !worldGenerator.StableLayout &&
-            generatedWorldWave != CurrentWave)
+            generatedWorldWave != CurrentWave &&
+            (!worldGenerator.StableLayout || generatedWorldWave < 0))
         {
             worldGenerator.RebuildForWave(
                 GetCurrentMapSeed(),
@@ -607,7 +607,7 @@ public class WaveManager : MonoBehaviour
         );
     }
 
-    private bool IsBossWave(int wave)
+    public bool IsBossWave(int wave)
     {
         return bossWaveInterval > 0 &&
                wave % bossWaveInterval == 0;

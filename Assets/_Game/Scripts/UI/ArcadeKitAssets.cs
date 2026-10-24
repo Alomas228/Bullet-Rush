@@ -32,21 +32,16 @@ public static class ArcadeKitAssets
     public static Sprite Coin => Simple("coin");
     public static Sprite Chest => Simple("chest");
     public static Sprite Knob => Simple("knob");
-    // Полосы 192x40 со сквозным скруглением: бордер по всему краю,
-    // иначе по вертикали тянется середина с кривизной и полоса
-    // превращается в линзу с острыми концами.
-    public static Sprite BarTrack => Sliced("bar_track", 20f, 20f, 20f, 20f);
-    public static Sprite BarFill => Sliced("bar_fill", 20f, 20f, 20f, 20f);
+    // Квадратные полосы с небольшим скруглением вместо овальных pill-спрайтов.
+    public static Sprite BarTrack => RoundRect;
+    public static Sprite BarFill => RoundRect;
+    public static Sprite SliderHandle => RoundRect;
     public static Sprite CardGrid => Simple("card_grid");
 
     private static Sprite roundRect;
 
     /// <summary>
-    /// Скруглённый прямоугольник с фиксированным радиусом 24.
-    /// Генерируется один раз: текстуры набора либо пилюли (радиус
-    /// в полвысоты), либо слишком крупные бордеры, из-за чего на
-    /// небольших кнопках форма схлопывается в овал. Здесь бордер
-    /// равен радиусу и меньше типичных высот — форма стабильна.
+    /// Прямоугольник с небольшим фиксированным скруглением углов для UI-полос.
     /// </summary>
     public static Sprite RoundRect
     {
@@ -56,7 +51,7 @@ public static class ArcadeKitAssets
                 return roundRect;
 
             const int size = 128;
-            const int radius = 24;
+            const int radius = 6;
             const int samples = 4;
 
             Color[] pixels = new Color[size * size];

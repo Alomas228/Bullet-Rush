@@ -234,6 +234,20 @@ public class XpManager : MonoBehaviour
         }
     }
 
+    public bool RemovePlayerXP(int amount)
+    {
+        if (amount <= 0 || GlobalXP < amount)
+            return false;
+
+        int previousLevel = GlobalLevel;
+        GlobalXP -= amount;
+        SaveGlobal();
+        OnPlayerXPChanged?.Invoke(GlobalXP);
+        if (GlobalLevel != previousLevel)
+            OnPlayerLevelChanged?.Invoke(GlobalLevel);
+        return true;
+    }
+
     private void PlayLevelUpSound()
     {
         if (AudioManager.Instance == null)
@@ -520,6 +534,20 @@ public class XpManager : MonoBehaviour
             return XpToLevel[XpToLevel.Length - 1];
 
         return XpToLevel[index];
+    }
+
+    public bool ResetPlayerXPForPrestige()
+    {
+        if (GlobalLevel < maxLevel || GlobalXP < GetXPForLevel(maxLevel))
+            return false;
+
+        int previousLevel = GlobalLevel;
+        GlobalXP = 0;
+        SaveGlobal();
+        OnPlayerXPChanged?.Invoke(GlobalXP);
+        if (previousLevel != GlobalLevel)
+            OnPlayerLevelChanged?.Invoke(GlobalLevel);
+        return true;
     }
 
     // =========================================================

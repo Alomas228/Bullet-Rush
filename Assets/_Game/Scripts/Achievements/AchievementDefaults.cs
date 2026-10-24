@@ -95,6 +95,54 @@ public static class AchievementDefaults
                 DamageSource.Unknown,
                 false,
                 Modifier(RunModifier.GlassCannon)
+            ),
+
+            Make(
+                "lifetime_kills_10000",
+                "ach.milestone.kills.title", "EXTERMINATOR",
+                "ach.milestone.kills.desc", "Убей 10 000 врагов в общем.",
+                AchievementCategory.Combat,
+                AchievementConditionType.CumulativeKills,
+                10000f,
+                DamageSource.Unknown,
+                false,
+                Currency(1000)
+            ),
+
+            Make(
+                "lifetime_bosses_50",
+                "ach.milestone.bosses.title", "BOSS HUNTER",
+                "ach.milestone.bosses.desc", "Убей 50 боссов в общем.",
+                AchievementCategory.Bosses,
+                AchievementConditionType.CumulativeBossKills,
+                50f,
+                DamageSource.Unknown,
+                false,
+                Currency(1500)
+            ),
+
+            Make(
+                "lifetime_waves_1000",
+                "ach.milestone.waves.title", "ENDLESS SURVIVOR",
+                "ach.milestone.waves.desc", "Достигни суммарно 1000 волн.",
+                AchievementCategory.Survival,
+                AchievementConditionType.CumulativeWaves,
+                1000f,
+                DamageSource.Unknown,
+                false,
+                Currency(1500)
+            ),
+
+            Make(
+                "lifetime_runs_100",
+                "ach.milestone.runs.title", "VETERAN",
+                "ach.milestone.runs.desc", "Заверши 100 забегов.",
+                AchievementCategory.Survival,
+                AchievementConditionType.CumulativeRuns,
+                100f,
+                DamageSource.Unknown,
+                false,
+                Currency(2000)
             )
         };
 

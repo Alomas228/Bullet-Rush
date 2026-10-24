@@ -66,6 +66,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private Button dailyRewardButton;
     [SerializeField] private Button achievementsButton;
     [SerializeField] private Button missionsButton;
+    [SerializeField] private Button masteryButton;
 
     [Header("Submenu Panels")]
     [Tooltip("Каждая кнопка ссылается на свою панель. Создай панели в канвасе и перетяни сюда.")]
@@ -78,6 +79,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private GameObject dailyRewardPanel;
     [SerializeField] private GameObject achievementsPanel;
     [SerializeField] private GameObject missionsPanel;
+    [SerializeField] private GameObject masteryPanel;
+
+    public GameObject MasteryPanel => masteryPanel;
 
     [Header("Optional")]
     [SerializeField] private TMP_Text titleText;
@@ -138,6 +142,8 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (missionsButton != null)
             missionsButton.onClick.AddListener(OnMissionsClicked);
+        if (masteryButton != null)
+            masteryButton.onClick.AddListener(OnMasteryClicked);
 
         if (modifierDropdown != null)
         {
@@ -192,6 +198,8 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (missionsButton != null)
             missionsButton.onClick.RemoveListener(OnMissionsClicked);
+        if (masteryButton != null)
+            masteryButton.onClick.RemoveListener(OnMasteryClicked);
 
         if (modifierDropdown != null)
             modifierDropdown.onValueChanged.RemoveListener(OnModifierChanged);
@@ -404,6 +412,16 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         OpenMissionsPanel();
     }
 
+    private void OnMasteryClicked()
+    {
+        OpenSubPanel(masteryPanel);
+        if (masteryPanel != null)
+        {
+            MasteryPanelUI ui = masteryPanel.GetComponent<MasteryPanelUI>();
+            if (ui != null) ui.Refresh();
+        }
+    }
+
     /// <summary>
     /// Открывает экран достижений. Если панель не назначена в
     /// инспекторе, поднимается рантайм-оверлей, чтобы кнопка в меню
@@ -512,6 +530,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (missionsPanel != null)
             missionsPanel.SetActive(false);
+
+        if (masteryPanel != null)
+            masteryPanel.SetActive(false);
     }
 
     private void HideMenuButtons()
@@ -570,6 +591,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (missionsButton != null)
             missionsButton.gameObject.SetActive(active);
+
+        if (masteryButton != null)
+            masteryButton.gameObject.SetActive(active);
 
         if (modifierDropdown != null)
             modifierDropdown.gameObject.SetActive(active);

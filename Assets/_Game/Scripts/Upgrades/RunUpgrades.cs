@@ -39,6 +39,8 @@ public class RunUpgrades : MonoBehaviour
     [Header("Explosive Rounds")]
     [SerializeField] private float explosionRadius;
     [SerializeField] private float explosionDamage;
+    private float explosionBaseRadius;
+    private const float MaxExplosionRadiusMultiplier = 1.75f;
 
     // =========================================================
     // BLEEDING
@@ -104,7 +106,7 @@ public class RunUpgrades : MonoBehaviour
 
     public float LightningChance => Mathf.Clamp01(lightningChance);
     public float LightningDamage => lightningDamage;
-    public float LightningRadius => lightningRadius;
+    public float LightningRadius => Mathf.Clamp(lightningRadius, 0f, 5f);
     public int LightningMaxTargets => Mathf.Max(lightningMaxTargets, 0);
 
     public float RicochetChance => Mathf.Clamp01(ricochetChance);
@@ -203,7 +205,15 @@ public class RunUpgrades : MonoBehaviour
         if (data == null)
             return;
 
-        explosionRadius += data.Radius;
+        if (explosionBaseRadius <= 0f && data.Radius > 0f)
+            explosionBaseRadius = data.Radius;
+
+        float maximumRadius =
+            explosionBaseRadius * MaxExplosionRadiusMultiplier;
+        explosionRadius = Mathf.Min(
+            explosionRadius + data.Radius,
+            maximumRadius
+        );
         explosionDamage += data.Damage;
     }
 
@@ -233,7 +243,7 @@ public class RunUpgrades : MonoBehaviour
 
         lightningChance = Mathf.Clamp01(lightningChance + data.Chance);
         lightningDamage += data.Damage;
-        lightningRadius += data.Radius;
+        lightningRadius = Mathf.Clamp(lightningRadius + data.Radius, 0f, 5f);
         lightningMaxTargets += data.MaxTargets;
     }
 

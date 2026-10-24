@@ -17,10 +17,25 @@ public static class DailyMissionText
 
     public static string GetDescription(DailyMissionSaveData.Entry entry)
     {
+        return GetDescription(entry, MissionTrack.Daily);
+    }
+
+    public static string GetDescription(
+        DailyMissionSaveData.Entry entry,
+        MissionTrack track)
+    {
         if (entry == null)
             return string.Empty;
 
         int target = Mathf.RoundToInt(entry.target);
+
+        if (entry.Objective == DailyMissionObjective.KillEnemies &&
+            track == MissionTrack.Weekly)
+        {
+            string weeklyKey = "mission.weekly.kill_enemies.desc";
+            return Lang.GetOr(weeklyKey, "Убей {0} врагов.")
+                .Replace("{0}", target.ToString());
+        }
 
         if (entry.Objective == DailyMissionObjective.KillByDamageSource)
         {

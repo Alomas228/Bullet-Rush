@@ -9,6 +9,7 @@ public struct EnemyKillInfo
     public string bossId;
     public DamageSource source;
     public int sourceEventId;
+    public string weaponId;
 }
 
 /// <summary>Данные об окончании забега.</summary>

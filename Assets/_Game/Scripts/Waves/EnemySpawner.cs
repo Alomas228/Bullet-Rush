@@ -1658,7 +1658,9 @@ public class EnemySpawner : MonoBehaviour
                     Mathf.Sin(angle * Mathf.Deg2Rad) * radius
                 );
 
-            candidate.y = ringCenter.y;
+            candidate.y = IsUsablePlayer(player)
+                ? player.position.y
+                : GetArenaCenter().y;
 
             candidate = ClampToArena(candidate);
 

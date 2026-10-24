@@ -1074,7 +1074,7 @@ public sealed partial class ArcadeMenuSkin
         const float tileWidth = 218f;
         const float gap = 14f;
 
-        float total = tileWidth * 4f + gap * 3f;
+        float total = tileWidth * 5f + gap * 4f;
         float start = -total * 0.5f + tileWidth * 0.5f;
 
         statsTile = BuildStatTile(
@@ -1119,6 +1119,17 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(start + (tileWidth + gap) * 3f, 46f),
             tileWidth,
             OpenAchievements
+        );
+
+        masteryTile = BuildStatTile(
+            parent,
+            "MasteryTile",
+            () => Lang.GetOr("progression.mastery.button", "МАСТЕРСТВО"),
+            "sword",
+            ArcadeUiTheme.Orange,
+            new Vector2(start + (tileWidth + gap) * 4f, 46f),
+            tileWidth,
+            OpenMastery
         );
 
         BuildLangPills(

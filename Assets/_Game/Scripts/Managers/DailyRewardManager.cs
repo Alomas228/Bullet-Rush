@@ -75,15 +75,17 @@ public class DailyRewardManager : MonoBehaviour
         int xp = XpForDay(day);
 
         XpManager xpManager = XpManager.Instance;
-
-        if (xpManager != null)
+        if (xpManager == null)
         {
-            if (coins > 0)
-                xpManager.AddCoins(coins);
-
-            if (xp > 0)
-                xpManager.AddPlayerXP(xp);
+            Debug.LogWarning("[DailyReward] XpManager.Instance is null — награда не выдана.");
+            return false;
         }
+
+        if (coins > 0)
+            xpManager.AddGlobalCoins(coins);
+
+        if (xp > 0)
+            xpManager.AddPlayerXP(xp);
 
         mask |= 1 << (day - 1);
 

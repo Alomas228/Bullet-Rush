@@ -37,7 +37,16 @@ public enum AchievementConditionType
     UniqueBosses,
 
     /// <summary>Получить N Perfect Wave за один забег.</summary>
-    PerfectWavesInRun
+    PerfectWavesInRun,
+
+    /// <summary>Суммарно убить N боссов за всё время.</summary>
+    CumulativeBossKills,
+
+    /// <summary>Набрать N достигнутых волн суммарно между забегами.</summary>
+    CumulativeWaves,
+
+    /// <summary>Завершить N забегов независимо от победы.</summary>
+    CumulativeRuns
 }
 
 /// <summary>Тип награды за достижение.</summary>

@@ -134,8 +134,9 @@ public class PersonalBestHud : MonoBehaviour, ILangRefreshable
         int pb = PersonalBestRecord.BestWave;
         bool hasRecord = PersonalBestRecord.HasRecord;
         bool inRun = wave > 0;
+        bool bossWave = waveManager != null && waveManager.IsBossWave(wave);
 
-        bool showBlock = inRun && (hasRecord || !hideWithoutRecord);
+        bool showBlock = inRun && !bossWave && (hasRecord || !hideWithoutRecord);
 
         int remaining = pb - wave;
         int beaten = wave - pb;
@@ -143,7 +144,7 @@ public class PersonalBestHud : MonoBehaviour, ILangRefreshable
             pb > 0 ? Mathf.RoundToInt(wave * 100f / pb) : 0;
 
         // Пересечение рекорда: один раз за забег показываем баннер.
-        if (inRun && hasRecord && wave > pb && !beyondRecord)
+        if (inRun && !bossWave && hasRecord && wave > pb && !beyondRecord)
         {
             beyondRecord = true;
             TriggerNewRecord(wave, pb, remaining, beaten, percent);
@@ -153,7 +154,9 @@ public class PersonalBestHud : MonoBehaviour, ILangRefreshable
             beyondRecord = false;
         }
 
-        bool newRecordVisible = newRecordTimer > 0f;
+        bool newRecordVisible = newRecordTimer > 0f && !bossWave;
+        if (bossWave)
+            SetActiveSafe(newRecordText, false);
 
         SetText(
             progressText,
@@ -173,6 +176,7 @@ public class PersonalBestHud : MonoBehaviour, ILangRefreshable
 
         bool approachVisible =
             showBlock &&
+            !bossWave &&
             hasRecord &&
             approachThreshold > 0 &&
             remaining >= 0 &&
