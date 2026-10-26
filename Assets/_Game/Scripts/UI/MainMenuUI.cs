@@ -725,11 +725,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         WaveManager waves = FindAnyObjectByType<WaveManager>();
         if (!GameModeManager.IsPvp && waves != null)
-        {
             waves.PrepareSelectedMapWorld();
-            while (waves.IsPreparingSelectedMap)
-                yield return null;
-        }
 
         if (GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Menu)

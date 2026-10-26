@@ -185,6 +185,12 @@ public class WorldStructureGenerator : MonoBehaviour
     private readonly List<Coroutine> transitionRoutines =
         new List<Coroutine>();
 
+    // Старые структуры удаляются из structures до завершения fade-out.
+    // Их нужно хранить отдельно, иначе отмена генерации оставляет их в
+    // сцене с уже отключёнными коллайдерами.
+    private readonly List<GameObject> fadingStructures =
+        new List<GameObject>();
+
     // Длительность «вырастания» текущей генерации. Быстрая
     // пересборка между волнами ставит своё короткое значение,
     // поэтому ScaleInStructure берёт время отсюда, а не из поля
@@ -558,6 +564,17 @@ public class WorldStructureGenerator : MonoBehaviour
     {
         StopTrackedCoroutines();
 
+        for (int i = 0; i < fadingStructures.Count; i++)
+        {
+            if (fadingStructures[i] != null)
+            {
+                fadingStructures[i].SetActive(false);
+                Destroy(fadingStructures[i]);
+            }
+        }
+
+        fadingStructures.Clear();
+
         if (generateCoroutine == null)
             return;
 
@@ -610,6 +627,8 @@ public class WorldStructureGenerator : MonoBehaviour
             structureFinalScales.Clear();
             placedPositions.Clear();
             placedClearances.Clear();
+
+            fadingStructures.AddRange(oldStructures);
 
             // Коллайдеры гасим сразу, а не в начале fade-out: старые
             // блоки не должны блокировать игрока и пули, пока новые
@@ -753,7 +772,10 @@ public class WorldStructureGenerator : MonoBehaviour
         }
 
         if (structure != null)
+        {
+            fadingStructures.Remove(structure);
             Destroy(structure);
+        }
     }
 
     private IEnumerator ScaleInStructure(
