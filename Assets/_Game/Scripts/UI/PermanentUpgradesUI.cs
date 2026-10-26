@@ -244,15 +244,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
         if (coinsText != null)
             coinsText.text = coins.ToString();
 
-        ShowPage();
-
-        for (int i = 0; i < cardSlots.Count; i++)
-        {
-            PermanentUpgradeCardView slot = cardSlots[i];
-
-            if (slot != null && slot.gameObject.activeSelf)
-                slot.Refresh(coins);
-        }
+        ShowPage(coins);
 
         if (refreshButton != null)
             refreshButton.interactable = coins >= refreshCost;
@@ -268,7 +260,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
             refreshCostText.text = Lang.Get("upg.refresh_cost", refreshCost);
     }
 
-    private void ShowPage()
+    private void ShowPage(int coins)
     {
         if (order == null)
             return;
@@ -296,6 +288,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
                 slot.Bind(order[index]);
 
             slot.SetSelected(index == selectedIndex);
+            slot.Refresh(coins);
         }
 
         UpdatePagination();
@@ -374,7 +367,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
 
         page = clamped;
 
-        ShowPage();
+        ShowPage(CurrentCoins());
 
         PlayUiClick();
     }
@@ -390,7 +383,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
 
         selectedIndex = IndexOf(card.Stat);
 
-        ShowPage();
+        ShowPage(CurrentCoins());
 
         PlayUiClick();
     }
