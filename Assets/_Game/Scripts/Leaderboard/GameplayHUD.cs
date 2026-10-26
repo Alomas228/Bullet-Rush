@@ -39,6 +39,7 @@ public class GameplayHUD : MonoBehaviour
 
     private int bonusPopupCount;
     private const int maxBonusPopups = 8;
+    private bool pvpHidden;
 
     // =========================================================
     // INITIALIZATION
@@ -46,6 +47,7 @@ public class GameplayHUD : MonoBehaviour
 
     private void Awake()
     {
+        pvpHidden = GameModeManager.IsPvp;
         cachedMetrics = FindAnyObjectByType<RunMetrics>();
         cachedCombo = FindAnyObjectByType<ComboSystem>();
         cachedWaveManager = FindAnyObjectByType<WaveManager>();
@@ -54,9 +56,18 @@ public class GameplayHUD : MonoBehaviour
         if (comboPanel != null)
             comboPanel.SetActive(false);
         if (scorePanel != null)
-            scorePanel.SetActive(true);
+            scorePanel.SetActive(!pvpHidden);
 
         RebuildScoreText();
+    }
+
+    public void SetPvpHidden(bool hidden)
+    {
+        pvpHidden = hidden;
+        if (scorePanel != null)
+            scorePanel.SetActive(!hidden);
+        if (comboPanel != null)
+            comboPanel.SetActive(!hidden && lastCombo > 0);
     }
 
     private void OnEnable()
@@ -161,7 +172,7 @@ public class GameplayHUD : MonoBehaviour
         lastCombo = combo;
 
         if (comboPanel != null)
-            comboPanel.SetActive(combo > 0);
+            comboPanel.SetActive(!pvpHidden && combo > 0);
 
         if (comboCountText != null)
             comboCountText.text = combo.ToString();
@@ -241,6 +252,9 @@ public class GameplayHUD : MonoBehaviour
         Color textColor,
         FontStyles fontStyle)
     {
+        if (pvpHidden)
+            return null;
+
         if (bonusPopupPrefab == null || bonusPopupContainer == null)
             return null;
 

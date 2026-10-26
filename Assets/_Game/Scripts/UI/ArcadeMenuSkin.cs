@@ -63,6 +63,10 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private TMP_Text modifierValueText;
     private Button modifierButton;
     private Button playButton;
+    private Button pveModeButton;
+    private Button pvpModeButton;
+    private TMP_Text pveModeLabel;
+    private TMP_Text pvpModeLabel;
     private Image playGlow;
     private Image playShine;
 
@@ -532,6 +536,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         RefreshTiles();
         RefreshMapChip();
         RefreshModifier();
+        RefreshGameMode();
         RefreshStats();
         RefreshSettingsValues();
     }
@@ -782,6 +787,37 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         modifierValueText.text = modifierDropdown.options[index].text;
     }
 
+    private void RefreshGameMode()
+    {
+        bool pvp = GameModeManager.IsPvp;
+
+        if (pveModeButton != null)
+            pveModeButton.GetComponent<Image>().color = pvp
+                ? ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.94f)
+                : ArcadeUiTheme.Green;
+
+        if (pvpModeButton != null)
+            pvpModeButton.GetComponent<Image>().color = pvp
+                ? ArcadeUiTheme.Orange
+                : ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.94f);
+
+        if (pveModeLabel != null)
+            pveModeLabel.color = pvp
+                ? ArcadeUiTheme.TextPrimary
+                : ArcadeUiTheme.TextDark;
+
+        if (pvpModeLabel != null)
+            pvpModeLabel.color = pvp
+                ? ArcadeUiTheme.TextDark
+                : ArcadeUiTheme.TextPrimary;
+
+        if (pveModeLabel != null)
+            pveModeLabel.text = Lang.GetOr("menu.mode.pve", "PVE");
+
+        if (pvpModeLabel != null)
+            pvpModeLabel.text = Lang.GetOr("menu.mode.pvp", "PVP");
+    }
+
     private void RefreshStats()
     {
         int level = xpManager != null ? xpManager.GlobalLevel : 1;
@@ -951,6 +987,12 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void Play()
     {
+        if (GameModeManager.IsPvp)
+        {
+            PvpMatchManager.EnsureExists().BeginSearch();
+            return;
+        }
+
         if (legacyPlayButton != null)
         {
             legacyPlayButton.onClick.Invoke();
@@ -959,6 +1001,31 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
         if (gameStateManager != null)
             gameStateManager.StartGame();
+    }
+
+    private void SelectPveMode()
+    {
+        GameModeManager.Select(GameMode.Pve);
+        PvpMatchManager pvp = FindAnyObjectByType<PvpMatchManager>();
+        if (pvp != null)
+            pvp.CancelAndReturnToPve();
+
+        WaveManager waves = FindAnyObjectByType<WaveManager>(FindObjectsInactive.Include);
+        if (waves != null)
+            waves.ActivateForPve();
+
+        RefreshGameMode();
+    }
+
+    private void SelectPvpMode()
+    {
+        GameModeManager.Select(GameMode.Pvp);
+        WaveManager waves = FindAnyObjectByType<WaveManager>(FindObjectsInactive.Include);
+        if (waves != null)
+            waves.DeactivateForPvp();
+
+        PvpMatchManager.EnsureExists().PreviewArena();
+        RefreshGameMode();
     }
 
     private void OpenDaily()

@@ -64,6 +64,9 @@ public class EnvironmentController : MonoBehaviour
     private WorldStructureGenerator worldGenerator;
     private int currentIndex;
     private bool initialized;
+    private GameMap runtimePreviousMap;
+    private int runtimePreviousIndex = -1;
+    private bool restoringRuntimeMap;
 
     public int CurrentIndex => currentIndex;
 
@@ -71,6 +74,7 @@ public class EnvironmentController : MonoBehaviour
         currentLayer != null ? currentLayer.Map : null;
 
     public bool IsTransitioning { get; private set; }
+    public bool IsRestoringRuntimeMap => restoringRuntimeMap;
 
     public int MapsCount =>
         maps != null ? maps.Length : 0;
@@ -210,6 +214,54 @@ public class EnvironmentController : MonoBehaviour
         SwitchToMap(maps[index], Math.Sign(step));
     }
 
+    public bool SwitchToRuntimeMap(GameMap map)
+    {
+        if (!initialized || IsTransitioning || restoringRuntimeMap || map == null)
+            return false;
+
+        runtimePreviousMap = CurrentMap;
+        runtimePreviousIndex = currentIndex;
+        EnterMap(map, 1);
+        return true;
+    }
+
+    public bool RestorePreviousMap()
+    {
+        if (runtimePreviousMap == null)
+            return restoringRuntimeMap;
+
+        if (restoringRuntimeMap)
+            return true;
+
+        restoringRuntimeMap = true;
+        StartCoroutine(RestorePreviousMapRoutine());
+        return true;
+    }
+
+    private IEnumerator RestorePreviousMapRoutine()
+    {
+        while (IsTransitioning)
+            yield return null;
+
+        BeginRestorePreviousMap();
+
+        while (IsTransitioning)
+            yield return null;
+
+        restoringRuntimeMap = false;
+    }
+
+    private void BeginRestorePreviousMap()
+    {
+        GameMap previous = runtimePreviousMap;
+        int previousIndex = runtimePreviousIndex;
+        runtimePreviousMap = null;
+        runtimePreviousIndex = -1;
+        currentIndex = previousIndex;
+        SelectedMapIndex = previousIndex;
+        EnterMap(previous, -1);
+    }
+
     private void SwitchBy(int step)
     {
         if (maps == null ||
@@ -267,6 +319,7 @@ public class EnvironmentController : MonoBehaviour
     {
         if (!initialized ||
             IsTransitioning ||
+            restoringRuntimeMap ||
             target == null ||
             target == CurrentMap)
         {

@@ -21,6 +21,7 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
 
     private bool subscribed;
     private bool warnedAboutRoot;
+    private bool pvpHidden;
 
     private float cachedHealthMax = float.NaN;
     private float cachedHealth = float.NaN;
@@ -103,10 +104,20 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
             return;
         }
 
-        bool visible = state == GameState.Playing;
+        bool visible = state == GameState.Playing && !GameModeManager.IsPvp && !pvpHidden;
 
         if (hudRoot.activeSelf != visible)
             hudRoot.SetActive(visible);
+    }
+
+    public void SetPvpHidden(bool hidden)
+    {
+        pvpHidden = hidden;
+        ApplyVisibility(
+            GameStateManager.Instance != null
+                ? GameStateManager.Instance.CurrentState
+                : GameState.Menu
+        );
     }
 
     private void Update()

@@ -92,6 +92,9 @@ public class PermanentUpgradeApplier : MonoBehaviour
     /// </summary>
     public void ApplyPermanentUpgrades()
     {
+        if (GameModeManager.IsPvp)
+            return;
+
         if (applied)
             return;
 

@@ -280,6 +280,11 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public float CurrentMoveSpeed =>
+        playerStats != null
+            ? playerStats.MoveSpeed
+            : moveSpeed;
+
     public float DashCooldownRemaining => dashCooldownTimer;
 
     public float DashCooldown => dashCooldown;

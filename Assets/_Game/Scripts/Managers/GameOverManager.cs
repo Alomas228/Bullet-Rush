@@ -196,6 +196,15 @@ public class GameOverManager : MonoBehaviour
         );
     }
 
+    public void ResetForNewRun()
+    {
+        IsGameOver = false;
+        pendingRestart = false;
+        menuReturnPending = false;
+        runFinalized = false;
+        LastResult = null;
+    }
+
     /// <summary>
     /// Возрождение игрока через rewarded-рекламу: отменяет Game Over и
     /// продолжает забег в текущей волне.

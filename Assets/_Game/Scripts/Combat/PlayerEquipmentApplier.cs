@@ -112,6 +112,9 @@ public class PlayerEquipmentApplier : MonoBehaviour
 
     private void ApplyAbilities()
     {
+        if (GameModeManager.IsPvp)
+            return;
+
         AbilityManager abilityManager =
             GetComponent<AbilityManager>();
 

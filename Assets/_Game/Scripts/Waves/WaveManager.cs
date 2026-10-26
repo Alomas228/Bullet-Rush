@@ -115,6 +115,7 @@ public class WaveManager : MonoBehaviour
     private bool waitingForNextWave;
     private bool gameStarted;
     private bool waveCompleteShown;
+    private bool initialized;
 
     // Для какой волны арена уже собрана. Нужна, чтобы не перестраивать
     // мир повторно на первой волне после анимированной подготовки
@@ -130,6 +131,70 @@ public class WaveManager : MonoBehaviour
 
     private void Start()
     {
+        InitializeForPve();
+    }
+
+    public void ActivateForPve()
+    {
+        enabled = true;
+        InitializeForPve();
+
+        if (initialized && !GameModeManager.IsPvp &&
+            GameStateManager.Instance != null &&
+            GameStateManager.Instance.CurrentState == GameState.Playing &&
+            !gameStarted)
+        {
+            gameStarted = true;
+            BeginRun();
+        }
+    }
+
+    public void DeactivateForPvp()
+    {
+        gameStarted = false;
+        waveActive = false;
+        waitingForNextWave = false;
+        waveCompleteShown = false;
+        generatedWorldWave = -1;
+        StopAllCoroutines();
+
+        if (enemySpawner != null)
+            enemySpawner.StopSpawnQueue();
+
+        Enemy[] enemies = Enemy.SnapshotAlive();
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            if (enemies[i] != null)
+            {
+                enemies[i].gameObject.SetActive(false);
+                Destroy(enemies[i].gameObject);
+            }
+        }
+
+        EnemyProjectile[] projectiles = FindObjectsByType<EnemyProjectile>(
+            FindObjectsInactive.Include, FindObjectsSortMode.None
+        );
+        for (int i = 0; i < projectiles.Length; i++)
+        {
+            if (projectiles[i] != null && projectiles[i].gameObject.activeInHierarchy)
+                projectiles[i].ReturnToPool();
+        }
+
+        if (waveUI != null)
+            waveUI.Hide();
+    }
+
+    private void InitializeForPve()
+    {
+        if (initialized || GameModeManager.IsPvp)
+        {
+            if (GameModeManager.IsPvp)
+                enabled = false;
+            return;
+        }
+
+        initialized = true;
+
         if (waveUI != null)
             waveUI.Hide();
 
@@ -181,6 +246,9 @@ public class WaveManager : MonoBehaviour
     {
         if (state == GameState.Playing && !gameStarted)
         {
+            if (GameModeManager.IsPvp)
+                return;
+
             gameStarted = true;
 
             BeginRun();

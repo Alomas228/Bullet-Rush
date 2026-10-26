@@ -1,7 +1,11 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class Bullet : MonoBehaviour
 {
+    private static readonly List<Bullet> activeBullets =
+        new List<Bullet>(32);
+
     [Header("Bullet")]
     [SerializeField] private float speed = 15f;
     [SerializeField] private float lifetime = 3f;
@@ -87,6 +91,31 @@ public class Bullet : MonoBehaviour
 
     // Ключ пула (по префабу): пустой = объект живёт вне пула.
     public EntityId? PoolKey { get; internal set; }
+
+    public static int ActiveCount => activeBullets.Count;
+
+    public static Bullet GetActive(int index) => activeBullets[index];
+
+    public Vector3 TravelDirection => transform.forward;
+
+    public float TravelSpeed => speed;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetActiveBullets()
+    {
+        activeBullets.Clear();
+    }
+
+    private void OnEnable()
+    {
+        if (!activeBullets.Contains(this))
+            activeBullets.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        activeBullets.Remove(this);
+    }
 
     private void Awake()
     {
@@ -445,6 +474,20 @@ public class Bullet : MonoBehaviour
     {
         if (StructureQuery.IsWorldStructure(other))
         {
+            ReturnToPool();
+            return;
+        }
+
+        PvpCombatant pvpTarget =
+            other.GetComponentInParent<PvpCombatant>();
+
+        if (pvpTarget != null && !pvpTarget.IsPlayer)
+        {
+            pvpTarget.TakeDamage(damage);
+            VfxFactory.SpawnImpact(
+                transform.position,
+                transform.forward
+            );
             ReturnToPool();
             return;
         }

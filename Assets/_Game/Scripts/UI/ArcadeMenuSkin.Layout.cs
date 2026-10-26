@@ -1003,7 +1003,7 @@ public sealed partial class ArcadeMenuSkin
             "PlayGlow",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -196f),
+            new Vector2(0f, -180f),
             new Vector2(1120f, 520f)
         );
         playGlow = ArcadeUiFactory.Image(
@@ -1018,7 +1018,7 @@ public sealed partial class ArcadeMenuSkin
             "PlayButton",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -196f),
+            new Vector2(0f, -180f),
             new Vector2(620f, 128f)
         );
         playButton = ArcadeUiFactory.Button(
@@ -1053,6 +1053,57 @@ public sealed partial class ArcadeMenuSkin
             true
         );
         AddLangBinding(playSub, () => Lang.GetOr("menu.skin.play_sub", "НАЧАТЬ ЗАБЕГ"));
+
+        RectTransform modeRow = ArcadeUiFactory.At(
+            parent,
+            "GameModeRow",
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, -350f),
+            new Vector2(470f, 48f)
+        );
+
+        RectTransform pve = ArcadeUiFactory.At(
+            modeRow,
+            "PveButton",
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0f),
+            new Vector2(220f, 48f)
+        );
+        pveModeButton = ArcadeUiFactory.Button(
+            pve,
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.Green,
+            "",
+            ArcadeKitAssets.BodyBold,
+            16f,
+            ArcadeUiTheme.TextDark,
+            SelectPveMode
+        );
+        pveModeLabel = pve.transform.Find("Label").GetComponent<TMP_Text>();
+        AddShadow(pve, new Vector2(0f, -4f), 0.3f);
+
+        RectTransform pvp = ArcadeUiFactory.At(
+            modeRow,
+            "PvpButton",
+            new Vector2(1f, 0.5f),
+            new Vector2(1f, 0.5f),
+            new Vector2(0f, 0f),
+            new Vector2(220f, 48f)
+        );
+        pvpModeButton = ArcadeUiFactory.Button(
+            pvp,
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.94f),
+            "",
+            ArcadeKitAssets.BodyBold,
+            16f,
+            ArcadeUiTheme.TextPrimary,
+            SelectPvpMode
+        );
+        pvpModeLabel = pvp.transform.Find("Label").GetComponent<TMP_Text>();
+        AddShadow(pvp, new Vector2(0f, -4f), 0.3f);
 
         RectTransform shine = ArcadeUiFactory.At(
             play,

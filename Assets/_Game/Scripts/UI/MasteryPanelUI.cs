@@ -5,6 +5,10 @@ using UnityEngine.UI;
 
 public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 {
+    private const float CardWidth = 320f;
+    private const float CardHeight = 230f;
+    private const float RowsTopInset = 258f;
+
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text prestigeText;
     [SerializeField] private Button prestigeButton;
@@ -15,6 +19,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 
     private readonly List<GameObject> rows = new List<GameObject>();
     private GameObject runtimeDim;
+    private TMP_Text runtimeDescription;
 
     private void Awake()
     {
@@ -110,6 +115,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
                 mastery.UnlockedCosmetics.Count
             );
         }
+        EnsureRuntimeDescription();
 
         ClearRows();
         UpgradeManager upgradeManager = UpgradeManager.Instance;
@@ -118,6 +124,9 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         Transform contentRoot = rowsRoot.Find("Viewport/Content") ?? rowsRoot.Find("Content");
         if (contentRoot != null)
             rowsRoot = contentRoot;
+
+        if (rowsRoot.parent != null && rowsRoot.parent.parent is RectTransform rowsArea)
+            rowsArea.offsetMax = new Vector2(rowsArea.offsetMax.x, -RowsTopInset);
 
         VerticalLayoutGroup oldLayout = rowsRoot.GetComponent<VerticalLayoutGroup>();
         GridLayoutGroup rowsLayout = rowsRoot.GetComponent<GridLayoutGroup>();
@@ -135,12 +144,24 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 
         if (rowsLayout == null)
             return;
-        rowsLayout.cellSize = new Vector2(300f, 132f);
-        rowsLayout.spacing = new Vector2(14f, 14f);
+        Canvas.ForceUpdateCanvases();
+        rowsLayout.cellSize = new Vector2(CardWidth, CardHeight);
+        rowsLayout.spacing = new Vector2(18f, 14f);
         rowsLayout.padding = new RectOffset(12, 12, 12, 12);
         rowsLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        rowsLayout.constraintCount = 3;
-        rowsLayout.childAlignment = TextAnchor.UpperLeft;
+        RectTransform rowsRect = rowsRoot as RectTransform;
+        float availableWidth = rowsRect != null ? rowsRect.rect.width : 0f;
+        rowsLayout.constraintCount = availableWidth > 0f
+            ? Mathf.Clamp(
+                Mathf.FloorToInt(
+                    (availableWidth - rowsLayout.padding.horizontal + rowsLayout.spacing.x) /
+                    (CardWidth + rowsLayout.spacing.x)
+                ),
+                1,
+                3
+            )
+            : 3;
+        rowsLayout.childAlignment = TextAnchor.UpperCenter;
         IReadOnlyList<WeaponData> weapons = upgradeManager.GetAvailableWeapons();
         if (weapons == null)
             return;
@@ -153,13 +174,14 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
                 ? Instantiate(rowTemplate, rowsRoot)
                 : CreateRow(weapon);
             row.SetActive(true);
+            ApplyCardStyle(row, weapon);
             LayoutElement rowLayout = row.GetComponent<LayoutElement>();
             if (rowLayout == null)
                 rowLayout = row.AddComponent<LayoutElement>();
-            rowLayout.minWidth = 300f;
-            rowLayout.preferredWidth = 300f;
+            rowLayout.minWidth = CardWidth;
+            rowLayout.preferredWidth = CardWidth;
             rowLayout.flexibleWidth = 0f;
-            rowLayout.preferredHeight = 132f;
+            rowLayout.preferredHeight = CardHeight;
             int kills = mastery.GetWeaponKills(weapon.WeaponName);
             int level = mastery.GetWeaponMasteryLevel(weapon.WeaponName);
             int next = mastery.GetNextMasteryThreshold(weapon.WeaponName);
@@ -184,46 +206,143 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         }
     }
 
+    private void EnsureRuntimeDescription()
+    {
+        if (runtimeDescription == null)
+        {
+            Transform existing = transform.Find("MasteryRuntimeDescription");
+            if (existing != null)
+                runtimeDescription = existing.GetComponent<TMP_Text>();
+
+            if (runtimeDescription == null)
+            {
+                RectTransform rect = ArcadeUiFactory.At(
+                    transform,
+                    "MasteryRuntimeDescription",
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0f, -216f),
+                    new Vector2(-80f, 40f)
+                );
+                runtimeDescription = ArcadeUiFactory.Label(
+                    rect,
+                    string.Empty,
+                    ArcadeKitAssets.Body,
+                    14f,
+                    ArcadeUiTheme.TextSecondary,
+                    TextAlignmentOptions.Center
+                );
+            }
+        }
+
+        runtimeDescription.text = Lang.Get("progression.mastery.summary");
+        runtimeDescription.font = ArcadeKitAssets.Body;
+        runtimeDescription.fontSize = 14f;
+        runtimeDescription.color = ArcadeUiTheme.TextSecondary;
+        runtimeDescription.alignment = TextAlignmentOptions.Center;
+        runtimeDescription.enableWordWrapping = true;
+        runtimeDescription.overflowMode = TextOverflowModes.Ellipsis;
+        runtimeDescription.raycastTarget = false;
+    }
+
     private GameObject CreateRow(WeaponData weapon)
     {
         GameObject row = new GameObject("Mastery_" + weapon.WeaponName, typeof(RectTransform), typeof(LayoutElement), typeof(Image));
         row.transform.SetParent(rowsRoot, false);
 
         RectTransform rect = row.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(300f, 132f);
+        rect.sizeDelta = new Vector2(CardWidth, CardHeight);
         LayoutElement element = row.GetComponent<LayoutElement>();
-        element.minHeight = 132f;
-        element.preferredHeight = 132f;
-        element.flexibleWidth = 1f;
+        element.minWidth = CardWidth;
+        element.preferredWidth = CardWidth;
+        element.minHeight = CardHeight;
+        element.preferredHeight = CardHeight;
+        element.flexibleWidth = 0f;
 
         Image background = row.GetComponent<Image>();
         background.sprite = ArcadeKitAssets.Card;
         background.type = Image.Type.Sliced;
-        background.color = ArcadeUiTheme.CardSoft;
+        background.color = Color.clear;
         background.raycastTarget = false;
+
+        RectTransform shadow = ArcadeUiFactory.At(
+            row.transform,
+            "CardShadow",
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, -5f),
+            new Vector2(CardWidth + 8f, CardHeight + 8f)
+        );
+        ArcadeUiFactory.Image(shadow, ArcadeKitAssets.Card, ArcadeUiTheme.Shadow, true);
+        shadow.SetAsFirstSibling();
+
+        RectTransform frame = ArcadeUiFactory.Stretch(row.transform, "CardFrame");
+        ArcadeUiFactory.Image(frame, ArcadeKitAssets.Card, ArcadeUiTheme.Line, true);
+
+        RectTransform face = ArcadeUiFactory.Stretch(row.transform, "CardFace", 3f, 3f, 3f, 3f);
+        ArcadeUiFactory.Image(face, ArcadeKitAssets.RoundRect, ArcadeUiTheme.Panel, true);
 
         RectTransform accent = ArcadeUiFactory.At(
             row.transform,
             "Accent",
-            new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f),
-            new Vector2(8f, 0f),
-            new Vector2(5f, 104f)
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, -10f),
+            new Vector2(286f, 4f)
         );
         ArcadeUiFactory.Image(accent, ArcadeKitAssets.RoundRect, ArcadeUiTheme.Orange, true);
+
+        RectTransform art = ArcadeUiFactory.At(
+            row.transform,
+            "WeaponArt",
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(24f, -22f),
+            new Vector2(272f, 82f)
+        );
+        ArcadeUiFactory.Image(art, ArcadeKitAssets.RoundRect, ArcadeUiTheme.CardSoft, true);
+        ArcadeCardVisuals.Pattern(art);
+
+        Image icon = ArcadeUiFactory.Icon(
+            art,
+            "WeaponIcon",
+            "target",
+            ArcadeUiTheme.Cyan,
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f),
+            new Vector2(22f, 0f),
+            new Vector2(52f, 52f)
+        );
+        icon.preserveAspect = true;
+
+        TMP_Text type = ArcadeUiFactory.Label(
+            art,
+            "WeaponType",
+            GetWeaponTypeLabel(weapon.WeaponType),
+            ArcadeKitAssets.BodyBold,
+            12f,
+            ArcadeUiTheme.Cyan,
+            TextAlignmentOptions.Left,
+            new Vector2(0f, 0f),
+            new Vector2(0f, 0f),
+            new Vector2(82f, 12f),
+            new Vector2(176f, 18f),
+            true
+        );
+        type.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
 
         TMP_Text label = ArcadeUiFactory.Label(
             row.transform,
             "Label",
             weapon.LocalizedName,
             ArcadeKitAssets.BodyBold,
-            17f,
+            20f,
             ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
-            new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f),
-            new Vector2(24f, 42f),
-            new Vector2(250f, 28f),
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(24f, -118f),
+            new Vector2(272f, 28f),
             true
         );
 
@@ -235,10 +354,10 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             13f,
             ArcadeUiTheme.TextSecondary,
             TextAlignmentOptions.Left,
-            new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f),
-            new Vector2(24f, 12f),
-            new Vector2(250f, 20f)
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(24f, -150f),
+            new Vector2(272f, 20f)
         );
 
         ArcadeUiFactory.Label(
@@ -249,35 +368,104 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             12f,
             ArcadeUiTheme.GoldBright,
             TextAlignmentOptions.Left,
-            new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f),
-            new Vector2(24f, -18f),
-            new Vector2(250f, 22f)
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(24f, -174f),
+            new Vector2(272f, 32f)
         );
 
         RectTransform barRect = ArcadeUiFactory.At(
             row.transform,
             "Bar",
-            new Vector2(1f, 0.5f),
-            new Vector2(1f, 0.5f),
-            new Vector2(-18f, -44f),
-            new Vector2(180f, 8f)
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(24f, -210f),
+            new Vector2(272f, 8f)
         );
         ArcadeUiFactory.Bar(barRect, 0f, false, ArcadeUiTheme.Panel, ArcadeUiTheme.Cyan);
 
         return row;
     }
 
+    private void ApplyCardStyle(GameObject row, WeaponData weapon)
+    {
+        if (row == null || weapon == null)
+            return;
+
+        Image background = row.GetComponent<Image>();
+        if (background != null)
+        {
+            background.sprite = ArcadeKitAssets.Card;
+            background.type = Image.Type.Sliced;
+            background.color = Color.clear;
+            background.raycastTarget = false;
+        }
+
+        Image frame = row.transform.Find("CardFrame")?.GetComponent<Image>();
+        if (frame != null)
+        {
+            frame.sprite = ArcadeKitAssets.Card;
+            frame.type = Image.Type.Sliced;
+            frame.color = ArcadeUiTheme.Line;
+            frame.raycastTarget = false;
+        }
+
+        Color accent = EquipmentWireframeTheme.GetRarityColor(weapon.Rarity);
+        Image accentImage = row.transform.Find("Accent")?.GetComponent<Image>();
+        if (accentImage != null)
+            accentImage.color = accent;
+
+        Image art = row.transform.Find("WeaponArt")?.GetComponent<Image>();
+        if (art != null)
+        {
+            art.sprite = ArcadeKitAssets.RoundRect;
+            art.type = Image.Type.Sliced;
+            art.color = ArcadeCardVisuals.ArtTint(accent);
+            ArcadeCardVisuals.Pattern(art.rectTransform);
+        }
+
+        Image icon = row.transform.Find("WeaponArt/WeaponIcon")?.GetComponent<Image>();
+        if (icon != null)
+        {
+            icon.sprite = ArcadeKitAssets.Icon("target");
+            icon.color = Color.Lerp(accent, Color.white, 0.28f);
+            icon.preserveAspect = true;
+        }
+
+        TMP_Text type = row.transform.Find("WeaponType")?.GetComponent<TMP_Text>();
+        if (type == null)
+            type = row.transform.Find("WeaponArt/WeaponType")?.GetComponent<TMP_Text>();
+        if (type != null)
+        {
+            type.text = GetWeaponTypeLabel(weapon.WeaponType);
+            type.color = accent;
+            type.font = ArcadeKitAssets.BodyBold;
+            type.fontSize = 12f;
+            type.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        }
+    }
+
+    private static string GetWeaponTypeLabel(WeaponType type)
+    {
+        switch (type)
+        {
+            case WeaponType.Rifle: return Lang.Get("eq.type_rifle");
+            case WeaponType.Shotgun: return Lang.Get("eq.type_shotgun");
+            case WeaponType.SMG: return Lang.Get("eq.type_smg");
+            default: return type.ToString();
+        }
+    }
+
     private string GetMasteryEffect(int level)
     {
         switch (level)
         {
-            case 0: return Lang.GetOr("progression.mastery.effect.locked", "Следующая награда: титул · 100 убийств");
-            case 1: return Lang.GetOr("progression.mastery.effect.skin", "Получен титул · следующая награда: скин");
-            case 2: return Lang.GetOr("progression.mastery.effect.effect", "Получен скин · следующая награда: эффект");
-            case 3: return Lang.GetOr("progression.mastery.effect.master", "Получен эффект · следующая награда: титул мастера");
-            case 4: return Lang.GetOr("progression.mastery.effect.aura", "Получен титул мастера · следующая награда: аура");
-            default: return Lang.GetOr("progression.mastery.effect.max", "Мастерство завершено · все награды получены");
+            case 0: return Lang.Get("progression.mastery.effect.locked");
+            case 1: return Lang.Get("progression.mastery.effect.skin");
+            case 2: return Lang.Get("progression.mastery.effect.effect");
+            case 3: return Lang.Get("progression.mastery.effect.master");
+            case 4: return Lang.Get("progression.mastery.effect.aura");
+            default: return Lang.Get("progression.mastery.effect.max");
         }
     }
 

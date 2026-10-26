@@ -70,7 +70,7 @@ public class AbilityManager : MonoBehaviour
 
     private void Update()
     {
-        if (!inputEnabled)
+        if (!inputEnabled || GameModeManager.IsPvp)
             return;
 
         HandleBombInput();
