@@ -246,6 +246,17 @@ public class GameOverManager : MonoBehaviour
 
         Time.timeScale = 1f;
 
+        if (!GameModeManager.IsPvp)
+        {
+            EnvironmentController environment =
+                FindAnyObjectByType<EnvironmentController>();
+
+            if (environment != null)
+                WorldStructureGenerator.CaptureSceneReloadSnapshot(
+                    environment.CurrentMap
+                );
+        }
+
         MainMenuUI.MenuReloadPending = true;
 
         if (GameStateManager.Instance != null)

@@ -121,8 +121,12 @@ public class WaveManager : MonoBehaviour
     // мир повторно на первой волне после анимированной подготовки
     // обучения (та же раскладка, только уже выросшая).
     private int generatedWorldWave = -1;
+    private GameMap preparedWorldMap;
 
     private EnvironmentController cachedEnvironment;
+
+    public bool IsPreparingSelectedMap =>
+        worldGenerator != null && worldGenerator.IsGenerating;
 
     // Получал ли игрок урон в текущей волне. Лечение до максимума
     // больше не выдаёт волну за идеальную, как делала проверка
@@ -156,6 +160,7 @@ public class WaveManager : MonoBehaviour
         waitingForNextWave = false;
         waveCompleteShown = false;
         generatedWorldWave = -1;
+        preparedWorldMap = null;
         StopAllCoroutines();
 
         if (enemySpawner != null)
@@ -210,6 +215,12 @@ public class WaveManager : MonoBehaviour
         cachedEnvironment =
             FindAnyObjectByType<EnvironmentController>();
 
+        if (worldGenerator == null)
+            worldGenerator = FindAnyObjectByType<WorldStructureGenerator>();
+
+        if (cachedEnvironment != null)
+            cachedEnvironment.OnMapChanged += HandleMapChanged;
+
         if (playerHealth == null)
             playerHealth = FindAnyObjectByType<PlayerHealth>();
 
@@ -226,12 +237,18 @@ public class WaveManager : MonoBehaviour
                 BeginRun();
             }
         }
+
+        if (!gameStarted)
+            PrepareSelectedMapWorld();
     }
 
     private void OnDestroy()
     {
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
+
+        if (cachedEnvironment != null)
+            cachedEnvironment.OnMapChanged -= HandleMapChanged;
 
         if (playerHealth != null)
             playerHealth.OnDamaged -= HandlePlayerDamaged;
@@ -260,6 +277,7 @@ public class WaveManager : MonoBehaviour
             waitingForNextWave = false;
             waveCompleteShown = false;
             generatedWorldWave = -1;
+            preparedWorldMap = null;
             currentModifier = WaveModifier.None;
 
             // Память акцентов обнуляется вместе с забегом: иначе
@@ -470,6 +488,9 @@ public class WaveManager : MonoBehaviour
         if (worldGenerator == null)
             return;
 
+        if (generatedWorldWave == 1)
+            return;
+
         int mapSeed = GetCurrentMapSeed();
 
         // Здесь анимация нужна: игрок ещё в обучении, блоки
@@ -478,6 +499,56 @@ public class WaveManager : MonoBehaviour
         // первой волне раскладка не перестроится.
         worldGenerator.GenerateAnimated(mapSeed, 1);
         generatedWorldWave = 1;
+    }
+
+    public void PrepareSelectedMapWorld()
+    {
+        if (GameModeManager.IsPvp ||
+            GameStateManager.Instance == null ||
+            GameStateManager.Instance.CurrentState != GameState.Menu ||
+            cachedEnvironment == null ||
+            cachedEnvironment.IsTransitioning ||
+            cachedEnvironment.IsRestoringRuntimeMap)
+        {
+            return;
+        }
+
+        if (worldGenerator == null)
+            worldGenerator = FindAnyObjectByType<WorldStructureGenerator>();
+
+        if (worldGenerator == null || cachedEnvironment.CurrentMap == null)
+            return;
+
+        GameMap map = cachedEnvironment.CurrentMap;
+        worldGenerator.ApplyTheme(map);
+
+        if (worldGenerator.TryRestoreSceneReloadSnapshot(map))
+        {
+            preparedWorldMap = map;
+            generatedWorldWave = 1;
+            return;
+        }
+
+        if (preparedWorldMap == map)
+        {
+            if (!worldGenerator.IsGenerating)
+                generatedWorldWave = 1;
+            return;
+        }
+
+        worldGenerator.GenerateAnimated(map.layoutSeed, 1);
+        preparedWorldMap = map;
+        generatedWorldWave = 1;
+    }
+
+    private void HandleMapChanged(GameMap map)
+    {
+        preparedWorldMap = null;
+
+        if (map != null && worldGenerator != null)
+            worldGenerator.ApplyTheme(map);
+
+        PrepareSelectedMapWorld();
     }
 
     // Seed геометрии арены берётся из текущей карты: у каждого

@@ -21,6 +21,7 @@ public sealed class PvpMatchManager : MonoBehaviour
     private Image playerHealthFill;
     private Image aiHealthFill;
     private GameObject searchPanel;
+    private GameObject searchBackdrop;
     private TMP_Text searchLabel;
     private Coroutine searchRoutine;
     private Coroutine arenaRoutine;
@@ -74,6 +75,23 @@ public sealed class PvpMatchManager : MonoBehaviour
         searchRoutine = StartCoroutine(SearchRoutine());
     }
 
+    private void CancelSearch()
+    {
+        if (searchRoutine == null)
+            return;
+
+        StopCoroutine(searchRoutine);
+        searchRoutine = null;
+
+        if (searchPanel != null)
+            searchPanel.SetActive(false);
+
+        if (searchBackdrop != null)
+            searchBackdrop.SetActive(false);
+
+        SetStandardHudHidden(false);
+    }
+
     public void PreviewArena()
     {
         if (arenaRoutine != null || arenaReady)
@@ -88,6 +106,9 @@ public sealed class PvpMatchManager : MonoBehaviour
     {
         modeGeneration++;
         Time.timeScale = 1f;
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SwitchToMenuMusic();
+
         initialized = false;
         arenaReady = false;
         matchStarted = false;
@@ -261,6 +282,9 @@ public sealed class PvpMatchManager : MonoBehaviour
         if (player == null)
             return;
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.SwitchToMainMusic();
+
         matchStarted = true;
         opponentName = OpponentFirstNames[Random.Range(0, OpponentFirstNames.Length)] +
             " " + OpponentLastNames[Random.Range(0, OpponentLastNames.Length)];
@@ -276,6 +300,9 @@ public sealed class PvpMatchManager : MonoBehaviour
         if (searchPanel != null)
             searchPanel.SetActive(true);
 
+        if (searchBackdrop != null)
+            searchBackdrop.SetActive(true);
+
         int duration = Random.Range(3, 11);
         float elapsed = 0f;
         while (elapsed < duration)
@@ -290,6 +317,9 @@ public sealed class PvpMatchManager : MonoBehaviour
         searchRoutine = null;
         if (searchPanel != null)
             searchPanel.SetActive(false);
+
+        if (searchBackdrop != null)
+            searchBackdrop.SetActive(false);
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.StartGame();
     }
@@ -579,23 +609,62 @@ public sealed class PvpMatchManager : MonoBehaviour
 
     private void BuildSearchPanel(RectTransform parent)
     {
+        RectTransform backdrop = ArcadeUiFactory.Stretch(
+            parent,
+            "PvpSearchBackdrop"
+        );
+        Image backdropImage = ArcadeUiFactory.Image(
+            backdrop,
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.Backdrop,
+            true
+        );
+        backdropImage.raycastTarget = true;
+        searchBackdrop = backdrop.gameObject;
+
         RectTransform panel = ArcadeUiFactory.At(
             parent, "PvpSearchPanel", new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(460f, 170f)
+            new Vector2(0.5f, 0.5f), new Vector2(0f, 12f), new Vector2(560f, 250f)
         );
         ArcadeUiFactory.Image(
             panel, ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f), true
+            ArcadeUiTheme.PanelRaised, true
         );
+        Shadow shadow = panel.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = ArcadeUiTheme.Shadow;
+        shadow.effectDistance = new Vector2(0f, -8f);
+        shadow.useGraphicAlpha = true;
+
         searchLabel = ArcadeUiFactory.Label(
             panel, "SearchLabel",
             Lang.GetOr("menu.pvp.search", "ПОИСК ПРОТИВНИКА"),
             ArcadeKitAssets.Display, 26f, ArcadeUiTheme.GoldBright,
             TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-            Vector2.zero, new Vector2(420f, 100f)
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -62f), new Vector2(500f, 90f)
         );
+
+        RectTransform cancel = ArcadeUiFactory.At(
+            panel,
+            "CancelSearch",
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 28f),
+            new Vector2(280f, 56f)
+        );
+        ArcadeUiFactory.Button(
+            cancel,
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.Red,
+            Lang.GetOr("menu.pvp.cancel_search", "ОТМЕНА"),
+            ArcadeKitAssets.BodyBold,
+            16f,
+            ArcadeUiTheme.TextDark,
+            CancelSearch
+        );
+
         searchPanel = panel.gameObject;
+        searchBackdrop.SetActive(false);
         searchPanel.SetActive(false);
     }
 
@@ -647,6 +716,9 @@ public sealed class PvpMatchManager : MonoBehaviour
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.SetState(GameState.GameOver);
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.StopMusic();
+
         Time.timeScale = 0f;
     }
 
@@ -658,7 +730,13 @@ public sealed class PvpMatchManager : MonoBehaviour
         GameModeManager.Select(GameMode.Pve);
         if (GameOverManager.Instance != null)
             GameOverManager.Instance.BackToMenu();
-        else if (GameStateManager.Instance != null)
-            GameStateManager.Instance.ReturnToMenu();
+        else
+        {
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.SwitchToMenuMusic();
+
+            if (GameStateManager.Instance != null)
+                GameStateManager.Instance.ReturnToMenu();
+        }
     }
 }

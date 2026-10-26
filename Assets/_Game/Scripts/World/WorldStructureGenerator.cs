@@ -4,6 +4,24 @@ using UnityEngine;
 
 public class WorldStructureGenerator : MonoBehaviour
 {
+    private sealed class SceneReloadSnapshot
+    {
+        public GameMap map;
+        public StructureSnapshot[] structures;
+    }
+
+    private struct StructureSnapshot
+    {
+        public int prefabIndex;
+        public string name;
+        public Vector3 localPosition;
+        public Quaternion localRotation;
+        public Vector3 localScale;
+        public Material[][] rendererMaterials;
+    }
+
+    private static SceneReloadSnapshot pendingSceneReloadSnapshot;
+
     [Header("Reference")]
     [Tooltip("Центр арены. Если не назначен — используется позиция этого объекта.")]
     [SerializeField] private Transform center;
@@ -87,6 +105,12 @@ public class WorldStructureGenerator : MonoBehaviour
 
     private readonly List<GameObject> structures =
         new List<GameObject>();
+
+    private readonly Dictionary<GameObject, int> structurePrefabIndices =
+        new Dictionary<GameObject, int>();
+
+    private readonly Dictionary<GameObject, Vector3> structureFinalScales =
+        new Dictionary<GameObject, Vector3>();
 
     private readonly List<Vector2> placedPositions =
         new List<Vector2>();
@@ -187,6 +211,165 @@ public class WorldStructureGenerator : MonoBehaviour
 
     public int BaseSeed =>
         baseSeed;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSceneReloadSnapshot()
+    {
+        pendingSceneReloadSnapshot = null;
+    }
+
+    public static void CaptureSceneReloadSnapshot(GameMap map)
+    {
+        pendingSceneReloadSnapshot = null;
+
+        EnvironmentController environment =
+            FindAnyObjectByType<EnvironmentController>();
+
+        if (map == null ||
+            environment == null ||
+            environment.CurrentMap != map ||
+            environment.GetMap(environment.CurrentIndex) != map)
+            return;
+
+        WorldStructureGenerator generator =
+            FindAnyObjectByType<WorldStructureGenerator>();
+
+        pendingSceneReloadSnapshot = generator != null && !generator.IsGenerating
+            ? generator.CreateSceneReloadSnapshot(map)
+            : null;
+    }
+
+    public bool TryRestoreSceneReloadSnapshot(GameMap map)
+    {
+        SceneReloadSnapshot snapshot = pendingSceneReloadSnapshot;
+        pendingSceneReloadSnapshot = null;
+
+        if (snapshot == null ||
+            snapshot.map != map ||
+            snapshot.structures.Length == 0)
+            return false;
+
+        Clear();
+        generateCoroutine = StartCoroutine(RestoreSnapshotRoutine(snapshot));
+        return true;
+    }
+
+    private IEnumerator RestoreSnapshotRoutine(SceneReloadSnapshot snapshot)
+    {
+        currentScaleInDuration = scaleInDuration;
+        WaitForSecondsRealtime staggerWait =
+            new WaitForSecondsRealtime(spawnStagger);
+        int perTick = Mathf.Max(structuresPerTick, 1);
+
+        try
+        {
+            for (int i = 0; i < snapshot.structures.Length; i += perTick)
+            {
+                int batchEnd = Mathf.Min(i + perTick, snapshot.structures.Length);
+
+                for (int j = i; j < batchEnd; j++)
+                    RestoreSnapshotStructure(snapshot.structures[j]);
+
+                yield return staggerWait;
+            }
+
+            yield return new WaitForSecondsRealtime(scaleInDuration);
+        }
+        finally
+        {
+            currentScaleInDuration = scaleInDuration;
+            generateCoroutine = null;
+        }
+    }
+
+    private void RestoreSnapshotStructure(StructureSnapshot saved)
+    {
+        GameObject prefab =
+            saved.prefabIndex >= 0 &&
+            spawnPrefabs != null &&
+            saved.prefabIndex < spawnPrefabs.Length
+                ? spawnPrefabs[saved.prefabIndex]
+                : null;
+
+        GameObject structure = prefab != null
+            ? Instantiate(prefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        if (structure.GetComponent<WorldStructure>() == null)
+            structure.AddComponent<WorldStructure>();
+
+        if (cachedWorldLayer >= 0)
+            SetLayerRecursive(structure, cachedWorldLayer);
+
+        structure.transform.SetParent(transform, false);
+        structure.transform.localPosition = saved.localPosition;
+        structure.transform.localRotation = saved.localRotation;
+        structure.transform.localScale = saved.localScale;
+        structure.name = saved.name;
+
+        Renderer[] renderers =
+            structure.GetComponentsInChildren<Renderer>(true);
+
+        for (int i = 0; i < renderers.Length && i < saved.rendererMaterials.Length; i++)
+            renderers[i].sharedMaterials = saved.rendererMaterials[i];
+
+        structures.Add(structure);
+        structurePrefabIndices[structure] = saved.prefabIndex;
+        structureFinalScales[structure] = saved.localScale;
+        StartTrackedCoroutine(ScaleInStructure(structure, saved.localScale));
+    }
+
+    private SceneReloadSnapshot CreateSceneReloadSnapshot(GameMap map)
+    {
+        List<StructureSnapshot> savedStructures =
+            new List<StructureSnapshot>(structures.Count);
+
+        for (int i = 0; i < structures.Count; i++)
+        {
+            GameObject structure = structures[i];
+            if (structure == null)
+                continue;
+
+            Renderer[] renderers =
+                structure.GetComponentsInChildren<Renderer>(true);
+            StructureOcclusionFader fader =
+                structure.GetComponentInParent<StructureOcclusionFader>();
+            Material[][] rendererMaterials = new Material[renderers.Length][];
+
+            for (int j = 0; j < renderers.Length; j++)
+            {
+                rendererMaterials[j] = fader != null
+                    ? fader.GetMaterialsForSnapshot(renderers[j])
+                    : renderers[j].sharedMaterials;
+            }
+
+            int prefabIndex = structurePrefabIndices.TryGetValue(
+                structure,
+                out int savedPrefabIndex
+            ) ? savedPrefabIndex : -1;
+
+            Vector3 localScale = structureFinalScales.TryGetValue(
+                structure,
+                out Vector3 finalScale
+            ) ? finalScale : structure.transform.localScale;
+
+            savedStructures.Add(new StructureSnapshot
+            {
+                prefabIndex = prefabIndex,
+                name = structure.name,
+                localPosition = structure.transform.localPosition,
+                localRotation = structure.transform.localRotation,
+                localScale = localScale,
+                rendererMaterials = rendererMaterials
+            });
+        }
+
+        return new SceneReloadSnapshot
+        {
+            map = map,
+            structures = savedStructures.ToArray()
+        };
+    }
 
     /// <summary>
     /// true — раскладка блоков не зависит от номера волны и держится
@@ -423,6 +606,8 @@ public class WorldStructureGenerator : MonoBehaviour
                 new List<GameObject>(structures);
 
             structures.Clear();
+            structurePrefabIndices.Clear();
+            structureFinalScales.Clear();
             placedPositions.Clear();
             placedClearances.Clear();
 
@@ -620,6 +805,8 @@ public class WorldStructureGenerator : MonoBehaviour
         }
 
         structures.Clear();
+        structurePrefabIndices.Clear();
+        structureFinalScales.Clear();
         placedPositions.Clear();
         placedClearances.Clear();
         layoutPlan.Clear();
@@ -1449,6 +1636,10 @@ public class WorldStructureGenerator : MonoBehaviour
         ApplyLook(structure, rng, useFallbackCube);
 
         structures.Add(structure);
+        structurePrefabIndices[structure] = prefab == null
+            ? -1
+            : System.Array.IndexOf(spawnPrefabs, prefab);
+        structureFinalScales[structure] = scale;
 
         StartTrackedCoroutine(
             ScaleInStructure(structure, scale)

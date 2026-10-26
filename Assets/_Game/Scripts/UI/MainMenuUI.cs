@@ -102,6 +102,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     private Vector2[] restPositions;
     private Coroutine slideCoroutine;
+    private Coroutine startGameRoutine;
     private bool subscribed;
     private bool slidingOut;
 
@@ -203,6 +204,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (modifierDropdown != null)
             modifierDropdown.onValueChanged.RemoveListener(OnModifierChanged);
+
+        if (startGameRoutine != null)
+            StopCoroutine(startGameRoutine);
     }
 
     private void Start()
@@ -693,7 +697,7 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             HideMenu();
         }
 
-        ThenStartGame();
+        startGameRoutine = StartCoroutine(StartGameWhenWorldReady());
     }
 
     private void PlayStartSound()
@@ -709,10 +713,31 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             audio.PlayUI(sfx.StartGame);
     }
 
-    private void ThenStartGame()
+    private IEnumerator StartGameWhenWorldReady()
     {
-        if (GameStateManager.Instance != null)
+        EnvironmentController environment =
+            FindAnyObjectByType<EnvironmentController>();
+        while (environment != null &&
+               (environment.IsTransitioning || environment.IsRestoringRuntimeMap))
+        {
+            yield return null;
+        }
+
+        WaveManager waves = FindAnyObjectByType<WaveManager>();
+        if (!GameModeManager.IsPvp && waves != null)
+        {
+            waves.PrepareSelectedMapWorld();
+            while (waves.IsPreparingSelectedMap)
+                yield return null;
+        }
+
+        if (GameStateManager.Instance != null &&
+            GameStateManager.Instance.CurrentState == GameState.Menu)
+        {
             GameStateManager.Instance.StartGame();
+        }
+
+        startGameRoutine = null;
     }
 
     private IEnumerator SlideMenuOutAndHidePanel()

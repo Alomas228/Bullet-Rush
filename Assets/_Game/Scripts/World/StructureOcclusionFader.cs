@@ -50,6 +50,7 @@ public class StructureOcclusionFader : MonoBehaviour
     private MeshRenderer[] meshRenderers;
 
     private Material[] opaqueMaterials;
+    private Material[][] originalSharedMaterials;
     private GhostEntry[] ghostEntries;
     private MaterialPropertyBlock[] ghostBlocks;
     private Color[] originalColors;
@@ -75,6 +76,7 @@ public class StructureOcclusionFader : MonoBehaviour
         int count = meshRenderers.Length;
 
         opaqueMaterials = new Material[count];
+        originalSharedMaterials = new Material[count][];
         ghostEntries = new GhostEntry[count];
         ghostBlocks = new MaterialPropertyBlock[count];
         originalColors = new Color[count];
@@ -83,7 +85,10 @@ public class StructureOcclusionFader : MonoBehaviour
         {
             // Именно sharedMaterial, а не material: общий материал
             // префаба не меняется, и копия не нужна.
-            Material opaque = meshRenderers[i].sharedMaterial;
+            originalSharedMaterials[i] = meshRenderers[i].sharedMaterials;
+            Material opaque = originalSharedMaterials[i].Length > 0
+                ? originalSharedMaterials[i][0]
+                : null;
 
             if (opaque == null)
                 continue;
@@ -120,6 +125,19 @@ public class StructureOcclusionFader : MonoBehaviour
         requestBlocked = false;
         pendingTimer = 0f;
         targetAlpha = 1f;
+    }
+
+    public Material[] GetMaterialsForSnapshot(Renderer targetRenderer)
+    {
+        for (int i = 0; meshRenderers != null && i < meshRenderers.Length; i++)
+        {
+            if (meshRenderers[i] == targetRenderer && originalSharedMaterials[i] != null)
+                return originalSharedMaterials[i];
+        }
+
+        return targetRenderer != null
+            ? targetRenderer.sharedMaterials
+            : System.Array.Empty<Material>();
     }
 
     private void Update()
