@@ -5,7 +5,7 @@ using UnityEngine;
 ///
 /// Две фазы: сначала телеграф полосы — MapLaneSweep без урона
 /// (статичная полоса с warning), потом сам автомобиль. Машина —
-/// куб без коллайдеров и физики на общем аддитивном материале,
+/// составная модель без коллайдеров и физики,
 /// мчится вдоль оси и сносит врагов и игрока в своей полосе.
 ///
 /// Клиппинг по прямоугольнику: половина длины вдоль движения,
@@ -14,12 +14,6 @@ using UnityEngine;
 /// </summary>
 public class MapTrafficRush : MonoBehaviour
 {
-    private static readonly int BaseColorId =
-        Shader.PropertyToID("_BaseColor");
-
-    private static readonly int LegacyColorId =
-        Shader.PropertyToID("_Color");
-
     private MapLaneSweep.LaneAxis axis =
         MapLaneSweep.LaneAxis.Horizontal;
 
@@ -43,7 +37,12 @@ public class MapTrafficRush : MonoBehaviour
     private float tickTimer;
 
     private GameObject carObject;
-    private Transform carTransform;
+
+    private static Shader carShader;
+    private static Material carBodyMaterial;
+    private static Material carCabinMaterial;
+    private static Material carWheelMaterial;
+    private static Material carLightMaterial;
 
     /// <summary>
     /// Запускает машину: телеграф полосы, затем проезд автомобиля.
@@ -191,49 +190,187 @@ public class MapTrafficRush : MonoBehaviour
 
     private void SpawnCarVisual()
     {
-        carObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        carObject.name = "MapTrafficCar";
+        float travelSize = carHalfLength * 2f;
+        float sideSize = carHalfWidth * 2f;
+        bool travelsAlongZ =
+            axis == MapLaneSweep.LaneAxis.Horizontal;
 
-        Collider collider = carObject.GetComponent<Collider>();
+        float sizeX = travelsAlongZ ? sideSize : travelSize;
+        float sizeZ = travelsAlongZ ? travelSize : sideSize;
+
+        carObject = new GameObject("MapTrafficCar");
+        carObject.transform.SetParent(transform, false);
+        carObject.transform.localPosition = Vector3.up * 0.45f;
+
+        Material bodyMaterial = GetCarMaterial(
+            ref carBodyMaterial,
+            dangerColor,
+            "MapTrafficCarBodyMaterial");
+
+        Material cabinMaterial = GetCarMaterial(
+            ref carCabinMaterial,
+            new Color(0.06f, 0.1f, 0.14f, 1f),
+            "MapTrafficCarCabinMaterial");
+
+        Material wheelMaterial = GetCarMaterial(
+            ref carWheelMaterial,
+            new Color(0.015f, 0.018f, 0.022f, 1f),
+            "MapTrafficCarWheelMaterial");
+
+        Material lightMaterial = GetCarMaterial(
+            ref carLightMaterial,
+            new Color(2f, 1.55f, 0.55f, 1f),
+            "MapTrafficCarLightMaterial");
+
+        CreateCarPart(
+            PrimitiveType.Cube,
+            "Body",
+            carObject.transform,
+            Vector3.zero,
+            new Vector3(sizeX, 0.75f, sizeZ),
+            bodyMaterial);
+
+        CreateCarPart(
+            PrimitiveType.Cube,
+            "Cabin",
+            carObject.transform,
+            Vector3.up * 0.48f,
+            new Vector3(sizeX * 0.72f, 0.55f, sizeZ * 0.48f),
+            cabinMaterial);
+
+        Vector3 side = axis == MapLaneSweep.LaneAxis.Horizontal
+            ? Vector3.right
+            : Vector3.forward;
+
+        Vector3 front = travelDirection * (carHalfLength * 0.83f);
+
+        CreateCarPart(
+            PrimitiveType.Cube,
+            "FrontLightA",
+            carObject.transform,
+            front + side * (carHalfWidth * 0.52f) + Vector3.up * 0.03f,
+            new Vector3(
+                axis == MapLaneSweep.LaneAxis.Horizontal ? 0.22f : 0.12f,
+                0.12f,
+                axis == MapLaneSweep.LaneAxis.Horizontal ? 0.12f : 0.22f),
+            lightMaterial);
+
+        CreateCarPart(
+            PrimitiveType.Cube,
+            "FrontLightB",
+            carObject.transform,
+            front - side * (carHalfWidth * 0.52f) + Vector3.up * 0.03f,
+            new Vector3(
+                axis == MapLaneSweep.LaneAxis.Horizontal ? 0.22f : 0.12f,
+                0.12f,
+                axis == MapLaneSweep.LaneAxis.Horizontal ? 0.12f : 0.22f),
+            lightMaterial);
+
+        Quaternion wheelRotation =
+            axis == MapLaneSweep.LaneAxis.Horizontal
+                ? Quaternion.Euler(0f, 0f, 90f)
+                : Quaternion.Euler(90f, 0f, 0f);
+
+        CreateCarPart(
+            PrimitiveType.Cylinder,
+            "WheelFrontA",
+            carObject.transform,
+            travelDirection * (carHalfLength * 0.68f) +
+                side * (carHalfWidth * 0.82f) - Vector3.up * 0.28f,
+            new Vector3(0.28f, 0.16f, 0.28f),
+            wheelMaterial,
+            wheelRotation);
+
+        CreateCarPart(
+            PrimitiveType.Cylinder,
+            "WheelFrontB",
+            carObject.transform,
+            travelDirection * (carHalfLength * 0.68f) -
+                side * (carHalfWidth * 0.82f) - Vector3.up * 0.28f,
+            new Vector3(0.28f, 0.16f, 0.28f),
+            wheelMaterial,
+            wheelRotation);
+
+        CreateCarPart(
+            PrimitiveType.Cylinder,
+            "WheelRearA",
+            carObject.transform,
+            -travelDirection * (carHalfLength * 0.68f) +
+                side * (carHalfWidth * 0.82f) - Vector3.up * 0.28f,
+            new Vector3(0.28f, 0.16f, 0.28f),
+            wheelMaterial,
+            wheelRotation);
+
+        CreateCarPart(
+            PrimitiveType.Cylinder,
+            "WheelRearB",
+            carObject.transform,
+            -travelDirection * (carHalfLength * 0.68f) -
+                side * (carHalfWidth * 0.82f) - Vector3.up * 0.28f,
+            new Vector3(0.28f, 0.16f, 0.28f),
+            wheelMaterial,
+            wheelRotation);
+    }
+
+    private static GameObject CreateCarPart(
+        PrimitiveType primitive,
+        string name,
+        Transform parent,
+        Vector3 localPosition,
+        Vector3 localScale,
+        Material material,
+        Quaternion localRotation = default)
+    {
+        GameObject part = GameObject.CreatePrimitive(primitive);
+        part.name = name;
+
+        Collider collider = part.GetComponent<Collider>();
 
         if (collider != null)
             Destroy(collider);
 
-        float length =
-            axis == MapLaneSweep.LaneAxis.Horizontal
-                ? carHalfLength * 2f
-                : carHalfWidth * 2f;
+        part.transform.SetParent(parent, false);
+        part.transform.localPosition = localPosition;
+        part.transform.localRotation =
+            localRotation == default
+                ? Quaternion.identity
+                : localRotation;
+        part.transform.localScale = localScale;
 
-        float width =
-            axis == MapLaneSweep.LaneAxis.Horizontal
-                ? carHalfWidth * 2f
-                : carHalfLength * 2f;
+        Renderer renderer = part.GetComponent<Renderer>();
 
-        Transform car = carObject.transform;
-
-        car.SetParent(transform, false);
-        car.localPosition = Vector3.up * 0.45f;
-        car.localScale = new Vector3(width, 0.9f, length);
-
-        Renderer renderer = carObject.GetComponent<Renderer>();
-
-        if (renderer != null &&
-            VfxSharedAssets.ExplosionSphereMaterial != null)
-        {
-            Material material = new Material(
-                VfxSharedAssets.ExplosionSphereMaterial
-            )
-            {
-                name = "MapTrafficCarMaterial"
-            };
-
-            if (material.HasProperty(BaseColorId))
-                material.SetColor(BaseColorId, dangerColor);
-            else if (material.HasProperty(LegacyColorId))
-                material.SetColor(LegacyColorId, dangerColor);
-
+        if (renderer != null)
             renderer.sharedMaterial = material;
-        }
+
+        return part;
+    }
+
+    private static Material GetCarMaterial(
+        ref Material cached,
+        Color color,
+        string name)
+    {
+        if (cached != null)
+            return cached;
+
+        if (carShader == null)
+            carShader = Shader.Find("Universal Render Pipeline/Unlit");
+
+        if (carShader == null)
+            return null;
+
+        cached = new Material(carShader)
+        {
+            name = name,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        if (cached.HasProperty("_BaseColor"))
+            cached.SetColor("_BaseColor", color);
+        else if (cached.HasProperty("_Color"))
+            cached.SetColor("_Color", color);
+
+        return cached;
     }
 
     private void Drive()

@@ -1,33 +1,26 @@
 // ============================================================
 // Гребень волны прибоя (Пляж).
 //
-// Отдельный простой шейдер без инстансинга: волна рисуется
-// обычным MeshRenderer на растянутом диске. Цвет приходит через
-// MaterialPropertyBlock (_Color), поэтому один материал можно
-// переиспользовать на все волны.
+// Объемная процедурная волна на собственном меше. Вершины образуют
+// вытянутый вал с загнутым вперед гребнем, а шейдер добавляет
+// движение воды, бирюзовую глубину и пену.
 //
 // Пена процедурная и живёт в SurfWaveVfx.hlsl, который делят оба
-// pass-а. Текстуру (_WaveTex) можно подложить свою; по умолчанию
-// она белая и на вид не влияет.
+// pass-а; внешняя текстура не требуется.
 //
-// Лента лежит чуть выше пола, чтобы её не перекрывал ground-меш,
-// и рисуется альфа-блендом (не аддитивом): на светлом песке
-// аддитивная подсветка сливалась с фоном.
+// Полупрозрачная вода сохраняет объем и не превращается в светящийся
+// плоский маркер на песке.
 // ============================================================
 
 Shader "Custom/Bullet Rush Surf Wave"
 {
     Properties
     {
-        _Color ("Color", Color) = (0.55, 0.9, 1.0, 0.95)
-        _WaveSize ("Wave Size (W, D)", Vector) = (69, 6, 0, 0)
-        _WaveTex ("Wave Texture", 2D) = "white" {}
-        _Intensity ("Intensity", Range(0.0, 8.0)) = 1.6
-        _EdgePower ("Edge Falloff", Range(0.5, 8.0)) = 1.3
-        _RingInner ("Ring Inner", Range(0.0, 1.0)) = 0.58
-        _RingOuter ("Ring Outer", Range(0.0, 1.0)) = 0.99
-        _FoamScale ("Foam Scale", Range(0.1, 4.0)) = 0.6
-        _FoamSpeed ("Foam Speed", Range(0.0, 6.0)) = 1.6
+        _Color ("Water Tint", Color) = (0.65, 0.88, 1.0, 0.9)
+        _WaveSize ("Wave Size (Length, Thickness, Height)", Vector) = (69, 3, 2, 0)
+        _Intensity ("Water Intensity", Range(0.0, 3.0)) = 1.0
+        _FoamScale ("Foam Detail", Range(0.1, 4.0)) = 0.6
+        _FoamSpeed ("Water Speed", Range(0.0, 6.0)) = 1.6
     }
 
     SubShader
@@ -50,7 +43,7 @@ Shader "Custom/Bullet Rush Surf Wave"
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             ZTest LEqual
-            Cull Off
+            Cull Back
             ColorMask RGB
 
             HLSLPROGRAM
@@ -70,7 +63,7 @@ Shader "Custom/Bullet Rush Surf Wave"
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             ZTest LEqual
-            Cull Off
+            Cull Back
             ColorMask RGB
 
             HLSLPROGRAM

@@ -16,10 +16,13 @@ using UnityEngine.UI;
 public class MapStormOverlay : MonoBehaviour
 {
     private static MapStormOverlay instance;
+    private static Texture2D stormTexture;
 
     private RawImage overlay;
     private Color baseColor =
         new Color(0.18f, 0.14f, 0.08f, 0f);
+
+    private float windOffset;
 
     /// <summary>
     /// Вспышка бури: плавно затемняем, держим, плавно убираем.
@@ -64,8 +67,77 @@ public class MapStormOverlay : MonoBehaviour
 
         overlay = gameObject.AddComponent<RawImage>();
 
+        RectTransform rect = overlay.rectTransform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
         overlay.raycastTarget = false;
+        overlay.texture = GetStormTexture();
         overlay.color = baseColor;
+    }
+
+    private static Texture2D GetStormTexture()
+    {
+        if (stormTexture != null)
+            return stormTexture;
+
+        const int size = 128;
+
+        stormTexture = new Texture2D(
+            size,
+            size,
+            TextureFormat.RGBA32,
+            false,
+            true)
+        {
+            name = "MapStormNoise",
+            wrapMode = TextureWrapMode.Repeat,
+            filterMode = FilterMode.Bilinear,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        Color[] pixels = new Color[size * size];
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float broadNoise = Mathf.PerlinNoise(
+                    x * 0.075f,
+                    y * 0.075f);
+                float fineNoise = Mathf.PerlinNoise(
+                    x * 0.31f + 17.3f,
+                    y * 0.31f + 8.1f);
+                float grain = Mathf.Lerp(
+                    broadNoise,
+                    fineNoise,
+                    0.38f);
+                float alpha = Mathf.Lerp(0.42f, 0.9f, grain);
+
+                pixels[y * size + x] = new Color(
+                    0.8f + grain * 0.2f,
+                    0.74f + grain * 0.26f,
+                    0.62f + grain * 0.38f,
+                    alpha);
+            }
+        }
+
+        stormTexture.SetPixels(pixels);
+        stormTexture.Apply(false, true);
+
+        return stormTexture;
+    }
+
+    private void Update()
+    {
+        windOffset += Time.deltaTime * 0.012f;
+        overlay.uvRect = new Rect(
+            windOffset,
+            windOffset * 0.27f,
+            3f,
+            2f);
     }
 
     private void StartPulse(

@@ -147,18 +147,18 @@ public class MapGravityCrater : MonoBehaviour, IDangerZone
 
         Vector4 parameters = new Vector4(
             1f,
-            0f,
-            1f,
+            age * 0.35f,
+            2f,
             fade * 0.6f);
 
         float diameter = radius * 2f;
 
-batch.Add(
-                Matrix4x4.TRS(
-                    transform.position,
-                    Quaternion.identity,
-                    new Vector3(diameter, 1f, diameter)),
-                craterColor,
-                parameters);
+        batch.Add(
+            Matrix4x4.TRS(
+                transform.position,
+                Quaternion.identity,
+                new Vector3(diameter, 1f, diameter)),
+            craterColor,
+            parameters);
     }
 }

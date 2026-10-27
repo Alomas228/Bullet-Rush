@@ -26,6 +26,12 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
     private float gravityRadius = 0f;
     private float gravityStrength = 0f;
     private float gravityDuration = 0f;
+    private float warningHeight = 18f;
+    private GameObject meteorVisual;
+
+    private static Shader meteorShader;
+    private static Material meteorMaterial;
+    private static Material meteorTrailMaterial;
 
     private Color dangerColor =
         new Color(1f, 0.45f, 0.1f, 0.5f);
@@ -80,7 +86,10 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
         if (warningDuration <= 0f)
             Activate();
         else
+        {
             Register();
+            SpawnMeteorWarning();
+        }
     }
 
     /// <summary>
@@ -138,6 +147,102 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
         DangerZoneBatcher.Unregister(this);
     }
 
+    private void SpawnMeteorWarning()
+    {
+        meteorVisual = new GameObject("MapMeteorWarning");
+        meteorVisual.transform.SetParent(transform, false);
+
+        GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        rock.name = "MeteorCore";
+
+        Collider collider = rock.GetComponent<Collider>();
+
+        if (collider != null)
+            Destroy(collider);
+
+        rock.transform.SetParent(meteorVisual.transform, false);
+        rock.transform.localScale = new Vector3(0.8f, 1.15f, 0.8f);
+
+        Renderer renderer = rock.GetComponent<Renderer>();
+
+        if (renderer != null)
+            renderer.sharedMaterial = GetMeteorMaterial(
+                ref meteorMaterial,
+                new Color(0.48f, 0.095f, 0.025f, 1f),
+                "MapMeteorMaterial");
+
+        GameObject trail = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        trail.name = "MeteorTrail";
+
+        collider = trail.GetComponent<Collider>();
+
+        if (collider != null)
+            Destroy(collider);
+
+        trail.transform.SetParent(meteorVisual.transform, false);
+        trail.transform.localPosition = Vector3.up * 0.85f;
+        trail.transform.localScale = new Vector3(0.55f, 1.5f, 0.55f);
+
+        renderer = trail.GetComponent<Renderer>();
+
+        if (renderer != null)
+            renderer.sharedMaterial = GetMeteorMaterial(
+                ref meteorTrailMaterial,
+                new Color(1f, 0.3f, 0.025f, 1f),
+                "MapMeteorTrailMaterial");
+
+        UpdateMeteorWarning();
+    }
+
+    private static Material GetMeteorMaterial(
+        ref Material cached,
+        Color color,
+        string name)
+    {
+        if (cached != null)
+            return cached;
+
+        if (meteorShader == null)
+            meteorShader = Shader.Find(
+                "Universal Render Pipeline/Unlit");
+
+        if (meteorShader == null)
+            return null;
+
+        cached = new Material(meteorShader)
+        {
+            name = name,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        if (cached.HasProperty("_BaseColor"))
+            cached.SetColor("_BaseColor", color);
+        else if (cached.HasProperty("_Color"))
+            cached.SetColor("_Color", color);
+
+        return cached;
+    }
+
+    private void UpdateMeteorWarning()
+    {
+        if (meteorVisual == null || activated)
+            return;
+
+        float progress = Mathf.Clamp01(
+            timer / Mathf.Max(warningDuration, 0.001f));
+
+        float pulse = 1f + Mathf.Sin(Time.time * 11f) * 0.07f;
+        float height = Mathf.Lerp(warningHeight, 0.9f, progress);
+
+        meteorVisual.transform.position =
+            transform.position + Vector3.up * height;
+        meteorVisual.transform.localScale = Vector3.one * pulse;
+        meteorVisual.transform.rotation = Quaternion.Euler(
+            timer * 110f,
+            timer * 170f,
+            timer * 80f);
+    }
+
     // =========================================================
     // УДАР
     // =========================================================
@@ -148,6 +253,8 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
 
         if (!activated)
         {
+            UpdateMeteorWarning();
+
             if (timer >= warningDuration)
                 Activate();
 
@@ -164,6 +271,9 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
     {
         activated = true;
         flashTimer = 0f;
+
+        if (meteorVisual != null)
+            Destroy(meteorVisual);
 
         Register();
 
@@ -210,7 +320,7 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
                 gravityRadius,
                 gravityStrength,
                 gravityDuration,
-                dangerColor
+                new Color(0.38f, 0.28f, 1f, 1f)
             );
         }
     }

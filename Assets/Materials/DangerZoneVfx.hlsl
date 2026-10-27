@@ -128,7 +128,19 @@ half4 Frag(Varyings input) : SV_Target
     float fill;
     float rim;
 
-    if (active > 0.5f)
+    // Gravity craters use active=2: a rotating vortex rather than
+    // warning stripes, while reusing the same instanced disc draw.
+    if (active > 1.5f)
+    {
+        float spiral =
+            0.5f + 0.5f * sin(a * 5.0f - r * 18.0f - time * 4.0f);
+        float bands = smoothstep(0.25f, 0.85f, spiral);
+
+        fill = (0.08f + 0.16f * bands) *
+            (0.65f + 0.35f * pulse);
+        rim = 0.55f + 0.35f * dash;
+    }
+    else if (active > 0.5f)
     {
         fill = 0.10f + 0.10f * stripe;
         rim = 0.9f + 0.5f * dash;
