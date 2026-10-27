@@ -175,6 +175,9 @@ public class EnemySpawner : MonoBehaviour
     private WaveModifier currentWaveModifier =
         WaveModifier.None;
 
+    private WaveApproach currentWaveApproach =
+        WaveApproach.Surround;
+
     // Индекс текущего «направления выхода» для волны с заходом
     // с флангов: каждый приём смещается на следующее направление,
     // поэтому волна физически «обходит» игрока по кольцу.
@@ -245,20 +248,23 @@ public class EnemySpawner : MonoBehaviour
         WaveArchetype archetype =
             WaveArchetype.Standard,
         WaveModifier modifier =
-            WaveModifier.None)
+            WaveModifier.None,
+        WaveApproach approach =
+            WaveApproach.Surround)
     {
         StopSpawnQueue();
 
         CurrentArchetype = archetype;
         currentWaveArchetype = archetype;
         currentWaveModifier = modifier;
+        currentWaveApproach = approach;
         currentLaneIndex = 0;
         waveLaneBaseAngle = Random.Range(0f, 360f);
         spawnedPositions.Clear();
 
         IsSpawning = enemyCount > 0;
         spawnQueueCoroutine = StartCoroutine(
-            SpawnWaveRoutine(enemyCount, wave, archetype, modifier)
+            SpawnWaveRoutine(enemyCount, wave, archetype, modifier, approach)
         );
     }
 
@@ -312,13 +318,15 @@ public class EnemySpawner : MonoBehaviour
         int enemyCount,
         int wave,
         WaveArchetype archetype,
-        WaveModifier modifier)
+        WaveModifier modifier,
+        WaveApproach approach)
     {
         int remaining = Mathf.Max(enemyCount, 0);
         bool firstBatch = true;
 
         currentWaveArchetype = archetype;
         currentWaveModifier = modifier;
+        currentWaveApproach = approach;
 
         // Давление волны растёт с её номером: порции крупнее,
         // паузы между ними короче. Скорость роста настраивается
@@ -775,7 +783,21 @@ public class EnemySpawner : MonoBehaviour
         int batchSize)
     {
         if (!currentWaveModifier.Has(WaveModifier.Ambush))
-            return -1f;
+        {
+            if (currentWaveApproach == WaveApproach.Surround)
+                return -1f;
+
+            float approachCenter = waveLaneBaseAngle;
+
+            if (currentWaveApproach == WaveApproach.Flanks)
+                approachCenter += (currentLaneIndex % 2) * 180f;
+
+            float approachSpacing = Mathf.Max(minAngularSeparation, 15f);
+            float approachOffset =
+                (slotInBatch - (batchSize - 1) * 0.5f) * approachSpacing;
+
+            return Mathf.Repeat(approachCenter + approachOffset, 360f);
+        }
 
         int lanes =
             Mathf.Max(ambushLaneCount, 1);
@@ -1739,6 +1761,9 @@ public class EnemySpawner : MonoBehaviour
         if (TryGetModifierPrefab(wave, out GameObject forced))
             return forced;
 
+        if (TryGetApproachPrefab(wave, out GameObject approachPrefab))
+            return approachPrefab;
+
         switch (currentWaveArchetype)
         {
             case WaveArchetype.Swarm:
@@ -1753,6 +1778,33 @@ public class EnemySpawner : MonoBehaviour
             default:
                 return GetStandardPrefabForWave(wave);
         }
+    }
+
+    private bool TryGetApproachPrefab(
+        int wave,
+        out GameObject prefab)
+    {
+        prefab = null;
+
+        if (currentWaveApproach == WaveApproach.Front &&
+            wave >= 3 &&
+            rangedPrefab != null &&
+            Random.value < 0.32f)
+        {
+            prefab = rangedPrefab;
+            return true;
+        }
+
+        if (currentWaveApproach == WaveApproach.Flanks &&
+            wave >= 2 &&
+            fastPrefab != null &&
+            Random.value < 0.32f)
+        {
+            prefab = fastPrefab;
+            return true;
+        }
+
+        return false;
     }
 
     // Акцент волны решает, кого выбить из роли. Шансы небольшие:

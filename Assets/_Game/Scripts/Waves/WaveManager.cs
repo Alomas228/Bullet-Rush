@@ -114,6 +114,11 @@ public class WaveManager : MonoBehaviour
     private WaveModifier currentModifier =
         WaveModifier.None;
 
+    private WaveApproach currentApproach =
+        WaveApproach.Surround;
+    private WaveApproach lastWaveApproach =
+        WaveApproach.Surround;
+
     private bool waveActive;
     private bool waitingForNextWave;
     private bool gameStarted;
@@ -606,6 +611,10 @@ public class WaveManager : MonoBehaviour
                 ? WaveModifier.None
                 : GetModifierForWave(CurrentWave);
 
+        currentApproach = IsBossWave(CurrentWave)
+            ? WaveApproach.Surround
+            : GetApproachForWave(CurrentWave, currentModifier);
+
         // Акцент попадает в память и на босс-волне — как «пустой»:
         // иначе после босса слот сразу выдаст тот же акцент, который
         // шёл до него, и у босса появится дубль.
@@ -805,21 +814,22 @@ public class WaveManager : MonoBehaviour
             return;
         }
 
-        // Обычная волна «вытекает» приёмами — эмиттер сам сообщит
-        // через IsSpawning, когда очередь спавна исчерпана.
-        enemySpawner.SpawnWave(
-            enemyCount,
-            CurrentWave,
-            currentArchetype,
-            currentModifier
-        );
-
         if (eventDirector != null)
             eventDirector.OnWaveStarted(
                 CurrentWave,
                 AllowsMidWaveEvent(currentModifier),
                 currentModifier
             );
+
+        // Start the director first so it can observe modifier-driven
+        // enemies initialized synchronously by the spawn coroutine.
+        enemySpawner.SpawnWave(
+            enemyCount,
+            CurrentWave,
+            currentArchetype,
+            currentModifier,
+            currentApproach
+        );
     }
 
     // Акцент волны больше не запрещает событие целиком. Раньше волны
@@ -1021,6 +1031,21 @@ public class WaveManager : MonoBehaviour
             default:
                 return WaveArchetype.Standard;
         }
+    }
+
+    private WaveApproach GetApproachForWave(
+        int wave,
+        WaveModifier modifier)
+    {
+        WaveApproach pick = modifier.Has(WaveModifier.Ambush)
+            ? WaveApproach.Flanks
+            : (WaveApproach)Random.Range(0, 3);
+
+        if (wave > 1 && pick == lastWaveApproach)
+            pick = (WaveApproach)(((int)pick + Random.Range(1, 3)) % 3);
+
+        lastWaveApproach = pick;
+        return pick;
     }
 
 // Высота волны внутри восьмиволнового цикла. Смысл слотов:

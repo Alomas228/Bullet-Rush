@@ -82,12 +82,30 @@ public class WaveEventDirector : MonoBehaviour
     [SerializeField] private float arenaHazardMinDistance = 6f;
     [SerializeField] private float arenaHazardMaxDistance = 10f;
 
+    [Header("Courier Event")]
+    [SerializeField] private float courierDuration = 12f;
+    [SerializeField] private int courierRewardCoins = 10;
+    [SerializeField] private float courierCollectDistance = 1.5f;
+
+    [Header("Reward Cache Event")]
+    [SerializeField] private float rewardCacheLifetime = 14f;
+    [SerializeField] private float rewardCacheMinDistance = 7f;
+    [SerializeField] private float rewardCacheMaxDistance = 11f;
+
+    [Header("Elite Hunt Objective")]
+    [SerializeField] private float eliteHuntTimeLimit = 18f;
+    [SerializeField] private int eliteHuntBaseCoins = 12;
+    [SerializeField] private float eliteHuntMercyHealthScale = 0.7f;
+    [SerializeField] private float eliteHuntMercyDamageScale = 0.75f;
+
     private enum WaveEventType
     {
         Ambush,
         DangerZone,
         Rush,
-        ArenaHazard
+        ArenaHazard,
+        Courier,
+        RewardCache
     }
 
     private WaveEventType lastEventType;
@@ -113,6 +131,11 @@ public class WaveEventDirector : MonoBehaviour
 
     // Было ли событие именно на текущей волне.
     private bool eventFiredThisWave;
+    private GameObject activeObjective;
+    private readonly List<Enemy> eliteHuntTargets = new List<Enemy>();
+    private float eliteHuntTimeRemaining;
+    private bool eliteHuntActive;
+    private int lastHuntTimerText = -1;
 
     /// <summary>
     /// Идёт ли прямо сейчас показ события (от телеграфа до конца
@@ -121,6 +144,68 @@ public class WaveEventDirector : MonoBehaviour
     /// момент нечестны и нечитаемы.
     /// </summary>
     public bool IsEventActive { get; private set; }
+
+    private void OnEnable()
+    {
+        Enemy.OnEliteHuntTargetSpawned += HandleEliteHuntTargetSpawned;
+        Enemy.OnEnemyKilled += HandleEnemyKilled;
+    }
+
+    private void OnDisable()
+    {
+        Enemy.OnEliteHuntTargetSpawned -= HandleEliteHuntTargetSpawned;
+        Enemy.OnEnemyKilled -= HandleEnemyKilled;
+        ClearObjective();
+    }
+
+    private void Update()
+    {
+        if (!eliteHuntActive)
+            return;
+
+        for (int i = eliteHuntTargets.Count - 1; i >= 0; i--)
+        {
+            if (eliteHuntTargets[i] == null || eliteHuntTargets[i].IsDead)
+                eliteHuntTargets.RemoveAt(i);
+        }
+
+        if (eliteHuntTargets.Count == 0)
+        {
+            eliteHuntActive = false;
+            IsEventActive = activeObjective != null;
+            return;
+        }
+
+        eliteHuntTimeRemaining -= Time.deltaTime;
+        int displayedSeconds = Mathf.CeilToInt(Mathf.Max(eliteHuntTimeRemaining, 0f));
+        if (waveUI != null && displayedSeconds != lastHuntTimerText)
+        {
+            waveUI.ShowEvent(Lang.Get(
+                "wave.elite_hunt_timer",
+                eliteHuntTargets.Count,
+                displayedSeconds
+            ));
+            lastHuntTimerText = displayedSeconds;
+        }
+
+        if (eliteHuntTimeRemaining > 0f)
+            return;
+
+        for (int i = 0; i < eliteHuntTargets.Count; i++)
+        {
+            if (eliteHuntTargets[i] != null)
+                eliteHuntTargets[i].ApplyHuntMercy(
+                    eliteHuntMercyHealthScale,
+                    eliteHuntMercyDamageScale
+                );
+        }
+
+        eliteHuntTargets.Clear();
+        eliteHuntActive = false;
+        IsEventActive = activeObjective != null;
+        if (waveUI != null)
+            waveUI.ShowEvent(Lang.Get("wave.elite_hunt_eased"));
+    }
 
     // Номер волны, на которой сейчас идёт событие. Нужен урону
     // опасной зоны: по номеру волны она не масштабируется, но уровень
@@ -134,6 +219,10 @@ public class WaveEventDirector : MonoBehaviour
     {
         enemySpawner = spawner;
         waveUI = ui;
+        Enemy.OnEliteHuntTargetSpawned -= HandleEliteHuntTargetSpawned;
+        Enemy.OnEliteHuntTargetSpawned += HandleEliteHuntTargetSpawned;
+        Enemy.OnEnemyKilled -= HandleEnemyKilled;
+        Enemy.OnEnemyKilled += HandleEnemyKilled;
     }
 
     // Вызывается менеджером волн при старте волны.
@@ -153,8 +242,14 @@ public class WaveEventDirector : MonoBehaviour
         currentWave = Mathf.Max(wave, 1);
 
         eventFiredThisWave = false;
+        ClearObjective();
+        waveRunning = allowEvents;
 
         if (!allowEvents || wave < minEventWave)
+            return;
+
+        // The hunt objective itself occupies the event slot for this wave.
+        if (modifier.Has(WaveModifier.EliteHunt))
             return;
 
         // Событие не может идти раньше, чем истёк отдых после
@@ -186,6 +281,7 @@ public class WaveEventDirector : MonoBehaviour
         waveRunning = false;
         IsEventActive = false;
         ClearActiveHazardZones();
+        ClearObjective();
 
         // Волна засчитывается как «тихая», если события на ней не
         // было. Раньше счётчик рос только когда шанс не сработал,
@@ -215,6 +311,7 @@ public class WaveEventDirector : MonoBehaviour
         waveRunning = false;
         IsEventActive = false;
         ClearActiveHazardZones();
+        ClearObjective();
 
         CancelSchedule();
     }
@@ -226,7 +323,6 @@ public class WaveEventDirector : MonoBehaviour
         eventFiredThisWave = false;
         lastEventTime = -999f;
         lastEventType = WaveEventType.Ambush;
-
         Stop();
     }
 
@@ -330,6 +426,10 @@ public class WaveEventDirector : MonoBehaviour
 
             case WaveEventType.ArenaHazard:
                 return 1;
+
+            case WaveEventType.Courier:
+            case WaveEventType.RewardCache:
+                return 0;
         }
 
         return 0;
@@ -358,7 +458,9 @@ public class WaveEventDirector : MonoBehaviour
             WaveEventType.Ambush,
             WaveEventType.DangerZone,
             WaveEventType.Rush,
-            WaveEventType.ArenaHazard
+            WaveEventType.ArenaHazard,
+            WaveEventType.Courier,
+            WaveEventType.RewardCache
         };
 
         // Совместимые с акцентом волны типы — это пул, из которого идёт
@@ -453,12 +555,19 @@ public class WaveEventDirector : MonoBehaviour
                 //    с двух сторон.
                 return
                     !modifier.Has(WaveModifier.LastStand) &&
-                    !modifier.Has(WaveModifier.Ambush);
+                    !modifier.Has(WaveModifier.Ambush) &&
+                    !modifier.Has(WaveModifier.EliteHunt);
 
             case WaveEventType.DangerZone:
             case WaveEventType.ArenaHazard:
                 // Зоны меняют геометрию боя, не добавляя врагов.
                 return true;
+
+            case WaveEventType.Courier:
+            case WaveEventType.RewardCache:
+                return
+                    !modifier.Has(WaveModifier.EliteHunt) &&
+                    !modifier.Has(WaveModifier.LastStand);
         }
 
         return true;
@@ -510,6 +619,14 @@ public class WaveEventDirector : MonoBehaviour
             case WaveEventType.ArenaHazard:
                 SpawnArenaHazard(wave);
                 break;
+
+            case WaveEventType.Courier:
+                SpawnCourierObjective();
+                break;
+
+            case WaveEventType.RewardCache:
+                SpawnRewardCache();
+                break;
         }
 
         yield return new WaitForSeconds(bannerDuration);
@@ -517,7 +634,7 @@ public class WaveEventDirector : MonoBehaviour
         if (waveUI != null)
             waveUI.Hide();
 
-        IsEventActive = false;
+        IsEventActive = eliteHuntActive || activeObjective != null;
     }
 
     private void RunAmbush(int wave)
@@ -711,6 +828,171 @@ public class WaveEventDirector : MonoBehaviour
         activeHazardZones.Add(zone);
 
         ShowBanner(Lang.Get("wave.event_arena_hazard"));
+    }
+
+    private void SpawnCourierObjective()
+    {
+        PlayerHealth player = PlayerHealth.Instance;
+        if (player == null ||
+            !TryFindZoneCenter(
+                player.transform.position,
+                Random.Range(0f, 360f),
+                9f,
+                14f,
+                out Vector3 position))
+        {
+            IsEventActive = false;
+            return;
+        }
+
+        activeObjective = CreateObjectiveMarker(
+            "CourierObjective",
+            position,
+            new Color(0.25f, 0.9f, 0.7f),
+            1.4f
+        );
+
+        TimedCourierObjective objective =
+            activeObjective.AddComponent<TimedCourierObjective>();
+        objective.Initialize(
+            player.transform,
+            waveUI,
+            courierDuration,
+            courierCollectDistance,
+            courierRewardCoins,
+            success =>
+            {
+                activeObjective = null;
+                IsEventActive = false;
+            }
+        );
+    }
+
+    private void SpawnRewardCache()
+    {
+        PlayerHealth player = PlayerHealth.Instance;
+        if (player == null ||
+            !TryFindZoneCenter(
+                player.transform.position,
+                Random.Range(0f, 360f),
+                rewardCacheMinDistance,
+                rewardCacheMaxDistance,
+                out Vector3 position))
+        {
+            IsEventActive = false;
+            return;
+        }
+
+        activeObjective = CreateObjectiveMarker(
+            "RewardCache",
+            position,
+            new Color(1f, 0.72f, 0.2f),
+            0.9f
+        );
+
+        RewardChoicePoint choice =
+            activeObjective.AddComponent<RewardChoicePoint>();
+        choice.Initialize(
+            player.transform,
+            waveUI,
+            rewardCacheLifetime,
+            () =>
+            {
+                activeObjective = null;
+                IsEventActive = eliteHuntActive;
+            }
+        );
+        activeObjective = choice.gameObject;
+    }
+
+    private static GameObject CreateObjectiveMarker(
+        string objectName,
+        Vector3 position,
+        Color color,
+        float height)
+    {
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        marker.name = objectName;
+        marker.transform.position = new Vector3(position.x, height * 0.5f, position.z);
+        marker.transform.localScale = new Vector3(1.1f, height * 0.5f, 1.1f);
+
+        Collider collider = marker.GetComponent<Collider>();
+        if (collider != null)
+            Destroy(collider);
+
+        Renderer renderer = marker.GetComponent<Renderer>();
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null)
+            shader = Shader.Find("Standard");
+
+        if (renderer != null && shader != null)
+        {
+            Material material = new Material(shader);
+            material.color = color;
+            renderer.material = material;
+            marker.AddComponent<ObjectiveMarkerMaterialCleanup>().Initialize(material);
+        }
+
+        return marker;
+    }
+
+    private void HandleEliteHuntTargetSpawned(Enemy enemy)
+    {
+        if (enemy == null || !waveRunning || !enemy.IsElite)
+            return;
+
+        if (eliteHuntTargets.Contains(enemy))
+            return;
+
+        if (!eliteHuntActive)
+        {
+            eliteHuntTimeRemaining = Mathf.Max(eliteHuntTimeLimit, 1f);
+            eliteHuntActive = true;
+            lastHuntTimerText = -1;
+            IsEventActive = true;
+            eventFiredThisWave = true;
+            wavesSinceEvent = 0;
+            consecutiveEventWaves++;
+            lastEventTime = Time.time;
+            if (waveUI != null)
+                waveUI.ShowEvent(Lang.Get(
+                    "wave.elite_hunt_timer",
+                    1,
+                    Mathf.CeilToInt(eliteHuntTimeRemaining)
+                ));
+        }
+
+        eliteHuntTargets.Add(enemy);
+        lastHuntTimerText = -1;
+    }
+
+    private void HandleEnemyKilled(Enemy enemy)
+    {
+        if (!eliteHuntActive || enemy == null || !eliteHuntTargets.Remove(enemy))
+            return;
+
+        float speedBonus =
+            Mathf.Clamp01(eliteHuntTimeRemaining / Mathf.Max(eliteHuntTimeLimit, 1f));
+        int coins = eliteHuntBaseCoins + Mathf.RoundToInt(eliteHuntBaseCoins * speedBonus);
+        if (XpManager.Instance != null)
+            XpManager.Instance.AddCoins(coins);
+
+        eliteHuntActive = eliteHuntTargets.Count > 0;
+        IsEventActive = eliteHuntActive || activeObjective != null;
+        if (waveUI != null)
+            waveUI.ShowEvent(Lang.Get("wave.elite_hunt_success", coins));
+    }
+
+    private void ClearObjective()
+    {
+        if (activeObjective != null)
+            Destroy(activeObjective);
+
+        activeObjective = null;
+        eliteHuntTargets.Clear();
+        eliteHuntActive = false;
+        eliteHuntTimeRemaining = 0f;
+        lastHuntTimerText = -1;
     }
 
     private void ClearActiveHazardZones()

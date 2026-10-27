@@ -200,6 +200,15 @@ public static class Tables
             { "wave.event_surge", "РЫВОК!" },
             { "wave.event_danger", "ОПАСНОСТЬ!" },
             { "wave.event_arena_hazard", "ОПАСНАЯ ЗОНА!" },
+            { "wave.event_courier_timer", "КУРЬЕР · {0} СЕК." },
+            { "wave.event_courier_success", "КУРЬЕР ДОСТАВЛЕН · +{0}" },
+            { "wave.event_courier_failed", "КУРЬЕР УШЁЛ" },
+            { "wave.elite_hunt_timer", "ЭЛИТА ×{0} · {1} СЕК." },
+            { "wave.elite_hunt_success", "ЭЛИТА УБИТА · +{0}" },
+            { "wave.elite_hunt_eased", "ОХОТА ОСЛАБЛЕНА" },
+            { "wave.reward_point", "ТАЙНИК · {0} СЕК. · 1: УРОН +12% / 2: ЛЕЧЕНИЕ + МОНЕТЫ" },
+            { "wave.reward_damage", "НАГРАДА · УРОН +12%" },
+            { "wave.reward_recovery", "НАГРАДА · ЛЕЧЕНИЕ +25% · +8 МОНЕТ" },
 
             // ---------- Тема забега ----------
             { "run.berserk", "БЕРСЕРК · БЫСТРЕЕ И ЗЛЕЕ" },
@@ -872,6 +881,15 @@ public static class Tables
             { "wave.event_surge", "DALGA!" },
             { "wave.event_danger", "TEHLİKE!" },
             { "wave.event_arena_hazard", "TEHLİKELİ ALAN!" },
+            { "wave.event_courier_timer", "KURYE · {0} SN." },
+            { "wave.event_courier_success", "KURYER ULAŞTI · +{0}" },
+            { "wave.event_courier_failed", "KURYER KAÇTI" },
+            { "wave.elite_hunt_timer", "ELİT ×{0} · {1} SN." },
+            { "wave.elite_hunt_success", "ELİT ÖLDÜRÜLDÜ · +{0}" },
+            { "wave.elite_hunt_eased", "AV KOLAYLAŞTI" },
+            { "wave.reward_point", "ÖDÜL · {0} SN. · 1: HASAR +12% / 2: CAN + PARA" },
+            { "wave.reward_damage", "ÖDÜL · HASAR +12%" },
+            { "wave.reward_recovery", "ÖDÜL · CAN +25% · +8 PARA" },
 
             // ---------- Kosu temasi ----------
             { "run.berserk", "ÖFKE · DAHA HIZLI, DAHA SERT" },
@@ -1544,6 +1562,15 @@ public static class Tables
             { "wave.event_surge", "SURGE!" },
             { "wave.event_danger", "DANGER!" },
             { "wave.event_arena_hazard", "DANGER ZONE!" },
+            { "wave.event_courier_timer", "COURIER · {0} SEC." },
+            { "wave.event_courier_success", "COURIER SECURED · +{0}" },
+            { "wave.event_courier_failed", "COURIER ESCAPED" },
+            { "wave.elite_hunt_timer", "ELITE ×{0} · {1} SEC." },
+            { "wave.elite_hunt_success", "ELITE SLAIN · +{0}" },
+            { "wave.elite_hunt_eased", "HUNT EASED" },
+            { "wave.reward_point", "CACHE · {0} SEC. · 1: DAMAGE +12% / 2: HEAL + COINS" },
+            { "wave.reward_damage", "REWARD · DAMAGE +12%" },
+            { "wave.reward_recovery", "REWARD · HEAL +25% · +8 COINS" },
 
             // ---------- Run theme ----------
             { "run.berserk", "BERSERK · FASTER AND MEANER" },

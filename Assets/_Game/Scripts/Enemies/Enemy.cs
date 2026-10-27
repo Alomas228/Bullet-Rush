@@ -338,6 +338,13 @@ public class Enemy : MonoBehaviour
 
     public bool IsDead { get; private set; }
 
+    public bool IsElite => cachedEnemyType == EnemyType.Elite;
+
+    public WaveModifier CurrentWaveModifier { get; private set; }
+
+    public static event System.Action<Enemy> OnEnemyKilled;
+    public static event System.Action<Enemy> OnEliteHuntTargetSpawned;
+
     /// <summary>
     /// Горит ли моб сейчас. Читает BurnFlameEffect, чтобы огонь
     /// сам знал, когда погаснуть.
@@ -564,6 +571,7 @@ public class Enemy : MonoBehaviour
         }
 
         currentWave = Mathf.Max(wave, 1);
+        CurrentWaveModifier = modifier;
 
         CacheRoleParameters();
 
@@ -580,6 +588,9 @@ public class Enemy : MonoBehaviour
         CacheRoleAllyType();
 
         ApplyFirstCastGrace();
+
+        if (IsElite && modifier.Has(WaveModifier.EliteHunt))
+            OnEliteHuntTargetSpawned?.Invoke(this);
     }
 
     // Копия нужных ролевых чисел в поля моба. EnemyData — общий
@@ -4710,7 +4721,19 @@ public class Enemy : MonoBehaviour
             weaponId = lastDamageWeaponId
         });
 
+        OnEnemyKilled?.Invoke(this);
+
         Destroy(gameObject);
+    }
+
+    public void ApplyHuntMercy(float healthMultiplier, float damageMultiplier)
+    {
+        if (IsDead || !IsElite)
+            return;
+
+        scaledMaxHealth *= Mathf.Clamp(healthMultiplier, 0.1f, 1f);
+        currentHealth = Mathf.Min(currentHealth, scaledMaxHealth);
+        scaledDamageMultiplier *= Mathf.Clamp(damageMultiplier, 0.1f, 1f);
     }
 
     private void PlayEnemyDeathSound()
