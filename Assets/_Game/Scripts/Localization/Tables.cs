@@ -177,6 +177,9 @@ public static class Tables
             { "hud.crit", "КРИТ " },
             { "hud.wave_left", "ВОЛНА: {0} · ОСТАЛОСЬ: {1}" },
             { "hud.wave_complete", "Волна завершена" },
+            { "boss.default.name", "Страж" },
+            { "boss.overlord.name", "Владыка" },
+            { "boss.artillery.name", "Артиллерист" },
 
             // ---------- Волны ----------
             { "wave.title", "ВОЛНА" },
@@ -846,6 +849,9 @@ public static class Tables
             { "hud.crit", "KRİTİK " },
             { "hud.wave_left", "DALGA: {0} · KALAN: {1}" },
             { "hud.wave_complete", "Dalga tamamlandı" },
+            { "boss.default.name", "Muhafız" },
+            { "boss.overlord.name", "Hükümdar" },
+            { "boss.artillery.name", "Topçu" },
 
             // ---------- Dalgalar ----------
             { "wave.title", "DALGA" },
@@ -1515,6 +1521,9 @@ public static class Tables
             { "hud.crit", "CRIT " },
             { "hud.wave_left", "WAVE: {0} · LEFT: {1}" },
             { "hud.wave_complete", "Wave complete" },
+            { "boss.default.name", "Warden" },
+            { "boss.overlord.name", "Overlord" },
+            { "boss.artillery.name", "Artillery" },
 
             // ---------- Waves ----------
             { "wave.title", "WAVE" },

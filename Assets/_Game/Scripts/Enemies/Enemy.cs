@@ -83,6 +83,21 @@ public class Enemy : MonoBehaviour
     private float abilityTimer;
     private float summonTimer;
 
+    // Boss signature attacks use a visible windup rather than firing on
+    // the same frame their cooldown expires.
+    private float bossDashTimer;
+    private bool bossDashWindup;
+    private bool bossDashing;
+    private float bossDashRemainingTime;
+    private float bossDashRemainingDistance;
+    private float bossDashTargetDistance;
+    private Vector3 bossDashDirection;
+    private bool bossFanWindup;
+    private Vector3 bossFanDirection;
+    private int bossFanProjectileCount;
+    private float bossFanSpread;
+    private float bossFanDamage;
+
     // Состояние рывка быстрых врагов.
     private bool isDashing;
     private float dashTimer;
@@ -350,6 +365,11 @@ public class Enemy : MonoBehaviour
             ? bossData.BossName
             : string.Empty;
 
+    public Color BossDisplayColor =>
+        bossData != null
+            ? bossData.BossTint
+            : Color.white;
+
     /// <summary>
     /// Стабильный идентификатор босса для достижений. Пусто у обычных
     /// мобов. Отличается от отображаемого имени: имя может меняться
@@ -532,8 +552,17 @@ public class Enemy : MonoBehaviour
     /// </summary>
     public void Initialize(
         int wave,
-        WaveModifier modifier = WaveModifier.None)
+        WaveModifier modifier = WaveModifier.None,
+        BossData selectedBossData = null)
     {
+        if (cachedEnemyType == EnemyType.Boss &&
+            selectedBossData != null)
+        {
+            bossData = selectedBossData;
+            BossPhase = 1;
+            CacheVisualSetup();
+        }
+
         currentWave = Mathf.Max(wave, 1);
 
         CacheRoleParameters();
@@ -600,6 +629,17 @@ public class Enemy : MonoBehaviour
         hasRepositionTarget = false;
         attackTelegraphActive = false;
         dashWindup = false;
+        bossDashWindup = false;
+        bossDashing = false;
+        bossDashTimer = 0f;
+        bossDashRemainingTime = 0f;
+        bossDashRemainingDistance = 0f;
+        bossDashTargetDistance = 0f;
+        bossFanWindup = false;
+        bossFanDirection = Vector3.zero;
+        bossFanProjectileCount = 0;
+        bossFanSpread = 0f;
+        bossFanDamage = 0f;
         bombFuseActive = false;
         bombFuseRemainingTime = 0f;
 
@@ -644,6 +684,9 @@ public class Enemy : MonoBehaviour
         allyRevengeTime = enemyData.AllyRevengeTime;
 
         abilityDpsMultiplier = enemyData.AbilityDpsMultiplier;
+
+        if (cachedEnemyType == EnemyType.Boss && bossData != null)
+            preferredDistance = bossData.PreferredDistance;
     }
 
     // У кого есть «свой» союзник по роли, тот на его гибель
@@ -792,7 +835,13 @@ public class Enemy : MonoBehaviour
         // механика карты), у обычного моба — на пару без варианта,
         // поэтому дорогая копия лишь одна на сочетание, а не на моба.
         variantRenderer.sharedMaterial =
-            GetVariantMaterial(baseMaterial, variant);
+            GetVariantMaterial(
+                baseMaterial,
+                variant,
+                isBoss && bossData != null
+                    ? bossData.BossTint
+                    : Color.white
+            );
     }
 
     // Копия материала на тройку (материал, вариант, механика карты),
@@ -801,12 +850,15 @@ public class Enemy : MonoBehaviour
     // а не по одной на каждого моба.
     private static Material GetVariantMaterial(
         Material material,
-        EnemyVariant target)
+        EnemyVariant target,
+        Color bossTint)
     {
-        int key =
+        int key = unchecked(
             material.GetInstanceID() * 12737 +
             (int)target * 113 +
-            (int)MapMechanicManager.CurrentMechanic;
+            (int)MapMechanicManager.CurrentMechanic * 31 +
+            bossTint.GetHashCode()
+        );
 
         if (variantMaterialCache.TryGetValue(key, out Material cached) &&
             cached != null)
@@ -825,11 +877,11 @@ public class Enemy : MonoBehaviour
         // оставаться узнаваемым поверх местного окраса.
         Color tint = new Color(
             GetVariantTint(target).r *
-                MapMechanicManager.EnemyTintColor.r,
+                MapMechanicManager.EnemyTintColor.r * bossTint.r,
             GetVariantTint(target).g *
-                MapMechanicManager.EnemyTintColor.g,
+                MapMechanicManager.EnemyTintColor.g * bossTint.g,
             GetVariantTint(target).b *
-                MapMechanicManager.EnemyTintColor.b,
+                MapMechanicManager.EnemyTintColor.b * bossTint.b,
             1f
         );
 
@@ -958,6 +1010,7 @@ public class Enemy : MonoBehaviour
             abilityTimer = bossGrace;
             summonTimer = bossGrace;
             attackTimer = bossGrace;
+            bossDashTimer = bossGrace;
 
             return;
         }
@@ -1221,6 +1274,17 @@ public class Enemy : MonoBehaviour
 
         if (dashTimer > 0f)
             dashTimer -= deltaTime;
+
+        if (bossDashTimer > 0f)
+            bossDashTimer -= deltaTime;
+
+        if (bossDashing)
+        {
+            bossDashRemainingTime -= deltaTime;
+
+            if (bossDashRemainingTime <= 0f)
+                bossDashing = false;
+        }
 
         if (bombFuseActive)
         {
@@ -3258,20 +3322,25 @@ public class Enemy : MonoBehaviour
     }
 
 
-    // Есть ли у игрока хотя бы одно направление, в котором можно
-    // отойти от центра опасной зоны на её радиус. Зона всегда
-    // ставится под игрока, поэтому проверяем именно геометрию
-    // вокруг игрока: луч в сторону не должен упираться в стену
-    // раньше, чем игрок успеет выйти из круга.
-    private bool HasEscapeRouteFromPlayer(float radius)
+    // Проверяет, сможет ли игрок выйти из круга до срабатывания зоны,
+    // не упираясь в структуру арены.
+    private bool HasEscapeRouteFromPlayer(
+        Vector3 zoneCenter,
+        float radius)
     {
         if (player == null)
             return false;
 
+        float distanceToZoneCenter =
+            Vector3.Distance(player.position, zoneCenter);
+
+        if (distanceToZoneCenter >= radius)
+            return true;
+
         const int directions = 12;
 
         float checkDistance =
-            Mathf.Max(radius, 0.5f) + 0.5f;
+            Mathf.Max(radius - distanceToZoneCenter, 0.5f) + 0.5f;
 
         Vector3 origin =
             player.position +
@@ -3311,6 +3380,26 @@ public class Enemy : MonoBehaviour
         if (bossData == null)
             return;
 
+        if (bossDashing)
+        {
+            ApplyBossDash();
+            return;
+        }
+
+        if (bossDashWindup)
+        {
+            RotateTowards(bossDashDirection);
+            return;
+        }
+
+        if (bossFanWindup)
+        {
+            if (player != null)
+                RotateTowards(player.position - transform.position);
+
+            return;
+        }
+
         Vector3 direction =
             player.position - transform.position;
 
@@ -3332,6 +3421,11 @@ public class Enemy : MonoBehaviour
         {
             MoveBossTowardsPlayer();
         }
+        else if (preferredDistance > 0f &&
+                 distance < preferredDistance)
+        {
+            MoveBossAwayFromPlayer(direction);
+        }
         else
         {
             if (direction.sqrMagnitude > 0.01f)
@@ -3341,7 +3435,13 @@ public class Enemy : MonoBehaviour
                 RotateTowards(direction);
             }
 
-            if (attackTimer <= 0f)
+            bool fanStarting =
+                bossData.AbilityPattern == BossAbilityPattern.ProjectileFan &&
+                abilityTimer <= 0f;
+
+            if (!bossFanWindup &&
+                !fanStarting &&
+                attackTimer <= 0f)
             {
                 ShootAtPlayer(
                     GetBossProjectileDamage(),
@@ -3353,12 +3453,31 @@ public class Enemy : MonoBehaviour
             }
         }
 
+        bool startedAbility = false;
+
         if (abilityTimer <= 0f)
         {
-            BossAbility();
+            if (bossData.AbilityPattern == BossAbilityPattern.ProjectileFan)
+                BeginBossFan();
+            else
+                BossAbility();
+
+            startedAbility = true;
 
             abilityTimer =
                 GetBossAbilityCooldown();
+        }
+
+        if (!startedAbility &&
+            !bossDashWindup &&
+            !bossFanWindup &&
+            !bossDashing &&
+            bossData.CanDash &&
+            bossDashTimer <= 0f &&
+            distance >= GetContactRange() * 1.5f &&
+            distance <= bossData.DashRange)
+        {
+            BeginBossDash(direction);
         }
 
         if (summonTimer <= 0f)
@@ -3421,6 +3540,30 @@ public class Enemy : MonoBehaviour
         }
 
         RotateTowards(moveDirection);
+    }
+
+    private void MoveBossAwayFromPlayer(Vector3 directionToPlayer)
+    {
+        directionToPlayer.y = 0f;
+        if (directionToPlayer.sqrMagnitude <= 0.01f)
+            return;
+
+        Vector3 moveDirection =
+            AvoidObstacles(-directionToPlayer.normalized);
+
+        transform.position +=
+            moveDirection *
+            GetBossMoveSpeed() *
+            knockbackSpeedScale *
+            Time.deltaTime;
+
+        if (structureResolveTimer <= 0f)
+        {
+            ResolveStructureOverlap();
+            structureResolveTimer = Mathf.Max(structureResolveInterval, 0.02f);
+        }
+
+        RotateTowards(directionToPlayer);
     }
 
     private float GetBossMoveSpeed()
@@ -3580,6 +3723,235 @@ public class Enemy : MonoBehaviour
         if (bossData == null)
             return;
 
+        switch (bossData.AbilityPattern)
+        {
+            case BossAbilityPattern.Shockwave:
+                SpawnBossAttackZone(transform.position);
+                return;
+
+            case BossAbilityPattern.ProjectileFan:
+                ShootProjectileFan(
+                    bossFanDamage,
+                    bossData.ProjectileSpeed,
+                    bossFanProjectileCount,
+                    bossFanSpread,
+                    bossFanDirection
+                );
+                PlayBossAbilitySound();
+                return;
+        }
+
+        SpawnBossAttackZone(player.position);
+    }
+
+    private void BeginBossFan()
+    {
+        if (player == null || bossFanWindup)
+            return;
+
+        bossFanWindup = true;
+
+        Vector3 baseDirection =
+            player.position - attackPoint.position;
+
+        baseDirection.y = 0f;
+
+        if (baseDirection.sqrMagnitude <= 0.01f)
+        {
+            bossFanWindup = false;
+            return;
+        }
+
+        baseDirection.Normalize();
+        bossFanDirection = baseDirection;
+
+        int count = GetBossFanCount();
+        float spread = GetBossFanSpread();
+        float warning = GetBossAbilityWarningDuration();
+        bossFanProjectileCount = count;
+        bossFanSpread = spread;
+        bossFanDamage = GetBossAbilityDamage();
+
+        for (int i = 0; i < count; i++)
+        {
+            float t = count <= 1 ? 0.5f : (float)i / (count - 1f);
+            float angle = Mathf.Lerp(-spread * 0.5f, spread * 0.5f, t);
+            Vector3 direction =
+                Quaternion.Euler(0f, angle, 0f) * baseDirection;
+
+            Vector3 end =
+                attackPoint.position +
+                direction * GetBossFanTelegraphRange();
+
+            if (i == 0)
+            {
+                BossLineTelegraph.Spawn(
+                    attackPoint.position,
+                    end,
+                    warning,
+                    bossData.AbilityColor,
+                    CompleteBossFan
+                );
+            }
+            else
+            {
+                BossLineTelegraph.Spawn(
+                    attackPoint.position,
+                    end,
+                    warning,
+                    bossData.AbilityColor,
+                    null
+                );
+            }
+        }
+
+        attackTimer = GetBossAttackInterval();
+    }
+
+    private void CompleteBossFan()
+    {
+        bossFanWindup = false;
+
+        if (IsDead || player == null)
+            return;
+
+        attackTimer = GetBossAttackInterval();
+        BossAbility();
+    }
+
+    private void BeginBossDash(Vector3 direction)
+    {
+        if (bossData == null || bossDashWindup)
+            return;
+
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude <= 0.01f)
+            return;
+
+        direction.Normalize();
+
+        float distance = Mathf.Min(
+            bossData.DashRange,
+            Vector3.Distance(transform.position, player.position) + 1.5f);
+
+        if (HasStructureBlocking(
+                transform.position + Vector3.up * rayHeight,
+                direction,
+                distance))
+        {
+            bossDashTimer = 1f;
+            return;
+        }
+
+        bossDashWindup = true;
+        bossDashDirection = direction;
+        bossDashTargetDistance = distance;
+
+        BossLineTelegraph.Spawn(
+            transform.position,
+            transform.position + direction * distance,
+            bossData.DashWarningDuration,
+            bossData.AbilityColor,
+            CompleteBossDash
+        );
+    }
+
+    private void CompleteBossDash()
+    {
+        bossDashWindup = false;
+
+        if (IsDead)
+            return;
+
+        bossDashing = true;
+        bossDashRemainingDistance = bossDashTargetDistance;
+        bossDashRemainingTime =
+            Mathf.Max(
+                bossData.DashDuration *
+                    (BossPhase == 3 ? 1.2f : 1f),
+                bossData.DashRange /
+                    Mathf.Max(GetBossDashSpeed(), 0.01f) + 0.05f);
+        bossDashTimer = GetBossDashCooldown();
+    }
+
+    private void ApplyBossDash()
+    {
+        float step = Mathf.Min(
+            GetBossDashSpeed() * Time.deltaTime,
+            bossDashRemainingDistance);
+
+        if (HasStructureBlocking(
+                transform.position + Vector3.up * rayHeight,
+                bossDashDirection,
+                step + obstaclePadding))
+        {
+            bossDashRemainingDistance = 0f;
+            bossDashing = false;
+            return;
+        }
+
+        transform.position +=
+            bossDashDirection *
+            step;
+
+        bossDashRemainingDistance -= step;
+
+        if (bossDashRemainingDistance <= 0.001f)
+        {
+            bossDashing = false;
+            return;
+        }
+
+        if (structureResolveTimer <= 0f)
+        {
+            ResolveStructureOverlap();
+            structureResolveTimer = Mathf.Max(structureResolveInterval, 0.02f);
+        }
+
+        RotateTowards(bossDashDirection);
+    }
+
+    private int GetBossFanCount()
+    {
+        int count = bossData.ProjectileFanCount;
+
+        return BossPhase == 3
+            ? Mathf.Min(count + 2, 9)
+            : count;
+    }
+
+    private float GetBossFanSpread()
+    {
+        float spread = bossData.ProjectileFanSpread;
+
+        return BossPhase == 3
+            ? Mathf.Min(spread + 12f, 160f)
+            : spread;
+    }
+
+    private float GetBossDashSpeed()
+    {
+        return bossData.DashSpeed *
+            (BossPhase == 3 ? 1.2f : 1f) *
+            knockbackSpeedScale;
+    }
+
+    private float GetBossDashCooldown()
+    {
+        return bossData.DashCooldown *
+            (BossPhase == 3 ? 0.65f : 1f);
+    }
+
+    private float GetBossFanTelegraphRange()
+    {
+        return Mathf.Max(
+            bossData.AttackRange + 8f,
+            bossData.ProjectileSpeed * 3f);
+    }
+
+    private void SpawnBossAttackZone(Vector3 position)
+    {
         if (bossAttackZonePrefab == null)
         {
             Debug.LogWarning(
@@ -3591,12 +3963,9 @@ public class Enemy : MonoBehaviour
 
         float zoneRadius = GetBossAbilityRadius();
 
-        // Зона ставится ровно под игрока, поэтому она обязана быть
-        // покидаемой. Если ни в одну сторону от игрока нельзя отойти
-        // на радиус зоны (узкий проход, угол карты), каст не читается
-        // как уклонение — это просто смерть с телеграфом. В таком
-        // случае способность не применяется вовсе.
-        if (!HasEscapeRouteFromPlayer(zoneRadius))
+        // Атака не применяется, если геометрия арены не оставляет
+        // возможности выйти из телеграфа до его срабатывания.
+        if (!HasEscapeRouteFromPlayer(position, zoneRadius))
         {
             Debug.Log(
                 $"BOSS '{name}' skipped AoE: player has " +
@@ -3606,8 +3975,7 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        Vector3 zonePosition =
-            player.position;
+        Vector3 zonePosition = position;
 
         zonePosition.y = 0.005f;
 
@@ -3626,7 +3994,8 @@ public class Enemy : MonoBehaviour
             attackZone.Initialize(
                 GetBossAbilityDamage(),
                 zoneRadius,
-                GetBossAbilityWarningDuration()
+                GetBossAbilityWarningDuration(),
+                bossData.AbilityColor
             );
         }
 
@@ -3737,7 +4106,7 @@ public class Enemy : MonoBehaviour
                 );
 
             enemySpawner.SpawnEnemyAtPosition(
-                EnemyType.Normal,
+                bossData.SummonType,
                 spawnPosition
             );
         }
@@ -3797,15 +4166,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        Vector3 baseDirection =
-            player.position -
-            attackPoint.position;
-
-        if (baseDirection.sqrMagnitude <= 0.01f)
-            return;
-
-        baseDirection.Normalize();
-
         int projectileCount =
             enemyData != null
                 ? enemyData.FanProjectileCount
@@ -3815,6 +4175,38 @@ public class Enemy : MonoBehaviour
             enemyData != null
                 ? enemyData.FanSpreadDegrees
                 : 0f;
+
+        ShootProjectileFan(
+            damage,
+            projectileSpeed,
+            projectileCount,
+            spread
+        );
+    }
+
+    private void ShootProjectileFan(
+        float damage,
+        float projectileSpeed,
+        int projectileCount,
+        float spread,
+        Vector3 baseDirectionOverride = default)
+    {
+        if (enemyProjectilePrefab == null || player == null)
+            return;
+
+        Vector3 baseDirection = baseDirectionOverride;
+
+        if (baseDirection.sqrMagnitude <= 0.01f)
+        {
+            baseDirection = player.position - attackPoint.position;
+            baseDirection.y = 0f;
+        }
+
+        if (baseDirection.sqrMagnitude <= 0.01f)
+            return;
+
+        baseDirection.Normalize();
+        projectileCount = Mathf.Clamp(projectileCount, 1, 9);
 
         for (int i = 0; i < projectileCount; i++)
         {

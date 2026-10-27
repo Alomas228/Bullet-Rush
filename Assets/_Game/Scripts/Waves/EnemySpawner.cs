@@ -1377,7 +1377,8 @@ public class EnemySpawner : MonoBehaviour
     public Enemy SpawnEnemyAtPosition(
         EnemyType enemyType,
         Vector3 position,
-        float spawnDuration = -1f)
+        float spawnDuration = -1f,
+        BossData bossProfile = null)
     {
         GameObject prefab =
             GetPrefabByType(enemyType);
@@ -1423,7 +1424,11 @@ public class EnemySpawner : MonoBehaviour
         Enemy enemy = enemyObject.GetComponent<Enemy>();
 
         if (enemy != null)
-            enemy.Initialize(CurrentWave, currentWaveModifier);
+            enemy.Initialize(
+                CurrentWave,
+                currentWaveModifier,
+                bossProfile
+            );
 
         return enemy;
     }

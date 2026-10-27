@@ -35,11 +35,14 @@ public class BossAttackZone : MonoBehaviour, IDangerZone
     public void Initialize(
         float newDamage,
         float newRadius,
-        float newWarningDuration)
+        float newWarningDuration,
+        Color newDangerColor = default)
     {
         damage = newDamage;
         radius = newRadius;
         warningDuration = newWarningDuration;
+        if (newDangerColor != default)
+            dangerColor = newDangerColor;
 
         timer = 0f;
         phaseTime = 0f;

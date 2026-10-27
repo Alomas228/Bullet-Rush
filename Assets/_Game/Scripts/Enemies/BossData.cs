@@ -1,5 +1,12 @@
 using UnityEngine;
 
+public enum BossAbilityPattern
+{
+    TargetedStrike,
+    Shockwave,
+    ProjectileFan
+}
+
 [CreateAssetMenu(
     fileName = "Boss_",
     menuName = "Arcade Survivor/Boss"
@@ -12,6 +19,8 @@ public class BossData : ScriptableObject
     [Tooltip("Стабильный идентификатор для достижений. Пусто — берётся bossName. " +
              "Меняй только вместе с сохранениями: по нему считается коллекция.")]
     [SerializeField] private string bossId = string.Empty;
+    [SerializeField] private string bossNameKey = string.Empty;
+    [SerializeField] private Color bossTint = Color.white;
 
     [Header("Base Stats")]
     [Tooltip("Все числа здесь — в масштабе ×10 к прежнему (игрок живёт 100 HP). Урон способностей по номеру волны НЕ масштабируется: к нему применяется только уровень «лёгкая / сложная», см. WaveDifficulty.")]
@@ -24,6 +33,24 @@ public class BossData : ScriptableObject
     [SerializeField] private float attackInterval = 1.5f;
     [SerializeField] private float projectileDamage = 114f;
     [SerializeField] private float projectileSpeed = 8f;
+    [SerializeField] private float preferredDistance = 0f;
+
+    [Header("Signature Ability")]
+    [SerializeField] private BossAbilityPattern abilityPattern =
+        BossAbilityPattern.TargetedStrike;
+    [SerializeField] private Color abilityColor =
+        new Color(1f, 0.15f, 0.1f, 0.45f);
+    [SerializeField] private int projectileFanCount = 3;
+    [SerializeField] private float projectileFanSpread = 45f;
+    [SerializeField] private EnemyType summonType = EnemyType.Normal;
+
+    [Header("Boss Dash")]
+    [SerializeField] private bool canDash = true;
+    [SerializeField] private float dashRange = 12f;
+    [SerializeField] private float dashSpeed = 18f;
+    [SerializeField] private float dashDuration = 0.55f;
+    [SerializeField] private float dashCooldown = 10f;
+    [SerializeField] private float dashWarningDuration = 1.1f;
 
 
     // =========================================================
@@ -116,7 +143,9 @@ public class BossData : ScriptableObject
     // =========================================================
 
     public string BossName =>
-        bossName;
+        string.IsNullOrEmpty(bossNameKey)
+            ? bossName
+            : Lang.GetOr(bossNameKey, bossName);
 
     /// <summary>
     /// ID босса для достижений. Если явный ID не задан, используется имя —
@@ -126,6 +155,35 @@ public class BossData : ScriptableObject
         string.IsNullOrEmpty(bossId)
             ? bossName
             : bossId;
+
+    public Color BossTint => bossTint;
+
+    public BossAbilityPattern AbilityPattern => abilityPattern;
+
+    public Color AbilityColor => abilityColor;
+
+    public int ProjectileFanCount =>
+        Mathf.Clamp(projectileFanCount, 1, 9);
+
+    public float ProjectileFanSpread =>
+        Mathf.Clamp(projectileFanSpread, 0f, 160f);
+
+    public EnemyType SummonType => summonType;
+
+    public bool CanDash => canDash;
+
+    public float DashRange => Mathf.Max(dashRange, 0f);
+
+    public float DashSpeed => Mathf.Max(dashSpeed, 0f);
+
+    public float DashDuration => Mathf.Max(dashDuration, 0.05f);
+
+    public float DashCooldown => Mathf.Max(dashCooldown, 0.1f);
+
+    public float DashWarningDuration => Mathf.Max(dashWarningDuration, 0f);
+
+    public float PreferredDistance =>
+        Mathf.Max(preferredDistance, 0f);
 
     public float MaxHealth =>
         Mathf.Max(maxHealth, 1f);

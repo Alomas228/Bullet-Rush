@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Boss_Default
   m_EditorClassIdentifier: Assembly-CSharp::BossData
   bossName: Boss
+  bossId: Boss
+  bossNameKey: boss.default.name
+  bossTint: {r: 1, g: 1, b: 1, a: 1}
   maxHealth: 6000
   moveSpeed: 1.5
   contactDamage: 70
@@ -20,6 +23,18 @@ MonoBehaviour:
   attackInterval: 1.5
   projectileDamage: 85
   projectileSpeed: 8
+  preferredDistance: 0
+  abilityPattern: 0
+  abilityColor: {r: 1, g: 0.15, b: 0.1, a: 0.45}
+  projectileFanCount: 3
+  projectileFanSpread: 45
+  summonType: 0
+  canDash: 1
+  dashRange: 12
+  dashSpeed: 18
+  dashDuration: 0.55
+  dashCooldown: 10
+  dashWarningDuration: 1.1
   phase1HealthPercent: 1
   phase1AbilityCooldown: 8
   phase1AbilityDamage: 180

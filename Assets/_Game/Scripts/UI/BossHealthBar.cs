@@ -100,6 +100,9 @@ public class BossHealthBar : MonoBehaviour, ILangRefreshable
         {
             bossNameText.text = bossLabel;
         }
+
+        if (bossNameText != null)
+            bossNameText.color = currentBoss.BossDisplayColor;
     }
 
     // Имя босса берём из его ассета, а фазу показываем явно: смена
@@ -130,7 +133,10 @@ public class BossHealthBar : MonoBehaviour, ILangRefreshable
             return;
 
         if (bossNameText != null)
+        {
             bossNameText.text = GetBossLabel(currentBoss);
+            bossNameText.color = currentBoss.BossDisplayColor;
+        }
     }
 
     private void Show()

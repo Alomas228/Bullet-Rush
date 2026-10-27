@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Enemy_Bomber
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Enemy_Bomber
-  enemyType: 5
+  enemyType: 6
   maxHealth: 260
   moveSpeed: 2.7
   contactDamage: 8

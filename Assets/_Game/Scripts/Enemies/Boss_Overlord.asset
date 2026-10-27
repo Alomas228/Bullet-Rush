@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8da2d0d07321bb04e83d6edfbefb703d, type: 3}
+  m_Name: Boss_Overlord
+  m_EditorClassIdentifier: Assembly-CSharp::BossData
+  bossName: Overlord
+  bossId: boss_overlord
+  bossNameKey: boss.overlord.name
+  bossTint: {r: 1, g: 0.42, b: 0.24, a: 1}
+  maxHealth: 7200
+  moveSpeed: 1.25
+  contactDamage: 75
+  attackRange: 8
+  attackInterval: 1.5
+  projectileDamage: 80
+  projectileSpeed: 7.5
+  preferredDistance: 0
+  abilityPattern: 1
+  abilityColor: {r: 1, g: 0.28, b: 0.08, a: 0.45}
+  projectileFanCount: 3
+  projectileFanSpread: 45
+  summonType: 1
+  canDash: 1
+  dashRange: 13
+  dashSpeed: 19
+  dashDuration: 0.6
+  dashCooldown: 9
+  dashWarningDuration: 1
+  phase1HealthPercent: 1
+  phase1AbilityCooldown: 8
+  phase1AbilityDamage: 170
+  phase1AbilityRadius: 5
+  phase1AbilityWarningDuration: 2
+  phase1SummonCooldown: 11
+  phase1SummonCount: 2
+  phase2HealthPercent: 0.6
+  phase2MoveSpeedMultiplier: 1.2
+  phase2AttackIntervalMultiplier: 0.8
+  phase2AbilityCooldown: 6
+  phase2AbilityDamage: 245
+  phase2AbilityRadius: 5.5
+  phase2AbilityWarningDuration: 1.8
+  phase2SummonCooldown: 9
+  phase2SummonCount: 3
+  phase3HealthPercent: 0.3
+  phase3MoveSpeedMultiplier: 1.5
+  phase3AttackIntervalMultiplier: 0.65
+  phase3DamageMultiplier: 1.5
+  phase3AbilityCooldown: 4
+  phase3AbilityDamage: 330
+  phase3AbilityRadius: 6
+  phase3AbilityWarningDuration: 1.5
+  phase3SummonCooldown: 7
+  phase3SummonCount: 4
+  waveHealthPercent: 0.2
+  waveDamagePercent: 0.1
+  waveScorePercent: 0.1
+  scoreValue: 600

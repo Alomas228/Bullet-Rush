@@ -44,6 +44,9 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private int heavyModifierCooldown = 2;
 
     [Header("Boss Spawning")]
+    [Tooltip("Профили боссов по порядку встреч. После последнего списка ротация начинается заново.")]
+    [SerializeField] private List<BossData> bossRotation =
+        new List<BossData>();
     [Tooltip("Пауза между выходом босса и его прислугой.")]
     [SerializeField] private float bossMinionDelay = 1.2f;
     [Tooltip("Сколько прислуги выходит вместе с боссом.")]
@@ -649,6 +652,13 @@ public class WaveManager : MonoBehaviour
                 currentModifier
             );
 
+        if (isBossWave)
+        {
+            BossData bossProfile = GetBossForWave(CurrentWave);
+            if (bossProfile != null)
+                subtitle = bossProfile.BossName;
+        }
+
         if (isFirstWave &&
             RunModifierManager.Instance != null &&
             RunModifierManager.Instance.HasAny)
@@ -840,13 +850,12 @@ public class WaveManager : MonoBehaviour
     // слота — так появляются спады и пики, а не ровный поток.
     private int GetEnemyCountForWave(int wave)
     {
-        // Множитель поднимает и потолок сжатия, и сам линейный рост.
-        // Если поднять только потолок, волны с малым raw почти не
-        // изменятся, а после потолка количество упрётся в него вдвое
-        // раньше. Равномерное масштабирование обоих даёт ровно ×N
-        // на каждой волне, не ломая форму кривой.
+        // Общий множитель и тема «Орда» поднимают и потолок сжатия,
+        // и сам линейный рост. Равномерное масштабирование обоих
+        // сохраняет форму кривой и увеличивает число врагов на волне.
         float multiplier =
-            Mathf.Max(enemyCountMultiplier, 0f);
+            Mathf.Max(enemyCountMultiplier, 0f) *
+            Mathf.Max(RunModifierManager.EnemyCountScale, 0f);
 
         float ceiling =
             Mathf.Max(enemyCountCeiling, 1f) * multiplier;
@@ -896,12 +905,14 @@ public class WaveManager : MonoBehaviour
         if (enemySpawner == null)
             return;
 
+        BossData bossProfile = GetBossForWave(CurrentWave);
+
         // Волна активна, пока босс материализуется и подтягивается прислуга.
         enemySpawner.SetManualSpawning(true);
-        StartCoroutine(BossWaveRoutine());
+        StartCoroutine(BossWaveRoutine(bossProfile));
     }
 
-    private IEnumerator BossWaveRoutine()
+    private IEnumerator BossWaveRoutine(BossData bossProfile)
     {
         Vector3 bossPosition =
             enemySpawner.GetPlayerRingSpawnPosition();
@@ -909,7 +920,8 @@ public class WaveManager : MonoBehaviour
         enemySpawner.SpawnEnemyAtPosition(
             EnemyType.Boss,
             bossPosition,
-            bossSpawnInDuration
+            bossSpawnInDuration,
+            bossProfile
         );
 
         // Пауза: игрок видит «ритуал» появления босса, потом выходит прислуга.
@@ -918,7 +930,8 @@ public class WaveManager : MonoBehaviour
         int minionCount =
             Mathf.RoundToInt(
                 bossMinionCount *
-                Mathf.Max(enemyCountMultiplier, 0f)
+                Mathf.Max(enemyCountMultiplier, 0f) *
+                Mathf.Max(RunModifierManager.EnemyCountScale, 0f)
             );
 
         for (int i = 0; i < minionCount; i++)
@@ -930,6 +943,24 @@ public class WaveManager : MonoBehaviour
         }
 
         enemySpawner.SetManualSpawning(false);
+    }
+
+    private BossData GetBossForWave(int wave)
+    {
+        if (bossRotation == null || bossRotation.Count == 0)
+            return null;
+
+        int encounter =
+            Mathf.Max(wave / Mathf.Max(bossWaveInterval, 1) - 1, 0);
+
+        for (int offset = 0; offset < bossRotation.Count; offset++)
+        {
+            int index = (encounter + offset) % bossRotation.Count;
+            if (bossRotation[index] != null)
+                return bossRotation[index];
+        }
+
+        return null;
     }
 
     private Vector3 GetMinionPositionAround(

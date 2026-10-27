@@ -31368,6 +31368,10 @@ MonoBehaviour:
   bossMinionDelay: 1.2
   bossMinionCount: 5
   bossSpawnInDuration: 1.2
+  bossRotation:
+  - {fileID: 11400000, guid: 29fa6b3bb92ae74429fa0b55308bd638, type: 2}
+  - {fileID: 11400000, guid: 87fb412fc9954bbdabb09429e85213d4, type: 2}
+  - {fileID: 11400000, guid: 46f34890088f4b88a3a4d49370432750, type: 2}
   waveDisplayTime: 0.75
   firstWaveDisplayTime: 1
   bossWaveDisplayTime: 1.6
@@ -42594,7 +42598,7 @@ MonoBehaviour:
   rangedPrefab: {fileID: 825037764437159876, guid: ef150186777b5654d9aa154f8f7bf760, type: 3}
   elitePrefab: {fileID: 825037764437159876, guid: 19943bd5be4910a4a9f70bb319ae1179, type: 3}
   bossPrefab: {fileID: 825037764437159876, guid: e2aa28d1f0962614a98d3b1faf7efdd3, type: 3}
-  bomberPrefab: {fileID: 0}
+  bomberPrefab: {fileID: 825037764437159876, guid: c11f2e3d4a5b6c7d8e9f0a1b2c3d4e5f, type: 3}
   minimumSpawnDistance: 1.5
   spawnAttempts: 20
   spawnBatchSize: 4
