@@ -483,7 +483,7 @@ public class Bullet : MonoBehaviour
 
         if (pvpTarget != null && !pvpTarget.IsPlayer)
         {
-            pvpTarget.TakeDamage(damage);
+            pvpTarget.TakeDamage(damage * PvpCombatant.PlayerDamageMultiplier);
             VfxFactory.SpawnImpact(
                 transform.position,
                 transform.forward

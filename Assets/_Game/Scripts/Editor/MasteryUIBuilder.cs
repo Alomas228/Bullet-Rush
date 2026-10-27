@@ -70,10 +70,14 @@ public static class MasteryUIBuilder
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
         Image panelImage = panel.GetComponent<Image>();
-        panelImage.sprite = ArcadeKitAssets.Panel;
+        panelImage.sprite = ArcadeKitAssets.RoundRect;
         panelImage.type = Image.Type.Sliced;
         panelImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.99f);
         panelImage.raycastTarget = true;
+        Shadow shadow = panel.AddComponent<Shadow>();
+        shadow.effectColor = ArcadeUiTheme.Shadow;
+        shadow.effectDistance = new Vector2(0f, -8f);
+        shadow.useGraphicAlpha = true;
 
         TMP_Text title = CreateText(panel.transform, "Title", new Vector2(0.5f, 1f), new Vector2(0f, -34f), 30f);
         title.text = Lang.GetOr("progression.mastery.title", "MASTERY & COLLECTION");

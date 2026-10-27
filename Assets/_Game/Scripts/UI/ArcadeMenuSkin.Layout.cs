@@ -768,6 +768,7 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(126f, -108f),
             new Vector2(250f, 22f)
         );
+        playerXpText.color = ArcadeUiTheme.TextSecondary;
 
         RectTransform statsHint = ArcadeUiFactory.At(
             card,
@@ -1122,10 +1123,10 @@ public sealed partial class ArcadeMenuSkin
 
     private void BuildBottom(RectTransform parent)
     {
-        const float tileWidth = 218f;
-        const float gap = 14f;
+        const float tileWidth = 178f;
+        const float gap = 10f;
 
-        float total = tileWidth * 5f + gap * 4f;
+        float total = tileWidth * 6f + gap * 5f;
         float start = -total * 0.5f + tileWidth * 0.5f;
 
         statsTile = BuildStatTile(
@@ -1181,6 +1182,17 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(start + (tileWidth + gap) * 4f, 46f),
             tileWidth,
             OpenMastery
+        );
+
+        BuildStatTile(
+            parent,
+            "LeaderboardsTile",
+            () => Lang.GetOr("menu.leaderboard.title", "РЕЙТИНГИ"),
+            "trophy",
+            ArcadeUiTheme.Red,
+            new Vector2(start + (tileWidth + gap) * 5f, 46f),
+            tileWidth,
+            OpenLeaderboards
         );
 
         BuildLangPills(
@@ -1305,30 +1317,36 @@ public sealed partial class ArcadeMenuSkin
             "Title",
             "",
             ArcadeKitAssets.BodyBold,
-            15f,
+            13f,
             ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
             new Vector2(72f, 13f),
-            new Vector2(140f, 24f),
+            new Vector2(width - 82f, 24f),
             true
         );
+        tile.Title.enableAutoSizing = true;
+        tile.Title.fontSizeMin = 9f;
+        tile.Title.fontSizeMax = 13f;
 
         tile.Value = ArcadeUiFactory.Label(
             rect,
             "Value",
             "",
             ArcadeKitAssets.BodyBold,
-            13f,
+            11f,
             ArcadeUiTheme.TextSecondary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
             new Vector2(72f, -13f),
-            new Vector2(140f, 22f),
+            new Vector2(width - 82f, 22f),
             true
         );
+        tile.Value.enableAutoSizing = true;
+        tile.Value.fontSizeMin = 8f;
+        tile.Value.fontSizeMax = 11f;
 
         RectTransform badge = ArcadeUiFactory.At(
             rect,

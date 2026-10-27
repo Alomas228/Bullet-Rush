@@ -87,6 +87,11 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private GameObject settingsPanel;
     private GameObject statsPanel;
     private GameObject tipsPanel;
+    private GameObject leaderboardPanel;
+    private LeaderboardUI leaderboardUi;
+    private TMP_Text leaderboardText;
+    private Button[] leaderboardTabs;
+    private int selectedLeaderboardTab;
 
     private Slider sfxSlider;
     private Slider musicSlider;
@@ -116,6 +121,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private Button tipsReplayButton;
 
     private XpManager xpManager;
+    private PvpProgressionManager pvpProgression;
     private DailyRewardManager dailyRewardManager;
     private AchievementManager achievementManager;
     private DailyMissionManager dailyMissionManager;
@@ -345,6 +351,10 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         UnbindServices();
 
         xpManager = XpManager.Instance;
+        pvpProgression = PvpProgressionManager.EnsureExists();
+
+        if (pvpProgression != null)
+            pvpProgression.OnChanged += HandlePvpProgressChanged;
 
         if (xpManager != null)
         {
@@ -407,6 +417,9 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             xpManager.OnPlayerLevelChanged -= HandlePlayerLevelChanged;
         }
 
+        if (pvpProgression != null)
+            pvpProgression.OnChanged -= HandlePvpProgressChanged;
+
         if (dailyRewardManager != null)
             dailyRewardManager.OnRewardClaimed -= HandleDailyRewardClaimed;
 
@@ -438,6 +451,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         Lang.OnLanguageChanged -= HandleLanguageChanged;
 
         xpManager = null;
+        pvpProgression = null;
         dailyRewardManager = null;
         achievementManager = null;
         dailyMissionManager = null;
@@ -451,6 +465,11 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         RefreshBalances();
         RefreshStats();
+    }
+
+    private void HandlePvpProgressChanged()
+    {
+        RefreshPvpProfile();
     }
 
     private void HandlePlayerXpChanged(int value)
@@ -615,6 +634,43 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
                 statsAuthLabel.text = Lang.GetOr("menu.skin.auth", "ВОЙТИ");
             else
                 statsAuthLabel.text = Lang.GetOr("menu.skin.connecting", "ПОДКЛЮЧЕНИЕ...");
+        }
+
+        RefreshPvpProfile();
+    }
+
+    private void RefreshPvpProfile()
+    {
+        if (pvpProgression == null)
+            pvpProgression = PvpProgressionManager.EnsureExists();
+
+        bool pvp = GameModeManager.IsPvp;
+        if (playerXpBar != null)
+            playerXpBar.gameObject.SetActive(!pvp);
+
+        if (playerLevelText != null && pvpProgression != null && pvp)
+        {
+            playerLevelText.text = Lang.GetOr("menu.pvp.profile_rating", "{0} · {1} RP")
+                .Replace("{0}", pvpProgression.League)
+                .Replace("{1}", pvpProgression.Rating.ToString());
+        }
+        else if (playerLevelText != null && xpManager != null)
+        {
+            playerLevelText.text = Lang.GetOr("menu.level", "Уровень {0}")
+                .Replace("{0}", xpManager.GlobalLevel.ToString());
+        }
+
+        if (playerXpText != null && pvpProgression != null && pvp)
+        {
+            playerXpText.text = Lang.GetOr("menu.pvp.profile_record", "{0} W · {1} STREAK")
+                .Replace("{0}", pvpProgression.Wins.ToString())
+                .Replace("{1}", pvpProgression.Streak.ToString());
+        }
+        else if (playerXpText != null && xpManager != null)
+        {
+            playerXpText.text = Lang.GetOr("menu.xp", "{0} / {1} XP")
+                .Replace("{0}", xpManager.GlobalXPInCurrentLevel.ToString())
+                .Replace("{1}", xpManager.GlobalXPNeededForNextLevel.ToString());
         }
     }
 
@@ -816,6 +872,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
         if (pvpModeLabel != null)
             pvpModeLabel.text = Lang.GetOr("menu.mode.pvp", "PVP");
+
+        RefreshPvpProfile();
     }
 
     private void RefreshStats()
@@ -1142,6 +1200,14 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         OpenCustomPanel(statsPanel);
     }
 
+    private void OpenLeaderboards()
+    {
+        OpenCustomPanel(leaderboardPanel);
+        if (leaderboardUi != null)
+            leaderboardUi.SetVisible(true);
+        SelectLeaderboardTab(selectedLeaderboardTab);
+    }
+
     private void OpenTips()
     {
         OpenCustomPanel(tipsPanel);
@@ -1157,6 +1223,9 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         else if (panel == settingsPanel)
             RefreshSettingsValues();
 
+        if (leaderboardUi != null)
+            leaderboardUi.SetVisible(panel == leaderboardPanel);
+
         menu.OpenSubPanel(panel);
     }
 
@@ -1164,6 +1233,9 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         if (panel != null)
             panel.SetActive(false);
+
+        if (panel == leaderboardPanel && leaderboardUi != null)
+            leaderboardUi.SetVisible(false);
 
         if (menu != null)
             menu.CloseSubPanels();

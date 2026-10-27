@@ -11,10 +11,12 @@ public sealed partial class ArcadeMenuSkin
         settingsPanel = BuildSettingsPanel();
         statsPanel = BuildStatsPanel();
         tipsPanel = BuildTipsPanel();
+        leaderboardPanel = BuildLeaderboardPanel();
 
         settingsPanel.SetActive(false);
         statsPanel.SetActive(false);
         tipsPanel.SetActive(false);
+        leaderboardPanel.SetActive(false);
     }
 
     private GameObject BuildSettingsPanel()
@@ -464,6 +466,155 @@ public sealed partial class ArcadeMenuSkin
         AddLangBinding(closeLabel, () => Lang.GetOr("settings.close", "ЗАКРЫТЬ"));
 
         return root.gameObject;
+    }
+
+    private GameObject BuildLeaderboardPanel()
+    {
+        RectTransform root = BuildPanelBackdrop("SkinLeaderboardPanel");
+        RectTransform card = BuildPanelCard(root, "Card", new Vector2(1020f, 720f));
+        BuildPanelHeader(
+            card,
+            () => Lang.GetOr("menu.leaderboard.title", "РЕЙТИНГИ"),
+            () => CloseCustomPanel(leaderboardPanel)
+        );
+
+        leaderboardTabs = new Button[4];
+        for (int i = 0; i < leaderboardTabs.Length; i++)
+        {
+            int tab = i;
+            float width = 218f;
+            RectTransform tabRect = ArcadeUiFactory.At(
+                card,
+                "LeaderboardTab" + i,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(40f + i * (width + 12f), -112f),
+                new Vector2(width, 52f)
+            );
+            leaderboardTabs[i] = ArcadeUiFactory.Button(
+                tabRect,
+                ArcadeKitAssets.RoundRect,
+                ArcadeUiTheme.PanelRaised,
+                "",
+                ArcadeKitAssets.BodyBold,
+                14f,
+                ArcadeUiTheme.TextPrimary,
+                () => SelectLeaderboardTab(tab)
+            );
+            TMP_Text label = tabRect.Find("Label").GetComponent<TMP_Text>();
+            AddLangBinding(label, () => Lang.GetOr(
+                "menu.leaderboard.tab." + tab,
+                LeaderboardTabFallback(tab)
+            ));
+        }
+
+        RectTransform viewport = ArcadeUiFactory.At(
+            card,
+            "LeaderboardViewport",
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(46f, -184f),
+            new Vector2(928f, 430f)
+        );
+        Image viewportImage = ArcadeUiFactory.Image(viewport, null, Color.white);
+        viewportImage.raycastTarget = false;
+        viewport.gameObject.AddComponent<RectMask2D>();
+        RectTransform content = ArcadeUiFactory.Stretch(viewport, "Content");
+        leaderboardText = ArcadeUiFactory.Label(
+            content,
+            Lang.GetOr("lb.loading", "ЗАГРУЗКА...").ToUpperInvariant(),
+            ArcadeKitAssets.Body,
+            18f,
+            ArcadeUiTheme.TextPrimary,
+            TextAlignmentOptions.TopLeft
+        );
+        leaderboardText.enableWordWrapping = false;
+        leaderboardText.overflowMode = TextOverflowModes.Overflow;
+        leaderboardUi = gameObject.AddComponent<LeaderboardUI>();
+        leaderboardUi.Configure(LeaderboardName(0), leaderboardText, true);
+        RefreshLeaderboardTabs();
+
+        RectTransform close = ArcadeUiFactory.At(
+            card,
+            "CloseButton",
+            new Vector2(1f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(-36f, 28f),
+            new Vector2(240f, 56f)
+        );
+        ArcadeUiFactory.Button(
+            close,
+            ArcadeKitAssets.RoundRect,
+            ArcadeUiTheme.PanelRaised,
+            "",
+            ArcadeKitAssets.BodyBold,
+            18f,
+            ArcadeUiTheme.TextPrimary,
+            () => CloseCustomPanel(leaderboardPanel)
+        );
+        AddLangBinding(
+            close.Find("Label").GetComponent<TMP_Text>(),
+            () => Lang.GetOr("settings.close", "ЗАКРЫТЬ")
+        );
+
+        return root.gameObject;
+    }
+
+    private void SelectLeaderboardTab(int index)
+    {
+        selectedLeaderboardTab = Mathf.Clamp(index, 0, 3);
+        RefreshLeaderboardTabs();
+        if (leaderboardUi != null)
+        {
+            leaderboardUi.Configure(
+                LeaderboardName(selectedLeaderboardTab), leaderboardText,
+                selectedLeaderboardTab == 0
+            );
+            leaderboardUi.Refresh();
+        }
+    }
+
+    private void RefreshLeaderboardTabs()
+    {
+        if (leaderboardTabs == null)
+            return;
+
+        for (int i = 0; i < leaderboardTabs.Length; i++)
+        {
+            bool selected = i == selectedLeaderboardTab;
+            Image image = leaderboardTabs[i] != null
+                ? leaderboardTabs[i].GetComponent<Image>()
+                : null;
+            TMP_Text label = leaderboardTabs[i] != null
+                ? leaderboardTabs[i].GetComponentInChildren<TMP_Text>()
+                : null;
+            if (image != null)
+                image.color = selected ? ArcadeUiTheme.Gold : ArcadeUiTheme.PanelRaised;
+            if (label != null)
+                label.color = selected ? ArcadeUiTheme.TextDark : ArcadeUiTheme.TextPrimary;
+        }
+    }
+
+    private static string LeaderboardName(int tab)
+    {
+        switch (tab)
+        {
+            case 0: return YandexGameManager.LeaderboardPvpRating;
+            case 1: return YandexGameManager.LeaderboardBestScoreDaily;
+            case 2: return YandexGameManager.LeaderboardBestScoreWeekly;
+            default: return YandexGameManager.LeaderboardBestScoreMonthly;
+        }
+    }
+
+    private static string LeaderboardTabFallback(int tab)
+    {
+        switch (tab)
+        {
+            case 0: return "PVP";
+            case 1: return "ДЕНЬ";
+            case 2: return "НЕДЕЛЯ";
+            default: return "МЕСЯЦ";
+        }
     }
 
     private static string TipFallback(int index)

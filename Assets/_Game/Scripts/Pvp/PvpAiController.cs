@@ -30,6 +30,9 @@ public sealed class PvpAiController : MonoBehaviour
         ownCollider = GetComponent<Collider>();
         weaponData = weapon;
 
+        if (targetController != null)
+            moveSpeed = targetController.CurrentMoveSpeed;
+
         if (weapon == null)
             return;
 
@@ -60,6 +63,33 @@ public sealed class PvpAiController : MonoBehaviour
         }
     }
 
+    public void ApplyProfile(int style, float difficulty)
+    {
+        difficulty = Mathf.Clamp(difficulty, 0.8f, 1.2f);
+        switch (style)
+        {
+            case 0:
+                moveSpeed *= 1.2f * difficulty;
+                strafeSpeed *= 0.8f;
+                preferredDistance = 6f;
+                aimLead = 0.1f;
+                break;
+            case 1:
+                moveSpeed *= 0.78f * difficulty;
+                strafeSpeed *= 0.55f;
+                preferredDistance = 16f;
+                aimLead = 0.34f;
+                damage *= 1.12f * difficulty;
+                fireInterval *= 1.12f;
+                break;
+            default:
+                moveSpeed *= difficulty;
+                preferredDistance = 10f;
+                aimLead = 0.2f;
+                break;
+        }
+    }
+
     private void Update()
     {
         if (target == null || combatant == null || combatant.IsDead ||
@@ -74,8 +104,6 @@ public sealed class PvpAiController : MonoBehaviour
             return;
 
         Vector3 direction = toTarget / distance;
-        if (targetController != null)
-            moveSpeed = targetController.CurrentMoveSpeed;
 
         UpdateStrafe();
 
@@ -287,6 +315,16 @@ public sealed class PvpAiController : MonoBehaviour
         Transform origin = firePoint != null ? firePoint : transform;
         int count = weaponData != null ? Mathf.Max(weaponData.ProjectileCount, 1) : 1;
         float spread = weaponData != null ? weaponData.SpreadAngle : 0f;
+
+        if (AudioManager.Instance != null &&
+            AudioManager.Instance.SFXLibrary != null)
+        {
+            AudioManager.Instance.PlaySFXVariation(
+                AudioManager.Instance.SFXLibrary.EnemyShot,
+                volumeScale: 0.75f,
+                priority: SfxPriority.Medium
+            );
+        }
 
         for (int i = 0; i < count; i++)
         {

@@ -13,6 +13,11 @@ using YG.Utils.LB;
 /// </summary>
 public class YandexGameManager : MonoBehaviour
 {
+    public const string LeaderboardPvpRating = "PvpRating";
+    public const string LeaderboardBestScoreDaily = "BestScoreDaily";
+    public const string LeaderboardBestScoreWeekly = "BestScoreWeekly";
+    public const string LeaderboardBestScoreMonthly = "BestScoreMonthly";
+
     public static YandexGameManager Instance { get; private set; }
 
     [Header("Interstitial Adv")]
@@ -193,7 +198,8 @@ public class YandexGameManager : MonoBehaviour
         else if (state == GameState.GameOver)
         {
             YG2.GameplayStop();
-            RegisterRunEnd();
+            if (!GameModeManager.IsPvp)
+                RegisterRunEnd();
         }
         else
         {
@@ -273,6 +279,7 @@ public class YandexGameManager : MonoBehaviour
 
         PersistSaves();
         SubmitLeaderboardScore(BestScore);
+        SubmitPeriodicLeaderboardScores(finalScore);
 
         if (interRunInterval > 0 &&
             RunCount > 0 &&
@@ -284,14 +291,26 @@ public class YandexGameManager : MonoBehaviour
 
     private void SubmitLeaderboardScore(int score)
     {
+        SubmitLeaderboard(leaderboardName, score);
+    }
+
+    private void SubmitPeriodicLeaderboardScores(int score)
+    {
+        SubmitLeaderboard(LeaderboardBestScoreDaily, score);
+        SubmitLeaderboard(LeaderboardBestScoreWeekly, score);
+        SubmitLeaderboard(LeaderboardBestScoreMonthly, score);
+    }
+
+    public void SubmitLeaderboard(string name, int score)
+    {
 #if Leaderboards_yg
-        if (string.IsNullOrEmpty(leaderboardName))
+        if (string.IsNullOrEmpty(name))
             return;
 
         if (!YG2.player.auth)
             return;
 
-        YG2.SetLeaderboard(leaderboardName, score);
+        YG2.SetLeaderboard(name, score);
 #endif
     }
 

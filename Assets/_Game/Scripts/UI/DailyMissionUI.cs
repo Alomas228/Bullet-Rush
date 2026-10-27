@@ -59,6 +59,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
             closeButton.onClick.AddListener(HidePanel);
 
         EnsureTabButtons();
+        StyleTabButtons();
         if (dailyTabButton != null)
             dailyTabButton.onClick.AddListener(ShowDaily);
         if (weeklyTabButton != null)
@@ -154,20 +155,77 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         string fallback,
         float x)
     {
-        Image image = CreateImage(parent, name, new Color(0.12f, 0.2f, 0.3f, 1f));
+        Image image = CreateImage(parent, name, ArcadeUiTheme.PanelRaised);
         RectTransform rect = image.rectTransform;
         rect.anchorMin = new Vector2(0.5f, 1f);
         rect.anchorMax = new Vector2(0.5f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(140f, 42f);
-        rect.anchoredPosition = new Vector2(x, -86f);
+        rect.sizeDelta = new Vector2(240f, 52f);
+        rect.anchoredPosition = new Vector2(x, -92f);
+        image.sprite = ArcadeKitAssets.RoundRect;
+        image.type = Image.Type.Sliced;
+        image.raycastTarget = true;
 
         Button button = image.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
         TMP_Text label = CreateText(image.transform, "Label", 18f, TextAlignmentOptions.Center);
         label.text = fallback;
+        label.font = ArcadeKitAssets.BodyBold;
+        label.color = ArcadeUiTheme.TextPrimary;
         Stretch(label.rectTransform);
         return button;
+    }
+
+    private void StyleTabButtons()
+    {
+        StyleTabButton(dailyTabButton, currentTrack == MissionTrack.Daily,
+            Lang.GetOr("mission.daily.tab", "ЕЖЕДНЕВНЫЕ"));
+        StyleTabButton(weeklyTabButton, currentTrack == MissionTrack.Weekly,
+            Lang.GetOr("mission.weekly.tab", "ЕЖЕНЕДЕЛЬНЫЕ"));
+    }
+
+    private static void StyleTabButton(Button button, bool selected, string label)
+    {
+        if (button == null)
+            return;
+
+        RectTransform rect = button.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.sizeDelta = new Vector2(240f, 52f);
+        rect.anchoredPosition = new Vector2(
+            button.name == "DailyTab" ? -130f : 130f,
+            -92f
+        );
+        Image image = button.targetGraphic as Image;
+        if (image == null)
+            image = button.GetComponent<Image>();
+        if (image != null)
+        {
+            image.sprite = ArcadeKitAssets.RoundRect;
+            image.type = Image.Type.Sliced;
+            image.color = selected ? ArcadeUiTheme.Gold : ArcadeUiTheme.PanelRaised;
+            image.raycastTarget = true;
+        }
+
+        Shadow shadow = button.GetComponent<Shadow>();
+        if (shadow == null)
+            shadow = button.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = ArcadeUiTheme.Shadow;
+        shadow.effectDistance = new Vector2(0f, -4f);
+        shadow.useGraphicAlpha = true;
+
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
+        if (text != null)
+        {
+            text.text = label;
+            text.font = ArcadeKitAssets.BodyBold;
+            text.fontSize = 16f;
+            text.color = selected ? ArcadeUiTheme.TextDark : ArcadeUiTheme.TextPrimary;
+            text.alignment = TextAlignmentOptions.Center;
+            text.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        }
     }
 
     private void HandleMissionsRefreshed()
@@ -192,6 +250,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     private void SetTrack(MissionTrack track)
     {
         currentTrack = track;
+        StyleTabButtons();
         builtCount = -1;
         Refresh();
     }
@@ -203,6 +262,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
 
     public void RefreshLang()
     {
+        StyleTabButtons();
         Refresh();
     }
 

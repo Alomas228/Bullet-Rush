@@ -53,6 +53,38 @@ public class LeaderboardUI : MonoBehaviour
 
     private bool ready;
     private Coroutine refreshRoutine;
+    private bool showLeague;
+    private bool visible;
+    private bool visibilityControlled;
+    private bool requestInProgress;
+    private bool refreshPending;
+
+    public void Configure(string name, TMP_Text target, bool includeLeague)
+    {
+        leaderboardName = name;
+        leaderboardText = target;
+        autoCreate = false;
+        showLeague = includeLeague;
+        visibilityControlled = true;
+        ready = YandexGameManager.Instance != null && YandexGameManager.Instance.IsReady;
+    }
+
+    public void SetVisible(bool value)
+    {
+        visible = value;
+        if (!visible)
+            refreshPending = false;
+    }
+
+    private void OnDestroy()
+    {
+        if (YandexGameManager.Instance != null)
+            YandexGameManager.Instance.OnReady -= OnSDKReady;
+        MainMenuUI.OnMenuAppeared -= OnMenuAppeared;
+
+        if (refreshRoutine != null)
+            StopCoroutine(refreshRoutine);
+    }
 
     private void OnEnable()
     {
@@ -74,6 +106,7 @@ public class LeaderboardUI : MonoBehaviour
             StopCoroutine(refreshRoutine);
             refreshRoutine = null;
         }
+        requestInProgress = false;
     }
 
     private void Start()
@@ -89,7 +122,7 @@ public class LeaderboardUI : MonoBehaviour
             ready = true;
         }
 
-        if (ready && MainMenuUI.Instance != null &&
+        if (IsVisible && ready && MainMenuUI.Instance != null &&
             GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Menu)
         {
@@ -100,18 +133,20 @@ public class LeaderboardUI : MonoBehaviour
     private void OnSDKReady()
     {
         ready = true;
-        Refresh();
+        if (IsVisible)
+            Refresh();
     }
 
     private void OnMenuAppeared()
     {
-        Refresh();
+        if (IsVisible)
+            Refresh();
     }
 
     /// <summary>Запрашивает и отрисовывает таблицу заново.</summary>
     public void Refresh()
     {
-        if (leaderboardText == null)
+        if (!IsVisible || leaderboardText == null)
             return;
 
         if (YandexGameManager.Instance == null || !ready)
@@ -120,24 +155,24 @@ public class LeaderboardUI : MonoBehaviour
             return;
         }
 
-        SetText(loadingText);
-
-        if (refreshRoutine != null)
+        if (requestInProgress)
         {
-            StopCoroutine(refreshRoutine);
-            refreshRoutine = null;
+            refreshPending = true;
+            return;
         }
 
-        refreshRoutine = StartCoroutine(RequestRoutine());
+        SetText(loadingText);
+        requestInProgress = true;
+        refreshRoutine = StartCoroutine(RequestRoutine(leaderboardName, showLeague));
     }
 
-    private IEnumerator RequestRoutine()
+    private IEnumerator RequestRoutine(string requestedName, bool includeLeague)
     {
         bool done = false;
         LBData result = null;
 
         YandexGameManager.Instance.RequestLeaderboard(
-            leaderboardName,
+            requestedName,
             topCount,
             aroundCount,
             lb =>
@@ -158,21 +193,29 @@ public class LeaderboardUI : MonoBehaviour
         }
 
         refreshRoutine = null;
+        requestInProgress = false;
 
-        if (!done)
+        if (IsVisible && requestedName == leaderboardName && !done)
         {
             SetText(emptyText);
-            yield break;
+        }
+        else if (IsVisible && requestedName == leaderboardName)
+        {
+            SetText(Render(result, includeLeague));
         }
 
-        SetText(Render(result));
+        if (refreshPending || requestedName != leaderboardName)
+        {
+            refreshPending = false;
+            Refresh();
+        }
     }
 
     /// <summary>
     /// Отрисовывает таблицу от самого высокого счёта к низкому:
     /// №1 = максимальный балл, дальше по убыванию.
     /// </summary>
-    private string Render(LBData lb)
+    private string Render(LBData lb, bool includeLeague)
     {
         if (lb == null || lb.players == null || lb.players.Length == 0)
             return LangBinder.ResolveKey(emptyText);
@@ -191,7 +234,10 @@ public class LeaderboardUI : MonoBehaviour
         {
             string name = LBMethods.AnonymousName(sorted[i].name);
 
-            sb.AppendLine(Lang.Get("lb.row", i + 1, name, sorted[i].score));
+            string score = includeLeague
+                ? PvpProgressionManager.GetLeague(sorted[i].score) + " · " + sorted[i].score
+                : sorted[i].score.ToString();
+            sb.AppendLine(Lang.Get("lb.row", i + 1, name, score));
         }
 
         if (!YandexGameManager.Instance.IsAuthorized)
@@ -208,6 +254,8 @@ public class LeaderboardUI : MonoBehaviour
         if (leaderboardText != null)
             leaderboardText.text = LangBinder.ResolveKey(text);
     }
+
+    private bool IsVisible => !visibilityControlled || visible;
 
     // =========================================================
     // AUTO CREATE

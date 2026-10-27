@@ -238,6 +238,21 @@ public class GameOverManager : MonoBehaviour
         // результат один раз: рекорд, лидерборд, достижения и награда.
         FinalizeRun();
 
+        BeginMenuReturn();
+    }
+
+    public void BackToMenuWithoutFinalizing()
+    {
+        BeginMenuReturn(false);
+    }
+
+    private void BeginMenuReturn()
+    {
+        BeginMenuReturn(true);
+    }
+
+    private void BeginMenuReturn(bool captureSceneSnapshot)
+    {
         runFinalized = false;
         IsGameOver = false;
 
@@ -246,7 +261,7 @@ public class GameOverManager : MonoBehaviour
 
         Time.timeScale = 1f;
 
-        if (!GameModeManager.IsPvp)
+        if (captureSceneSnapshot && !GameModeManager.IsPvp)
         {
             EnvironmentController environment =
                 FindAnyObjectByType<EnvironmentController>();

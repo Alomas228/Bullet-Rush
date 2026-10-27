@@ -114,6 +114,21 @@ public static class DailyMissionsUIBuilder
                 new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
                 new Vector2(-160f, -30f), new Vector2(260f, 60f));
 
+        Button dailyTab = CreateMissionTab(
+            panelObject.transform,
+            "DailyTab",
+            Lang.GetOr("mission.daily.tab", "ЕЖЕДНЕВНЫЕ"),
+            new Vector2(-130f, -92f),
+            font
+        );
+        Button weeklyTab = CreateMissionTab(
+            panelObject.transform,
+            "WeeklyTab",
+            Lang.GetOr("mission.weekly.tab", "ЕЖЕНЕДЕЛЬНЫЕ"),
+            new Vector2(130f, -92f),
+            font
+        );
+
         Button backButton = CreateBackButton(panelObject.transform, font);
 
         RectTransform content = CreateScroll(panelObject.transform);
@@ -130,6 +145,8 @@ public static class DailyMissionsUIBuilder
         SetRef(uiSo, "closeButton", backButton);
         SetRef(uiSo, "content", content);
         SetRef(uiSo, "rowTemplate", rowTemplate);
+        SetRef(uiSo, "dailyTabButton", dailyTab);
+        SetRef(uiSo, "weeklyTabButton", weeklyTab);
 
         uiSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -360,6 +377,59 @@ public static class DailyMissionsUIBuilder
         panel.AddComponent<Image>().color = PanelBackground;
 
         return panel;
+    }
+
+    private static Button CreateMissionTab(
+        Transform parent,
+        string name,
+        string label,
+        Vector2 position,
+        TMP_FontAsset font)
+    {
+        GameObject go = new GameObject(
+            name,
+            typeof(RectTransform),
+            typeof(Image),
+            typeof(Button)
+        );
+        go.transform.SetParent(parent, false);
+
+        RectTransform rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 1f);
+        rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = new Vector2(240f, 52f);
+
+        Image image = go.GetComponent<Image>();
+        image.sprite = ArcadeKitAssets.RoundRect;
+        image.type = Image.Type.Sliced;
+        image.color = ArcadeUiTheme.PanelRaised;
+        image.raycastTarget = true;
+
+        Button button = go.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.transition = Selectable.Transition.None;
+
+        TextMeshProUGUI text = CreateText(
+            go.transform,
+            "Label",
+            font,
+            label,
+            16f,
+            TextAlignmentOptions.Center,
+            Vector2.zero,
+            Vector2.one,
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            Vector2.zero
+        );
+        text.font = ArcadeKitAssets.BodyBold;
+        text.color = ArcadeUiTheme.TextPrimary;
+        text.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+        SetFullStretch(text.rectTransform);
+
+        return button;
     }
 
     private static RectTransform CreateScroll(Transform parent)

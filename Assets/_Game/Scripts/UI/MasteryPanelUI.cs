@@ -69,11 +69,18 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         Image background = GetComponent<Image>();
         if (background != null)
         {
-            background.sprite = null;
-            background.type = Image.Type.Simple;
+            background.sprite = ArcadeKitAssets.RoundRect;
+            background.type = Image.Type.Sliced;
             background.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f);
             background.raycastTarget = true;
         }
+
+        Shadow shadow = GetComponent<Shadow>();
+        if (shadow == null)
+            shadow = gameObject.AddComponent<Shadow>();
+        shadow.effectColor = ArcadeUiTheme.Shadow;
+        shadow.effectDistance = new Vector2(0f, -8f);
+        shadow.useGraphicAlpha = true;
 
         if (runtimeDim == null)
         {
