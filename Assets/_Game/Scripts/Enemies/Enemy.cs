@@ -4377,6 +4377,20 @@ public class Enemy : MonoBehaviour
                 0.05f
             );
 
+        // A weaker proc must neither replace a stronger burn nor keep that
+        // stronger burn alive indefinitely. Once it expires, weaker burns
+        // can apply normally. Equal strength may refresh the remaining time.
+        if (burnActive && burnRemainingTime > 0f)
+        {
+            float currentDamagePerSecond = burnDamagePerTick / burnTickInterval;
+            if (damagePerSecond < currentDamagePerSecond &&
+                !Mathf.Approximately(damagePerSecond, currentDamagePerSecond))
+                return;
+
+            if (Mathf.Approximately(damagePerSecond, currentDamagePerSecond))
+                duration = Mathf.Max(duration, burnRemainingTime);
+        }
+
         burnDamagePerTick =
             damagePerSecond * tickInterval;
         burnRemainingTime = duration;

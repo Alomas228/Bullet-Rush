@@ -216,6 +216,29 @@ public class WeaponData : ScriptableObject
             0f
         );
 
+    public float GetBurstInterval(float speedMultiplier) =>
+        BurstInterval / Mathf.Max(speedMultiplier, 0.01f);
+
+    public float GetDoubleShotInterval(float speedMultiplier) =>
+        DoubleShotInterval / Mathf.Max(speedMultiplier, 0.01f);
+
+    // One cycle includes the whole burst/pair, not just its first shot.
+    // Burst retains its configured spacing and gains one extra shot interval
+    // of recovery. The same multiplier accelerates spacing and recovery.
+    public float GetFireCycleDuration(float speedMultiplier)
+    {
+        float speed = Mathf.Max(speedMultiplier, 0.01f);
+        float shotInterval = 1f / Mathf.Max(FireRate, 0.01f);
+
+        if (SpecialType == WeaponSpecialType.Burst)
+            return (ShotsPerBurst * BurstInterval + shotInterval) / speed;
+
+        if (SpecialType == WeaponSpecialType.DoubleShot)
+            return Mathf.Max(shotInterval, DoubleShotInterval) / speed;
+
+        return shotInterval / speed;
+    }
+
 
     public float BurnDamagePerSecond =>
         burnDamagePerSecond;

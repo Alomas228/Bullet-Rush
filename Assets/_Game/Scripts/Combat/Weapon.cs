@@ -36,6 +36,7 @@ public class Weapon : MonoBehaviour
     private bool burstActive;
     private int burstShotsRemaining;
     private float burstTimer;
+    private float burstShotInterval;
 
     private bool doubleShotActive;
     private float doubleShotTimer;
@@ -57,25 +58,7 @@ public class Weapon : MonoBehaviour
             if (weaponData == null)
                 return 1f;
 
-            // Очередь задаёт свой темп сама: индикатор перезарядки должен
-            // совпадать с длительностью очереди, а не с «выстрелами в секунду».
-            if (weaponData.SpecialType == WeaponSpecialType.Burst)
-            {
-                return Mathf.Max(
-                    weaponData.ShotsPerBurst *
-                    weaponData.BurstInterval,
-                    0.01f
-                );
-            }
-
-            float fireRate =
-                weaponData.FireRate *
-                GetFireRateMultiplier();
-
-            fireRate =
-                Mathf.Max(fireRate, 0.01f);
-
-            return 1f / fireRate;
+            return weaponData.GetFireCycleDuration(GetFireRateMultiplier());
         }
     }
 
@@ -291,31 +274,19 @@ public class Weapon : MonoBehaviour
         if (fireTimer > 0f)
             return;
 
-        float fireRate =
-            weaponData.FireRate *
-            GetFireRateMultiplier();
-
-        fireRate = Mathf.Max(fireRate, 0.01f);
+        fireTimer = FireCooldownMax;
 
         switch (weaponData.SpecialType)
         {
             case WeaponSpecialType.Burst:
-                // Пауза до следующей очереди равна длительности самой очереди:
-                // при зажатой кнопке очереди идут встык, и оружие стреляет
-                // ровным потоком как автомат — паузы после серии нет.
-                fireTimer =
-                    weaponData.ShotsPerBurst *
-                    weaponData.BurstInterval;
                 StartBurst();
                 break;
 
             case WeaponSpecialType.DoubleShot:
-                fireTimer = 1f / fireRate;
                 StartDoubleShot();
                 break;
 
             default:
-                fireTimer = 1f / fireRate;
                 FireVolley();
                 break;
         }
@@ -332,11 +303,13 @@ public class Weapon : MonoBehaviour
         burstShotsRemaining =
             weaponData.ShotsPerBurst;
 
-        burstTimer = 0f;
+        burstShotInterval = weaponData.GetBurstInterval(GetFireRateMultiplier());
+        burstTimer = burstShotInterval;
 
         FireBurstShot();
 
         burstShotsRemaining--;
+        burstActive = burstShotsRemaining > 0;
     }
 
     private void UpdateBurst()
@@ -346,24 +319,16 @@ public class Weapon : MonoBehaviour
 
         burstTimer -= Time.deltaTime;
 
-        if (burstTimer > 0f)
-            return;
-
-        if (burstShotsRemaining <= 0)
+        // Carry elapsed time forward rather than losing it every frame.
+        // The remaining shot count bounds this loop even for a zero interval.
+        while (burstShotsRemaining > 0 && burstTimer <= 0f)
         {
-            burstActive = false;
-            return;
+            FireBurstShot();
+            burstShotsRemaining--;
+            burstTimer += burstShotInterval;
         }
 
-        FireBurstShot();
-
-        burstShotsRemaining--;
-
-        burstTimer =
-            weaponData.BurstInterval;
-
-        if (burstShotsRemaining <= 0)
-            burstActive = false;
+        burstActive = burstShotsRemaining > 0;
     }
 
     private void FireBurstShot()
@@ -380,7 +345,7 @@ public class Weapon : MonoBehaviour
         doubleShotActive = true;
 
         doubleShotTimer =
-            weaponData.DoubleShotInterval;
+            weaponData.GetDoubleShotInterval(GetFireRateMultiplier());
 
         FireVolley();
     }
