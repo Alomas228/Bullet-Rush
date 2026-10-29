@@ -12,20 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8da2d0d07321bb04e83d6edfbefb703d, type: 3}
   m_Name: Boss_Default
   m_EditorClassIdentifier: Assembly-CSharp::BossData
-  bossName: Boss
+  bossName: Ram
   bossId: Boss
   bossNameKey: boss.default.name
-  bossTint: {r: 1, g: 1, b: 1, a: 1}
+  bossTint: {r: 1, g: 0.4, b: 0.2, a: 1}
   maxHealth: 6000
-  moveSpeed: 1.5
-  contactDamage: 70
-  attackRange: 8
+  moveSpeed: 2
+  contactDamage: 40
+  attackRange: 1.5
   attackInterval: 1.5
-  projectileDamage: 85
-  projectileSpeed: 8
+  projectileDamage: 30
+  projectileSpeed: 7
   preferredDistance: 0
   abilityPattern: 0
-  abilityColor: {r: 1, g: 0.15, b: 0.1, a: 0.45}
+  abilityColor: {r: 1, g: 0.4, b: 0.2, a: 1}
   projectileFanCount: 3
   projectileFanSpread: 45
   summonType: 0
@@ -37,31 +37,33 @@ MonoBehaviour:
   dashWarningDuration: 1.1
   phase1HealthPercent: 1
   phase1AbilityCooldown: 8
-  phase1AbilityDamage: 180
-  phase1AbilityRadius: 5
-  phase1AbilityWarningDuration: 2
+  phase1AbilityDamage: 35
+  phase1AbilityRadius: 3
+  phase1AbilityWarningDuration: 1.6
   phase1SummonCooldown: 10
-  phase1SummonCount: 3
+  phase1SummonCount: 0
   phase2HealthPercent: 0.6
   phase2MoveSpeedMultiplier: 1.2
   phase2AttackIntervalMultiplier: 0.8
-  phase2AbilityCooldown: 6
-  phase2AbilityDamage: 250
-  phase2AbilityRadius: 5
-  phase2AbilityWarningDuration: 2
+  phase2AbilityCooldown: 7
+  phase2AbilityDamage: 45
+  phase2AbilityRadius: 3.5
+  phase2AbilityWarningDuration: 1.6
   phase2SummonCooldown: 8
-  phase2SummonCount: 4
+  phase2SummonCount: 0
   phase3HealthPercent: 0.3
   phase3MoveSpeedMultiplier: 1.5
   phase3AttackIntervalMultiplier: 0.65
   phase3DamageMultiplier: 1.5
-  phase3AbilityCooldown: 4
-  phase3AbilityDamage: 350
-  phase3AbilityRadius: 6
-  phase3AbilityWarningDuration: 1.5
+  phase3AbilityCooldown: 6
+  phase3AbilityDamage: 55
+  phase3AbilityRadius: 4
+  phase3AbilityWarningDuration: 1.6
   phase3SummonCooldown: 6
-  phase3SummonCount: 6
-  waveHealthPercent: 0.2
-  waveDamagePercent: 0.1
+  phase3SummonCount: 0
+  waveHealthPercent: 0.1
+  waveDamagePercent: 0.01
   waveScorePercent: 0.1
   scoreValue: 500
+  usesBasicRangedAttack: 0
+  usesPassiveSummons: 0

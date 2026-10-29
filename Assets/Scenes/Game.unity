@@ -31370,8 +31370,10 @@ MonoBehaviour:
   bossSpawnInDuration: 1.2
   bossRotation:
   - {fileID: 11400000, guid: 29fa6b3bb92ae74429fa0b55308bd638, type: 2}
-  - {fileID: 11400000, guid: 87fb412fc9954bbdabb09429e85213d4, type: 2}
-  - {fileID: 11400000, guid: 46f34890088f4b88a3a4d49370432750, type: 2}
+  - {fileID: 11400000, guid: 3dfa0d21251744ceb57342a4daa89dbe, type: 2}
+  - {fileID: 11400000, guid: c9170c8ea11646b6bb1d0262f233e533, type: 2}
+  - {fileID: 11400000, guid: d0505085f6654e27850ee9d719ce84f5, type: 2}
+  - {fileID: 11400000, guid: 3a1a9e83d63f43329e59963769f4bdfd, type: 2}
   waveDisplayTime: 0.75
   firstWaveDisplayTime: 1
   bossWaveDisplayTime: 1.6

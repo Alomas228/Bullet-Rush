@@ -4,7 +4,11 @@ public enum BossAbilityPattern
 {
     TargetedStrike,
     Shockwave,
-    ProjectileFan
+    ProjectileFan,
+    MortarBarrage,
+    RadialBarrage,
+    SummoningRitual,
+    Singularity
 }
 
 [CreateAssetMenu(
@@ -29,6 +33,8 @@ public class BossData : ScriptableObject
     [SerializeField] private float contactDamage = 100f;
 
     [Header("Ranged Attack")]
+    [SerializeField] private bool usesBasicRangedAttack = true;
+    [SerializeField] private bool usesPassiveSummons = true;
     [SerializeField] private float attackRange = 8f;
     [SerializeField] private float attackInterval = 1.5f;
     [SerializeField] private float projectileDamage = 114f;
@@ -159,6 +165,8 @@ public class BossData : ScriptableObject
     public Color BossTint => bossTint;
 
     public BossAbilityPattern AbilityPattern => abilityPattern;
+    public bool UsesBasicRangedAttack => usesBasicRangedAttack;
+    public bool UsesPassiveSummons => usesPassiveSummons;
 
     public Color AbilityColor => abilityColor;
 

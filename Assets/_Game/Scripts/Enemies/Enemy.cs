@@ -563,6 +563,8 @@ public partial class Enemy : MonoBehaviour
         BossData selectedBossData = null)
     {
         ResetMapStatuses();
+        signatureSequence = 0;
+        signatureWindupUntil = 0f;
         if (cachedEnemyType == EnemyType.Boss &&
             selectedBossData != null)
         {
@@ -587,6 +589,19 @@ public partial class Enemy : MonoBehaviour
         ApplyWaveScaling();
 
         InitializeMapStatuses();
+
+        if (isBoss && bossData != null)
+        {
+            Transform previousSignature = transform.Find("BossIdentity");
+            if (previousSignature != null)
+            {
+                previousSignature.gameObject.SetActive(false);
+                Destroy(previousSignature.gameObject);
+            }
+            var signature = new GameObject("BossIdentity");
+            signature.transform.SetParent(transform, false);
+            signature.AddComponent<BossIdentityVisual>().Build(bossData);
+        }
 
         CacheRoleAllyType();
 
@@ -3394,6 +3409,8 @@ public partial class Enemy : MonoBehaviour
         if (bossData == null)
             return;
 
+        if (Time.time < signatureWindupUntil) return;
+
         if (bossDashing)
         {
             ApplyBossDash();
@@ -3454,6 +3471,7 @@ public partial class Enemy : MonoBehaviour
                 abilityTimer <= 0f;
 
             if (!bossFanWindup &&
+                bossData.UsesBasicRangedAttack &&
                 !fanStarting &&
                 attackTimer <= 0f)
             {
@@ -3494,7 +3512,7 @@ public partial class Enemy : MonoBehaviour
             BeginBossDash(direction);
         }
 
-        if (summonTimer <= 0f)
+        if (summonTimer <= 0f && bossData.UsesPassiveSummons)
         {
             SummonEnemies();
 
@@ -3735,6 +3753,9 @@ public partial class Enemy : MonoBehaviour
     private void BossAbility()
     {
         if (bossData == null)
+            return;
+
+        if (UseCampaignBossAbility())
             return;
 
         switch (bossData.AbilityPattern)
@@ -4120,7 +4141,10 @@ public partial class Enemy : MonoBehaviour
                 );
 
             enemySpawner.SpawnEnemyAtPosition(
-                bossData.SummonType,
+                bossData.AbilityPattern == BossAbilityPattern.SummoningRitual
+                    ? (BossPhase == 3 && i == 0 ? EnemyType.Tank
+                        : BossPhase >= 2 && i % 3 == 0 ? EnemyType.Ranged : EnemyType.Fast)
+                    : bossData.SummonType,
                 spawnPosition
             );
         }

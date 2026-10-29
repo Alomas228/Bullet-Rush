@@ -245,6 +245,13 @@ public class YandexGameManager : MonoBehaviour
         if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
             yield break;
 
+        if (CampaignCompletionUI.IsOpen)
+            yield break;
+
+        UpgradeUI upgradeChoice = FindAnyObjectByType<UpgradeUI>();
+        if (upgradeChoice != null && upgradeChoice.IsShowing)
+            yield break;
+
         if (Time.timeScale == 0f)
             Time.timeScale = 1f;
     }

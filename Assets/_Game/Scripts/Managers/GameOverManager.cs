@@ -7,6 +7,7 @@ public class GameOverManager : MonoBehaviour
     public static GameOverManager Instance { get; private set; }
 
     public bool IsGameOver { get; private set; }
+    public bool WasVictory { get; private set; }
 
     /// <summary>
     /// Итог последнего завершения забега. Считается один раз и
@@ -14,11 +15,6 @@ public class GameOverManager : MonoBehaviour
     /// показывали одинаковый счёт.
     /// </summary>
     public RunResult LastResult { get; private set; }
-
-    [Header("Achievements")]
-    [Tooltip("Сколько волн нужно пройти, чтобы забег считался победным (для ARSENAL). " +
-             "10 соответствует первой босс-волне.")]
-    [SerializeField] private int runWinWave = 10;
 
     private bool pendingRestart;
     private bool menuReturnPending;
@@ -63,11 +59,15 @@ public class GameOverManager : MonoBehaviour
         }
     }
 
-    public void GameOver()
+    public void GameOver() => FinishRun(false);
+    public void WinRun() => FinishRun(true);
+
+    private void FinishRun(bool victory)
     {
         if (IsGameOver)
             return;
 
+        WasVictory = victory;
         IsGameOver = true;
 
         // Результат собирается ровно один раз: и лидерборд, и экран
@@ -95,7 +95,7 @@ public class GameOverManager : MonoBehaviour
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.SetState(GameState.GameOver);
 
-        PlayGameOverSound();
+        if (!WasVictory) PlayGameOverSound();
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.StopMusic();
@@ -159,9 +159,8 @@ public class GameOverManager : MonoBehaviour
         if (waves != null)
             waveReached = waves.CurrentWave;
 
-        // Забег считается победным, если игрок дошёл до пороговой волны,
-        // даже если потом погиб. Порог настраивается в инспекторе.
-        bool won = waveReached >= runWinWave;
+        // Victory means clearing the final encounter, not merely reaching it.
+        bool won = WasVictory || (waves != null && waves.CampaignCompleted);
 
         AchievementEvents.RaiseRunEnded(new RunEndInfo
         {
@@ -185,6 +184,7 @@ public class GameOverManager : MonoBehaviour
 
         runFinalized = false;
         IsGameOver = false;
+        WasVictory = false;
         pendingRestart = true;
         Time.timeScale = 1f;
 
@@ -198,6 +198,7 @@ public class GameOverManager : MonoBehaviour
 
     public void ResetForNewRun()
     {
+        WasVictory = false;
         IsGameOver = false;
         pendingRestart = false;
         menuReturnPending = false;
@@ -211,7 +212,7 @@ public class GameOverManager : MonoBehaviour
     /// </summary>
     public void RevivePlayer()
     {
-        if (!IsGameOver)
+        if (!IsGameOver || WasVictory)
             return;
 
         // Забег продолжается: снимаем фиксацию, чтобы следующий конец
@@ -255,6 +256,7 @@ public class GameOverManager : MonoBehaviour
     {
         runFinalized = false;
         IsGameOver = false;
+        WasVictory = false;
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.SwitchToMenuMusic();

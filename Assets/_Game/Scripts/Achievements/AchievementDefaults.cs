@@ -79,7 +79,7 @@ public static class AchievementDefaults
                 "ach.bosslayer.desc", "Победи всех уникальных боссов игры.",
                 AchievementCategory.Bosses,
                 AchievementConditionType.UniqueBosses,
-                3f,
+                5f,
                 DamageSource.Unknown,
                 false,
                 Weapon("Plasma Rifle")

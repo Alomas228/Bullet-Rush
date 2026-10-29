@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8da2d0d07321bb04e83d6edfbefb703d, type: 3}
+  m_Name: Boss_Rotor
+  m_EditorClassIdentifier: Assembly-CSharp::BossData
+  bossName: Rotor
+  bossId: boss_rotor
+  bossNameKey: boss.rotor.name
+  bossTint: {r: 1, g: 0.75, b: 0.2, a: 1}
+  maxHealth: 8000
+  moveSpeed: 1.6
+  contactDamage: 40
+  attackRange: 10
+  attackInterval: 1.5
+  projectileDamage: 30
+  projectileSpeed: 7
+  preferredDistance: 6
+  abilityPattern: 4
+  abilityColor: {r: 1, g: 0.75, b: 0.2, a: 1}
+  projectileFanCount: 3
+  projectileFanSpread: 45
+  summonType: 0
+  canDash: 0
+  dashRange: 12
+  dashSpeed: 18
+  dashDuration: 0.55
+  dashCooldown: 10
+  dashWarningDuration: 1.1
+  phase1HealthPercent: 1
+  phase1AbilityCooldown: 5.5
+  phase1AbilityDamage: 22
+  phase1AbilityRadius: 3
+  phase1AbilityWarningDuration: 1.6
+  phase1SummonCooldown: 10
+  phase1SummonCount: 0
+  phase2HealthPercent: 0.6
+  phase2MoveSpeedMultiplier: 1.2
+  phase2AttackIntervalMultiplier: 0.8
+  phase2AbilityCooldown: 4.8
+  phase2AbilityDamage: 28
+  phase2AbilityRadius: 3
+  phase2AbilityWarningDuration: 1.6
+  phase2SummonCooldown: 8
+  phase2SummonCount: 0
+  phase3HealthPercent: 0.3
+  phase3MoveSpeedMultiplier: 1.5
+  phase3AttackIntervalMultiplier: 0.65
+  phase3DamageMultiplier: 1.5
+  phase3AbilityCooldown: 4
+  phase3AbilityDamage: 35
+  phase3AbilityRadius: 3
+  phase3AbilityWarningDuration: 1.6
+  phase3SummonCooldown: 6
+  phase3SummonCount: 0
+  waveHealthPercent: 0.1
+  waveDamagePercent: 0.01
+  waveScorePercent: 0.1
+  scoreValue: 1000
+  usesBasicRangedAttack: 0
+  usesPassiveSummons: 0

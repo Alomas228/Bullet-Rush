@@ -116,6 +116,12 @@ public class GameOverUI : MonoBehaviour
     private void ShowGameOver()
     {
         gameOverPanel.SetActive(true);
+        bool victory = GameOverManager.Instance != null && GameOverManager.Instance.WasVictory;
+        foreach (TMP_Text label in gameOverPanel.GetComponentsInChildren<TMP_Text>(true))
+        {
+            if (label.text == Lang.Get("over.title") || label.text == "{over.title}")
+                label.text = Lang.Get(victory ? "boss_campaign.victory" : "over.title");
+        }
         coinsDoubled = false;
 
         // Показываем итоговый счёт (с бонусом за стиль) — то же число,
@@ -291,6 +297,7 @@ public class GameOverUI : MonoBehaviour
 
         if (reviveButton != null)
         {
+            reviveButton.gameObject.SetActive(GameOverManager.Instance == null || !GameOverManager.Instance.WasVictory);
             reviveButton.onClick.RemoveListener(OnReviveClicked);
             reviveButton.onClick.AddListener(OnReviveClicked);
         }

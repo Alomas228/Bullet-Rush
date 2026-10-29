@@ -19,8 +19,6 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float enemyCountMultiplier = 2f;
     [SerializeField] private int startingEnemies = 5;
     [SerializeField] private int enemiesAddedPerWave = 3;
-    [Tooltip("Каждая N-я волна заменяется боссом.")]
-    [SerializeField] private int bossWaveInterval = 10;
 
     [Header("Intensity Curve")]
     [Tooltip("Мягкий потолок размера волны. Сырой рост «+N за волну» сжимается к этому потолку: короткие волны почти не меняются, длинные упираются в него и растут всё медленнее. Без этого волна 30 — это девяносто мобов разом.")]
@@ -44,7 +42,7 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private int heavyModifierCooldown = 2;
 
     [Header("Boss Spawning")]
-    [Tooltip("Профили боссов по порядку встреч. После последнего списка ротация начинается заново.")]
+    [Tooltip("Пять профилей: волны 10, 20, 30, 40, 50. Без повторной ротации.")]
     [SerializeField] private List<BossData> bossRotation =
         new List<BossData>();
     [Tooltip("Пауза между выходом босса и его прислугой.")]
@@ -77,6 +75,11 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float structureTransitionTimeout = 4f;
 
     public int CurrentWave { get; private set; }
+    public int BossesDefeated { get; private set; }
+    public bool CampaignCompleted { get; private set; }
+    public bool EndlessMode { get; private set; }
+    public bool AwaitingContinuationChoice { get; private set; }
+    private CampaignCompletionUI completionChoice;
 
     /// <summary>
     /// Сколько врагов ещё предстоит увидеть: живые на поле плюс те,
@@ -207,6 +210,8 @@ public class WaveManager : MonoBehaviour
         }
 
         initialized = true;
+        Enemy.OnEnemyKilled += HandleCampaignBossKilled;
+        gameObject.AddComponent<BossCampaignProgressUI>().Bind(this);
 
         if (waveUI != null)
             waveUI.Hide();
@@ -252,6 +257,7 @@ public class WaveManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        Enemy.OnEnemyKilled -= HandleCampaignBossKilled;
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
 
@@ -280,6 +286,8 @@ public class WaveManager : MonoBehaviour
         }
         else if (state == GameState.Menu)
         {
+            AwaitingContinuationChoice = false;
+            if (completionChoice != null) completionChoice.Hide();
             gameStarted = false;
             waveActive = false;
             waitingForNextWave = false;
@@ -367,6 +375,19 @@ public class WaveManager : MonoBehaviour
             // достижения не зависели от наличия метрик в сцене.
             AchievementEvents.RaiseWaveCleared(CurrentWave, wasPerfect);
 
+            if (BossCampaign.ShouldOfferContinuation(CurrentWave, BossesDefeated, CampaignCompleted))
+            {
+                CampaignCompleted = true;
+                if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
+                    PauseManager.Instance.ResumeGame();
+                AwaitingContinuationChoice = true;
+                Time.timeScale = 0f;
+                if (completionChoice == null)
+                    completionChoice = gameObject.AddComponent<CampaignCompletionUI>();
+                completionChoice.Show(this);
+                return;
+            }
+
             if (waveUI != null)
             {
                 waveUI.ShowWaveComplete();
@@ -418,11 +439,18 @@ public class WaveManager : MonoBehaviour
     // либо сразу, либо через обучение, если оно ещё не пройдено.
     private void BeginRun()
     {
+        if (GameOverManager.Instance != null)
+            GameOverManager.Instance.ResetForNewRun();
         // Ачивки сбрасывают внутризабеговый прогресс на старте.
         AchievementManager.EnsureExists();
         AchievementEvents.RaiseRunStarted();
 
         CurrentWave = 0;
+        BossesDefeated = 0;
+        CampaignCompleted = false;
+        EndlessMode = false;
+        AwaitingContinuationChoice = false;
+        if (completionChoice != null) completionChoice.Hide();
 
         if (ScoreManager.Instance != null)
         {
@@ -593,6 +621,7 @@ public class WaveManager : MonoBehaviour
 
     private IEnumerator StartWaveSequence()
     {
+        if (AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode)) yield break;
         CurrentWave++;
         waveActive = false;
         waitingForNextWave = false;
@@ -767,12 +796,19 @@ public class WaveManager : MonoBehaviour
 
     public bool IsBossWave(int wave)
     {
-        return bossWaveInterval > 0 &&
-               wave % bossWaveInterval == 0;
+        return BossCampaign.IsBossWave(wave, EndlessMode);
+    }
+
+    private void HandleCampaignBossKilled(Enemy enemy)
+    {
+        if (!IsBossWave(CurrentWave) || enemy == null || enemy.GetEnemyData() == null ||
+            enemy.GetEnemyData().EnemyType != EnemyType.Boss) return;
+        BossesDefeated = Mathf.Max(BossesDefeated, BossCampaign.IndexForWave(CurrentWave) + 1);
     }
 
     private IEnumerator StartNextWaveAfterDelay()
     {
+        if (AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode)) yield break;
         yield return new WaitForSeconds(postUpgradeDelay);
 
         StartCoroutine(StartWaveSequence());
@@ -955,22 +991,13 @@ public class WaveManager : MonoBehaviour
         enemySpawner.SetManualSpawning(false);
     }
 
-    private BossData GetBossForWave(int wave)
+    public BossData GetBossForWave(int wave)
     {
         if (bossRotation == null || bossRotation.Count == 0)
             return null;
 
-        int encounter =
-            Mathf.Max(wave / Mathf.Max(bossWaveInterval, 1) - 1, 0);
-
-        for (int offset = 0; offset < bossRotation.Count; offset++)
-        {
-            int index = (encounter + offset) % bossRotation.Count;
-            if (bossRotation[index] != null)
-                return bossRotation[index];
-        }
-
-        return null;
+        int index = BossCampaign.IndexForWave(wave, EndlessMode);
+        return index < bossRotation.Count ? bossRotation[index] : null;
     }
 
     private Vector3 GetMinionPositionAround(
@@ -990,7 +1017,7 @@ public class WaveManager : MonoBehaviour
 
     public void ContinueAfterUpgrade()
     {
-        if (!waitingForNextWave)
+        if (!waitingForNextWave || AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode))
             return;
 
         Time.timeScale = 1f;
@@ -1002,6 +1029,29 @@ public class WaveManager : MonoBehaviour
         waveCompleteShown = false;
 
         StartCoroutine(StartNextWaveAfterDelay());
+    }
+
+    public void ResolveCampaignChoice(bool continueForRecord)
+    {
+        if (!AwaitingContinuationChoice || !CampaignCompleted ||
+            GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Playing)
+            return;
+
+        AwaitingContinuationChoice = false;
+        if (completionChoice != null) completionChoice.Hide();
+        if (continueForRecord)
+        {
+            EndlessMode = true;
+            Time.timeScale = 1f;
+            // Keep the normal post-wave upgrade before proceeding to wave 51.
+            StartCoroutine(ShowUpgradeAfterWaveComplete());
+        }
+        else
+        {
+            GameOverManager results = GameOverManager.Instance;
+            if (results == null) results = new GameObject("GameOverManager").AddComponent<GameOverManager>();
+            results.WinRun();
+        }
     }
 
     // =========================================================

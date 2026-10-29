@@ -531,8 +531,10 @@ public class MapMechanicManager : MonoBehaviour
 
             WaveEventDirector events = WaveEvents;
             bool eventBusy = events != null && events.IsEventActive;
+            WaveManager waves = FindAnyObjectByType<WaveManager>();
+            bool bossEncounter = waves != null && waves.IsBossWave(waves.CurrentWave);
 
-            if (playing && !eventBusy)
+            if (playing && !eventBusy && !bossEncounter)
                 SpawnHazardBurst();
 
             yield return new WaitForSeconds(LoopInterval);
