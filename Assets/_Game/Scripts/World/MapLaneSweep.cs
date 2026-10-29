@@ -608,7 +608,7 @@ public class MapLaneSweep : MonoBehaviour, IDangerZone
 
     private void PushBandEnemies()
     {
-        if (knockback <= 0f)
+        if (knockback <= 0f && staticMode)
             return;
 
         pushTimer -= Time.deltaTime;
@@ -652,6 +652,11 @@ public class MapLaneSweep : MonoBehaviour, IDangerZone
 
             if (!IsInsideBand(enemy.transform.position, origin))
                 continue;
+
+            // Only the travelling surf applies wetness, not static rock lanes
+            // or road telegraphs. Resistance to shove does not prevent wetness.
+            if (!staticMode)
+                enemy.ApplyWet();
 
             if (damage > 0f)
             {

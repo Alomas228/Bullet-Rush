@@ -14,17 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: plasma_rifle
   weaponName: Plasma Rifle
-  description: "\u0421\u0442\u0440\u0435\u043B\u044F\u0435\u0442 \u0440\u0430\u0441\u043A\u0430\u043B\u0451\u043D\u043D\u043E\u0439
-    \u043F\u043B\u0430\u0437\u043C\u043E\u0439, \u043F\u0440\u043E\u0436\u0438\u0433\u0430\u044E\u0449\u0435\u0439
-    \u0432\u0440\u0430\u0433\u043E\u0432 \u043D\u0430\u0441\u043A\u0432\u043E\u0437\u044C."
+  description: "Пробивает ряды врагов и поджигает их. Слабее отдельное попадание — сильнее охват группы."
   weaponType: 0
   rarity: 4
   unlockLevel: 12
   price: 3000
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 210
-  fireRate: 6
-  projectileSpeed: 20
+  damage: 130
+  fireRate: 4.5
+  projectileSpeed: 19
   projectileCount: 1
   spreadAngle: 0
   pierceCount: 2
@@ -35,7 +33,7 @@ MonoBehaviour:
   criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
-  burnDamagePerSecond: 90
+  burnDamagePerSecond: 80
   burnDuration: 3
   burnTickInterval: 0.5
   recoilForce: 0.1

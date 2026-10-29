@@ -90,6 +90,9 @@ public class MapMechanicManager : MonoBehaviour
     private MapMechanic mechanic = MapMechanic.None;
     private float strength = 1f;
     private Coroutine hazardRoutine;
+    private float defaultArenaHalfSize;
+    private bool wetInteractionShown;
+    private bool iceInteractionShown;
     private WaveEventDirector waveEvents;
 
     // Событие волны и залп механики — два независимых источника
@@ -115,6 +118,23 @@ public class MapMechanicManager : MonoBehaviour
     /// <summary>Механика текущей карты (None — лес без правил).</summary>
     public static MapMechanic CurrentMechanic =>
         Instance != null ? Instance.mechanic : MapMechanic.None;
+
+    public static bool IceCoatingEnabled => Instance != null &&
+        Instance.mechanic == MapMechanic.Highland && Instance.strength > 0f;
+
+    public static void AnnounceInteraction(bool wet)
+    {
+        if (Instance == null) return;
+        if (wet ? Instance.wetInteractionShown : Instance.iceInteractionShown) return;
+        if (wet) Instance.wetInteractionShown = true;
+        else Instance.iceInteractionShown = true;
+        GameplayHUD hud = FindAnyObjectByType<GameplayHUD>();
+        if (hud != null)
+        {
+            string key = wet ? "map_interaction.wet" : "map_interaction.ice";
+            hud.ShowMapAnnouncement(Lang.Get(key + ".name"), Lang.Get(key + ".desc"));
+        }
+    }
 
     /// <summary>
     /// Тинт врагов местности: мультипликативный оттенок, которым карта
@@ -159,6 +179,7 @@ public class MapMechanicManager : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        defaultArenaHalfSize = arenaHalfSize;
     }
 
     /// <summary>
@@ -187,6 +208,8 @@ public class MapMechanicManager : MonoBehaviour
     /// <summary>Сброс механики (выход в меню).</summary>
     public void ResetRun()
     {
+        wetInteractionShown = false;
+        iceInteractionShown = false;
         mechanic = MapMechanic.None;
         strength = 1f;
 
@@ -206,6 +229,8 @@ public class MapMechanicManager : MonoBehaviour
 
         mechanic = map.mechanic;
         strength = Mathf.Max(map.mechanicStrength, 0f);
+        arenaHalfSize = map.arenaLayout != null
+            ? Mathf.Max(map.arenaLayout.halfSize, 8f) : defaultArenaHalfSize;
 
         ApplyPlayerBuffs();
 
@@ -248,16 +273,16 @@ public class MapMechanicManager : MonoBehaviour
         float damageBonus = PlayerDamagePercent;
         float moveBonus = PlayerMoveSpeedPercent;
 
-        if (damageBonus > 0f || moveBonus > 0f)
+        if (damageBonus != 0f || moveBonus != 0f)
         {
             PlayerStats stats = FindAnyObjectByType<PlayerStats>();
 
             if (stats != null)
             {
-                if (damageBonus > 0f)
+                if (damageBonus != 0f)
                     stats.AddDamagePercent(damageBonus);
 
-                if (moveBonus > 0f)
+                if (moveBonus != 0f)
                     stats.AddMoveSpeedPercent(moveBonus);
             }
         }
@@ -317,6 +342,10 @@ public class MapMechanicManager : MonoBehaviour
                 case MapMechanic.Urban:
                     return RunSpawnBias.Ranged;
 
+                case MapMechanic.Sandstorm:
+                case MapMechanic.LowGravity:
+                    return RunSpawnBias.Fast;
+
                 default:
                     return RunSpawnBias.None;
             }
@@ -329,9 +358,11 @@ public class MapMechanicManager : MonoBehaviour
         {
             switch (mechanic)
             {
-                case MapMechanic.OpenField: return 0.30f * strength;
-                case MapMechanic.Highland: return 0.30f * strength;
-                case MapMechanic.Urban: return 0.35f * strength;
+                case MapMechanic.OpenField: return Mathf.Clamp01(0.24f * strength);
+                case MapMechanic.Highland: return Mathf.Clamp01(0.24f * strength);
+                case MapMechanic.Urban: return Mathf.Clamp01(0.20f * strength);
+                case MapMechanic.Sandstorm: return Mathf.Clamp01(0.12f * strength);
+                case MapMechanic.LowGravity: return Mathf.Clamp01(0.18f * strength);
                 default: return 0f;
             }
         }
@@ -362,7 +393,7 @@ public class MapMechanicManager : MonoBehaviour
             switch (mechanic)
             {
                 case MapMechanic.OpenField: return 0.95f;
-                case MapMechanic.Highland: return 1.16f;
+                case MapMechanic.Highland: return 1.08f;
                 case MapMechanic.LowGravity: return 1.06f;
                 default: return 1f;
             }
@@ -430,12 +461,47 @@ public class MapMechanicManager : MonoBehaviour
     // PERIODIC HAZARDS
     // =========================================================
 
-    private bool HasPeriodicHazard =>
+    private bool HasPeriodicHazard => strength > 0f && (
         mechanic == MapMechanic.OpenField ||
         mechanic == MapMechanic.Highland ||
         mechanic == MapMechanic.Urban ||
         mechanic == MapMechanic.Sandstorm ||
-        mechanic == MapMechanic.LowGravity;
+        mechanic == MapMechanic.LowGravity);
+
+    // Keep all approaches available. Geometry and preferred approaches create
+    // different firing opportunities without restricting weapons or upgrades.
+    public static Vector3 ApproachWeights(MapMechanic mapMechanic)
+    {
+        switch (mapMechanic)
+        {
+            case MapMechanic.OpenField: return new Vector3(0.7f, 1f, 1.8f);
+            case MapMechanic.Highland: return new Vector3(0.6f, 2f, 1f);
+            case MapMechanic.Urban: return new Vector3(0.5f, 3f, 1f);
+            case MapMechanic.Sandstorm: return new Vector3(1f, 1f, 1.8f);
+            case MapMechanic.LowGravity: return new Vector3(1.6f, 0.8f, 1.4f);
+            default: return Vector3.one;
+        }
+    }
+
+    public static WaveApproach ChooseApproach(
+        MapMechanic mapMechanic, float mapStrength, float roll,
+        WaveApproach previous, bool excludePrevious)
+    {
+        Vector3 weights = Vector3.Lerp(Vector3.one, ApproachWeights(mapMechanic),
+            Mathf.Clamp01(mapStrength));
+        if (excludePrevious) weights[(int)previous] = 0f;
+        float position = Mathf.Clamp01(roll) * (weights.x + weights.y + weights.z);
+        if (position < weights.x) return WaveApproach.Surround;
+        if (position < weights.x + weights.y) return WaveApproach.Front;
+        // roll == 1 must not select an excluded final bucket.
+        return weights.z > 0f ? WaveApproach.Flanks : WaveApproach.Front;
+    }
+
+    public static WaveApproach PickWaveApproach(WaveApproach previous, bool excludePrevious)
+    {
+        return ChooseApproach(CurrentMechanic, Instance != null ? Instance.strength : 0f,
+            Random.value, previous, excludePrevious);
+    }
 
     private void StartHazards()
     {
@@ -590,6 +656,18 @@ public class MapMechanicManager : MonoBehaviour
                 Random.Range(-arenaHalfSize, arenaHalfSize)
             );
 
+            // The first lane threatens the current fight after a warning;
+            // other lanes retain wider spatial variation.
+            if (i == 0 && PlayerHealth.Instance != null)
+            {
+                Vector2 player = PlayerPositionXZ();
+                float side = Random.value < 0.5f ? -1f : 1f;
+                float offset = side * Random.Range(3.5f, 6f);
+                center = alongZ
+                    ? new Vector3(0f, 0f, Mathf.Clamp(player.y + offset, -arenaHalfSize, arenaHalfSize))
+                    : new Vector3(Mathf.Clamp(player.x + offset, -arenaHalfSize, arenaHalfSize), 0f, 0f);
+            }
+
             GameObject host = new GameObject("MapBoulderLane");
 
             host.transform.position = center;
@@ -620,22 +698,16 @@ public class MapMechanicManager : MonoBehaviour
         bool alongZ =
             Random.value < 0.5f;
 
-        Vector3 center = new Vector3(
-            alongZ
-                ? Random.Range(-arenaHalfSize, arenaHalfSize)
-                : 0f,
-            0f,
-            alongZ
-                ? 0f
-                : Random.Range(-arenaHalfSize, arenaHalfSize)
-        );
+        // Select an actual free street, rather than driving through buildings.
+        if (!TryFindTrafficLane(alongZ, out Vector3 center))
+            return;
 
         MapTrafficRush.Launch(
             center,
             alongZ
                 ? MapLaneSweep.LaneAxis.Horizontal
                 : MapLaneSweep.LaneAxis.Vertical,
-            arenaHalfSize * 0.85f,
+            arenaHalfSize + 3f,
             arenaHalfSize * 2f,
             trafficSpeed,
             trafficWarning,
@@ -643,6 +715,34 @@ public class MapMechanicManager : MonoBehaviour
             trafficKnockback,
             new Color(1f, 0.55f, 0.2f, 1f)
         );
+    }
+
+    private bool TryFindTrafficLane(bool alongZ, out Vector3 center)
+    {
+        Vector3 halfExtents = alongZ
+            ? new Vector3(1.4f, 1.2f, arenaHalfSize + 3f)
+            : new Vector3(arenaHalfSize + 3f, 1.2f, 1.4f);
+        float playerCoordinate = alongZ ? PlayerPositionXZ().x : PlayerPositionXZ().y;
+        for (int attempt = 0; attempt < 24; attempt++)
+        {
+            float coordinate = attempt < 12
+                ? Mathf.Clamp(playerCoordinate + Random.Range(-12f, 12f), -arenaHalfSize + 3f, arenaHalfSize - 3f)
+                : Random.Range(-arenaHalfSize + 3f, arenaHalfSize - 3f);
+            Vector3 candidate = alongZ ? new Vector3(coordinate, 1.2f, 0f)
+                : new Vector3(0f, 1.2f, coordinate);
+            Collider[] colliders = Physics.OverlapBox(candidate, halfExtents,
+                Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+            bool blocked = false;
+            foreach (Collider collider in colliders)
+            {
+                if (StructureQuery.IsWorldStructure(collider)) { blocked = true; break; }
+            }
+            if (blocked) continue;
+            center = new Vector3(candidate.x, 0f, candidate.z);
+            return true;
+        }
+        center = Vector3.zero;
+        return false;
     }
 
     // ---------------------------------------------------------
@@ -780,6 +880,15 @@ public class MapMechanicManager : MonoBehaviour
         {
             Vector2 offset =
                 Random.insideUnitCircle * (arenaHalfSize - 2f);
+
+            if (i == 0 && PlayerHealth.Instance != null)
+            {
+                float angle = Random.Range(0f, Mathf.PI * 2f);
+                offset = PlayerPositionXZ() + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle))
+                    * Random.Range(meteorRadius + 1.5f, meteorRadius + 5f);
+                offset.x = Mathf.Clamp(offset.x, -arenaHalfSize + meteorRadius, arenaHalfSize - meteorRadius);
+                offset.y = Mathf.Clamp(offset.y, -arenaHalfSize + meteorRadius, arenaHalfSize - meteorRadius);
+            }
 
             Vector3 center = new Vector3(
                 offset.x,

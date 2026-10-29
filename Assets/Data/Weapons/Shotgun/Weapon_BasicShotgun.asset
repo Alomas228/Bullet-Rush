@@ -14,17 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: basic_shotgun
   weaponName: Basic Shotgun
-  description: "\u041A\u043B\u0430\u0441\u0441\u0438\u0447\u0435\u0441\u043A\u0438\u0439
-    \u0434\u0440\u043E\u0431\u043E\u0432\u0438\u043A. \u0421\u043C\u0435\u0440\u0442\u043E\u043D\u043E\u0441\u0435\u043D
-    \u0432\u0431\u043B\u0438\u0437\u0438."
+  description: "Частые собранные залпы. Удобно расчищать путь перед собой."
   weaponType: 1
   rarity: 0
   unlockLevel: 1
   price: 0
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 60
+  damage: 70
   fireRate: 1.8
-  projectileSpeed: 12
+  projectileSpeed: 14
   projectileCount: 6
   spreadAngle: 10
   pierceCount: 0

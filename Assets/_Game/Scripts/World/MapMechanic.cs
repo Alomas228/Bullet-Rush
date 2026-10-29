@@ -36,7 +36,7 @@ public enum MapMechanic
 /// </summary>
 public static class MapMechanicText
 {
-    /// <summary>Короткое имя механики для карточки карты (пусто для None).</summary>
+    /// <summary>Короткое имя стиля боя для карточки карты.</summary>
     public static string Name(MapMechanic mechanic)
     {
         string key = KeyOf(mechanic);
@@ -44,7 +44,7 @@ public static class MapMechanicText
         return key == null ? string.Empty : Lang.Get(key + ".name");
     }
 
-    /// <summary>Описание механики для подсказок (пусто для None).</summary>
+    /// <summary>Описание стиля боя, включая нейтральную лесную арену.</summary>
     public static string Description(MapMechanic mechanic)
     {
         string key = KeyOf(mechanic);
@@ -56,6 +56,7 @@ public static class MapMechanicText
     {
         switch (mechanic)
         {
+            case MapMechanic.None: return "mech.forest";
             case MapMechanic.OpenField: return "mech.openfield";
             case MapMechanic.Highland: return "mech.highland";
             case MapMechanic.Urban: return "mech.urban";

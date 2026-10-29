@@ -14,18 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: double_shotgun
   weaponName: Double Shotgun
-  description: "\u0417\u0430\u0440\u044F\u0436\u0430\u0435\u0442\u0441\u044F \u0441\u0440\u0430\u0437\u0443
-    \u0434\u0432\u0443\u043C\u044F \u0441\u0442\u0432\u043E\u043B\u0430\u043C\u0438
-    \u2014 \u0434\u0432\u0430 \u0437\u0430\u043B\u043F\u0430 \u043F\u043E\u0434\u0440\u044F\u0434
-    \u0437\u0430 \u043E\u0434\u0438\u043D \u0432\u044B\u0441\u0442\u0440\u0435\u043B."
+  description: "Два быстрых залпа, затем передышка. Между выстрелами можно перевести прицел."
   weaponType: 1
   rarity: 2
   unlockLevel: 5
   price: 700
   weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 80
-  fireRate: 1.1
-  projectileSpeed: 13
+  damage: 75
+  fireRate: 1
+  projectileSpeed: 15
   projectileCount: 5
   spreadAngle: 12
   pierceCount: 0
@@ -35,11 +32,11 @@ MonoBehaviour:
   criticalChanceBonus: 0
   criticalDamageBonus: 0
   scoreBonusPercent: 0
-  doubleShotInterval: 0.12
+  doubleShotInterval: 0.16
   burnDamagePerSecond: 0
   burnDuration: 0
   burnTickInterval: 0.5
-  recoilForce: 0.55
+  recoilForce: 0.45
   shakeOnFire: 1
   lightningChance: 0
   lightningDamage: 0

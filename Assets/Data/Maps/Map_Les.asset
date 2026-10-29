@@ -32,8 +32,8 @@ MonoBehaviour:
   layoutSeed: 3101
   arenaLayout:
     style: 0
-    minStructures: 20
-    maxStructures: 28
+    minStructures: 18
+    maxStructures: 24
     minWidth: 1.5
     maxWidth: 3
     minHeight: 1

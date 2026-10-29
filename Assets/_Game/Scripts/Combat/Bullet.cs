@@ -886,7 +886,9 @@ public class Bullet : MonoBehaviour
         // цепи до них. Из-за этого молния ходила не наружу от
         // цепи, а постоянно возвращалась к месту выстрела -
         // в бою у центра карты это и читалось как «бьёт в центр».
-        float effectiveRadius = Mathf.Min(chainLightningRadius, 5f);
+        bool wetOrigin = hitEnemy.IsWet;
+        float effectiveRadius = MapCombatRules.LightningRange(
+            Mathf.Min(chainLightningRadius, 5f), wetOrigin);
         Collider[] colliders =
             StructureQuery.OverlapSphere(
                 fromPosition,
@@ -939,6 +941,9 @@ public class Bullet : MonoBehaviour
 
             targetsHit++;
         }
+
+        if (wetOrigin && targetsHit > 0)
+            MapMechanicManager.AnnounceInteraction(true);
     }
 
     // =========================================================

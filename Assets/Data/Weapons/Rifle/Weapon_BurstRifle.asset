@@ -14,23 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: burst_rifle
   weaponName: Burst Rifle
-  description: "\u041A\u043E\u0440\u043E\u0442\u043A\u0430\u044F \u043E\u0447\u0435\u0440\u0435\u0434\u044C
-    \u0438\u0437 5 \u043F\u0430\u0442\u0440\u043E\u043D\u043E\u0432. \u0412\u0441\u043F\u044B\u0448\u043A\u0430
-    \u0443\u0440\u043E\u043D\u0430 \u043F\u043E \u0442\u043E\u043B\u043F\u0435."
+  description: "Пять точных попаданий в короткой очереди, затем пауза для смены позиции."
   weaponType: 0
   rarity: 1
   unlockLevel: 3
   price: 300
   weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 50
-  fireRate: 15
-  projectileSpeed: 15
+  damage: 60
+  fireRate: 12
+  projectileSpeed: 18
   projectileCount: 1
   spreadAngle: 0
   pierceCount: 0
   specialType: 1
   shotsPerBurst: 5
-  burstInterval: 0.067
+  burstInterval: 0.06
   criticalChanceBonus: 0
   criticalDamageBonus: 0
   scoreBonusPercent: 0

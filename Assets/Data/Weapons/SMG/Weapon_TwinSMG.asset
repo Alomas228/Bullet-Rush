@@ -14,19 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: twin_smg
   weaponName: Twin SMG
-  description: "\u0414\u0432\u0430 \u0441\u0442\u0432\u043E\u043B\u0430 \u2014 \u0434\u0432\u043E\u0439\u043D\u043E\u0439
-    \u0437\u0430\u043B\u043F \u043F\u0440\u0438 \u043A\u0430\u0436\u0434\u043E\u043C
-    \u043D\u0430\u0436\u0430\u0442\u0438\u0438 \u043D\u0430 \u0441\u043F\u0443\u0441\u043A."
+  description: "Быстрые пары пуль с коротким интервалом. Переноси огонь между целями в паузах."
   weaponType: 2
   rarity: 1
   unlockLevel: 3
   price: 300
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 42
-  fireRate: 9
-  projectileSpeed: 14
+  damage: 45
+  fireRate: 8
+  projectileSpeed: 17
   projectileCount: 1
-  spreadAngle: 4
+  spreadAngle: 3
   pierceCount: 0
   specialType: 5
   shotsPerBurst: 3
@@ -34,7 +32,7 @@ MonoBehaviour:
   criticalChanceBonus: 0
   criticalDamageBonus: 0
   scoreBonusPercent: 0
-  doubleShotInterval: 0.09
+  doubleShotInterval: 0.045
   burnDamagePerSecond: 0
   burnDuration: 0
   burnTickInterval: 0.5

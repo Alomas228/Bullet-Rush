@@ -1039,10 +1039,7 @@ public class WaveManager : MonoBehaviour
     {
         WaveApproach pick = modifier.Has(WaveModifier.Ambush)
             ? WaveApproach.Flanks
-            : (WaveApproach)Random.Range(0, 3);
-
-        if (wave > 1 && pick == lastWaveApproach)
-            pick = (WaveApproach)(((int)pick + Random.Range(1, 3)) % 3);
+            : MapMechanicManager.PickWaveApproach(lastWaveApproach, wave > 1);
 
         lastWaveApproach = pick;
         return pick;

@@ -1198,25 +1198,8 @@ public class WorldStructureGenerator : MonoBehaviour
             }
         }
 
-        // Остаток бюджета — мелкие блоки внутри улиц: пустые
-        // перекрёстки выглядят недорисованными.
-        for (int i = planned; i < budget; i++)
-        {
-            layoutPlan.Add(
-                new PlannedStructure
-                {
-                    position = RandomPoint(rng, half),
-                    dimensions =
-                        new Vector3(
-                            NextFloat(rng, minWidth, maxWidth),
-                            NextFloat(rng, minHeight, maxHeight),
-                            NextFloat(rng, minWidth, maxWidth)
-                        ),
-                    yaw = (float)(rng.NextDouble() * 360.0),
-                    spacingOverride = -1f
-                }
-            );
-        }
+        // Empty cells are deliberate squares. Do not spend the remaining
+        // budget on random blocks: they obstruct streets and traffic lanes.
     }
 
 // Открытое поле: блоков мало, они мелкие и низкие. Задача карты —

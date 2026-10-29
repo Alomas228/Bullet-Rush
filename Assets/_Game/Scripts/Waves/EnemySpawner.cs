@@ -259,7 +259,9 @@ public class EnemySpawner : MonoBehaviour
         currentWaveModifier = modifier;
         currentWaveApproach = approach;
         currentLaneIndex = 0;
-        waveLaneBaseAngle = Random.Range(0f, 360f);
+        // City blocks are axis-aligned: directed waves follow the street axes.
+        waveLaneBaseAngle = MapMechanicManager.CurrentMechanic == MapMechanic.Urban
+            ? Random.Range(0, 4) * 90f : Random.Range(0f, 360f);
         spawnedPositions.Clear();
 
         IsSpawning = enemyCount > 0;

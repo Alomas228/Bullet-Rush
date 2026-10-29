@@ -13,6 +13,8 @@ public static class CombatRegressionCheck
         {
             CheckTiming();
             CheckBurn();
+            CheckMapApproaches();
+            CheckMapCombatRules();
             Debug.Log("COMBAT_REGRESSION_OK");
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
@@ -49,6 +51,42 @@ public static class CombatRegressionCheck
         Near(rifle.GetFireCycleDuration(2f), 1f / (rifle.FireRate * 2f), "Regular fire unchanged");
     }
 
+    private static void CheckMapCombatRules()
+    {
+        Near(MapCombatRules.LightningRange(4f, true), 5.5f, "Wet origin expands lightning");
+        Near(MapCombatRules.LightningRange(5f, true), 6f, "Wet lightning retains range cap");
+        Near(MapCombatRules.LightningRange(0f, true), 0f, "Wet does not create missing lightning");
+        float ice = 30f;
+        Near(MapCombatRules.ResolveIceDamage(20f, false, ref ice), 20f, "Ordinary damage unchanged");
+        Near(ice, 10f, "Ordinary damage removes ice");
+        Near(MapCombatRules.ResolveIceDamage(10f, true, ref ice), 15f, "Burn bonus stops at ice boundary");
+        Near(ice, 0f, "Coating breaks once");
+        Near(MapCombatRules.ResolveIceDamage(10f, true, ref ice), 10f, "Flesh takes normal burn damage");
+        Require(MapCombatRules.ShouldHaveIce(MapMechanic.Highland, false, 0.1f), "Ordinary foes eligible");
+        Require(!MapCombatRules.ShouldHaveIce(MapMechanic.Highland, true, 0.1f), "Bosses excluded");
+        Require(!MapCombatRules.ShouldHaveIce(MapMechanic.OpenField, false, 0.1f), "Other maps excluded");
+    }
+
+    private static void CheckMapApproaches()
+    {
+        foreach (MapMechanic mechanic in Enum.GetValues(typeof(MapMechanic)))
+        {
+            foreach (WaveApproach previous in Enum.GetValues(typeof(WaveApproach)))
+            {
+                foreach (float roll in new[] { 0f, 0.2f, 0.5f, 0.8f, 1f })
+                {
+                    WaveApproach pick = MapMechanicManager.ChooseApproach(mechanic, 1f, roll, previous, true);
+                    Require(pick != previous, "Map must preserve approach variety: " + mechanic);
+                    Require(MapMechanicManager.ChooseApproach(mechanic, 0f, roll, previous, false) ==
+                        MapMechanicManager.ChooseApproach(MapMechanic.None, 1f, roll, previous, false),
+                        "Zero map strength must use neutral weights");
+                }
+            }
+        }
+        Require(MapMechanicManager.ApproachWeights(MapMechanic.Urban).y >
+            MapMechanicManager.ApproachWeights(MapMechanic.Urban).x, "City should prefer fronts");
+    }
+
     private static void CheckBurn()
     {
         var host = new GameObject("Combat regression enemy");
@@ -80,6 +118,15 @@ public static class CombatRegressionCheck
             enemy.ApplyBurn(40f, 2f, 0.5f, "Upgrade");
             Near(Get(enemy, "burnDamagePerTick"), 20f, "Weaker burn works after expiry");
             Near(Get(enemy, "burnTickTimer"), 0.5f, "New burn starts its tick timer");
+
+            Set(enemy, "wetUntil", 1000f);
+            Set(enemy, "iceHealth", 30f);
+            Set(enemy, "initialIceHealth", 30f);
+            typeof(Enemy).GetMethod("ResetMapStatuses", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(enemy, null);
+            Near(Get(enemy, "wetUntil"), 0f, "Wet status resets on reuse");
+            Near(enemy.IceHealth, 0f, "Ice resets on reuse");
+            Near(enemy.IceFraction, 0f, "Ice visual progress resets on reuse");
         }
         finally
         {

@@ -33,9 +33,9 @@ MonoBehaviour:
     maxWidth: 4
     minHeight: 3
     maxHeight: 6
-    minSpacing: 1
+    minSpacing: 1.6
     halfSize: 30
-    centerClearRadius: 9
+    centerClearRadius: 10
   structureMaterials: []
   structurePalette:
   - {r: 0.58, g: 0.62, b: 0.66, a: 1}

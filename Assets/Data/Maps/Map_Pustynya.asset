@@ -27,13 +27,13 @@ MonoBehaviour:
   layoutSeed: 5505
   arenaLayout:
     style: 2
-    minStructures: 22
-    maxStructures: 30
+    minStructures: 18
+    maxStructures: 24
     minWidth: 2
     maxWidth: 4
     minHeight: 4
-    maxHeight: 5.5
-    minSpacing: 1.5
+    maxHeight: 4.8
+    minSpacing: 2
     halfSize: 30
     centerClearRadius: 8
   structureMaterials: []

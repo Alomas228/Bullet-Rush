@@ -112,6 +112,9 @@ public class MapTrafficRush : MonoBehaviour
         startPosition = center - travelDirection * halfTravel;
         endPosition = center + travelDirection * halfTravel;
 
+        // TelegraphWarning reads transform.position; it must match this road.
+        transform.position = center;
+
         elapsed = 0f;
         driving = false;
         hitPlayer = false;
@@ -131,7 +134,10 @@ public class MapTrafficRush : MonoBehaviour
 
         sweep.Initialize(
             transform.position,
-            axis,
+            // Sweep axis describes the band's length; traffic axis describes
+            // movement across that band. A road warning runs along movement.
+            axis == MapLaneSweep.LaneAxis.Horizontal
+                ? MapLaneSweep.LaneAxis.Vertical : MapLaneSweep.LaneAxis.Horizontal,
             laneHalfLength,
             carHalfWidth,
             0f,

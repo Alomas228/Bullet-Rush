@@ -14,17 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: basic_smg
   weaponName: Basic SMG
-  description: "\u0410\u0432\u0442\u043E\u043C\u0430\u0442 \u0441 \u0432\u044B\u0441\u043E\u043A\u0438\u043C
-    \u0442\u0435\u043C\u043F\u043E\u043C \u0441\u0442\u0440\u0435\u043B\u044C\u0431\u044B.
-    \u041F\u0440\u043E\u0441\u0442, \u043D\u043E \u043D\u0430\u0434\u0451\u0436\u0435\u043D."
+  description: "Точный непрерывный огонь без отдачи. Легко удерживать попадания на выбранной цели."
   weaponType: 2
   rarity: 0
   unlockLevel: 1
   price: 0
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
   damage: 45
-  fireRate: 12
-  projectileSpeed: 14
+  fireRate: 14
+  projectileSpeed: 17
   projectileCount: 1
   spreadAngle: 0
   pierceCount: 0

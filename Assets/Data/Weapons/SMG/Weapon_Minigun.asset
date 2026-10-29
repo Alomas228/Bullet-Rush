@@ -14,25 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: minigun
   weaponName: Minigun
-  description: "\u0423\u0440\u0430\u0433\u0430\u043D \u0441\u0432\u0438\u043D\u0446\u0430.
-    \u041E\u0433\u0440\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043C\u043F \u0441\u0442\u0440\u0435\u043B\u044C\u0431\u044B,
-    \u0441\u043C\u0435\u0442\u0430\u044E\u0449\u0438\u0439 \u0442\u043E\u043B\u043F\u0443."
+  description: "Максимальная частота огня, слабые отдельные пули и широкий разброс. Для плотного потока попаданий."
   weaponType: 2
   rarity: 4
   unlockLevel: 12
   price: 3000
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 45
+  damage: 26
   fireRate: 28
   projectileSpeed: 16
   projectileCount: 1
-  spreadAngle: 6
+  spreadAngle: 7
   pierceCount: 0
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
-  criticalChanceBonus: 0.1
-  criticalDamageBonus: 0.5
+  criticalChanceBonus: 0
+  criticalDamageBonus: 0
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
   burnDamagePerSecond: 0

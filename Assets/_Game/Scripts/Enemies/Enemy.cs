@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class Enemy : MonoBehaviour
+public partial class Enemy : MonoBehaviour
 {
     [Header("Enemy Data")]
     [SerializeField] private EnemyData enemyData;
@@ -562,6 +562,7 @@ public class Enemy : MonoBehaviour
         WaveModifier modifier = WaveModifier.None,
         BossData selectedBossData = null)
     {
+        ResetMapStatuses();
         if (cachedEnemyType == EnemyType.Boss &&
             selectedBossData != null)
         {
@@ -584,6 +585,8 @@ public class Enemy : MonoBehaviour
         CacheRunModifierScaling();
 
         ApplyWaveScaling();
+
+        InitializeMapStatuses();
 
         CacheRoleAllyType();
 
@@ -4316,6 +4319,11 @@ public class Enemy : MonoBehaviour
         lastDamageEventId = sourceEventId;
         lastDamageWeaponId = weaponId ?? string.Empty;
 
+        bool hadIce = iceHealth > 0f;
+        damage = MapCombatRules.ResolveIceDamage(damage, source == DamageSource.Burn,
+            ref iceHealth);
+        if (hadIce && iceHealth <= 0f)
+            MapMechanicManager.AnnounceInteraction(false);
         currentHealth -= damage;
 
         SpawnDamageNumber(
@@ -4463,9 +4471,8 @@ public class Enemy : MonoBehaviour
         int targetCount,
         float range)
     {
-        if (IsDead)
-            return;
-
+        // The originating bullet may have killed this enemy just before
+        // triggering the discharge. Secondary targets are still checked alive.
         if (damage <= 0f ||
             range <= 0f)
             return;
@@ -4476,7 +4483,8 @@ public class Enemy : MonoBehaviour
                 1
             );
 
-        float effectiveRange = Mathf.Min(range, 6f);
+        bool wetOrigin = IsWet;
+        float effectiveRange = MapCombatRules.LightningRange(range, wetOrigin);
         Collider[] nearbyColliders =
             StructureQuery.OverlapSphere(
                 transform.position,
@@ -4515,6 +4523,9 @@ public class Enemy : MonoBehaviour
 
             targetsHit++;
         }
+
+        if (wetOrigin && targetsHit > 0)
+            MapMechanicManager.AnnounceInteraction(true);
     }
 
 
@@ -4747,6 +4758,8 @@ public class Enemy : MonoBehaviour
 
         scaledMaxHealth *= Mathf.Clamp(healthMultiplier, 0.1f, 1f);
         currentHealth = Mathf.Min(currentHealth, scaledMaxHealth);
+        iceHealth = Mathf.Min(iceHealth * Mathf.Clamp(healthMultiplier, 0.1f, 1f), currentHealth);
+        initialIceHealth *= Mathf.Clamp(healthMultiplier, 0.1f, 1f);
         scaledDamageMultiplier *= Mathf.Clamp(damageMultiplier, 0.1f, 1f);
     }
 

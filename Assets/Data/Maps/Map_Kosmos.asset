@@ -27,15 +27,15 @@ MonoBehaviour:
   layoutSeed: 7707
   arenaLayout:
     style: 4
-    minStructures: 28
-    maxStructures: 38
+    minStructures: 20
+    maxStructures: 28
     minWidth: 1.6
     maxWidth: 4
     minHeight: 1.5
     maxHeight: 6
-    minSpacing: 1.2
+    minSpacing: 1.8
     halfSize: 31
-    centerClearRadius: 7
+    centerClearRadius: 10
   structureMaterials: []
   structurePalette:
   - {r: 0.58, g: 0.62, b: 0.66, a: 1}

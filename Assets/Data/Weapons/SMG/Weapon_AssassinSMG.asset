@@ -14,26 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponData
   langKey: assassin_smg
   weaponName: Assassin SMG
-  description: "\u0423\u0431\u0438\u0439\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439
-    \u0430\u0432\u0442\u043E\u043C\u0430\u0442 \u0441 \u0445\u0438\u0440\u0443\u0440\u0433\u0438\u0447\u0435\u0441\u043A\u043E\u0439
-    \u043C\u0435\u0442\u043A\u043E\u0441\u0442\u044C\u044E \u0438 \u0447\u0430\u0441\u0442\u044B\u043C\u0438
-    \u043A\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u043C\u0438 \u043F\u043E\u043F\u0430\u0434\u0430\u043D\u0438\u044F\u043C\u0438."
+  description: "Сосредоточенный огонь с усиленными критами. Меньше пуль, больше силы точного попадания."
   weaponType: 2
   rarity: 2
   unlockLevel: 5
   price: 700
   weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 70
-  fireRate: 12
-  projectileSpeed: 16
+  damage: 48
+  fireRate: 11
+  projectileSpeed: 20
   projectileCount: 1
-  spreadAngle: 2
+  spreadAngle: 1
   pierceCount: 0
   specialType: 0
   shotsPerBurst: 3
   burstInterval: 0.08
-  criticalChanceBonus: 0.15
-  criticalDamageBonus: 0.5
+  criticalChanceBonus: 0.25
+  criticalDamageBonus: 0.75
   scoreBonusPercent: 0
   doubleShotInterval: 0.12
   burnDamagePerSecond: 0
