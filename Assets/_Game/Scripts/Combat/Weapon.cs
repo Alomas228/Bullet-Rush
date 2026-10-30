@@ -32,6 +32,7 @@ public class Weapon : MonoBehaviour
     private PlayerHealth playerHealth;
 
     private float fireTimer;
+    private int shotCycle, volleyIndex;
 
     private bool burstActive;
     private int burstShotsRemaining;
@@ -275,6 +276,8 @@ public class Weapon : MonoBehaviour
             return;
 
         fireTimer = FireCooldownMax;
+        shotCycle = DamageEventId.Next();
+        volleyIndex = 0;
 
         switch (weaponData.SpecialType)
         {
@@ -373,6 +376,7 @@ public class Weapon : MonoBehaviour
     {
         if (weaponData == null)
             return;
+        volleyIndex++;
 
         Transform firePoint =
             FindFirePoint();
@@ -508,6 +512,7 @@ public class Weapon : MonoBehaviour
         );
 
         bullet.SetWeaponIdentity(weaponData.WeaponName);
+        bullet.SetShotIdentity(shotCycle, volleyIndex);
         bullet.SetRunEffects(
             runUpgrades,
             playerHealth,

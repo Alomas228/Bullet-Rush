@@ -1126,7 +1126,7 @@ public sealed partial class ArcadeMenuSkin
         const float tileWidth = 178f;
         const float gap = 10f;
 
-        float total = tileWidth * 6f + gap * 5f;
+        float total = tileWidth * 7f + gap * 6f;
         float start = -total * 0.5f + tileWidth * 0.5f;
 
         statsTile = BuildStatTile(
@@ -1194,6 +1194,20 @@ public sealed partial class ArcadeMenuSkin
             tileWidth,
             OpenLeaderboards
         );
+
+        StatTile journeyTile = BuildStatTile(
+            parent,
+            "JourneyTile",
+            () => GameplayJourney.T("ПУТЬ БОЙЦА", "FIGHTER'S JOURNEY", "SAVAŞÇININ YOLU"),
+            "book",
+            ArcadeUiTheme.Gold,
+            new Vector2(start + (tileWidth + gap) * 6f, 46f),
+            tileWidth,
+            () => GameplayJourney.Instance?.UI?.OpenJournal()
+        );
+        journeyTile.Badge.SetActive(false);
+        AddLangBinding(journeyTile.Value, () => GameplayJourney.RankName(
+            GameplayJourney.Instance != null ? GameplayJourney.Instance.Data.rank : 0));
 
         BuildLangPills(
             parent,

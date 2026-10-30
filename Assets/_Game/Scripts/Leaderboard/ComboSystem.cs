@@ -20,6 +20,7 @@ public class ComboSystem : MonoBehaviour
     private float comboTimer;
     private float lastKillTime;
     private int lastComboThresholdReached = 0; // Для отслеживания порогов бонусов
+    private WaveManager waves;
 
     public int ComboCount => comboCount;
 
@@ -62,6 +63,8 @@ public class ComboSystem : MonoBehaviour
 
     private void Update()
     {
+        if (waves == null) waves = FindAnyObjectByType<WaveManager>();
+        if (waves != null && !waves.IsWaveActive) return;
         if (comboTimer > 0f)
         {
             comboTimer -= Time.deltaTime;

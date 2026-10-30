@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour
+public partial class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
@@ -121,6 +121,7 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         EnsureSubscribed();
+        if (!GameModeManager.IsPvp) gameObject.AddComponent<JourneyCosmetic>();
 
         if (GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Menu)
@@ -165,7 +166,7 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (!inputEnabled)
+        if (!inputEnabled || Time.timeScale <= 0f)
             return;
 
         HandleMovementInput();
@@ -345,23 +346,7 @@ public class PlayerController : MonoBehaviour
         recoilOffset = Vector3.zero;
 
         PlayDashSound();
-
-        RunMetrics rm = FindAnyObjectByType<RunMetrics>();
-        if (rm != null)
-            rm.RecordDashDodged();
-
-        if (bonusSettings == null)
-            bonusSettings = BonusSettings.Instance;
-
-        ScoreManager sm = ScoreManager.Instance;
-        if (sm != null &&
-            bonusSettings != null)
-        {
-            sm.AddBonus(
-                bonusSettings.dashDodgeBonus,
-                Lang.Get("bonus.dash_dodge")
-            );
-        }
+        preciseDodgeAwarded = false;
     }
 
     private void MoveDuringDash()

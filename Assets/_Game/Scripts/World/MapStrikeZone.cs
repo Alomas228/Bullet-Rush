@@ -342,7 +342,7 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
             return;
         }
 
-        health.TakeDamage(damage);
+        health.TakeDamage(damage, DamageEventId.Next());
     }
 
     private void DamageEnemies(Vector3 origin)

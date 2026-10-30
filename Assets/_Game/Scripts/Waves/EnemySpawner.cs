@@ -1868,6 +1868,14 @@ public class EnemySpawner : MonoBehaviour
 
         RunSpawnBias bias = RunModifierManager.SpawnBiasType;
 
+        var journey = GameplayJourney.Instance;
+        if (journey != null && wave > 50 && wave <= journey.EndlessThrough && Random.value < 0.3f)
+        {
+            prefab = GetPrefabByType(journey.EndlessBias == RunSpawnBias.Fast ? EnemyType.Fast :
+                journey.EndlessBias == RunSpawnBias.Tank ? EnemyType.Tank : EnemyType.Ranged);
+            if (prefab != null) return true;
+        }
+
         if (bias == RunSpawnBias.None)
             return false;
 

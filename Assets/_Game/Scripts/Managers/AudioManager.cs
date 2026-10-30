@@ -64,6 +64,17 @@ public class AudioManager : MonoBehaviour
 
     private AudioSource musicSource;
     private AudioClip desiredMusicClip;
+    private float combatIntensity;
+    public void SetCombatIntensity(float value) => combatIntensity = Mathf.Clamp01(value);
+    private void Update()
+    {
+        if (musicSource == null) return;
+        bool playing = GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing;
+        float intensity = playing ? combatIntensity : 0f;
+        musicSource.pitch = Mathf.Lerp(musicSource.pitch, 1f + intensity * 0.035f, Time.unscaledDeltaTime * 2f);
+        if (fadeCoroutine == null && musicSource.isPlaying)
+            musicSource.volume = Mathf.Lerp(musicSource.volume, musicVolume * Mathf.Lerp(0.8f, 1f, intensity), Time.unscaledDeltaTime * 2f);
+    }
 
     private AudioSource[] voices;
     private int[] voicePriorities;
@@ -565,16 +576,19 @@ public class AudioManager : MonoBehaviour
 
     public void SwitchToBossMusic()
     {
+        SetCombatIntensity(0.55f);
         PlayMusic(bossMusic);
     }
 
     public void SwitchToMainMusic()
     {
+        SetCombatIntensity(0.15f);
         PlayMusic(mainMusic);
     }
 
     public void SwitchToMenuMusic()
     {
+        SetCombatIntensity(0);
         PlayMusic(menuMusic);
     }
 

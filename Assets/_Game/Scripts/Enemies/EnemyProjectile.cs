@@ -13,6 +13,7 @@ public class EnemyProjectile : MonoBehaviour
 
     private Vector3 direction;
     private float lifetimeRemaining;
+    private int attackId;
 
     // Свой трассер этого выстрела. Храним ссылку, чтобы явно
     // отцепить хвост при возврате снаряда в пул (см. ReturnToPool).
@@ -27,6 +28,7 @@ public class EnemyProjectile : MonoBehaviour
         float newSpeed)
     {
         direction = newDirection.normalized;
+        attackId = DamageEventId.Next();
         damage = newDamage;
         speed = newSpeed;
 
@@ -126,7 +128,7 @@ public class EnemyProjectile : MonoBehaviour
             other.GetComponent<PlayerHealth>();
 
         if (playerHealth != null)
-            playerHealth.TakeDamage(damage);
+            playerHealth.TakeDamage(damage, attackId);
 
         ReturnToPool();
     }

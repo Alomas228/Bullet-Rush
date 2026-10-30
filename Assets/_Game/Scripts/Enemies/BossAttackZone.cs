@@ -25,6 +25,7 @@ public class BossAttackZone : MonoBehaviour, IDangerZone
 
     private bool activated;
     private bool registered;
+    private int attackId;
 
     private float timer;
     private float phaseTime;
@@ -39,6 +40,7 @@ public class BossAttackZone : MonoBehaviour, IDangerZone
         Color newDangerColor = default)
     {
         damage = newDamage;
+        attackId = DamageEventId.Next();
         radius = newRadius;
         warningDuration = newWarningDuration;
         if (newDangerColor != default)
@@ -190,7 +192,7 @@ public class BossAttackZone : MonoBehaviour, IDangerZone
 
             if (playerHealth != null)
             {
-                playerHealth.TakeDamage(damage);
+                playerHealth.TakeDamage(damage, attackId);
             }
         }
     }

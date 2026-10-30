@@ -589,6 +589,7 @@ public partial class Enemy : MonoBehaviour
         ApplyWaveScaling();
 
         InitializeMapStatuses();
+        InitializeTactics();
 
         if (isBoss && bossData != null)
         {
@@ -1217,7 +1218,7 @@ public partial class Enemy : MonoBehaviour
             return;
         }
 
-        switch (cachedEnemyType)
+        if (!HandleTactics()) switch (cachedEnemyType)
         {
             case EnemyType.Ranged:
                 HandleRangedBehaviour();
@@ -1501,6 +1502,7 @@ public partial class Enemy : MonoBehaviour
             moveSpeedMultiplier *
             speedScale *
             runSpeedMultiplier *
+            CommandSpeedScale *
             knockbackSpeedScale;
 
         Vector3 moveDirection;
@@ -1846,7 +1848,7 @@ public partial class Enemy : MonoBehaviour
             Quaternion.RotateTowards(
                 transform.rotation,
                 targetRotation,
-                rotationSpeed * Time.deltaTime
+                (HasDirectionalShield ? Mathf.Min(rotationSpeed, 75f) : rotationSpeed) * Time.deltaTime
             );
     }
 
@@ -3300,6 +3302,7 @@ public partial class Enemy : MonoBehaviour
             return;
 
         BossPhase = newPhase;
+        AudioManager.Instance?.SetCombatIntensity(0.35f + BossPhase * 0.2f);
 
         // Смена фазы сама по себе не опасна: новые кулдауны не должны
         // срабатывать в тот же кадр, в который фаза сменилась, иначе
@@ -4329,7 +4332,8 @@ public partial class Enemy : MonoBehaviour
         bool isCritical = false,
         DamageSource source = DamageSource.Unknown,
         int sourceEventId = 0,
-        string weaponId = null)
+        string weaponId = null,
+        bool secondary = false)
     {
         if (IsDead)
             return;
@@ -4342,12 +4346,17 @@ public partial class Enemy : MonoBehaviour
         lastDamageSource = source;
         lastDamageEventId = sourceEventId;
         lastDamageWeaponId = weaponId ?? string.Empty;
+        suppressDeathSynergy = secondary;
 
         bool hadIce = iceHealth > 0f;
         damage = MapCombatRules.ResolveIceDamage(damage, source == DamageSource.Burn,
             ref iceHealth);
         if (hadIce && iceHealth <= 0f)
+        {
             MapMechanicManager.AnnounceInteraction(false);
+            GameplayJourney.Instance?.RecordIce();
+            VfxFactory.TrySpawnExplosion(transform.position, 0.75f, new Color(0.65f, 0.95f, 1));
+        }
         currentHealth -= damage;
 
         SpawnDamageNumber(
@@ -4368,6 +4377,7 @@ public partial class Enemy : MonoBehaviour
             currentHealth = 0f;
             Die();
         }
+        JourneyHit(damage, isCritical, source, weaponId, secondary);
     }
 
     private void PlayEnemyHitSound()
@@ -4482,6 +4492,7 @@ public partial class Enemy : MonoBehaviour
             bleedTickTimer = tickInterval;
 
         bleedActive = true;
+        inheritedBleeding = false;
         bleedWeaponId = weaponId ?? string.Empty;
     }
 
@@ -4493,7 +4504,8 @@ public partial class Enemy : MonoBehaviour
     public void TriggerLightning(
         float damage,
         int targetCount,
-        float range)
+        float range,
+        string weaponId = null)
     {
         // The originating bullet may have killed this enemy just before
         // triggering the discharge. Secondary targets are still checked alive.
@@ -4542,7 +4554,8 @@ public partial class Enemy : MonoBehaviour
                 damage,
                 false,
                 DamageSource.ChainLightning,
-                lightningEventId
+                lightningEventId,
+                weaponId
             );
 
             targetsHit++;
@@ -4651,6 +4664,7 @@ public partial class Enemy : MonoBehaviour
             return;
 
         IsDead = true;
+        JourneyDeath();
 
         // Босс в список павших не идёт: его смерть и так
         // заканчивает волну, и трогать его поведение не нужно.

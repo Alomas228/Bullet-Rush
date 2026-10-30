@@ -65,6 +65,7 @@ public class ScoreManager : MonoBehaviour
 
         // Тема забега может повышать счёт как компенсацию за риск.
         multiplier *= RunModifierManager.ScoreScale;
+        multiplier *= GameplayJourney.Instance != null ? GameplayJourney.Instance.EndlessScoreScale : 1f;
 
         int finalAmount = Mathf.Max(Mathf.RoundToInt(amount * multiplier), 1);
 
@@ -84,7 +85,7 @@ public class ScoreManager : MonoBehaviour
 
         int finalAmount =
             Mathf.Max(
-                Mathf.RoundToInt(amount * RunModifierManager.ScoreScale),
+                Mathf.RoundToInt(amount * RunModifierManager.ScoreScale * (GameplayJourney.Instance != null ? GameplayJourney.Instance.EndlessScoreScale : 1f)),
                 1
             );
 

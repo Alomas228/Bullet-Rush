@@ -145,6 +145,12 @@ public class MapCardView : MonoBehaviour
             nameText.text = string.IsNullOrEmpty(map.LocalizedName)
                 ? map.name
                 : map.LocalizedName;
+            if (GameplayJourney.Instance != null)
+            {
+                var record = GameplayJourney.Instance.Map(map.langKey);
+                nameText.text += "  <size=65%>" + (record.best >= 20 ? "★" : "☆") +
+                    (record.won ? "★" : "☆") + (record.special ? "★" : "☆") + "</size>";
+            }
         }
 
         if (mechanicText != null)

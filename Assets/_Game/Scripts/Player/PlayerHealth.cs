@@ -76,14 +76,17 @@ public class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(float damage, int attackId = 0)
     {
         if (damage <= 0f || CurrentHealth <= 0f)
             return;
 
         if (playerController != null &&
             playerController.IsDashing)
+        {
+            playerController.RegisterPreciseDodge(attackId);
             return;
+        }
 
         if (shieldAbility == null)
             shieldAbility = GetComponent<ShieldAbility>();

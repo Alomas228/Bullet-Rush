@@ -245,7 +245,7 @@ public class YandexGameManager : MonoBehaviour
         if (PauseManager.Instance != null && PauseManager.Instance.IsPaused)
             yield break;
 
-        if (CampaignCompletionUI.IsOpen)
+        if (CampaignCompletionUI.IsOpen || JourneyUI.IsBlocking)
             yield break;
 
         UpgradeUI upgradeChoice = FindAnyObjectByType<UpgradeUI>();

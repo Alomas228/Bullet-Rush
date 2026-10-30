@@ -134,6 +134,7 @@ public class UpgradeManager : MonoBehaviour
     /// </summary>
     public IReadOnlyList<WeaponData> GetAvailableWeapons() =>
         availableWeapons;
+    public IReadOnlyList<SynergyData> GetAllSynergies() => synergies;
 
     /// <summary>
     /// Все способности магазина (вкладка «Способности» панели снаряжения).
@@ -273,6 +274,7 @@ public class UpgradeManager : MonoBehaviour
                 ApplySynergyRewards(synergy);
 
                 discoveredQueue.Add(synergy);
+                GameplayJourney.Instance?.Discover(synergy);
 
                 Debug.Log(
                     $"SYNERGY DISCOVERED: " +

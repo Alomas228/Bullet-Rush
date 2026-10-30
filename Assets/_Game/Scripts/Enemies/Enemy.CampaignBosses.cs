@@ -4,11 +4,14 @@ public partial class Enemy
 {
     private int signatureSequence;
     private float signatureWindupUntil;
+    private int endlessSignatureCasts;
 
     private bool UseCampaignBossAbility()
     {
         float warning = Mathf.Max(GetBossAbilityWarningDuration(), 1f);
         float damage = GetBossAbilityDamage();
+        if (currentWave > BossCampaign.FinalWave && ++endlessSignatureCasts % 3 == 0)
+            UseEndlessSignature(warning, damage);
         if ((int)bossData.AbilityPattern >= (int)BossAbilityPattern.MortarBarrage)
             signatureWindupUntil = Time.time + warning;
         switch (bossData.AbilityPattern)
@@ -56,6 +59,7 @@ public partial class Enemy
                 Vector3 center = transform.position;
                 float rotation = signatureSequence++ % 2 == 0 ? 0f : 45f;
                 bool beamHitPlayer = false;
+                int beamAttackId = DamageEventId.Next();
                 for (int i = 0; i < 4; i++)
                 {
                     Vector3 direction = Quaternion.Euler(0f, rotation + i * 90f, 0f) * Vector3.forward;
@@ -70,7 +74,7 @@ public partial class Enemy
                         if (!beamHitPlayer && along >= 0f && along <= 24f && lateral.sqrMagnitude <= 0.9f * 0.9f)
                         {
                             beamHitPlayer = true;
-                            PlayerHealth.Instance.TakeDamage(damage);
+                            PlayerHealth.Instance.TakeDamage(damage, beamAttackId);
                         }
                         VfxFactory.SpawnLightning(center, end);
                     });
@@ -105,5 +109,37 @@ public partial class Enemy
         // Visual warning only; the owner-checked callback applies actual damage.
         preview.Initialize(0f, radius, warning, bossData.AbilityColor);
         preview.transform.position = position;
+    }
+
+    private void UseEndlessSignature(float warning, float damage)
+    {
+        // Extra attacks stay locked and delayed; old warning times are preserved.
+        switch (bossData.AbilityPattern)
+        {
+            case BossAbilityPattern.TargetedStrike:
+                CampaignStrike(transform.position, 4.2f, warning + 1.2f, damage * 0.65f);
+                break;
+            case BossAbilityPattern.MortarBarrage:
+                Vector3 offset = (player.position - transform.position).normalized * 4.5f;
+                CampaignStrike(player.position + offset, 2f, warning + 1.8f, damage * 0.7f);
+                break;
+            case BossAbilityPattern.RadialBarrage:
+                Vector3 origin = attackPoint.position;
+                Vector3 direction = (player.position - origin).normalized;
+                BossLineTelegraph.Spawn(origin, origin + direction * 22, warning + 1.4f, bossData.AbilityColor, () =>
+                {
+                    if (!CanCompleteCampaignAttack() || enemyProjectilePrefab == null) return;
+                    var projectile = EnemyProjectilePool.Spawn(enemyProjectilePrefab, origin, Quaternion.LookRotation(direction));
+                    if (projectile != null) projectile.Initialize(direction, damage, bossData.ProjectileSpeed * 0.85f);
+                });
+                break;
+            case BossAbilityPattern.SummoningRitual:
+                CampaignStrike(player.position, 2.2f, warning + 1.5f, damage * 0.65f);
+                break;
+            case BossAbilityPattern.Singularity:
+                CampaignStrike(transform.position, 5f, warning + 2f, damage * 0.65f, true);
+                break;
+        }
+        GameplayJourney.Instance?.Notify(GameplayJourney.T("Босс готовит усиленный приём", "Boss prepares an advanced attack", "Patron gelişmiş saldırı hazırlıyor"));
     }
 }

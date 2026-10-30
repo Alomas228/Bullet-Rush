@@ -75,6 +75,8 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private float structureTransitionTimeout = 4f;
 
     public int CurrentWave { get; private set; }
+    public bool IsWaveActive => waveActive && !waitingForNextWave;
+    public EnemySpawner Spawner => enemySpawner;
     public int BossesDefeated { get; private set; }
     public bool CampaignCompleted { get; private set; }
     public bool EndlessMode { get; private set; }
@@ -143,6 +145,12 @@ public class WaveManager : MonoBehaviour
     // больше не выдаёт волну за идеальную, как делала проверка
     // CurrentHealth >= MaxHealth.
     private bool tookDamageThisWave;
+
+    private void Awake()
+    {
+        // The profile and journal belong to both menus, even when PvE waves are disabled.
+        gameObject.AddComponent<GameplayJourney>().Bind(this);
+    }
 
     private void Start()
     {
@@ -323,7 +331,7 @@ public class WaveManager : MonoBehaviour
 
     private void Update()
     {
-        if (!waveActive || waitingForNextWave)
+        if (!waveActive || waitingForNextWave || Time.timeScale <= 0f)
             return;
 
         if (GameStateManager.Instance != null
@@ -623,6 +631,7 @@ public class WaveManager : MonoBehaviour
     {
         if (AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode)) yield break;
         CurrentWave++;
+        GameplayJourney.Instance?.WaveStarted(CurrentWave);
         waveActive = false;
         waitingForNextWave = false;
         waveCompleteShown = false;
@@ -1019,11 +1028,32 @@ public class WaveManager : MonoBehaviour
     {
         if (!waitingForNextWave || AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode))
             return;
+        if (GameplayJourney.Instance != null && GameplayJourney.Instance.ConsumeCacheReward() && upgradeUI != null)
+        {
+            upgradeUI.Show();
+            return;
+        }
 
         Time.timeScale = 1f;
 
         if (upgradeUI != null)
             upgradeUI.Hide();
+
+        var journey = GameplayJourney.Instance;
+        if (journey != null && EndlessMode && JourneyRules.NeedsEndlessChoice(CurrentWave + 1, journey.EndlessThrough))
+        {
+            int next = CurrentWave + 1;
+            var baseBias = RunModifierManager.SpawnBiasType;
+            var first = baseBias == RunSpawnBias.Fast ? RunSpawnBias.Tank : RunSpawnBias.Fast;
+            var second = baseBias == RunSpawnBias.Ranged ? RunSpawnBias.Tank : RunSpawnBias.Ranged;
+            journey.UI.ShowChoice(GameplayJourney.T("НОВЫЙ РУБЕЖ", "NEXT FRONTIER", "YENİ SINIR"),
+                GameplayJourney.T("Выбери состав подкреплений на следующие 10 волн. Бонус очков +15%. Условие заменяет предыдущее.",
+                    "Choose reinforcements for the next 10 waves. +15% score. This condition replaces the previous one.",
+                    "Sonraki 10 dalga için takviyeyi seç. +%15 puan. Bu koşul öncekinin yerini alır."),
+                new[] { JourneyUI.BiasName(first), JourneyUI.BiasName(second) },
+                choice => { journey.SetEndless(choice == 0 ? first : second, next); ContinueAfterUpgrade(); });
+            return;
+        }
 
         waitingForNextWave = false;
         waveCompleteShown = false;

@@ -143,7 +143,7 @@ public class PauseManager : MonoBehaviour
 
     public void PauseGame()
     {
-        if (CampaignCompletionUI.IsOpen) return;
+        if (CampaignCompletionUI.IsOpen || JourneyUI.IsBlocking) return;
         if (IsPaused)
             return;
 

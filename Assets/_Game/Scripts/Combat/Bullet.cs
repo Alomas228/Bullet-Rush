@@ -65,6 +65,9 @@ public class Bullet : MonoBehaviour
     private PlayerHealth cachedPlayerHealth;
     private GameObject bulletPrefab;
     private string weaponId;
+    private int shotCycle, volleyIndex;
+    private readonly HashSet<int> directHitIds = new HashSet<int>();
+    public void SetShotIdentity(int cycle, int volley) { shotCycle = cycle; volleyIndex = volley; }
 
     // Враг, в которого снаряд уже попал (нужен рикошету,
     // чтобы новая пуля не ударила в ту же цель повторно).
@@ -296,6 +299,7 @@ public class Bullet : MonoBehaviour
     )
     {
         weaponId = string.Empty;
+        directHitIds.Clear(); shotCycle = volleyIndex = 0;
         damage = newDamage;
         speed = newSpeed;
         isCritical = critical;
@@ -503,13 +507,17 @@ public class Bullet : MonoBehaviour
 
         if (enemy == ignoredEnemy)
             return;
+        if (!directHitIds.Add(enemy.GetInstanceID())) return;
+        if (JourneyRules.UsesPiercingTrial(weaponId))
+            GameplayJourney.Instance?.ProgressTrial(weaponId, directHitIds.Count, true);
+        enemy.RecordPairedHit(weaponId, shotCycle, volleyIndex);
 
         // ============================================
         // NORMAL DAMAGE
         // ============================================
 
         enemy.TakeDamage(
-            damage,
+            enemy.ResolveDirectionalDamage(damage, transform.forward),
             isCritical,
             DamageSource.Weapon,
             0,
@@ -589,7 +597,8 @@ public class Bullet : MonoBehaviour
                     enemy.TriggerLightning(
                         lightningDamage,
                         lightningTargets,
-                        lightningRange
+                        lightningRange,
+                        weaponId
                     );
 
                     PlayLightningSound();

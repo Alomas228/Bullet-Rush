@@ -257,7 +257,7 @@ public class UpgradeUI : MonoBehaviour
 
             names.Add(
                 synergy.LocalizedName + " — " +
-                synergy.LocalizedDescription
+                synergy.LocalizedDescription + "\n" + SynergyCombat.Description(synergy.name)
             );
 
             if (names.Count >= 3)

@@ -31357,7 +31357,6 @@ MonoBehaviour:
   enemyCountMultiplier: 1.7
   startingEnemies: 5
   enemiesAddedPerWave: 3
-  bossWaveInterval: 10
   enemyCountCeiling: 45
   maxEnemiesPerWave: 55
   countRampPerWave: 0.008
@@ -31365,15 +31364,15 @@ MonoBehaviour:
   extraModifierChance: 0.4
   modifierMemoryLength: 3
   heavyModifierCooldown: 2
-  bossMinionDelay: 1.2
-  bossMinionCount: 5
-  bossSpawnInDuration: 1.2
   bossRotation:
   - {fileID: 11400000, guid: 29fa6b3bb92ae74429fa0b55308bd638, type: 2}
   - {fileID: 11400000, guid: 3dfa0d21251744ceb57342a4daa89dbe, type: 2}
   - {fileID: 11400000, guid: c9170c8ea11646b6bb1d0262f233e533, type: 2}
   - {fileID: 11400000, guid: d0505085f6654e27850ee9d719ce84f5, type: 2}
   - {fileID: 11400000, guid: 3a1a9e83d63f43329e59963769f4bdfd, type: 2}
+  bossMinionDelay: 1.2
+  bossMinionCount: 5
+  bossSpawnInDuration: 1.2
   waveDisplayTime: 0.75
   firstWaveDisplayTime: 1
   bossWaveDisplayTime: 1.6
@@ -53782,7 +53781,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c5f037f3238e6034287dd062f8241722, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameOverManager
-  runWinWave: 10
 --- !u!4 &1496962436
 Transform:
   m_ObjectHideFlags: 0
@@ -76639,7 +76637,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -27.999817}
+  m_AnchoredPosition: {x: 0, y: -27.999878}
   m_SizeDelta: {x: 0, y: -436}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2047470704

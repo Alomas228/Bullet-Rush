@@ -5,7 +5,7 @@ using UnityEngine;
 // Случайные события посреди волны: вынуждают игрока двигаться,
 // а не стоять на месте. Одно событие на волну, типы не повторяются
 // подряд из-за страховки от однообразия.
-public class WaveEventDirector : MonoBehaviour
+public partial class WaveEventDirector : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private EnemySpawner enemySpawner;
@@ -251,6 +251,12 @@ public class WaveEventDirector : MonoBehaviour
         // The hunt objective itself occupies the event slot for this wave.
         if (modifier.Has(WaveModifier.EliteHunt))
             return;
+        if (wave % 10 >= 4 && wave % 10 <= 7 && cacheSegment != (wave - 1) / 10)
+        {
+            IsEventActive = true;
+            scheduleCoroutine = StartCoroutine(OfferProtectedCache(wave));
+            return;
+        }
 
         // Событие не может идти раньше, чем истёк отдых после
         // предыдущего. Короткая волна не должна успевать выдать
@@ -318,6 +324,7 @@ public class WaveEventDirector : MonoBehaviour
 
     public void ResetRun()
     {
+        cacheSegment = -1;
         wavesSinceEvent = 0;
         consecutiveEventWaves = 0;
         eventFiredThisWave = false;
