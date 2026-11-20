@@ -246,6 +246,8 @@ public class CameraFollow : MonoBehaviour
 
         Vector3 targetPos =
             target.position + offset;
+        if (RamLiftArena.Active != null)
+            targetPos = RamLiftArena.Active.CameraPosition(targetPos, offset, Screen.width / (float)Mathf.Max(Screen.height, 1));
 
         basePosition = Vector3.Lerp(
             basePosition,

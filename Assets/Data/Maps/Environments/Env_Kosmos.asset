@@ -67,7 +67,7 @@ MonoBehaviour:
       position: {x: -0.45, y: 0.55, z: 0.3}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.28, y: 0.28, z: 0.28}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 7d5f3ea373f3b4b54cc73e8ce32d44f5, type: 3}
   - name: BrokenPanel
     count: 3
     placement: 1
@@ -78,6 +78,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: -7, y: -2.1}
     parts:
     - shape: 0
       color: 0
@@ -97,7 +99,7 @@ MonoBehaviour:
       position: {x: -0.55, y: 0.34, z: 0.2}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.16, y: 0.1, z: 0.16}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 425e07ab899aca99552b82c30cde8f47, type: 3}
   - name: CrystalShard
     count: 4
     placement: 1
@@ -108,6 +110,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: 6.7, y: 4}
     parts:
     - shape: 3
       color: 2
@@ -127,7 +131,7 @@ MonoBehaviour:
       position: {x: 0.4, y: 0.3, z: -0.3}
       euler: {x: -12, y: -30, z: 20}
       scale: {x: 0.2, y: 0.7, z: 0.2}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 42907704bcfb46cc785963c5373c181b, type: 3}
   - name: Debris
     count: 3
     placement: 1
@@ -157,7 +161,7 @@ MonoBehaviour:
       position: {x: -0.5, y: 0.3, z: 0.1}
       euler: {x: 0, y: 0, z: 60}
       scale: {x: 0.2, y: 0.5, z: 0.2}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 23f7986bc1f3629a61ce88e0c7cc7d89, type: 3}
   - name: CornerAsteroid
     count: 2
     placement: 2
@@ -187,7 +191,7 @@ MonoBehaviour:
       position: {x: -1.2, y: 1.4, z: -0.5}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.8, y: 0.8, z: 0.8}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 985c81d0ad3c0050b13ce6cf4ea27509, type: 3}
   insideDecor:
   - name: SparkleShard
     count: 4
@@ -212,7 +216,7 @@ MonoBehaviour:
       position: {x: 0.15, y: 0.15, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.12, y: 0.08, z: 0.12}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 854a90713adf34b414ba571dc67765ec, type: 3}
   - name: PipeGlow
     count: 3
     placement: 1
@@ -236,7 +240,7 @@ MonoBehaviour:
       position: {x: 0, y: 0.28, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.18, y: 0.1, z: 0.18}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 799075db5b569c823f28718442f7dbc8, type: 3}
   outsideObjects:
   - name: Stars
     count: 16
@@ -333,7 +337,7 @@ MonoBehaviour:
       position: {x: 0.1, y: 2.2, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.24, y: 0.12, z: 0.14}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: f972086c5ccd1dda5f575f026c348596, type: 3}
   - name: DarkRock
     count: 3
     placement: 0
@@ -363,4 +367,4 @@ MonoBehaviour:
       position: {x: -0.9, y: 0.8, z: 0.4}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.35, y: 0.35, z: 0.35}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: fa90b4cb8a63ca59ef443cdf499da411, type: 3}

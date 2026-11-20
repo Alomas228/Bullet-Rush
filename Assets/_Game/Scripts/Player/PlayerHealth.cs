@@ -78,7 +78,7 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(float damage, int attackId = 0)
     {
-        if (damage <= 0f || CurrentHealth <= 0f)
+        if (damage <= 0f || CurrentHealth <= 0f || RamLiftArena.InTransit)
             return;
 
         if (playerController != null &&
@@ -283,8 +283,9 @@ public class PlayerHealth : MonoBehaviour
         EnemySpawner spawner =
             FindAnyObjectByType<EnemySpawner>();
 
-        Vector3 position =
-            spawner != null
+        Vector3 position = RamLiftArena.Active != null
+            ? RamLiftArena.Active.RevivePosition()
+            : spawner != null
                 ? spawner.GetPlayerRingSpawnPosition()
                 : transform.position;
 

@@ -98,12 +98,12 @@ public static class EnvironmentThemeFactory
 
     private static readonly Color[] LesPalette =
     {
-        new Color(0.42f, 0.31f, 0.20f), // 0 ствол
-        new Color(0.16f, 0.42f, 0.19f), // 1 крона тёмная
-        new Color(0.30f, 0.55f, 0.25f), // 2 крона светлая
-        new Color(0.46f, 0.46f, 0.48f), // 3 камень
-        new Color(0.36f, 0.42f, 0.27f), // 4 мох
-        new Color(0.93f, 0.84f, 0.45f)  // 5 цветы
+        new Color32(150, 120, 89, 255), // 0 ствол
+        new Color32(87, 119, 82, 255), // 1 крона тёмная
+        new Color32(122, 149, 101, 255), // 2 крона светлая
+        new Color32(144, 150, 137, 255), // 3 камень
+        new Color32(134, 148, 111, 255), // 4 мох
+        new Color32(213, 201, 141, 255)  // 5 цветы
     };
 
     private static readonly Color LesGlow =
@@ -112,22 +112,24 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] LesObstacles =>
         new[]
         {
-            Def("Tree", 8, 0.8f, 1.3f, 0.7f,
+            ClearingPine("ClearingPineWest", -7f, 4.8f),
+            ClearingPine("ClearingPineEast", 8f, -3.4f),
+            Frame(RingDef("Tree", 6, 0.8f, 1.3f, 0.7f, 9f, 32f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.6f, 0f, 0.3f, 1.2f, 0.3f),
                 Part(EnvironmentShape.Sphere, 1, 0f, 1.75f, 0f, 1.4f, 1.1f, 1.4f),
                 Part(EnvironmentShape.Sphere, 2, 0.35f, 1.35f, 0.2f, 0.7f, 0.6f, 0.7f),
-                Part(EnvironmentShape.Sphere, 2, -0.35f, 2.1f, -0.15f, 0.55f, 0.55f, 0.55f)),
-            Def("Stone", 5, 0.7f, 1.2f, 0.8f,
+                Part(EnvironmentShape.Sphere, 2, -0.35f, 2.1f, -0.15f, 0.55f, 0.55f, 0.55f))),
+            Frame(RingDef("Stone", 5, 0.7f, 1.2f, 0.8f, 11f, 31f,
                 Part(EnvironmentShape.Sphere, 3, 0f, 0.32f, 0f, 1.0f, 0.65f, 0.9f),
                 Part(EnvironmentShape.Sphere, 3, 0.45f, 0.22f, 0.35f, 0.5f, 0.45f, 0.5f),
-                Part(EnvironmentShape.Sphere, 4, -0.3f, 0.42f, 0.2f, 0.3f, 0.22f, 0.3f)),
-            Def("Stump", 3, 0.8f, 1.1f, 0.45f,
+                Part(EnvironmentShape.Sphere, 4, -0.3f, 0.42f, 0.2f, 0.3f, 0.22f, 0.3f))),
+            Frame(RingDef("Stump", 3, 0.8f, 1.1f, 0.45f, 12f, 30f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.28f, 0f, 0.65f, 0.56f, 0.65f),
-                Part(EnvironmentShape.Cylinder, 1, 0f, 0.54f, 0f, 0.68f, 0.06f, 0.68f)),
-            Def("FallenLog", 3, 0.9f, 1.3f, 1.0f,
+                Part(EnvironmentShape.Cylinder, 1, 0f, 0.54f, 0f, 0.68f, 0.06f, 0.68f))),
+            Frame(RingDef("FallenLog", 3, 0.9f, 1.3f, 1.0f, 8f, 26f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.28f, 0f, 0.5f, 1.6f, 0.5f, 0f, 0f, 90f),
                 Part(EnvironmentShape.Cylinder, 0, 0.3f, 0.22f, 0f, 0.4f, 0.9f, 0.4f, 0f, 0f, 150f),
-                Part(EnvironmentShape.Sphere, 4, 0.5f, 0.5f, 0.15f, 0.4f, 0.35f, 0.4f)),
+                Part(EnvironmentShape.Sphere, 4, 0.5f, 0.5f, 0.15f, 0.4f, 0.35f, 0.4f))),
             Corner(Def("CornerTree", 2, 1.8f, 2.4f, 1.3f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 1.1f, 0f, 0.7f, 2.2f, 0.7f),
                 Part(EnvironmentShape.Sphere, 1, 0f, 3.2f, 0f, 3.0f, 2.3f, 3.0f),
@@ -185,7 +187,7 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] PlyazhObstacles =>
         new[]
         {
-            Def("Palm", 6, 0.9f, 1.3f, 0.8f,
+            WithLandmark(-7.9f, 4.4f, Def("Palm", 6, 0.9f, 1.3f, 0.8f,
                 Part(EnvironmentShape.Cylinder, 1, 0f, 0.8f, 0f, 0.34f, 1.6f, 0.34f, 0f, 0f, 5f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 1.8f, 0f, 0.36f, 1.5f, 0.36f, 0f, 0f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 1.8f, 0f, 0.36f, 1.5f, 0.36f, 0f, 60f, -90f),
@@ -193,11 +195,11 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Capsule, 2, 0f, 1.8f, 0f, 0.36f, 1.5f, 0.36f, 0f, 180f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 1.8f, 0f, 0.36f, 1.5f, 0.36f, 0f, 240f, -90f),
                 Part(EnvironmentShape.Capsule, 2, 0f, 1.8f, 0f, 0.36f, 1.5f, 0.36f, 0f, 300f, -90f),
-                Part(EnvironmentShape.Sphere, 1, 0f, 1.78f, 0f, 0.25f, 0.25f, 0.25f)),
-            Def("Crate", 3, 0.8f, 1.1f, 0.7f,
+                Part(EnvironmentShape.Sphere, 1, 0f, 1.78f, 0f, 0.25f, 0.25f, 0.25f))),
+            WithLandmark(6.6f, -2.6f, Def("Crate", 3, 0.8f, 1.1f, 0.7f,
                 Part(EnvironmentShape.Cube, 3, 0f, 0.45f, 0f, 0.9f, 0.9f, 0.9f),
                 Part(EnvironmentShape.Cube, 6, 0f, 0.45f, 0.45f, 0.9f, 0.16f, 0.05f),
-                Part(EnvironmentShape.Cube, 3, 0.42f, 1.0f, 0.15f, 0.55f, 0.55f, 0.55f)),
+                Part(EnvironmentShape.Cube, 3, 0.42f, 1.0f, 0.15f, 0.55f, 0.55f, 0.55f))),
             Def("BeachRock", 4, 0.7f, 1.1f, 0.75f,
                 Part(EnvironmentShape.Sphere, 4, 0f, 0.35f, 0f, 1.1f, 0.7f, 0.9f),
                 Part(EnvironmentShape.Sphere, 4, 0.5f, 0.25f, 0.3f, 0.5f, 0.4f, 0.5f),
@@ -285,16 +287,16 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Cube, 0, 0f, 0.5f, 0f, 1.2f, 1.0f, 0.9f, 0f, 30f, 10f),
                 Part(EnvironmentShape.Cube, 1, 0.6f, 0.3f, 0.25f, 0.7f, 0.6f, 0.6f, 0f, -20f, 15f),
                 Part(EnvironmentShape.Cube, 2, 0.1f, 0.95f, 0.1f, 0.85f, 0.12f, 0.6f)),
-            Def("Boulder", 4, 0.8f, 1.2f, 0.85f,
+            WithLandmark(-6.4f, -2.4f, Def("Boulder", 4, 0.8f, 1.2f, 0.85f,
                 Part(EnvironmentShape.Sphere, 0, 0f, 0.4f, 0f, 1.0f, 0.8f, 0.95f),
                 Part(EnvironmentShape.Sphere, 1, 0.4f, 0.52f, 0.2f, 0.45f, 0.4f, 0.4f),
-                Part(EnvironmentShape.Sphere, 2, -0.15f, 0.62f, 0.05f, 0.3f, 0.2f, 0.25f)),
-            Def("Fir", 5, 0.9f, 1.3f, 0.6f,
+                Part(EnvironmentShape.Sphere, 2, -0.15f, 0.62f, 0.05f, 0.3f, 0.2f, 0.25f))),
+            WithLandmark(6.9f, 3.8f, Def("Fir", 5, 0.9f, 1.3f, 0.6f,
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.5f, 0f, 0.16f, 1.0f, 0.16f),
                 Part(EnvironmentShape.Cylinder, 3, 0f, 1.15f, 0f, 1.9f, 0.55f, 1.9f),
                 Part(EnvironmentShape.Cylinder, 4, 0f, 1.62f, 0f, 1.35f, 0.5f, 1.35f),
                 Part(EnvironmentShape.Cylinder, 3, 0f, 2.05f, 0f, 0.8f, 0.45f, 0.8f),
-                Part(EnvironmentShape.Cylinder, 4, 0f, 2.45f, 0f, 0.4f, 0.4f, 0.4f)),
+                Part(EnvironmentShape.Cylinder, 4, 0f, 2.45f, 0f, 0.4f, 0.4f, 0.4f))),
             Def("CaveCliff", 2, 1.2f, 1.5f, 1.2f,
                 Part(EnvironmentShape.Cube, 0, 0f, 0.9f, 0f, 2.0f, 1.8f, 1.2f),
                 Part(EnvironmentShape.Cube, 1, 0.3f, 0.5f, 0.45f, 0.9f, 1.0f, 0.3f),
@@ -363,11 +365,11 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] PustynyaObstacles =>
         new[]
         {
-            Def("Cactus", 6, 0.9f, 1.4f, 0.55f,
+            WithLandmark(-5.9f, 3.1f, Def("Cactus", 6, 0.9f, 1.4f, 0.55f,
                 Part(EnvironmentShape.Cylinder, 1, 0f, 0.85f, 0f, 0.8f, 1.7f, 0.8f),
                 Part(EnvironmentShape.Cylinder, 1, 0.65f, 1.0f, 0.05f, 0.4f, 0.8f, 0.4f, 0f, 0f, -25f),
                 Part(EnvironmentShape.Cylinder, 1, -0.6f, 1.1f, -0.05f, 0.38f, 0.9f, 0.38f, 0f, 0f, 20f),
-                Part(EnvironmentShape.Sphere, 4, 0f, 1.72f, 0f, 0.22f, 0.22f, 0.22f)),
+                Part(EnvironmentShape.Sphere, 4, 0f, 1.72f, 0f, 0.22f, 0.22f, 0.22f))),
             Def("DriedBush", 5, 0.8f, 1.2f, 0.5f,
                 Part(EnvironmentShape.Sphere, 3, 0f, 0.25f, 0f, 0.75f, 0.5f, 0.75f),
                 Part(EnvironmentShape.Sphere, 3, 0.38f, 0.16f, 0.2f, 0.42f, 0.3f, 0.42f),
@@ -376,9 +378,9 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Sphere, 2, 0f, 0.33f, 0f, 1.0f, 0.66f, 0.9f),
                 Part(EnvironmentShape.Sphere, 2, 0.42f, 0.24f, 0.3f, 0.5f, 0.42f, 0.5f),
                 Part(EnvironmentShape.Sphere, 0, -0.3f, 0.4f, 0.15f, 0.32f, 0.26f, 0.3f)),
-            Def("MesaMini", 3, 0.9f, 1.2f, 1.1f,
+            WithLandmark(6f, -1.9f, Def("MesaMini", 3, 0.9f, 1.2f, 1.1f,
                 Part(EnvironmentShape.Cube, 5, 0f, 0.7f, 0f, 1.2f, 1.4f, 1.0f, 0f, 20f, 0f),
-                Part(EnvironmentShape.Cube, 0, -0.05f, 1.35f, 0.1f, 1.15f, 0.14f, 0.95f, 0f, 20f, 0f)),
+                Part(EnvironmentShape.Cube, 0, -0.05f, 1.35f, 0.1f, 1.15f, 0.14f, 0.95f, 0f, 20f, 0f))),
             Def("Bones", 2, 0.8f, 1.1f, 0.6f,
                 Part(EnvironmentShape.Cube, 4, 0f, 0.3f, 0f, 0.55f, 0.4f, 0.45f),
                 Part(EnvironmentShape.Cylinder, 4, 0f, 0.3f, 0.28f, 0.12f, 0.6f, 0.12f, 0f, 0f, 90f),
@@ -445,14 +447,14 @@ public static class EnvironmentThemeFactory
                 Part(EnvironmentShape.Sphere, 3, 0f, 0.4f, 0f, 1.1f, 0.9f, 1.0f),
                 Part(EnvironmentShape.Sphere, 3, 0.4f, 0.5f, 0.2f, 0.5f, 0.45f, 0.5f),
                 Part(EnvironmentShape.Sphere, 2, -0.45f, 0.55f, 0.3f, 0.28f, 0.28f, 0.28f, 0f, 0f, 0f, true)),
-            Def("BrokenPanel", 3, 0.9f, 1.3f, 0.8f,
+            WithLandmark(-7f, -2.1f, Def("BrokenPanel", 3, 0.9f, 1.3f, 0.8f,
                 Part(EnvironmentShape.Cube, 0, 0f, 0.3f, 0f, 1.5f, 0.5f, 1.0f, 0f, 25f, 10f),
                 Part(EnvironmentShape.Cube, 1, 0.2f, 0.42f, 0.1f, 0.8f, 0.14f, 0.7f, 0f, 25f, 10f),
-                Part(EnvironmentShape.Cube, 4, -0.55f, 0.34f, 0.2f, 0.16f, 0.1f, 0.16f, 0f, 0f, 0f, true)),
-            Def("CrystalShard", 4, 0.7f, 1.1f, 0.5f,
+                Part(EnvironmentShape.Cube, 4, -0.55f, 0.34f, 0.2f, 0.16f, 0.1f, 0.16f, 0f, 0f, 0f, true))),
+            WithLandmark(6.7f, 4f, Def("CrystalShard", 4, 0.7f, 1.1f, 0.5f,
                 Part(EnvironmentShape.Capsule, 2, 0f, 0.6f, 0f, 0.3f, 1.2f, 0.3f, 0f, 0f, 0f, true),
                 Part(EnvironmentShape.Capsule, 2, -0.45f, 0.4f, 0.4f, 0.25f, 0.9f, 0.25f, 15f, 45f, 30f, true),
-                Part(EnvironmentShape.Capsule, 2, 0.4f, 0.3f, -0.3f, 0.2f, 0.7f, 0.2f, -12f, -30f, 20f, true)),
+                Part(EnvironmentShape.Capsule, 2, 0.4f, 0.3f, -0.3f, 0.2f, 0.7f, 0.2f, -12f, -30f, 20f, true))),
             Def("Debris", 3, 0.8f, 1.2f, 0.7f,
                 Part(EnvironmentShape.Cube, 1, 0f, 0.25f, 0f, 0.9f, 0.5f, 0.7f),
                 Part(EnvironmentShape.Cube, 0, 0.4f, 0.35f, 0.15f, 0.4f, 0.3f, 0.4f, 0f, 30f, 15f),
@@ -517,19 +519,19 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] GorodObstacles =>
         new[]
         {
-            Def("Container", 2, 0.9f, 1.2f, 1.0f,
+            WithLandmark(7.1f, -2.1f, Def("Container", 2, 0.9f, 1.2f, 1.0f,
                 Part(EnvironmentShape.Cube, 5, 0f, 0.5f, 0f, 1.6f, 1.0f, 1.1f),
                 Part(EnvironmentShape.Cube, 0, 0f, 0.9f, 0.02f, 1.65f, 0.08f, 1.15f),
-                Part(EnvironmentShape.Cube, 4, 0f, 0.5f, 0.58f, 1.6f, 0.1f, 0.05f, 0f, 0f, 0f, true)),
+                Part(EnvironmentShape.Cube, 4, 0f, 0.5f, 0.58f, 1.6f, 0.1f, 0.05f, 0f, 0f, 0f, true))),
             Def("LowWall", 3, 1.0f, 1.3f, 1.2f,
                 Part(EnvironmentShape.Cube, 1, 0f, 0.4f, 0f, 2.2f, 0.8f, 0.4f),
                 Part(EnvironmentShape.Cube, 5, 0f, 0.8f, 0f, 2.26f, 0.06f, 0.46f),
                 Part(EnvironmentShape.Cube, 3, 0f, 0.5f, 0.24f, 0.3f, 0.5f, 0.06f)),
-            Def("Car", 2, 1.0f, 1.3f, 1.1f,
+            WithLandmark(-7f, 4.1f, Def("Car", 2, 1.0f, 1.3f, 1.1f,
                 Part(EnvironmentShape.Cube, 5, 0f, 0.3f, 0f, 1.7f, 0.5f, 0.9f),
                 Part(EnvironmentShape.Cube, 2, -0.1f, 0.62f, 0f, 0.9f, 0.4f, 0.8f),
                 Part(EnvironmentShape.Cube, 0, -0.55f, 0.55f, 0f, 0.5f, 0.55f, 0.7f),
-                Part(EnvironmentShape.Cube, 4, 0.15f, 0.35f, 0.47f, 0.4f, 0.12f, 0.08f, 0f, 0f, 0f, true)),
+                Part(EnvironmentShape.Cube, 4, 0.15f, 0.35f, 0.47f, 0.4f, 0.12f, 0.08f, 0f, 0f, 0f, true))),
             Corner(Def("CornerSkyscraper", 2, 1.6f, 2.1f, 1.6f,
                 Part(EnvironmentShape.Cube, 0, 0f, 1.6f, 0f, 2.2f, 3.2f, 2.0f),
                 Part(EnvironmentShape.Cube, 1, 0f, 3.3f, 0f, 1.7f, 1.4f, 1.5f),
@@ -544,17 +546,17 @@ public static class EnvironmentThemeFactory
     private static EnvironmentObjectDef[] GorodDecor =>
         new[]
         {
-            Def("StreetLamp", 3, 1.0f, 1.3f, 0.4f,
+            WithLandmark(-9.2f, 5.7f, Def("StreetLamp", 3, 1.0f, 1.3f, 0.4f,
                 Part(EnvironmentShape.Cylinder, 5, 0f, 1.4f, 0f, 0.12f, 2.8f, 0.12f),
-                Part(EnvironmentShape.Cube, 4, 0f, 2.85f, 0f, 0.1f, 0.1f, 0.5f, 0f, 0f, 0f, true)),
+                Part(EnvironmentShape.Cube, 4, 0f, 2.85f, 0f, 0.1f, 0.1f, 0.5f, 0f, 0f, 0f, true))),
             Def("Bush", 4, 0.6f, 0.9f, 0.5f,
                 Part(EnvironmentShape.Sphere, 6, 0f, 0.25f, 0f, 0.7f, 0.5f, 0.7f),
                 Part(EnvironmentShape.Sphere, 6, 0.3f, 0.4f, 0.1f, 0.4f, 0.35f, 0.4f)),
-            Def("Bench", 2, 1.0f, 1.2f, 0.9f,
+            WithLandmark(7.3f, 6.2f, Def("Bench", 2, 1.0f, 1.2f, 0.9f,
                 Part(EnvironmentShape.Cube, 6, 0f, 0.4f, 0f, 1.4f, 0.1f, 0.4f),
                 Part(EnvironmentShape.Cube, 1, 0f, 0.58f, 0.18f, 0.3f, 0.35f, 0.4f),
                 Part(EnvironmentShape.Cylinder, 5, -0.6f, 0.2f, 0.1f, 0.07f, 0.4f, 0.07f),
-                Part(EnvironmentShape.Cylinder, 5, 0.6f, 0.2f, -0.1f, 0.07f, 0.4f, 0.07f)),
+                Part(EnvironmentShape.Cylinder, 5, 0.6f, 0.2f, -0.1f, 0.07f, 0.4f, 0.07f))),
             Def("Hydrant", 2, 0.8f, 1.0f, 0.4f,
                 Part(EnvironmentShape.Cylinder, 5, 0f, 0.25f, 0f, 0.18f, 0.5f, 0.18f),
                 Part(EnvironmentShape.Cylinder, 0, 0f, 0.5f, 0f, 0.24f, 0.08f, 0.24f),
@@ -677,6 +679,19 @@ public static class EnvironmentThemeFactory
         return def;
     }
 
+    private static EnvironmentObjectDef ClearingPine(string name, float x, float z)
+    {
+        EnvironmentObjectDef tree = FixedDef(name, x, z);
+        tree.footprint = 0.7f;
+        return tree;
+    }
+
+    private static EnvironmentObjectDef WithLandmark(float x, float z, EnvironmentObjectDef def)
+    {
+        def.initialOffsets = new[] { new Vector2(x, z) };
+        return def;
+    }
+
     /// <summary>Деф по умолчанию (Def) расставляется SquareFrame по периметру — уже по умолчанию. </summary>
     private static EnvironmentObjectDef Frame(
         EnvironmentObjectDef def)
@@ -785,9 +800,30 @@ public static class EnvironmentThemeFactory
         CollectModels(theme.insideDecor, modelsByName);
         CollectModels(theme.outsideObjects, modelsByName);
 
-        CopyModels(obstacles, modelsByName);
-        CopyModels(decor, modelsByName);
-        CopyModels(outside, modelsByName);
+        if (theme.name == "Env_Les")
+        {
+            GameObject pine = LoadWoodlandPrefab("ClearingPine");
+            foreach (string name in new[] { "Tree", "TallTree", "CornerTree", "ClearingPineWest", "ClearingPineEast" })
+                modelsByName.TryAdd(name, pine);
+            GameObject stones = LoadWoodlandPrefab("MossyStones");
+            modelsByName.TryAdd("Stone", stones);
+            modelsByName.TryAdd("RockCluster", stones);
+            modelsByName.TryAdd("Stump", LoadWoodlandPrefab("ClearingStump"));
+            modelsByName.TryAdd("FallenLog", LoadWoodlandPrefab("FallenTimber"));
+        }
+
+        string prefabFolder = MapsFolder + "/ArenaArt/Props/" + theme.name;
+        if (!AssetDatabase.IsValidFolder(prefabFolder))
+            prefabFolder = null;
+
+        CopyModels(obstacles, modelsByName, prefabFolder);
+        CopyModels(decor, modelsByName, prefabFolder);
+        CopyModels(outside, modelsByName, prefabFolder);
+    }
+
+    private static GameObject LoadWoodlandPrefab(string name)
+    {
+        return AssetDatabase.LoadAssetAtPath<GameObject>(MapsFolder + "/ArenaArt/" + name + ".prefab");
     }
 
     private static void CollectModels(
@@ -814,7 +850,8 @@ public static class EnvironmentThemeFactory
 
     private static void CopyModels(
         EnvironmentObjectDef[] defs,
-        Dictionary<string, GameObject> modelsByName)
+        Dictionary<string, GameObject> modelsByName,
+        string prefabFolder)
     {
         if (defs == null)
             return;
@@ -834,6 +871,11 @@ public static class EnvironmentThemeFactory
                     out GameObject model))
             {
                 def.model = model;
+            }
+            else if (prefabFolder != null)
+            {
+                def.model = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    prefabFolder + "/" + def.name + ".prefab");
             }
         }
     }

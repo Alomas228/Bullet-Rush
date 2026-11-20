@@ -41,12 +41,7 @@ public partial class Enemy
         else if (cachedEnemyType == EnemyType.Ranged && currentWave >= 13 && blockers < 1 && Random.value < 0.22f)
             Tactic = TacticalRole.Blocker;
         if (Tactic == TacticalRole.Coordinator)
-        {
-            JourneyVisuals.Ring(transform, "CoordinatorCrown", new Color(0.65f, 0.4f, 1), 0.65f, 1.7f, 6);
-            commandLinks = new LineRenderer[4];
-            for (int i = 0; i < commandLinks.Length; i++)
-            { commandLinks[i] = JourneyVisuals.Line(transform, "CommandLink", new Color(0.65f, 0.4f, 1), 0.035f); commandLinks[i].useWorldSpace = true; commandLinks[i].positionCount = 2; }
-        }
+            AssignCoordinator();
         if (Tactic == TacticalRole.Blocker)
         {
             var marker = JourneyVisuals.Line(transform, "BlockerFork", new Color(1, 0.6f, 0.1f), 0.12f);
@@ -60,6 +55,30 @@ public partial class Enemy
         }
         nextTacticalAttack = Time.time + 4f;
     }
+    internal void AssignCoordinator()
+    {
+        Tactic = TacticalRole.Coordinator;
+        var color = new Color(0.65f, 0.4f, 1);
+        JourneyVisuals.Ring(transform, "CoordinatorCrown", color, 0.65f, 1.7f, 6);
+        commandLinks = new LineRenderer[4];
+        for (int i = 0; i < commandLinks.Length; i++)
+        {
+            var link = JourneyVisuals.Line(transform, "CommandLink", color, 0.055f);
+            link.useWorldSpace = true;
+            link.positionCount = 2;
+            link.enabled = false;
+            commandLinks[i] = link;
+        }
+    }
+
+    internal void Retreat()
+    {
+        if (IsDead) return;
+        IsDead = true;
+        gameObject.SetActive(false);
+        Destroy(gameObject);
+    }
+
     private float CommandSpeedScale => coordinator != null && !coordinator.IsDead && Time.time < commandUntil ? 1.18f : 1f;
     private bool HandleTactics()
     {

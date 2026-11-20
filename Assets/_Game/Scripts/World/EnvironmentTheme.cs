@@ -92,6 +92,9 @@ public class EnvironmentObjectDef
     [Tooltip("Смещение от центра арены (x/z) при fixedPlacement.")]
     public Vector2 fixedOffset;
 
+    [Tooltip("Local positions for the first instances. Remaining instances use the chosen placement area.")]
+    public Vector2[] initialOffsets;
+
     [Tooltip("Части, из которых собран объект.")]
     public EnvironmentPart[] parts;
 

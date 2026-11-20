@@ -70,7 +70,7 @@ public class AbilityManager : MonoBehaviour
 
     private void Update()
     {
-        if (!inputEnabled || GameModeManager.IsPvp)
+        if (!inputEnabled || GameModeManager.IsPvp || RamLiftArena.InTransit)
             return;
 
         HandleBombInput();

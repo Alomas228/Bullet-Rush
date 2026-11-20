@@ -200,7 +200,7 @@ public class WorldStructureGenerator : MonoBehaviour
     // Общие материалы для палитры: один материал на цвет вместо
     // создания копии на каждый куб (иначе каждая волна плодит
     // десятки экземпляров материалов).
-    private Material[] paletteMaterials;
+    private static readonly Dictionary<Color, Material> PaletteMaterials = new Dictionary<Color, Material>();
 
     private float groundY;
 
@@ -1796,15 +1796,8 @@ public class WorldStructureGenerator : MonoBehaviour
         }
         else if (allowPalette)
         {
-            EnsurePaletteMaterials();
-
-            if (paletteMaterials != null)
-            {
-                material =
-                    paletteMaterials[
-                        rng.Next(0, paletteMaterials.Length)
-                    ];
-            }
+            Color[] colors = palette != null && palette.Length > 0 ? palette : NeutralBlockColors;
+            material = GetPaletteMaterial(colors[rng.Next(colors.Length)]);
         }
 
         if (material == null)
@@ -1817,9 +1810,7 @@ public class WorldStructureGenerator : MonoBehaviour
             renderers[i].sharedMaterial = material;
     }
 
-    // Нейтральные серые блоки: игровые препятствия одни для всех карт
-    // и не должны перекрашиваться в цвета темы (только если палитра
-    // карты явно задана в её полях structures).
+    // Цвета для карт без собственной палитры.
     private static readonly Color[] NeutralBlockColors =
     {
         new Color(0.58f, 0.62f, 0.66f, 1f),
@@ -1827,43 +1818,26 @@ public class WorldStructureGenerator : MonoBehaviour
         new Color(0.77f, 0.79f, 0.81f, 1f)
     };
 
-    // Создаёт по одному материалу на цвет: явная палитра карты —
-    // или нейтральные серые кубы, когда палитра не задана (референс:
-    // блоки арены одинаковые на всех картах). Шейдер берём тот, что
-    // гарантированно попадает в билд (в отличие от Default-Material,
-    // который CreatePrimitive вешает в редакторе, но чей шейдер
-    // вырезается из собранной игры).
-    private void EnsurePaletteMaterials()
+    // Снимок раскладки хранит ссылки на эти материалы при перезагрузке сцены.
+    private static Material GetPaletteMaterial(Color color)
     {
-        if (paletteMaterials != null)
-            return;
+        if (PaletteMaterials.TryGetValue(color, out Material cached) && cached != null)
+            return cached;
 
         Shader shader = GetBuildSafeShader();
-
         if (shader == null)
-            return;
+            return null;
 
-        Color[] colors =
-            (palette != null &&
-             palette.Length > 0)
-                ? palette
-                : NeutralBlockColors;
-
-        paletteMaterials =
-            new Material[colors.Length];
-
-        for (int i = 0; i < colors.Length; i++)
+        var material = new Material(shader)
         {
-            Material material =
-                new Material(shader);
-
-            material.name =
-                $"Structure Palette {i}";
-
-            SetMaterialColor(material, colors[i]);
-
-            paletteMaterials[i] = material;
-        }
+            name = "Structure " + ColorUtility.ToHtmlStringRGB(color),
+            enableInstancing = true
+        };
+        SetMaterialColor(material, color);
+        if (material.HasProperty("_Smoothness"))
+            material.SetFloat("_Smoothness", 0.12f);
+        PaletteMaterials[color] = material;
+        return material;
     }
 
     // Возвращает шейдер, который точно есть в билде: URP Lit/Unlit

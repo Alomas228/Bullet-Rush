@@ -88,6 +88,16 @@ public partial class Enemy : MonoBehaviour
     private float bossDashTimer;
     private bool bossDashWindup;
     private bool bossDashing;
+    private RamLiftArena liftArena;
+    private float ramStunnedUntil;
+    private bool followupCharge;
+    private bool RamStunned => liftArena != null && Time.time < ramStunnedUntil;
+
+    internal void JoinLiftDuel(RamLiftArena arena)
+    {
+        liftArena = arena;
+        bossDashTimer = 0.35f;
+    }
     private float bossDashRemainingTime;
     private float bossDashRemainingDistance;
     private float bossDashTargetDistance;
@@ -1201,6 +1211,7 @@ public partial class Enemy : MonoBehaviour
             transform.position;
 
         UpdateTimers();
+        if (IsDead || RamStunned) return;
 
         if (enemyData == null)
         {
@@ -1267,6 +1278,8 @@ public partial class Enemy : MonoBehaviour
 
         // Превентивное скольжение по игроку (как стене).
         ApplyPreventivePlayerSlide(startPosition);
+        if (liftArena != null)
+            transform.position = liftArena.ClampFighter(transform.position, 1.25f);
     }
 
 
@@ -2407,7 +2420,7 @@ public partial class Enemy : MonoBehaviour
     // OnCollisionStay, поэтому проверяем дистанцию напрямую.
     private void TryApplyContactDamage()
     {
-        if (IsDead ||
+        if (IsDead || RamStunned ||
             player == null ||
             contactDamageTimer > 0f)
         {
@@ -3873,7 +3886,11 @@ public partial class Enemy : MonoBehaviour
             bossData.DashRange,
             Vector3.Distance(transform.position, player.position) + 1.5f);
 
-        if (HasStructureBlocking(
+        if (liftArena != null)
+        {
+            distance = liftArena.ChargeDistance(transform.position, direction, bossData.DashRange);
+        }
+        else if (HasStructureBlocking(
                 transform.position + Vector3.up * rayHeight,
                 direction,
                 distance))
@@ -3891,7 +3908,8 @@ public partial class Enemy : MonoBehaviour
             transform.position + direction * distance,
             bossData.DashWarningDuration,
             bossData.AbilityColor,
-            CompleteBossDash
+            CompleteBossDash,
+            liftArena != null ? GetContactRange() : 0f
         );
     }
 
@@ -3899,7 +3917,7 @@ public partial class Enemy : MonoBehaviour
     {
         bossDashWindup = false;
 
-        if (IsDead)
+        if (this == null || IsDead)
             return;
 
         bossDashing = true;
@@ -3919,7 +3937,23 @@ public partial class Enemy : MonoBehaviour
             GetBossDashSpeed() * Time.deltaTime,
             bossDashRemainingDistance);
 
-        if (HasStructureBlocking(
+        if (liftArena != null)
+        {
+            float sweep = step + 0.015f;
+            BoxCollider post = liftArena.FirstPost(transform.position, bossDashDirection, ref sweep);
+            if (post != null)
+            {
+                transform.position += bossDashDirection * Mathf.Max(0f, sweep - 0.01f);
+                bossDashing = false;
+                followupCharge = false;
+                ramStunnedUntil = Time.time + 2f;
+                liftArena.HitPost(post, BossPhase >= 2);
+                GameplayJourney.Instance?.Notify(GameplayJourney.T("Таран оглушён! Урон ×1,5",
+                    "Ram stunned! Damage ×1.5", "Koç sersemledi! Hasar ×1,5"));
+                return;
+            }
+        }
+        else if (HasStructureBlocking(
                 transform.position + Vector3.up * rayHeight,
                 bossDashDirection,
                 step + obstaclePadding))
@@ -3938,6 +3972,12 @@ public partial class Enemy : MonoBehaviour
         if (bossDashRemainingDistance <= 0.001f)
         {
             bossDashing = false;
+            if (liftArena != null && BossPhase == 3 && !followupCharge && player != null)
+            {
+                followupCharge = true;
+                BeginBossDash(player.position - transform.position);
+            }
+            else followupCharge = false;
             return;
         }
 
@@ -4015,7 +4055,7 @@ public partial class Enemy : MonoBehaviour
 
         Vector3 zonePosition = position;
 
-        zonePosition.y = 0.005f;
+        zonePosition.y = RamLiftArena.FloorY + 0.005f;
 
         GameObject zoneObject =
             Instantiate(
@@ -4026,6 +4066,8 @@ public partial class Enemy : MonoBehaviour
 
         BossAttackZone attackZone =
             zoneObject.GetComponent<BossAttackZone>();
+        if (liftArena != null)
+            zoneObject.transform.SetParent(liftArena.transform, true);
 
         if (attackZone != null)
         {
@@ -4357,6 +4399,7 @@ public partial class Enemy : MonoBehaviour
             GameplayJourney.Instance?.RecordIce();
             VfxFactory.TrySpawnExplosion(transform.position, 0.75f, new Color(0.65f, 0.95f, 1));
         }
+        if (RamStunned) damage *= 1.5f;
         currentHealth -= damage;
 
         SpawnDamageNumber(
@@ -4573,7 +4616,7 @@ public partial class Enemy : MonoBehaviour
     private void OnCollisionStay(
         Collision collision)
     {
-        if (IsDead)
+        if (IsDead || RamStunned)
             return;
 
         if (!collision.gameObject.CompareTag("Player"))
@@ -4867,6 +4910,7 @@ public partial class Enemy : MonoBehaviour
 
         if (isBoss)
         {
+            if (liftArena != null) position = liftArena.Landing;
             LootPickup.SpawnHealth(position, 0.35f);
             LootPickup.SpawnCoin(position, 12);
 

@@ -48,6 +48,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: 7.1, y: -2.1}
     parts:
     - shape: 0
       color: 5
@@ -67,7 +69,7 @@ MonoBehaviour:
       position: {x: 0, y: 0.5, z: 0.58}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 1.6, y: 0.1, z: 0.05}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 11f797e9545341239c1d44ac427b149e, type: 3}
   - name: LowWall
     count: 3
     placement: 1
@@ -97,7 +99,7 @@ MonoBehaviour:
       position: {x: 0, y: 0.5, z: 0.24}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.3, y: 0.5, z: 0.06}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 266fcfd7fe2a67065309e9bf8f1317b0, type: 3}
   - name: Car
     count: 2
     placement: 1
@@ -108,6 +110,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: -7, y: 4.1}
     parts:
     - shape: 0
       color: 5
@@ -133,7 +137,7 @@ MonoBehaviour:
       position: {x: 0.15, y: 0.35, z: 0.47}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.4, y: 0.12, z: 0.08}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 070a1766567d88215c4fae88c98e1d41, type: 3}
   - name: CornerSkyscraper
     count: 2
     placement: 2
@@ -193,7 +197,7 @@ MonoBehaviour:
       position: {x: 0.2, y: 3.6, z: 0.79}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.5, y: 0.16, z: 0.05}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 2e373598deeea9d0c9aa9a6780f3992b, type: 3}
   insideDecor:
   - name: StreetLamp
     count: 3
@@ -205,6 +209,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: -9.2, y: 5.7}
     parts:
     - shape: 2
       color: 5
@@ -218,7 +224,7 @@ MonoBehaviour:
       position: {x: 0, y: 2.85, z: 0}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.1, y: 0.1, z: 0.5}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 0e76815130cbc5d43c572e05f9104200, type: 3}
   - name: Bush
     count: 4
     placement: 1
@@ -242,7 +248,7 @@ MonoBehaviour:
       position: {x: 0.3, y: 0.4, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.4, y: 0.35, z: 0.4}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 1d8f0d21d0d8c2385cfdd50d492afd92, type: 3}
   - name: Bench
     count: 2
     placement: 1
@@ -253,6 +259,8 @@ MonoBehaviour:
     overrideMaxRadius: 0
     fixedPlacement: 0
     fixedOffset: {x: 0, y: 0}
+    initialOffsets:
+    - {x: 7.3, y: 6.2}
     parts:
     - shape: 0
       color: 6
@@ -278,7 +286,7 @@ MonoBehaviour:
       position: {x: 0.6, y: 0.2, z: -0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.07, y: 0.4, z: 0.07}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 205994287ae3affc0639317374e55972, type: 3}
   - name: Hydrant
     count: 2
     placement: 1
@@ -308,7 +316,7 @@ MonoBehaviour:
       position: {x: 0, y: 0.25, z: 0.16}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.06, y: 0.3, z: 0.06}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: e5ca12c2c1b9201b7c0308978a3c9b29, type: 3}
   outsideObjects:
   - name: TowerBlock
     count: 4
@@ -351,7 +359,7 @@ MonoBehaviour:
       position: {x: 0, y: 3.3, z: 0.95}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 1.2, y: 0.12, z: 0.05}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 1e2626328d3fd9f37bb1d58ba25a2525, type: 3}
   - name: OfficeBuilding
     count: 3
     placement: 0
@@ -393,7 +401,7 @@ MonoBehaviour:
       position: {x: -0.6, y: 2.3, z: 0.84}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.5, y: 0.14, z: 0.04}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: 11aed4b5417172c9ed0d9923469992e7, type: 3}
   - name: Highway
     count: 1
     placement: 0

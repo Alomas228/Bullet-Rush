@@ -123,7 +123,10 @@ public class EnvironmentLayer : MonoBehaviour
             slab.GetComponent<Renderer>();
 
         if (renderer != null)
+        {
             renderer.sharedMaterial = GetGroundMaterial(map);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
     }
 
     private static Material fallbackGroundMaterial;

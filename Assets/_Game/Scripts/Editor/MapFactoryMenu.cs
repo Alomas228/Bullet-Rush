@@ -145,35 +145,28 @@ public static class MapFactoryMenu
         {
             map = ScriptableObject.CreateInstance<GameMap>();
             AssetDatabase.CreateAsset(map, path);
+            map.groundMaterial = EnsureGroundMaterial(assetName, groundColor);
+            map.groundDecorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                Folder + "/ArenaArt/GroundDetails/" + assetName + ".prefab");
+            map.skyColor = sky;
+            map.ambientLightColor = ambient;
+            map.fogEnabled = fog;
+            map.fogColor = fogColor;
+            map.fogStartDistance = fogStart;
+            map.fogEndDistance = fogEnd;
+            map.structurePalette = NeutralBlockPalette;
         }
-
-        Material ground =
-            EnsureGroundMaterial(
-                assetName,
-                groundColor
-            );
 
         map.name = assetName;
         map.mapName = displayName;
         map.langKey =
             assetName.Replace("Map_", string.Empty).ToLowerInvariant();
-        map.groundMaterial = ground;
-        map.skyColor = sky;
-        map.ambientLightColor = ambient;
-        map.fogEnabled = fog;
-        map.fogColor = fogColor;
-        map.fogStartDistance = fogStart;
-        map.fogEndDistance = fogEnd;
 
         // Прогрессия и механика локации: карта открывается по уровню
         // и играет по своим правилам боя.
         map.unlockLevel = unlockLevel;
         map.mechanic = mechanic;
         map.mechanicStrength = 1f;
-
-        // Блоки боевой зоны нейтральные — единый слой всех карт,
-        // независимо от темы окружения.
-        map.structurePalette = NeutralBlockPalette;
 
         // Геометрия арены стабильна для конкретной карты.
         map.layoutSeed = layoutSeed;

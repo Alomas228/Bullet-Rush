@@ -214,7 +214,7 @@ public class Weapon : MonoBehaviour
 
     private void Update()
     {
-        if (weaponData == null)
+        if (weaponData == null || RamLiftArena.InTransit)
             return;
 
         UpdateFireTimer();

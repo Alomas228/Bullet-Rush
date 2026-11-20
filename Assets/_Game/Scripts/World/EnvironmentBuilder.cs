@@ -161,6 +161,7 @@ public static class EnvironmentBuilder
                     FindSpot(
                         rng,
                         def,
+                        i,
                         minDistance,
                         maxDistance,
                         cornerMin,
@@ -188,14 +189,24 @@ public static class EnvironmentBuilder
     private static Vector2 FindSpot(
         System.Random rng,
         EnvironmentObjectDef def,
+        int instanceIndex,
         float minDistance,
         float maxDistance,
         float cornerMin,
         float cornerMax,
         float spacing)
     {
-        if (def.fixedPlacement)
-            return def.fixedOffset;
+        if (def.fixedPlacement ||
+            (def.initialOffsets != null && instanceIndex < def.initialOffsets.Length))
+        {
+            Vector2 point = def.fixedPlacement ? def.fixedOffset : def.initialOffsets[instanceIndex];
+            if (def.footprint > 0f)
+            {
+                placed.Add(point);
+                placedFootprints.Add(def.footprint);
+            }
+            return point;
+        }
 
         float defMin =
             def.overrideMinRadius > 0f

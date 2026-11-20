@@ -17,7 +17,8 @@ public sealed class BossLineTelegraph : MonoBehaviour
         Vector3 end,
         float duration,
         Color color,
-        Action onComplete)
+        Action onComplete,
+        float halfWidth = 0f)
     {
         GameObject lineObject = new GameObject("BossLineTelegraph");
         BossLineTelegraph telegraph =
@@ -28,7 +29,8 @@ public sealed class BossLineTelegraph : MonoBehaviour
             end,
             duration,
             color,
-            onComplete);
+            onComplete,
+            halfWidth);
 
         return telegraph;
     }
@@ -38,21 +40,34 @@ public sealed class BossLineTelegraph : MonoBehaviour
         Vector3 end,
         float duration,
         Color color,
-        Action onComplete)
+        Action onComplete,
+        float halfWidth)
     {
         remaining = Mathf.Max(duration, 0f);
         completed = onComplete;
         baseColor = color;
         baseColor.a = Mathf.Max(baseColor.a, 0.75f);
 
-        start.y = 0.09f;
-        end.y = 0.09f;
+        start.y = RamLiftArena.FloorY + 0.09f;
+        end.y = start.y;
+        if (RamLiftArena.Active != null)
+            transform.SetParent(RamLiftArena.Active.transform, true);
 
         line = gameObject.AddComponent<LineRenderer>();
         line.useWorldSpace = true;
-        line.positionCount = 2;
-        line.SetPosition(0, start);
-        line.SetPosition(1, end);
+        if (halfWidth > 0f)
+        {
+            Vector3 side = Vector3.Cross(Vector3.up, (end - start).normalized) * halfWidth;
+            line.loop = true;
+            line.positionCount = 4;
+            line.SetPositions(new[] { start + side, end + side, end - side, start - side });
+        }
+        else
+        {
+            line.positionCount = 2;
+            line.SetPosition(0, start);
+            line.SetPosition(1, end);
+        }
         line.startWidth = 0.16f;
         line.endWidth = 0.08f;
         line.material = VfxSharedAssets.TraceBoltMaterial;

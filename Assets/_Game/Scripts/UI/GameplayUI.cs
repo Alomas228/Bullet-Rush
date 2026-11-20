@@ -173,10 +173,11 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
                 cachedWaveLeft = left;
 
                 // WAVE: 0 выглядит багом — во время обучения волны ещё нет.
-                waveText.text =
-                    wave > 0
-                        ? Lang.Get("hud.wave_left", wave, left)
-                        : string.Empty;
+                if (waveManager.HasCoordinatorObjective)
+                    waveText.text = GameplayJourney.T("Волна 3 · Уничтожь координатора",
+                        "Wave 3 · Eliminate the coordinator", "Dalga 3 · Koordinatörü yok et");
+                else
+                    waveText.text = wave > 0 ? Lang.Get("hud.wave_left", wave, left) : string.Empty;
             }
         }
 

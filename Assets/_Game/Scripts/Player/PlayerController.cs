@@ -166,7 +166,7 @@ public partial class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (!inputEnabled || Time.timeScale <= 0f)
+        if (!inputEnabled || RamLiftArena.InTransit || Time.timeScale <= 0f)
             return;
 
         HandleMovementInput();
@@ -177,7 +177,7 @@ public partial class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!inputEnabled)
+        if (!inputEnabled || RamLiftArena.InTransit)
             return;
 
         Move();
@@ -248,9 +248,7 @@ public partial class PlayerController : MonoBehaviour
         // заблокированные стеной — не двигаются вовсе.
         delta = SlideMovement(delta, true);
 
-        rb.MovePosition(
-            rb.position + delta
-        );
+        MoveOnArena(delta);
 
         ResolveStructureOverlap();
     }
@@ -364,11 +362,17 @@ public partial class PlayerController : MonoBehaviour
         // иначе из окружённой толпы не выбраться.
         delta = SlideMovement(delta, false);
 
-        rb.MovePosition(
-            rb.position + delta
-        );
+        MoveOnArena(delta);
 
         ResolveStructureOverlap();
+    }
+
+    private void MoveOnArena(Vector3 delta)
+    {
+        Vector3 next = rb.position + delta;
+        if (RamLiftArena.Active != null)
+            next = RamLiftArena.Active.ClampFighter(next, 0.85f);
+        rb.MovePosition(next);
     }
 
     private void ResolveStructureOverlap()
@@ -604,7 +608,7 @@ public partial class PlayerController : MonoBehaviour
         Plane groundPlane =
             new Plane(
                 Vector3.up,
-                Vector3.zero
+                Vector3.up * RamLiftArena.FloorY
             );
 
         if (groundPlane.Raycast(

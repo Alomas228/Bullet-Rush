@@ -291,7 +291,11 @@ public class EnemySpawner : MonoBehaviour
         // Ручной спавн (босс и его прислуга) не ведёт очередь:
         // сколько там будет врагов, решает сценарий, а не спавнер.
         if (active)
+        {
             PendingSpawnCount = 0;
+            currentWaveModifier = WaveModifier.None;
+            spawnedPositions.Clear();
+        }
     }
 
     public int MaxAliveEnemies =>
@@ -1431,13 +1435,17 @@ public class EnemySpawner : MonoBehaviour
             return null;
         }
 
-        GameObject enemyObject =
-            Instantiate(
-                prefab,
-                spawnPosition,
-                Quaternion.identity
-            );
+        return SpawnSingle(prefab, spawnPosition, spawnDuration, bossProfile);
+    }
 
+    internal Enemy SpawnLiftBoss(Vector3 position, float duration, BossData profile)
+    {
+        return bossPrefab != null ? SpawnSingle(bossPrefab, position, duration, profile) : null;
+    }
+
+    private Enemy SpawnSingle(GameObject prefab, Vector3 position, float spawnDuration, BossData bossProfile)
+    {
+        GameObject enemyObject = Instantiate(prefab, position, Quaternion.identity);
         float effectDuration =
             spawnDuration >= 0f
                 ? spawnDuration

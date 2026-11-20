@@ -18,8 +18,8 @@ MonoBehaviour:
   unlockLevel: 1
   mechanic: 0
   mechanicStrength: 1
-  groundMaterial: {fileID: 2100000, guid: 2ad2ac89c43f8bb40ac8c167a99eaad6, type: 2}
-  groundDecorPrefab: {fileID: 0}
+  groundMaterial: {fileID: 2100000, guid: 72403f2f9497d4246952c7b703bc0898, type: 2}
+  groundDecorPrefab: {fileID: 4186967400244600867, guid: 7984e8d8aba3032148da7fea77c8553b, type: 3}
   environmentPrefab: {fileID: 0}
   environmentTheme: {fileID: 11400000, guid: d31bebd5b9a15eb4dbbc04dd818a1682, type: 2}
   buildThemeEnvironment: 1
@@ -43,12 +43,12 @@ MonoBehaviour:
     centerClearRadius: 9
   structureMaterials: []
   structurePalette:
-  - {r: 0.58, g: 0.62, b: 0.66, a: 1}
-  - {r: 0.67, g: 0.71, b: 0.74, a: 1}
-  - {r: 0.77, g: 0.79, b: 0.81, a: 1}
-  skyColor: {r: 0.16, g: 0.27, b: 0.22, a: 1}
-  ambientLightColor: {r: 0.22, g: 0.27, b: 0.22, a: 1}
+  - {r: 0.4588, g: 0.5137, b: 0.3961, a: 1}
+  - {r: 0.5176, g: 0.5725, b: 0.4588, a: 1}
+  - {r: 0.5765, g: 0.6039, b: 0.5176, a: 1}
+  skyColor: {r: 0.5765, g: 0.6627, b: 0.6000, a: 1}
+  ambientLightColor: {r: 0.5216, g: 0.5529, b: 0.4941, a: 1}
   fogEnabled: 1
-  fogColor: {r: 0.16, g: 0.22, b: 0.18, a: 1}
+  fogColor: {r: 0.6039, g: 0.6745, b: 0.6078, a: 1}
   fogStartDistance: 59.5
   fogEndDistance: 122.7

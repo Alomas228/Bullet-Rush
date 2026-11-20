@@ -82,6 +82,13 @@ public class WaveManager : MonoBehaviour
     public bool EndlessMode { get; private set; }
     public bool AwaitingContinuationChoice { get; private set; }
     private CampaignCompletionUI completionChoice;
+    private Enemy objectiveCoordinator;
+    private readonly List<Enemy> escort = new List<Enemy>(4);
+    private RamLiftArena ramLift;
+    public bool HasCoordinatorObjective => objectiveCoordinator != null && !objectiveCoordinator.IsDead;
+
+    private bool IsRamDuel => CurrentWave == BossCampaign.Interval &&
+        GetBossForWave(CurrentWave) != null && GetBossForWave(CurrentWave).CanDash;
 
     /// <summary>
     /// Сколько врагов ещё предстоит увидеть: живые на поле плюс те,
@@ -174,6 +181,7 @@ public class WaveManager : MonoBehaviour
 
     public void DeactivateForPvp()
     {
+        ClearEncounter();
         gameStarted = false;
         waveActive = false;
         waitingForNextWave = false;
@@ -265,6 +273,7 @@ public class WaveManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        ClearEncounter();
         Enemy.OnEnemyKilled -= HandleCampaignBossKilled;
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
@@ -294,6 +303,7 @@ public class WaveManager : MonoBehaviour
         }
         else if (state == GameState.Menu)
         {
+            ClearEncounter();
             AwaitingContinuationChoice = false;
             if (completionChoice != null) completionChoice.Hide();
             gameStarted = false;
@@ -345,7 +355,7 @@ public class WaveManager : MonoBehaviour
             enemySpawner != null &&
             enemySpawner.IsSpawning;
 
-        if (spawnerBusy || Enemy.AliveCount > 0)
+        if (spawnerBusy || Enemy.AliveCount > 0 || ramLift != null)
             return;
 
         {
@@ -706,6 +716,8 @@ public class WaveManager : MonoBehaviour
                 subtitle = bossProfile.BossName;
         }
 
+        if (CurrentWave == 3) subtitle = CoordinatorObjectiveText();
+
         if (isFirstWave &&
             RunModifierManager.Instance != null &&
             RunModifierManager.Instance.HasAny)
@@ -716,7 +728,7 @@ public class WaveManager : MonoBehaviour
         if (waveUI != null)
             waveUI.ShowWave(CurrentWave, subtitle);
 
-        if (!isFirstWave && !isBossWave)
+        if (!isFirstWave && (!isBossWave || IsRamDuel))
         {
             yield return new WaitForSeconds(
                 waveDisplayTime
@@ -810,6 +822,8 @@ public class WaveManager : MonoBehaviour
 
     private void HandleCampaignBossKilled(Enemy enemy)
     {
+        if (objectiveCoordinator != null && enemy == objectiveCoordinator)
+            ReleaseEscort();
         if (!IsBossWave(CurrentWave) || enemy == null || enemy.GetEnemyData() == null ||
             enemy.GetEnemyData().EnemyType != EnemyType.Boss) return;
         BossesDefeated = Mathf.Max(BossesDefeated, BossCampaign.IndexForWave(CurrentWave) + 1);
@@ -841,6 +855,14 @@ public class WaveManager : MonoBehaviour
             return;
 
         enemySpawner.CurrentWave = CurrentWave;
+
+        if (CurrentWave == 3)
+        {
+            eventDirector?.OnWaveStarted(CurrentWave, false);
+            enemySpawner.SetManualSpawning(true);
+            StartCoroutine(SpawnCoordinatorSquad());
+            return;
+        }
 
         // Босс-волна начинает «материализацию» сразу после каунтдауна.
         // События посреди босс-волны не запускаем — у босса и так
@@ -969,6 +991,30 @@ public class WaveManager : MonoBehaviour
 
     private IEnumerator BossWaveRoutine(BossData bossProfile)
     {
+        if (IsRamDuel && playerHealth != null)
+        {
+            ramLift = RamLiftArena.Create(playerHealth.transform);
+            yield return ramLift.Raise();
+            Enemy ram = enemySpawner.SpawnLiftBoss(ramLift.BossStart, bossSpawnInDuration, bossProfile);
+            bool spawned = ram != null;
+            if (spawned)
+            {
+                ram.JoinLiftDuel(ramLift);
+                ramLift.SetOpponent(ram);
+                GameplayJourney.Instance?.Notify(GameplayJourney.T("Направь рывок Тарана в жёлтую опору",
+                    "Bait the Ram into a yellow post", "Koçu sarı direğe yönlendir"));
+                while (ram != null && !ram.IsDead) yield return null;
+            }
+            yield return ramLift.Lower();
+            ramLift.Close();
+            ramLift = null;
+            if (spawned)
+            {
+                enemySpawner.SetManualSpawning(false);
+                yield break;
+            }
+        }
+
         Vector3 bossPosition =
             enemySpawner.GetPlayerRingSpawnPosition();
 
@@ -1007,6 +1053,51 @@ public class WaveManager : MonoBehaviour
 
         int index = BossCampaign.IndexForWave(wave, EndlessMode);
         return index < bossRotation.Count ? bossRotation[index] : null;
+    }
+
+    private static string CoordinatorObjectiveText() => GameplayJourney.T(
+        "Уничтожь координатора с фиолетовой короной", "Eliminate the purple-crowned coordinator",
+        "Mor taçlı koordinatörü yok et");
+
+    private IEnumerator SpawnCoordinatorSquad()
+    {
+        for (int attempt = 0; attempt < 6 && objectiveCoordinator == null; attempt++)
+        {
+            objectiveCoordinator = enemySpawner.SpawnEnemyAtPosition(EnemyType.Normal,
+                enemySpawner.GetPlayerRingSpawnPosition(), 0.6f);
+            if (objectiveCoordinator == null) yield return null;
+        }
+        if (objectiveCoordinator == null)
+        {
+            enemySpawner.SpawnWave(GetEnemyCountForWave(CurrentWave), CurrentWave, currentArchetype);
+            yield break;
+        }
+        objectiveCoordinator.AssignCoordinator();
+        Vector3 center = objectiveCoordinator.transform.position;
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 offset = Quaternion.Euler(0f, i * 90f + 45f, 0f) * Vector3.forward * 3.5f;
+            Enemy guard = enemySpawner.SpawnEnemyAtPosition(EnemyType.Normal, center + offset, 0.6f);
+            if (guard != null) escort.Add(guard);
+        }
+        enemySpawner.SetManualSpawning(false);
+        GameplayJourney.Instance?.Notify(CoordinatorObjectiveText());
+    }
+
+    private void ReleaseEscort()
+    {
+        objectiveCoordinator = null;
+        foreach (Enemy guard in escort)
+            if (guard != null) guard.Retreat();
+        escort.Clear();
+    }
+
+    private void ClearEncounter()
+    {
+        if (objectiveCoordinator != null) objectiveCoordinator.Retreat();
+        ReleaseEscort();
+        if (ramLift != null) ramLift.Close();
+        ramLift = null;
     }
 
     private Vector3 GetMinionPositionAround(
