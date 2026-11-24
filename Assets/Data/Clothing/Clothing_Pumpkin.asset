@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a2b3c4d5e6f708192a3b4c5d6e7f800, type: 3}
+  m_Name: Clothing_Pumpkin
+  m_EditorClassIdentifier: Assembly-CSharp::ClothingData
+  langKey: pumpkin
+  clothingName: Тыква
+  description: Хитрая улыбка под зелёным хвостиком.
+  unlockLevel: 16
+  price: 270
+  bodyColor: {r: 1, g: 1, b: 1, a: 1}
+  preview: {fileID: 21300000, guid: 85d1eea5706152fa29acc4076b4772eb, type: 3}
+  bodyMesh: {fileID: 4300000, guid: 595f0a1845a5c4da941f6e01fce64f00, type: 2}
+  skinTexture: {fileID: 2800000, guid: a16a314aae403360bc8786141a9193a4, type: 3}

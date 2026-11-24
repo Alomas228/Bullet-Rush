@@ -2,21 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Одна карточка улучшения на экране «Улучшения».
-///
-/// Структура (сверху вниз):
-///  - область под иконку + подпись группы;
-///  - название параметра;
-///  - короткое описание;
-///  - «УРОВЕНЬ N / 10» и полоса прогресса уровня
-///    (это прогресс конкретного улучшения, а не опыт);
-///  - «СЕЙЧАС» и «ДАЛЬШЕ» с бонусами;
-///  - кнопка «УЛУЧШИТЬ» с ценой, либо «МАКСИМАЛЬНЫЙ УРОВЕНЬ».
-///
-/// Сам компонент ничего не покупает — обработчики кнопок вешает
-/// PermanentUpgradesUI. Здесь только отображение состояния.
-/// </summary>
+/// <summary>Displays the current and next bonus. The controller handles purchases and selection.</summary>
 public class PermanentUpgradeCardView : MonoBehaviour
 {
     [Header("Surface")]
@@ -50,498 +36,107 @@ public class PermanentUpgradeCardView : MonoBehaviour
     [SerializeField] private Image maxedImage;
     [SerializeField] private TMP_Text maxedLabel;
 
-    private const float FaceInset = 3f;
-    private const float FaceInsetSelected = 7f;
-    private const float SelectedScale = 1.03f;
-
-    private Color accent = Color.gray;
-    private PermanentUpgradeCategory category;
-    private bool selected;
-    private bool affordable = true;
-    private bool maxed;
-
     public PermanentUpgradeStat Stat { get; private set; }
-
     public bool HasStat { get; private set; }
-
     public Button BuyButton => buyButton;
-
     public Button SelectButton => selectTarget;
 
-    /// <summary>
-    /// Назначает карточке параметр и его группу. Вызывается, когда
-    /// карточка попадает на видимую страницу.
-    /// </summary>
+    public void Prepare(Transform sheet, float x, float y)
+    {
+        const float width = 684;
+        const float height = 262;
+        // The scene builder puts the view on CardFace together with a vertical layout.
+        if (TryGetComponent<VerticalLayoutGroup>(out var originalLayout))
+            originalLayout.enabled = false;
+        MenuSheet.Place(this, sheet, x, y, width, height);
+        MenuSheet.HideChildren(transform);
+        MenuSheet.Place(frame, transform, 0, 0, width, height);
+        MenuSheet.Surface(frame, MenuSheet.Rule);
+        MenuSheet.Place(selectTarget, transform, 2, 2, width - 4, height - 5);
+        Image paper = selectTarget.GetComponent<Image>();
+        MenuSheet.Surface(paper, MenuSheet.Card, true);
+        selectTarget.targetGraphic = paper;
+        MenuSheet.Place(iconArea, transform, 20, 20, 82, 82);
+        MenuSheet.Surface(iconArea, MenuSheet.Sage);
+        MenuSheet.Place(iconMark, iconArea.transform, 18, 18, 46, 46);
+        iconMark.preserveAspect = true;
+        iconMark.type = Image.Type.Simple;
+        iconMark.color = MenuSheet.Ink;
+        MenuSheet.Label(categoryText, transform, 122, 16, 352, 26, 17, MenuSheet.Muted);
+        MenuSheet.Label(nameText, transform, 121, 42, 536, 47, 32, MenuSheet.Ink, heading: true);
+        MenuSheet.Label(descriptionText, transform, 22, 106, 637, 44, 20, MenuSheet.Muted);
+        descriptionText.font = ArcadeKitAssets.Body;
+
+        MenuSheet.Place(levelBar, transform, 22, 155, 640, 9);
+        MenuSheet.Surface(levelBar.GetComponent<Image>(), MenuSheet.Recess);
+        MenuSheet.Surface(levelBar.fillRect.GetComponent<Image>(), MenuSheet.Ink);
+        MenuSheet.Label(levelText, transform, 465, 18, 195, 25, 18, MenuSheet.Muted, TextAlignmentOptions.Right);
+
+        // The existing captions are localized along with the rest of the scene.
+        var currentCaption = currentValueText.transform.parent.Find("LabelText").GetComponent<TMP_Text>();
+        var nextCaption = nextValueText.transform.parent.Find("LabelText").GetComponent<TMP_Text>();
+        MenuSheet.Label(currentCaption, transform, 22, 183, 128, 24, 16, MenuSheet.Muted);
+        MenuSheet.Label(currentValueText, transform, 22, 206, 128, 35, 27, MenuSheet.Ink);
+        MenuSheet.Label(nextCaption, transform, 166, 183, 137, 24, 16, MenuSheet.Muted);
+        MenuSheet.Label(nextValueText, transform, 166, 206, 137, 35, 27, MenuSheet.Ink);
+        MenuSheet.Place(buyButton, transform, 336, 186, 326, 57);
+        MenuSheet.Surface(buyImage, MenuSheet.Ochre, true);
+        buyButton.targetGraphic = buyImage;
+        MenuSheet.Label(buyLabel, buyButton.transform, 10, 0, 184, 57, 22, MenuSheet.Ink, TextAlignmentOptions.Center);
+        MenuSheet.Place(buyCostBadge, buyButton.transform, 201, 8, 114, 41);
+        MenuSheet.Surface(buyCostBadge, MenuSheet.Ink);
+        MenuSheet.Place(buyCoinIcon, buyCostBadge.transform, 8, 9, 23, 23);
+        buyCoinIcon.sprite = ArcadeKitAssets.Icon("coin");
+        buyCoinIcon.type = Image.Type.Simple;
+        buyCoinIcon.color = MenuSheet.Ochre;
+        MenuSheet.Label(buyCost, buyCostBadge.transform, 30, 0, 77, 41, 21, MenuSheet.Paper, TextAlignmentOptions.Center);
+        MenuSheet.Place(maxedImage, transform, 336, 186, 326, 57);
+        MenuSheet.Surface(maxedImage, MenuSheet.Sage);
+        MenuSheet.Label(maxedLabel, maxedImage.transform, 8, 0, 310, 57, 20, MenuSheet.Ink, TextAlignmentOptions.Center);
+    }
+
     public void Bind(PermanentUpgradeStat stat)
     {
         Stat = stat;
         HasStat = true;
-
-        PermanentUpgradeCategory category =
-            PermanentUpgradeCategories.Get(stat);
-
-        this.category = category;
-
-        accent = UpgradesWireframeTheme.GetAccent(category);
-
-        if (frame != null)
-            frame.color = accent;
-
-        if (iconArea != null)
-            iconArea.color = UpgradesWireframeTheme.Wash(accent, 0.12f);
-
-        if (iconMark != null)
+        var category = PermanentUpgradeCategories.Get(stat);
+        categoryText.text = PermanentUpgradeCategories.GetLabel(category);
+        nameText.text = PermanentUpgrades.GetName(stat);
+        descriptionText.text = PermanentUpgrades.GetDescription(stat);
+        iconMark.sprite = Glyph(category);
+        switch (category)
         {
-            Sprite glyph = Glyph(category);
-
-            if (glyph != null)
-                iconMark.sprite = glyph;
-
-            iconMark.color = accent;
+            case PermanentUpgradeCategory.Health: iconArea.color = MenuSheet.Sage; break;
+            case PermanentUpgradeCategory.Speed: iconArea.color = MenuSheet.Blue; break;
+            case PermanentUpgradeCategory.Critical: iconArea.color = MenuSheet.Ochre; break;
+            default: iconArea.color = MenuSheet.Coral; break;
         }
-
-        if (categoryText != null)
-        {
-            categoryText.text =
-                PermanentUpgradeCategories.GetLabel(category);
-
-            categoryText.color = accent;
-        }
-
-        if (nameText != null)
-            nameText.text = PermanentUpgrades.GetName(stat);
-
-        if (descriptionText != null)
-        {
-            descriptionText.text =
-                PermanentUpgrades.GetDescription(stat);
-        }
-
-        ApplyUnifiedStyle();
     }
 
-    /// <summary>
-    /// Обновляет уровень, прогресс, бонусы и доступность покупки.
-    /// </summary>
     public void Refresh(int coins)
     {
-        if (!HasStat)
-            return;
-
+        if (!HasStat) return;
         int level = PermanentUpgrades.GetLevel(Stat);
-
-        maxed = level >= PermanentUpgrades.MaxLevel;
-
         int cost = PermanentUpgrades.GetCost(Stat);
-
-        affordable = !maxed && coins >= cost;
-
-        if (levelText != null)
-        {
-            levelText.text = Lang.Get(
-                "upg.level",
-                level,
-                PermanentUpgrades.MaxLevel
-            );
-        }
-
-        // Это прогресс уровня улучшения, а не опыт игрока.
-        if (levelBar != null)
-        {
-            levelBar.SetValueWithoutNotify(
-                (float)level / PermanentUpgrades.MaxLevel
-            );
-        }
-
-        if (currentValueText != null)
-        {
-            currentValueText.text =
-                PermanentUpgrades.FormatLevelTotal(Stat);
-        }
-
-        if (nextValueText != null)
-        {
-            nextValueText.text = maxed
-                ? Lang.Get("upg.dash_marker")
-                : PermanentUpgrades.FormatLevelNext(Stat);
-        }
-
-        SetActiveSafe(buyButton, !maxed);
-        SetActiveSafe(maxedImage, maxed);
-
-        if (maxedLabel != null)
-            maxedLabel.text = Lang.Get("upg.maxed");
-
-        ApplyUnifiedStyle();
-
-        if (maxed)
-            return;
-
-        if (buyLabel != null)
-            buyLabel.text = Lang.Get("upg.buy");
-
-        if (buyCost != null)
-            buyCost.text = cost.ToString();
-
-        if (buyButton != null)
-            buyButton.interactable = affordable;
-
-        if (buyImage != null)
-        {
-            buyImage.color = affordable
-                ? accent
-                : UpgradesWireframeTheme.SurfaceDisabled;
-        }
-
-        Color textColor = affordable
-            ? ArcadeUiPalette.BackgroundDeep
-            : UpgradesWireframeTheme.TextMuted;
-
-        if (buyLabel != null)
-            buyLabel.color = textColor;
-
-        if (buyCost != null)
-            buyCost.color = textColor;
-
-        if (buyCoinIcon != null)
-            buyCoinIcon.color = textColor;
-
-        if (buyCostBadge != null)
-        {
-            buyCostBadge.color = affordable
-                ? UpgradesWireframeTheme.White(0.22f)
-                : UpgradesWireframeTheme.White(0.12f);
-        }
-
-        ApplyUnifiedStyle();
+        bool maxed = level >= PermanentUpgrades.MaxLevel;
+        bool affordable = coins >= cost;
+        levelText.text = Lang.Get("upg.level", level, PermanentUpgrades.MaxLevel);
+        levelBar.SetValueWithoutNotify((float)level / PermanentUpgrades.MaxLevel);
+        currentValueText.text = PermanentUpgrades.FormatLevelTotal(Stat);
+        nextValueText.text = maxed ? Lang.Get("upg.dash_marker") : PermanentUpgrades.FormatLevelNext(Stat);
+        buyButton.gameObject.SetActive(!maxed);
+        maxedImage.gameObject.SetActive(maxed);
+        maxedLabel.text = Lang.Get("upg.maxed");
+        buyButton.interactable = affordable && !maxed;
+        buyImage.color = affordable ? MenuSheet.Ochre : MenuSheet.Recess;
+        buyLabel.text = Lang.Get("upg.buy");
+        buyLabel.color = affordable ? MenuSheet.Ink : MenuSheet.Muted;
+        buyCost.text = cost.ToString();
     }
 
-    /// <summary>
-    /// Визуальное выделение выбранной карточки: чуть крупнее,
-    /// рамка темнее, сверху появляется индикатор.
-    /// </summary>
     public void SetSelected(bool value)
     {
-        selected = value;
-
-        if (face != null)
-        {
-            float inset = value ? FaceInsetSelected : FaceInset;
-
-            face.offsetMin = new Vector2(inset, inset);
-            face.offsetMax = new Vector2(-inset, -inset);
-        }
-
-        SetActiveSafe(selectedIndicator, value);
-
-        transform.localScale = Vector3.one * (value ? SelectedScale : 1f);
-
-        ApplyUnifiedStyle();
-    }
-
-    private static void SetActiveSafe(Component component, bool value)
-    {
-        if (component == null)
-            return;
-
-        GameObject target = component.gameObject;
-
-        if (target.activeSelf != value)
-            target.SetActive(value);
-    }
-
-    private void ApplyUnifiedStyle()
-    {
-        if (frame != null)
-            frame.color = selected ? ArcadeUiTheme.Gold : ArcadeUiTheme.Line;
-
-        if (face != null)
-        {
-            VerticalLayoutGroup layout =
-                face.GetComponent<VerticalLayoutGroup>();
-
-            if (layout != null && layout.enabled)
-                layout.enabled = false;
-
-            Transform surface = face.Find("CardSurface");
-
-            if (surface is RectTransform surfaceRect)
-                ArcadeCardVisuals.Stretch(surfaceRect, 0f);
-
-            if (surface != null)
-            {
-                Image image = surface.GetComponent<Image>();
-
-                if (image != null)
-                {
-                    image.sprite = ArcadeKitAssets.RoundRect;
-                    image.type = Image.Type.Sliced;
-                    image.color = ArcadeUiTheme.Panel;
-                    image.pixelsPerUnitMultiplier = 1f;
-                }
-            }
-        }
-
-        if (iconArea != null)
-        {
-            RectTransform art = iconArea.rectTransform;
-
-            art.anchorMin = new Vector2(0f, 1f);
-            art.anchorMax = new Vector2(0f, 1f);
-            art.pivot = new Vector2(0.5f, 0.5f);
-            art.sizeDelta = new Vector2(310f, 198f);
-            art.anchoredPosition = new Vector2(177f, -123f);
-
-            iconArea.sprite = ArcadeKitAssets.RoundRect;
-            iconArea.type = Image.Type.Sliced;
-            iconArea.pixelsPerUnitMultiplier = 1f;
-            iconArea.color = ArcadeCardVisuals.ArtTint(accent);
-
-            ArcadeCardVisuals.Pattern(art);
-        }
-
-        ArcadeCardVisuals.AccentRail(transform, accent);
-
-        if (iconMark != null)
-        {
-            RectTransform rect = iconMark.rectTransform;
-
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(70f, 70f);
-            rect.anchoredPosition = new Vector2(0f, 8f);
-
-            Sprite glyph = Glyph(category);
-
-            if (glyph != null)
-                iconMark.sprite = glyph;
-
-            iconMark.preserveAspect = true;
-            iconMark.color = accent;
-        }
-
-        if (categoryText != null)
-        {
-            RectTransform rect = categoryText.rectTransform;
-
-            rect.anchorMin = new Vector2(0.5f, 0f);
-            rect.anchorMax = new Vector2(0.5f, 0f);
-            rect.pivot = new Vector2(0.5f, 0f);
-            rect.sizeDelta = new Vector2(280f, 22f);
-            rect.anchoredPosition = new Vector2(0f, 14f);
-
-            ArcadeCardVisuals.Text(
-                categoryText,
-                ArcadeKitAssets.BodyBold,
-                13f,
-                accent,
-                TextAlignmentOptions.Center,
-                FontStyles.Bold | FontStyles.UpperCase
-            );
-        }
-
-        PlaceText(nameText, 250f, 34f, 28f, ArcadeUiTheme.TextPrimary,
-            FontStyles.Bold);
-        PlaceText(descriptionText, 292f, 44f, 15f, ArcadeUiTheme.TextSecondary,
-            FontStyles.Normal);
-        PlaceText(levelText, 335f, 22f, 16f, ArcadeUiTheme.TextPrimary,
-            FontStyles.Bold);
-
-        if (levelBar != null)
-        {
-            RectTransform rect = levelBar.transform as RectTransform;
-
-            if (rect != null)
-            {
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(0f, 1f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(310f, 10f);
-                rect.anchoredPosition = new Vector2(177f, -360f);
-            }
-
-            Image track = levelBar.GetComponent<Image>();
-
-            if (track != null)
-            {
-                track.sprite = ArcadeKitAssets.BarTrack;
-                track.type = Image.Type.Sliced;
-                track.color = ArcadeUiTheme.Ink;
-                track.pixelsPerUnitMultiplier = 1f;
-            }
-
-            if (levelBar.fillRect != null)
-            {
-                Image fill = levelBar.fillRect.GetComponent<Image>();
-
-                if (fill != null)
-                {
-                    fill.sprite = ArcadeKitAssets.BarFill;
-                    fill.type = Image.Type.Sliced;
-                    fill.color = accent;
-                    fill.pixelsPerUnitMultiplier = 1f;
-                }
-            }
-        }
-
-        if (face != null)
-        {
-            Image stats = ArcadeCardVisuals.InfoPanel(
-                face,
-                "CardStats",
-                372f,
-                66f
-            );
-
-            Transform current = face.Find("CurrentRow");
-            Transform next = face.Find("NextRow");
-
-            if (current != null)
-            {
-                stats.transform.SetSiblingIndex(current.GetSiblingIndex());
-
-                RectTransform rect = current as RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(0f, 1f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(310f, 24f);
-                rect.anchoredPosition = new Vector2(177f, -389f);
-            }
-
-            if (next != null)
-            {
-                RectTransform rect = next as RectTransform;
-                rect.anchorMin = new Vector2(0f, 1f);
-                rect.anchorMax = new Vector2(0f, 1f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(310f, 24f);
-                rect.anchoredPosition = new Vector2(177f, -422f);
-            }
-
-            StyleRow(current, false);
-            StyleRow(next, true);
-        }
-
-        ArcadeCardVisuals.Divider(transform, 443f);
-
-        if (buyButton != null)
-        {
-            RectTransform rect = buyButton.transform as RectTransform;
-
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(310f, 64f);
-            rect.anchoredPosition = new Vector2(177f, -480f);
-        }
-
-        ArcadeCardVisuals.Action(buyImage, buyLabel, affordable);
-
-        if (buyCostBadge != null)
-        {
-            buyCostBadge.sprite = ArcadeKitAssets.RoundRect;
-            buyCostBadge.type = Image.Type.Sliced;
-            buyCostBadge.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.8f);
-        }
-
-        if (buyCost != null)
-        {
-            buyCost.font = ArcadeKitAssets.BodyBold;
-            buyCost.color = affordable
-                ? ArcadeUiTheme.Gold
-                : ArcadeUiTheme.TextMuted;
-        }
-
-        if (buyCoinIcon != null)
-            buyCoinIcon.color = affordable
-                ? ArcadeUiTheme.Gold
-                : ArcadeUiTheme.TextMuted;
-
-        if (maxedImage != null)
-        {
-            RectTransform rect = maxedImage.rectTransform;
-
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(310f, 64f);
-            rect.anchoredPosition = new Vector2(177f, -480f);
-
-            maxedImage.sprite = ArcadeKitAssets.RoundRect;
-            maxedImage.type = Image.Type.Sliced;
-            maxedImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.32f);
-        }
-
-        if (maxedLabel != null)
-        {
-            maxedLabel.font = ArcadeKitAssets.BodyBold;
-            maxedLabel.fontSize = 18f;
-            maxedLabel.color = ArcadeUiTheme.Gold;
-            maxedLabel.alignment = TextAlignmentOptions.Center;
-            maxedLabel.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-        }
-    }
-
-    private static void PlaceText(
-        TMP_Text text,
-        float top,
-        float height,
-        float size,
-        Color color,
-        FontStyles style)
-    {
-        if (text == null)
-            return;
-
-        RectTransform rect = text.rectTransform;
-
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(310f, height);
-        rect.anchoredPosition = new Vector2(177f, -top);
-
-        ArcadeCardVisuals.Text(
-            text,
-            size >= 26f ? ArcadeKitAssets.Display : ArcadeKitAssets.Body,
-            size,
-            color,
-            TextAlignmentOptions.Left,
-            style
-        );
-    }
-
-    private static void StyleRow(Transform row, bool next)
-    {
-        if (row == null)
-            return;
-
-        TMP_Text label = FindText(row, "LabelText");
-        TMP_Text value = FindText(row, "ValueText");
-
-        if (label != null)
-        {
-            label.font = ArcadeKitAssets.Body;
-            label.fontSize = 13f;
-            label.color = ArcadeUiTheme.TextMuted;
-            label.alignment = TextAlignmentOptions.Left;
-        }
-
-        if (value != null)
-        {
-            value.font = ArcadeKitAssets.BodyBold;
-            value.fontSize = next ? 18f : 20f;
-            value.color = ArcadeUiTheme.TextPrimary;
-            value.alignment = TextAlignmentOptions.Right;
-        }
-    }
-
-    private static TMP_Text FindText(Transform parent, string name)
-    {
-        Transform child = parent.Find(name);
-
-        return child != null ? child.GetComponent<TMP_Text>() : null;
+        frame.color = value ? MenuSheet.Ink : MenuSheet.Rule;
     }
 
     private static Sprite Glyph(PermanentUpgradeCategory category)

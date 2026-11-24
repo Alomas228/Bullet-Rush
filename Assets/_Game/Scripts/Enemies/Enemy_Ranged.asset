@@ -15,18 +15,18 @@ MonoBehaviour:
   enemyName: Ranged
   enemyType: 3
   maxHealth: 350
-  moveSpeed: 1.5
+  moveSpeed: 1.8
   contactDamage: 10
   damageCooldown: 1
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 30
+  projectileDamage: 23
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1
   knockbackResistance: 0.35
-  waveHealthPercent: 0.15
-  waveDamagePercent: 0.05
+  waveHealthPercent: 0.11
+  waveDamagePercent: 0.028
   waveScorePercent: 0.1
   scoreValue: 20
   preferredDistance: 6
@@ -41,3 +41,18 @@ MonoBehaviour:
   allyRevengeTime: 2.5
   variantChance: 0.15
   variantMinWave: 5
+  rangedWeaponVisuals:
+  - {fileID: 8559010253350651214, guid: cf87e7567a1d2d3a17761d237a7a02b6, type: 3}
+  - {fileID: 9071840178064284164, guid: 4672628a0300dc7700a773e6fcdcacd8, type: 3}
+  - {fileID: 8559010253350651214, guid: 7a3646e8ae9f01f4bb7c201f2d5872ed, type: 3}
+  - {fileID: 8559010253350651214, guid: 0fa91de4ccdf8fe7aac350645fcb2f34, type: 3}
+  mobileWeaponVisuals:
+  - {fileID: 105748006008224434, guid: a36f0b3b60c103879a9bd1b49f068a0e, type: 3}
+  - {fileID: 105748006008224434, guid: 42dc7cd041bbb69d93d4eea0bafe8c5c, type: 3}
+  - {fileID: 105748006008224434, guid: 08b970938608a7efdb1a5dbfc68ffbdf, type: 3}
+  bodySkinMaterial: {fileID: 2100000, guid: 0bfbf8897514a2fed82c03c52763e58a, type: 2}
+  bodySkins:
+  - {fileID: 4300000, guid: ac72953d33e8a54992f0d65c88d8a0cf, type: 2}
+  - {fileID: 4300000, guid: aaaa584d770ecf461fc65bd95c518018, type: 2}
+  - {fileID: 4300000, guid: 6c4de1fd8381be9004e0c27965b43cce, type: 2}
+  - {fileID: 4300000, guid: ab3bd4d3b10aea4102df9ff154ba0662, type: 2}

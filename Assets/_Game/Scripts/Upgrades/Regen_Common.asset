@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Regenerate health over time
   type: 9
   rarity: 0
-  percentValue: 1
+  percentValue: 0.65
   maxStacks: 3
   weaponData: {fileID: 0}
   effectData: {fileID: 0}

@@ -38,6 +38,7 @@ public class AchievementManager : MonoBehaviour
     private readonly Dictionary<int, int> eventKillCounts = new Dictionary<int, int>();
 
     private bool runActive;
+    private bool runCounted;
     private bool runTookDamage;
     private int runKillsSinceDamage;
     private int runPerfectWaves;
@@ -91,6 +92,7 @@ public class AchievementManager : MonoBehaviour
         AchievementEvents.PlayerDamaged += HandlePlayerDamaged;
         AchievementEvents.WaveCleared += HandleWaveCleared;
         AchievementEvents.RunStarted += HandleRunStarted;
+        AchievementEvents.RunResumed += HandleRunResumed;
         AchievementEvents.RunEnded += HandleRunEnded;
     }
 
@@ -100,6 +102,7 @@ public class AchievementManager : MonoBehaviour
         AchievementEvents.PlayerDamaged -= HandlePlayerDamaged;
         AchievementEvents.WaveCleared -= HandleWaveCleared;
         AchievementEvents.RunStarted -= HandleRunStarted;
+        AchievementEvents.RunResumed -= HandleRunResumed;
         AchievementEvents.RunEnded -= HandleRunEnded;
     }
 
@@ -393,7 +396,7 @@ public class AchievementManager : MonoBehaviour
             switch (achievement.ConditionType)
             {
                 case AchievementConditionType.CumulativeWaves:
-                    AddStoredProgress(achievement, Mathf.Max(wave, 0));
+                      AddStoredProgress(achievement, wave > 0 ? 1f : 0f);
                     changed = true;
                     break;
 
@@ -421,6 +424,7 @@ public class AchievementManager : MonoBehaviour
 
     private void HandleRunStarted()
     {
+        runCounted = false;
         runActive = true;
         runTookDamage = false;
         runKillsSinceDamage = 0;
@@ -431,6 +435,8 @@ public class AchievementManager : MonoBehaviour
 
         OnProgressChanged?.Invoke();
     }
+
+    private void HandleRunResumed() { runActive = true; }
 
     private void HandleRunEnded(RunEndInfo info)
     {
@@ -464,13 +470,16 @@ public class AchievementManager : MonoBehaviour
             AchievementData achievement = achievements[i];
             if (achievement == null || IsUnlocked(achievement.Id))
                 continue;
-            if (achievement.ConditionType == AchievementConditionType.CumulativeRuns)
+            if (achievement.ConditionType == AchievementConditionType.CumulativeRuns &&
+                !runCounted && (XpManager.Instance != null ? XpManager.Instance.RunClearedWaves > 0 : info.waveReached >= 2))
             {
                 AddStoredProgress(achievement, 1f);
                 TryComplete(achievement);
             }
         }
 
+        if (XpManager.Instance != null ? XpManager.Instance.RunClearedWaves > 0 : info.waveReached >= 2)
+            runCounted = true;
         runActive = false;
 
         // Накопительный прогресс фиксируем в конце забега, чтобы не

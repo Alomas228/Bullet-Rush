@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class UpgradeUI : MonoBehaviour
+public class UpgradeUI : MonoBehaviour, ILangRefreshable
 {
     [System.Serializable]
     private class UpgradeCard
@@ -33,7 +33,7 @@ public class UpgradeUI : MonoBehaviour
     private float toastHideAt;
 
     public bool IsShowing =>
-        upgradePanel != null && upgradePanel.activeSelf;
+        upgradePanel != null && upgradePanel.activeInHierarchy;
 
     /// <summary>
     /// Срабатывает, когда игрок выбрал улучшение (index — слот карточки).
@@ -41,27 +41,48 @@ public class UpgradeUI : MonoBehaviour
     /// </summary>
     public event System.Action<int> OnUpgradeChosen;
 
+    private WaveChoiceCard[] visuals;
+    private RectTransform board;
+    private TMP_Text heading;
+    private RectTransform vitals;
+    private Transform vitalsHome;
+    private UnityEngine.Events.UnityAction[] chooseActions;
+    private bool? portraitLayout;
+
     private void Start()
     {
+        if (visuals != null) return;
+        Prepare();
         Hide();
+    }
+
+    private void Prepare()
+    {
+        if (visuals != null || upgradePanel == null) return;
+        board = WaveChoiceCard.PreparePanel(upgradePanel);
+        heading = board.Find("UpgradeTitle").GetComponent<TMP_Text>();
 
         if (cards == null)
             return;
 
+        visuals = new WaveChoiceCard[cards.Length];
+        chooseActions = new UnityEngine.Events.UnityAction[cards.Length];
         for (int i = 0; i < cards.Length; i++)
         {
             int index = i;
 
             if (cards[i].Button != null)
             {
-                cards[i].Button.onClick.AddListener(
-                    () => ChooseUpgrade(index)
-                );
+                visuals[i] = new WaveChoiceCard(cards[i].Root, cards[i].Button, cards[i].NameText, cards[i].DescriptionText, cards[i].ProgressText);
+                chooseActions[i] = () => ChooseUpgrade(index);
+                cards[i].Button.onClick.AddListener(chooseActions[i]);
             }
         }
     }
 
-    public void Show()
+    public void Show() => Show(0, false);
+
+    public void Show(int wave, bool bossReward)
     {
         if (UpgradeManager.Instance == null)
         {
@@ -72,15 +93,53 @@ public class UpgradeUI : MonoBehaviour
             return;
         }
 
-        UpgradeManager.Instance.GenerateChoices();
-
-        var choices =
-            UpgradeManager.Instance.CurrentChoices;
+        Prepare();
+        if (visuals == null || upgradePanel == null || cards == null || cards.Length == 0) return;
+        UpgradeManager.Instance.GenerateChoices(wave, bossReward);
+        bool hasSelectableCard = false;
+        for (int i = 0; i < Mathf.Min(UpgradeManager.Instance.CurrentChoices.Count, cards.Length); i++)
+            if (cards[i] != null && cards[i].Root != null && cards[i].Button != null)
+                hasSelectableCard = true;
+        if (!hasSelectableCard)
+        {
+            Debug.LogWarning("UpgradeUI: No available choices; skipping the panel.", this);
+            Hide();
+            return;
+        }
 
         if (upgradePanel != null)
+        {
             upgradePanel.SetActive(true);
+            if (!upgradePanel.activeInHierarchy)
+            {
+                Debug.LogWarning("UpgradeUI: Panel is not visible; skipping the selection.", this);
+                Hide();
+                return;
+            }
+            if (vitals == null) vitals = upgradePanel.transform.parent.Find("HUD/GameplayUI/Vitals") as RectTransform;
+            if (vitals != null && vitalsHome == null && vitals.gameObject.activeInHierarchy)
+            {
+                vitalsHome = vitals.parent;
+                vitals.SetParent(upgradePanel.transform.Find("Choice safe area"), false);
+            }
+            var tutorial = upgradePanel.transform.parent.Find("TutorialPanel");
+            upgradePanel.transform.SetAsLastSibling();
+            if (tutorial != null) tutorial.SetAsLastSibling();
+        }
 
         PlayMenuOpenSound();
+        Time.timeScale = 0f;
+        RefreshLang();
+        if (UpgradeManager.Instance.CurrentChoices.Count > 0 && cards.Length > 0 && cards[0].Button != null)
+            cards[0].Button.Select();
+        ShowDiscoveredToast();
+    }
+
+    public void RefreshLang()
+    {
+        if (!IsShowing || visuals == null || UpgradeManager.Instance == null) return;
+        var choices = UpgradeManager.Instance.CurrentChoices;
+        heading.text = UpgradeManager.Instance.ChoiceTitle;
 
         for (int i = 0; i < cards.Length; i++)
         {
@@ -91,20 +150,17 @@ public class UpgradeUI : MonoBehaviour
                 if (cards[i].Root != null)
                     cards[i].Root.SetActive(true);
 
+                visuals[i]?.Bind(upgrade, i, Mathf.Min(choices.Count, cards.Length));
                 if (cards[i].NameText != null)
                 {
                     cards[i].NameText.text =
                         BuildCardTitle(upgrade);
-
-                    // Цвет названия = редкость (об этом говорит обучение).
-                    cards[i].NameText.color =
-                        RarityColor(upgrade.Rarity);
                 }
 
                 if (cards[i].DescriptionText != null)
                 {
                     cards[i].DescriptionText.text =
-                        BuildCardDescription(upgrade);
+                        UpgradeManager.Instance.PreviewStat(upgrade) ?? upgrade.LocalizedDescription;
                 }
             }
             else
@@ -114,27 +170,46 @@ public class UpgradeUI : MonoBehaviour
             }
         }
 
-        // Останавливаем игру во время выбора
-        Time.timeScale = 0f;
-
         RefreshSynergyWidgets(choices);
-        ShowDiscoveredToast();
+        ReflowChoices(true);
     }
 
     public void Hide()
     {
+        if (vitals != null && vitalsHome != null)
+        {
+            vitals.SetParent(vitalsHome, false);
+            vitals.SetAsFirstSibling();
+            vitalsHome = null;
+        }
+        if (toastRoot != null) toastRoot.SetActive(false);
         if (upgradePanel != null)
             upgradePanel.SetActive(false);
     }
 
     private void Update()
     {
+        if (IsShowing) ReflowChoices(false);
         if (toastRoot != null &&
             toastRoot.activeSelf &&
             Time.unscaledTime >= toastHideAt)
         {
             toastRoot.SetActive(false);
         }
+    }
+
+    private void ReflowChoices(bool force)
+    {
+        if (board == null || visuals == null || UpgradeManager.Instance == null) return;
+        bool portrait = ResponsiveUi.Portrait;
+        if (!force && portraitLayout == portrait) return;
+        portraitLayout = portrait;
+        UiArtboard.Resize(board, portrait ? new Vector2(680,1050) : new Vector2(1440,810));
+        UiArtboard.Place(heading.rectTransform, Vector2.one*.5f, Vector2.one*.5f,
+            new Vector2(0,portrait ? 455 : 219), new Vector2(portrait ? 636 : 900,76));
+        int count = Mathf.Min(UpgradeManager.Instance.CurrentChoices.Count, visuals.Length);
+        for (int i = 0; i < count; i++) visuals[i]?.Layout(i,count,portrait);
+        if (toastRoot != null) LayoutToast();
     }
 
     private void RefreshSynergyWidgets(
@@ -160,6 +235,15 @@ public class UpgradeUI : MonoBehaviour
                     ? choices[i]
                     : null;
 
+            if (upgrade != null && upgrade.Perk != RunPerk.None)
+            {
+                string hint = RunBuildMechanics.BranchHint(upgrade.Perk);
+                slot.gameObject.SetActive(hint != null);
+                slot.color = MenuSheet.Muted;
+                slot.text = hint ?? "";
+                continue;
+            }
+
             SynergyProgress best =
                 upgrade != null
                     ? FindBestSynergy(upgrade, synergies)
@@ -175,11 +259,9 @@ public class UpgradeUI : MonoBehaviour
 
             if (best.IsComplete)
             {
-                slot.color = Color.white;
+                slot.color = MenuSheet.Muted;
                 slot.text =
-                    "<color=#FFC24D>✓ " +
-                    best.Synergy.ShortName +
-                    "</color>";
+                    "✓ " + best.Synergy.ShortName;
             }
             else
             {
@@ -190,7 +272,7 @@ public class UpgradeUI : MonoBehaviour
                     best.Required
                 );
 
-                slot.color = RarityColor(best.Synergy.Rarity);
+                slot.color = MenuSheet.Muted;
             }
         }
     }
@@ -256,8 +338,7 @@ public class UpgradeUI : MonoBehaviour
                 continue;
 
             names.Add(
-                synergy.LocalizedName + " — " +
-                synergy.LocalizedDescription + "\n" + SynergyCombat.Description(synergy.name)
+                synergy.LocalizedName
             );
 
             if (names.Count >= 3)
@@ -266,7 +347,7 @@ public class UpgradeUI : MonoBehaviour
 
         toastText.text = Lang.Get(
             "synergy.discovered",
-            string.Join("\n", names)
+            string.Join(" · ", names)
         );
 
         toastRoot.SetActive(true);
@@ -277,88 +358,34 @@ public class UpgradeUI : MonoBehaviour
 
     private void CreateToast()
     {
-        var root = new GameObject(
-            "SynergyToast",
-            typeof(RectTransform),
-            typeof(Image)
-        );
+        var card = ArcadeUiFactory.At(board, "SynergyToast", Vector2.one * .5f, Vector2.one * .5f,
+            new Vector2(0, -276), new Vector2(820, 66));
+        ArcadeUiFactory.Image(card, ArcadeKitAssets.CutPanel, MenuSheet.Ink, true);
+        toastText = ArcadeUiFactory.Label(ArcadeUiFactory.Stretch(card, "Label", 18, 4, 18, 4),
+            "", ArcadeKitAssets.BodyBold, 18, MenuSheet.Paper, TextAlignmentOptions.Center);
+        toastRoot = card.gameObject;
+        LayoutToast();
+    }
 
-        var rect = root.GetComponent<RectTransform>();
-        rect.SetParent(upgradePanel.transform, false);
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-
-        var image = root.GetComponent<Image>();
-        image.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.88f);
-        image.raycastTarget = false;
-
-        RectTransform card = ArcadeUiFactory.At(
-            rect,
-            "Card",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            new Vector2(880f, 300f)
-        );
-        ArcadeUiFactory.Image(
-            card,
-            ArcadeKitAssets.Panel,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f),
-            true
-        );
-
-        ArcadeUiFactory.Image(
-            ArcadeUiFactory.At(
-                card,
-                "Accent",
-                new Vector2(0f, 1f),
-                new Vector2(0f, 1f),
-                new Vector2(28f, -26f),
-                new Vector2(10f, 64f)
-            ),
-            ArcadeKitAssets.Pill,
-            ArcadeUiTheme.Gold,
-            true
-        );
-
-        ArcadeUiFactory.Icon(
-            card,
-            "Icon",
-            "spark",
-            ArcadeUiTheme.Gold,
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f),
-            new Vector2(56f, -28f),
-            new Vector2(38f, 38f)
-        );
-
-        toastText = ArcadeUiFactory.Label(
-            card,
-            "Label",
-            "",
-            ArcadeKitAssets.Display,
-            22f,
-            ArcadeUiTheme.Gold,
-            TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            new Vector2(800f, 240f)
-        );
-
-        toastRoot = root;
+    private void LayoutToast()
+    {
+        bool portrait = portraitLayout == true;
+        UiArtboard.Place((RectTransform)toastRoot.transform, Vector2.one*.5f, Vector2.one*.5f,
+            new Vector2(0,portrait ? -463 : -276), new Vector2(portrait ? 630 : 820,66));
     }
 
     private void ChooseUpgrade(int index)
     {
-        if (UpgradeManager.Instance == null)
-            return;
-
+        if (!IsShowing || UpgradeManager.Instance == null || index >= UpgradeManager.Instance.CurrentChoices.Count) return;
+        Hide();
         UpgradeManager.Instance.ChooseUpgrade(index);
 
         OnUpgradeChosen?.Invoke(index);
+
+        // TutorialManager owns its own completion and pause. WaveManager only
+        // continues post-wave selections (the tutorial still has wave zero).
+        if (TutorialManager.Instance != null && TutorialManager.Instance.IsRunning)
+            return;
 
         // Передаём управление WaveManager
         if (waveManager != null)
@@ -394,34 +421,8 @@ public class UpgradeUI : MonoBehaviour
         return name + " " + ToRomanNumeral(nextLevel);
     }
 
-    /// <summary>
-    /// Описание с явным «уровень N из M». Числа в описании
-    /// эффектов намеренно не указаны: они суммируются от уровня к
-    /// уровню и в тексте устаревают, из-за чего карточка обещает
-    /// одно, а работает другое.
-    /// </summary>
-    private static string BuildCardDescription(UpgradeData upgrade)
-    {
-        string description = upgrade.LocalizedDescription;
-
-        int nextLevel = GetNextLevel(upgrade);
-        int maxLevel = GetMaxLevel(upgrade);
-
-        if (maxLevel <= 1)
-            return description;
-
-        return description + "\n" + Lang.Get(
-            "runup.level_of",
-            nextLevel,
-            maxLevel
-        );
-    }
-
     private static int GetNextLevel(UpgradeData upgrade) =>
         UpgradeManager.Instance.GetStacks(upgrade) + 1;
-
-    private static int GetMaxLevel(UpgradeData upgrade) =>
-        UpgradeManager.Instance.GetMaxStacks(upgrade);
 
     private static string ToRomanNumeral(int value)
     {
@@ -441,27 +442,6 @@ public class UpgradeUI : MonoBehaviour
         }
     }
 
-    private static Color RarityColor(Rarity rarity)
-    {
-        switch (rarity)
-        {
-            case Rarity.Uncommon:
-                return ArcadeUiTheme.Green;
-
-            case Rarity.Rare:
-                return ArcadeUiTheme.Cyan;
-
-            case Rarity.Epic:
-                return ArcadeUiTheme.Purple;
-
-            case Rarity.Legendary:
-                return ArcadeUiTheme.Gold;
-
-            default:
-                return ArcadeUiTheme.TextSecondary;
-        }
-    }
-
     private void PlayMenuOpenSound()
     {
         if (AudioManager.Instance == null)
@@ -478,13 +458,9 @@ public class UpgradeUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (cards == null)
-            return;
-
-        foreach (UpgradeCard card in cards)
-        {
-            if (card.Button != null)
-                card.Button.onClick.RemoveAllListeners();
-        }
+        if (chooseActions == null) return;
+        for (int i = 0; i < chooseActions.Length; i++)
+            if (cards[i].Button != null && chooseActions[i] != null)
+                cards[i].Button.onClick.RemoveListener(chooseActions[i]);
     }
 }

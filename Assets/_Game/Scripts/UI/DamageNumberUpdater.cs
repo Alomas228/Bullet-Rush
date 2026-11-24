@@ -21,7 +21,7 @@ public class DamageNumberUpdater : MonoBehaviour
         DamageNumberSystem.HandleUpdaterAwake(this);
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         DamageNumberSystem.Tick();
 

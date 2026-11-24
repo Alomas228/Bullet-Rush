@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Мощные редкие выстрелы с пробитием. Снимай опасные цели и двигайся между попаданиями."
   weaponType: 0
   rarity: 2
-  unlockLevel: 5
-  price: 700
-  weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 420
+  unlockLevel: 7
+  price: 650
+  weaponPrefab: {fileID: 9071840178064284164, guid: 15d97c77614a8f05fd8a65e1ae0e6444, type: 3}
+  preview: {fileID: 21300000, guid: 0910e0b21157d7e9d70e49c8323af24d, type: 3}
+  damage: 400
   fireRate: 1.8
   projectileSpeed: 24
   projectileCount: 1

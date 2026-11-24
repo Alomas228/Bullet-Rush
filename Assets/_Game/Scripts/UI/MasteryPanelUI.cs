@@ -7,7 +7,6 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 {
     private const float CardWidth = 320f;
     private const float CardHeight = 230f;
-    private const float RowsTopInset = 258f;
 
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text prestigeText;
@@ -18,7 +17,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
     [SerializeField] private GameObject rowTemplate;
 
     private readonly List<GameObject> rows = new List<GameObject>();
-    private GameObject runtimeDim;
+    private RectTransform sheet;
     private TMP_Text runtimeDescription;
 
     private void Awake()
@@ -29,7 +28,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 
     private void OnEnable()
     {
-        ApplyRuntimeBackdrop();
+        BuildSheet();
 
         if (MasteryManager.Instance != null)
         {
@@ -42,8 +41,6 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 
     private void OnDisable()
     {
-        if (runtimeDim != null)
-            runtimeDim.SetActive(false);
 
         if (MasteryManager.Instance != null)
         {
@@ -64,40 +61,19 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
 
     public void RefreshLang() => Refresh();
 
-    private void ApplyRuntimeBackdrop()
+    private void BuildSheet()
     {
-        Image background = GetComponent<Image>();
-        if (background != null)
-        {
-            background.sprite = ArcadeKitAssets.RoundRect;
-            background.type = Image.Type.Sliced;
-            background.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f);
-            background.raycastTarget = true;
-        }
-
-        Shadow shadow = GetComponent<Shadow>();
-        if (shadow == null)
-            shadow = gameObject.AddComponent<Shadow>();
-        shadow.effectColor = ArcadeUiTheme.Shadow;
-        shadow.effectDistance = new Vector2(0f, -8f);
-        shadow.useGraphicAlpha = true;
-
-        if (runtimeDim == null)
-        {
-            runtimeDim = new GameObject("MasteryRuntimeDim", typeof(RectTransform), typeof(Image));
-            runtimeDim.transform.SetParent(transform.parent, false);
-            RectTransform dimRect = runtimeDim.GetComponent<RectTransform>();
-            dimRect.anchorMin = Vector2.zero;
-            dimRect.anchorMax = Vector2.one;
-            dimRect.offsetMin = Vector2.zero;
-            dimRect.offsetMax = Vector2.zero;
-            Image dim = runtimeDim.GetComponent<Image>();
-            dim.color = ArcadeUiTheme.Backdrop;
-            dim.raycastTarget = true;
-        }
-
-        runtimeDim.transform.SetAsFirstSibling();
-        runtimeDim.SetActive(true);
+        if (sheet != null || titleText == null || rowsRoot == null) return;
+        sheet = RuntimeWindow.Open((RectTransform)transform, titleText, closeButton, 1436, 790);
+        var side = MenuSheet.Box(sheet, "CollectionSummary",36,114,298,636,MenuSheet.Card);
+        RuntimeWindow.Text(collectionText, side.transform,20,22,258,104,24,true);
+        MenuSheet.Box(side.transform,"Rule",20,142,258,2,MenuSheet.Rule);
+        RuntimeWindow.Text(prestigeText,side.transform,20,162,258,96,21);
+        if (prestigeButton != null) MenuSheet.Control(prestigeButton,side.transform,20,274,258,54,MenuSheet.Ochre);
+        EnsureRuntimeDescription();
+        RuntimeWindow.Text(runtimeDescription,side.transform,20,355,258,210,18);
+        var scroll = rowsRoot.GetComponentInParent<ScrollRect>(true) ?? rowsRoot.GetComponentInChildren<ScrollRect>(true);
+        if (scroll != null) MenuSheet.Place(scroll, sheet, 354,114,1046,636);
     }
 
     public void Refresh()
@@ -132,8 +108,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         if (contentRoot != null)
             rowsRoot = contentRoot;
 
-        if (rowsRoot.parent != null && rowsRoot.parent.parent is RectTransform rowsArea)
-            rowsArea.offsetMax = new Vector2(rowsArea.offsetMax.x, -RowsTopInset);
+
 
         VerticalLayoutGroup oldLayout = rowsRoot.GetComponent<VerticalLayoutGroup>();
         GridLayoutGroup rowsLayout = rowsRoot.GetComponent<GridLayoutGroup>();
@@ -246,7 +221,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         runtimeDescription.font = ArcadeKitAssets.Body;
         runtimeDescription.fontSize = 14f;
         runtimeDescription.color = ArcadeUiTheme.TextSecondary;
-        runtimeDescription.alignment = TextAlignmentOptions.Center;
+        runtimeDescription.alignment = TextAlignmentOptions.TopLeft;
         runtimeDescription.enableWordWrapping = true;
         runtimeDescription.overflowMode = TextOverflowModes.Ellipsis;
         runtimeDescription.raycastTarget = false;
@@ -308,7 +283,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             new Vector2(272f, 82f)
         );
         ArcadeUiFactory.Image(art, ArcadeKitAssets.RoundRect, ArcadeUiTheme.CardSoft, true);
-        ArcadeCardVisuals.Pattern(art);
+
 
         Image icon = ArcadeUiFactory.Icon(
             art,
@@ -328,7 +303,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             GetWeaponTypeLabel(weapon.WeaponType),
             ArcadeKitAssets.BodyBold,
             12f,
-            ArcadeUiTheme.Cyan,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0f),
             new Vector2(0f, 0f),
@@ -373,7 +348,7 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             string.Empty,
             ArcadeKitAssets.Body,
             12f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
@@ -427,15 +402,16 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
         {
             art.sprite = ArcadeKitAssets.RoundRect;
             art.type = Image.Type.Sliced;
-            art.color = ArcadeCardVisuals.ArtTint(accent);
-            ArcadeCardVisuals.Pattern(art.rectTransform);
+            art.color = MenuSheet.Recess;
+
         }
 
         Image icon = row.transform.Find("WeaponArt/WeaponIcon")?.GetComponent<Image>();
         if (icon != null)
         {
-            icon.sprite = ArcadeKitAssets.Icon("target");
-            icon.color = Color.Lerp(accent, Color.white, 0.28f);
+            icon.sprite = MenuSheetArt.Weapon(weapon, "target");
+            icon.color = Color.white;
+            if (art != null) MenuSheet.Place(icon, art.transform, 12, 5, 148, 72);
             icon.preserveAspect = true;
         }
 
@@ -444,8 +420,9 @@ public sealed class MasteryPanelUI : MonoBehaviour, ILangRefreshable
             type = row.transform.Find("WeaponArt/WeaponType")?.GetComponent<TMP_Text>();
         if (type != null)
         {
+            if (art != null) MenuSheet.Place(type, art.transform, 166, 12, 100, 56);
             type.text = GetWeaponTypeLabel(weapon.WeaponType);
-            type.color = accent;
+            type.color = ArcadeUiTheme.TextSecondary;
             type.font = ArcadeKitAssets.BodyBold;
             type.fontSize = 12f;
             type.fontStyle = FontStyles.Bold | FontStyles.UpperCase;

@@ -123,8 +123,9 @@ let StartUnityInstance;
         window.addEventListener('blur', () => SetVisibility(false));
         window.addEventListener('focus', () => SetVisibility(true));
 
-        window.addEventListener('pointerdown', () => {
-            FocusGame();
+        window.addEventListener('pointerdown', (event) => {
+            // Re-focusing the canvas for every finger can interrupt touch gestures.
+            if (event.pointerType !== 'touch') FocusGame();
             SetVisibility(true);
         });
 
@@ -146,6 +147,11 @@ let StartUnityInstance;
             if (window.blurFocusHandlersInstalled) return;
 
             window.addEventListener('blur', function () {
+                const sdkDevice = ysdk && ysdk.deviceInfo && ysdk.deviceInfo.type;
+                if (sdkDevice === 'mobile' || sdkDevice === 'tablet' ||
+                    /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent || '') ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                    (navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches)) return;
                 let blockerButton = document.createElement('button');
                 blockerButton.style.position = 'fixed';
                 blockerButton.style.top = '0';

@@ -18,12 +18,13 @@ MonoBehaviour:
   bossTint: {r: 1, g: 0.42, b: 0.24, a: 1}
   maxHealth: 7200
   moveSpeed: 1.25
-  contactDamage: 75
+  contactDamage: 50
   attackRange: 8
   attackInterval: 1.5
-  projectileDamage: 80
+  projectileDamage: 35
   projectileSpeed: 7.5
   preferredDistance: 0
+  rangedWeaponVisual: {fileID: 105748006008224434, guid: 29260c3dad4c26393e038f8351ac6a19, type: 3}
   abilityPattern: 1
   abilityColor: {r: 1, g: 0.28, b: 0.08, a: 0.45}
   projectileFanCount: 3
@@ -37,7 +38,7 @@ MonoBehaviour:
   dashWarningDuration: 1
   phase1HealthPercent: 1
   phase1AbilityCooldown: 8
-  phase1AbilityDamage: 170
+  phase1AbilityDamage: 40
   phase1AbilityRadius: 5
   phase1AbilityWarningDuration: 2
   phase1SummonCooldown: 11
@@ -46,7 +47,7 @@ MonoBehaviour:
   phase2MoveSpeedMultiplier: 1.2
   phase2AttackIntervalMultiplier: 0.8
   phase2AbilityCooldown: 6
-  phase2AbilityDamage: 245
+  phase2AbilityDamage: 50
   phase2AbilityRadius: 5.5
   phase2AbilityWarningDuration: 1.8
   phase2SummonCooldown: 9
@@ -56,12 +57,12 @@ MonoBehaviour:
   phase3AttackIntervalMultiplier: 0.65
   phase3DamageMultiplier: 1.5
   phase3AbilityCooldown: 4
-  phase3AbilityDamage: 330
+  phase3AbilityDamage: 60
   phase3AbilityRadius: 6
   phase3AbilityWarningDuration: 1.5
   phase3SummonCooldown: 7
   phase3SummonCount: 4
-  waveHealthPercent: 0.2
-  waveDamagePercent: 0.1
+  waveHealthPercent: 0.065
+  waveDamagePercent: 0.008
   waveScorePercent: 0.1
   scoreValue: 600

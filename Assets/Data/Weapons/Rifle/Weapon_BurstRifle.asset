@@ -19,8 +19,9 @@ MonoBehaviour:
   rarity: 1
   unlockLevel: 3
   price: 300
-  weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 60
+  weaponPrefab: {fileID: 9071840178064284164, guid: 07fb146baaeb710562950619a4d8a94f, type: 3}
+  preview: {fileID: 21300000, guid: aada03011b7e22eca4e0027ec44ef4a9, type: 3}
+  damage: 56
   fireRate: 12
   projectileSpeed: 18
   projectileCount: 1

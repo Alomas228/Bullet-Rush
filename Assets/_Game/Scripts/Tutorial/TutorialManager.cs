@@ -16,7 +16,8 @@ using UnityEngine.UI;
 /// </summary>
 public class TutorialManager : MonoBehaviour
 {
-    private const int TotalSteps = 7;
+    private const int TotalSteps = 8;
+    private const string DashHint = "{tut.dash}";
 
     public const string CompletedPrefsKey =
         "ArcadeSurvivor.TutorialDone";
@@ -86,6 +87,7 @@ public class TutorialManager : MonoBehaviour
     private bool tutorialFinished;
     private bool upgradeChosen;
     private bool upgradeSubscribed;
+    private bool upgradePauseOwned;
     private Enemy tutorialEnemy;
     private Enemy rangedTutorialEnemy;
     private Vector3 dodgeStartPosition;
@@ -97,6 +99,8 @@ public class TutorialManager : MonoBehaviour
     private Transform player;
     private bool subscribedState;
     private bool skipWired;
+    private string currentObjective;
+    private bool lastMobileMode;
 
     private void Awake()
     {
@@ -142,6 +146,7 @@ public class TutorialManager : MonoBehaviour
     {
         UnwireSkipButton();
         UnsubscribeUpgrade();
+        MobileControls.SetTutorialHint(MobileControls.TutorialHint.None);
 
         if (Instance == this)
             Instance = null;
@@ -172,6 +177,19 @@ public class TutorialManager : MonoBehaviour
         {
             HideAllSteps();
             tutorialPanel.SetActive(false);
+        }
+
+        if (IsRunning && lastMobileMode != MobileControls.IsTouchDevice)
+        {
+            if (MobileControls.IsTouchDevice)
+            {
+                if (dimBackground != null) dimBackground.SetActive(false);
+                if (wasdImage != null) wasdImage.SetActive(false);
+                if (aimImage != null) aimImage.SetActive(false);
+                if (shootImage != null) shootImage.SetActive(false);
+                if (dashImage != null) dashImage.SetActive(false);
+            }
+            SetObjective(currentObjective);
         }
     }
 
@@ -350,6 +368,13 @@ public class TutorialManager : MonoBehaviour
 
         step++;
         SetStepProgress(step);
+        SetObjective(DashHint);
+        yield return ImageStep(dashImage, WaitForDash());
+        PlayStepComplete();
+        yield return new WaitForSeconds(pauseBetweenSteps);
+
+        step++;
+        SetStepProgress(step);
         SetObjective(normalHintText);
         yield return WaitForTutorialEnemy(EnemyType.Normal, true, true);
 
@@ -384,10 +409,10 @@ public class TutorialManager : MonoBehaviour
         GameObject image,
         IEnumerator waitForInput)
     {
-        if (dimBackground != null)
+        if (dimBackground != null && !MobileControls.IsTouchDevice)
             dimBackground.SetActive(true);
 
-        if (image != null)
+        if (image != null && !MobileControls.IsTouchDevice)
             image.SetActive(true);
 
         yield return waitForInput;
@@ -408,7 +433,7 @@ public class TutorialManager : MonoBehaviour
     // =========================================================
 
     private static bool IsGamePaused =>
-        Time.timeScale <= 0f ||
+        Time.timeScale <= 0f || YG.YG2.isPauseGame ||
         (PauseManager.Instance != null &&
          PauseManager.Instance.IsPaused);
 
@@ -429,47 +454,52 @@ public class TutorialManager : MonoBehaviour
                  Keyboard.current.downArrowKey.isPressed ||
                  Keyboard.current.rightArrowKey.isPressed);
 
+            if (MobileControls.IsTouchDevice) moving = !IsGamePaused && MobileControls.MoveInput.sqrMagnitude>.04f;
             if (moving)
             {
                 activeMoveDuration += Time.unscaledDeltaTime;
                 if (activeMoveDuration >= minimumInputHoldDuration)
                     yield break;
             }
-            else
-            {
-                activeMoveDuration = 0f;
-            }
-
-            elapsed += Time.unscaledDeltaTime;
+            if (!IsGamePaused) elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
 
     private IEnumerator WaitForAim()
     {
-        float distance = 0f;
-        float elapsed = 0f;
-        float activeAimDuration = 0f;
-
-        while ((distance < aimDistanceRequired ||
-                activeAimDuration < minimumInputHoldDuration) &&
-               elapsed < combatStepTimeout)
+        float distance = 0f, elapsed = 0f, activeAimDuration = 0f, rotation = 0f;
+        Vector3 lastForward = player != null ? player.forward : Vector3.forward;
+        Vector2 lastMouse = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
+        float requiredPixels = Mathf.Clamp(aimDistanceRequired, 80f, Mathf.Max(80f, Screen.width * .16f));
+        while (elapsed < combatStepTimeout)
         {
-            float delta = !IsGamePaused && Mouse.current != null
-                ? Mouse.current.delta.ReadValue().magnitude
-                : 0f;
-
-            if (delta > 0.01f)
+            if (!IsGamePaused)
             {
-                distance += delta;
-                activeAimDuration += Time.unscaledDeltaTime;
+                if (MobileControls.IsTouchDevice)
+                {
+                    if (MobileControls.AimInput.sqrMagnitude > .035f)
+                        activeAimDuration += Time.unscaledDeltaTime;
+                    if (activeAimDuration >= Mathf.Clamp(minimumInputHoldDuration, .15f, .35f)) yield break;
+                }
+                else if (Mouse.current != null)
+                {
+                    // Mouse deltas are often zero on individual render frames;
+                    // count total movement instead of requiring a continuous delta.
+                    Vector2 mouse = Mouse.current.position.ReadValue();
+                    distance += Mathf.Max(Vector2.Distance(mouse, lastMouse), Mouse.current.delta.ReadValue().magnitude);
+                    if (player != null) rotation += Vector3.Angle(lastForward, player.forward);
+                    if (distance >= requiredPixels || rotation >= 45f) yield break;
+                    lastMouse = mouse;
+                    if (player != null) lastForward = player.forward;
+                }
+                elapsed += Time.unscaledDeltaTime;
             }
             else
             {
-                activeAimDuration = 0f;
+                if (Mouse.current != null) lastMouse = Mouse.current.position.ReadValue();
+                if (player != null) lastForward = player.forward;
             }
-
-            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
@@ -480,10 +510,28 @@ public class TutorialManager : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < combatStepTimeout)
         {
-            if (!IsGamePaused && Mouse.current != null &&
-                Mouse.current.leftButton.isPressed)
+            if (!IsGamePaused && (MobileControls.IsTouchDevice ? MobileControls.IsFiring :
+                Mouse.current != null && Mouse.current.leftButton.isPressed))
                 yield break;
-            elapsed += Time.unscaledDeltaTime;
+            if (!IsGamePaused) elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
+
+    private IEnumerator WaitForDash()
+    {
+        PlayerController controller = player != null ? player.GetComponent<PlayerController>() : null;
+        if (controller == null) yield break;
+        float elapsed = 0f;
+        float previousCooldown = controller.DashCooldownRemaining;
+        while (elapsed < combatStepTimeout)
+        {
+            if (!IsGamePaused)
+            {
+                if (controller.IsDashing || controller.DashCooldownRemaining > previousCooldown + .01f) yield break;
+                elapsed += Time.unscaledDeltaTime;
+            }
+            previousCooldown = controller.DashCooldownRemaining;
             yield return null;
         }
     }
@@ -492,7 +540,7 @@ public class TutorialManager : MonoBehaviour
     {
         float elapsed = 0f;
         while (elapsed < 2f &&
-               (Mouse.current == null || Mouse.current.leftButton.isPressed))
+               (MobileControls.IsTouchDevice ? MobileControls.IsFiring : Mouse.current == null || Mouse.current.leftButton.isPressed))
         {
             elapsed += Time.unscaledDeltaTime;
             yield return null;
@@ -550,7 +598,8 @@ public class TutorialManager : MonoBehaviour
 
     private IEnumerator WaitForEnemyKilledByPlayer(Enemy enemy)
     {
-        while (true)
+        float elapsed = 0f;
+        while (elapsed < combatStepTimeout)
         {
             if (enemy == null)
                 yield break;
@@ -569,6 +618,7 @@ public class TutorialManager : MonoBehaviour
                     yield break;
             }
 
+            if (!IsGamePaused) elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
@@ -703,6 +753,7 @@ public class TutorialManager : MonoBehaviour
         upgradeUI.OnUpgradeChosen += HandleUpgradeChosen;
         upgradeSubscribed = true;
         upgradeUI.Show();
+        upgradePauseOwned = upgradeUI.IsShowing;
         if (!upgradeUI.IsShowing)
         {
             UnsubscribeUpgrade();
@@ -712,12 +763,10 @@ public class TutorialManager : MonoBehaviour
         float elapsed = 0f;
         while (!upgradeChosen && elapsed < 60f)
         {
-            elapsed += Time.unscaledDeltaTime;
+            if (!YG.YG2.isPauseGame) elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
-        UnsubscribeUpgrade();
-        if (upgradeUI.IsShowing)
-            CloseUpgradeIfShowing();
+        CloseUpgradeIfShowing();
     }
 
     private void HandleUpgradeChosen(int index) => upgradeChosen = true;
@@ -732,9 +781,15 @@ public class TutorialManager : MonoBehaviour
     private void CloseUpgradeIfShowing()
     {
         UnsubscribeUpgrade();
-        if (upgradeUI == null || !upgradeUI.IsShowing) return;
-        upgradeUI.Hide();
-        Time.timeScale = 1f;
+        if (upgradeUI != null && upgradeUI.IsShowing) upgradeUI.Hide();
+        // ChooseUpgrade hides the panel before raising its event. The tutorial
+        // still owns that pause and must release it even if the panel is hidden.
+        if (upgradePauseOwned && GameStateManager.Instance != null &&
+            GameStateManager.Instance.CurrentState == GameState.Playing &&
+            !(PauseManager.Instance != null && PauseManager.Instance.IsPaused) &&
+            !JourneyUI.IsBlocking && !CampaignCompletionUI.IsOpen)
+            Time.timeScale = 1f;
+        upgradePauseOwned = false;
     }
 
     // =========================================================
@@ -763,8 +818,26 @@ public class TutorialManager : MonoBehaviour
 
     private void SetObjective(string text)
     {
+        currentObjective = text;
+        lastMobileMode = MobileControls.IsTouchDevice;
+        MobileControls.SetTutorialHint(text == moveHintText ? MobileControls.TutorialHint.Move :
+            text == aimHintText || text == shootHintText ? MobileControls.TutorialHint.Aim :
+            text == rangedHintText || text == DashHint ? MobileControls.TutorialHint.Dash : MobileControls.TutorialHint.None);
         if (objectiveText == null)
             return;
+
+        if (MobileControls.IsTouchDevice)
+        {
+            if (text==moveHintText) text=GameplayJourney.T("Двигайся левым джойстиком", "Move with the left stick", "Sol cubukla hareket et");
+            else if (text==aimHintText) text=GameplayJourney.T("Целься правым джойстиком", "Aim with the right stick", "Sag cubukla nisan al");
+            else if (text==shootHintText) text=GameplayJourney.T("Удерживай правый джойстик для стрельбы", "Hold the right stick to fire", "Ates icin sag cubugu tut");
+            else if (text==rangedHintText) text=GameplayJourney.T("Уклоняйся кнопкой рывка и победи стрелка", "Use dash to dodge and defeat the shooter", "Atakla kacin ve nisanciyi yen");
+        }
+
+        if (text == DashHint)
+            text = MobileControls.IsTouchDevice
+                ? GameplayJourney.T("Нажми кнопку рывка рядом с правым джойстиком", "Tap the dash button next to the right stick", "Sag cubugun yanindaki atilma tusuna bas")
+                : GameplayJourney.T("Нажми пробел для рывка", "Press Space to dash", "Atilmak icin bosluk tusuna bas");
 
         objectiveText.text =
             string.IsNullOrEmpty(text) ? string.Empty : LangBinder.ResolveKey(text);
@@ -802,6 +875,8 @@ public class TutorialManager : MonoBehaviour
 
     private void HideAllSteps()
     {
+        currentObjective = null;
+        MobileControls.SetTutorialHint(MobileControls.TutorialHint.None);
         if (dimBackground != null)
             dimBackground.SetActive(false);
 

@@ -64,6 +64,7 @@ public class DamageNumber : MonoBehaviour
     private bool hasShownPosition;
     private float shownScale = -1f;
     private bool isCritical;
+    private Vector2 halfTextSize;
 
     /// <summary>
     /// Сколько времени число уже висит на экране. Система
@@ -78,6 +79,7 @@ public class DamageNumber : MonoBehaviour
     /// вместе с камерой, а не стоит на месте.
     /// </summary>
     public Vector3 WorldPosition => worldPosition;
+    public Vector3 OriginPosition { get; private set; }
 
     /// <summary>
     /// Выдаёт число из пула: ставит текст и запоминает, где оно
@@ -88,15 +90,15 @@ public class DamageNumber : MonoBehaviour
         bool isCritical,
         Vector3 worldPosition)
     {
-        damageText.text =
-            Mathf.RoundToInt(damage).ToString();
-
-        if (isCritical)
-            damageText.text = Lang.Get("hud.crit") + damageText.text;
+        damageText.font = ArcadeKitAssets.BodyBold;
+        damageText.color = isCritical ? ArcadeUiTheme.GoldBright : MenuSheet.Paper;
+        damageText.SetText(isCritical ? "{0}!" : "{0}", Mathf.Round(damage));
+        halfTextSize = new Vector2(damageText.preferredWidth, damageText.preferredHeight) * 0.5f;
 
         this.isCritical = isCritical;
 
         this.worldPosition = worldPosition;
+        OriginPosition = worldPosition;
 
         // Форсированная перезапись: после возврата в пул
         // показанные значения сброшены, а первое же Bind обязано
@@ -107,8 +109,8 @@ public class DamageNumber : MonoBehaviour
 
         age = 0f;
 
-        if (gameObject.activeSelf == false)
-            gameObject.SetActive(true);
+        // Show only after the current camera projection has been validated.
+        Hide();
     }
 
     /// <summary>
@@ -164,6 +166,13 @@ public class DamageNumber : MonoBehaviour
             gameObject.SetActive(true);
     }
 
+    public bool FitsInside(Rect bounds, Vector2 position, float sizeScale)
+    {
+        float scale = sizeScale * (isCritical ? criticalScale : 1f);
+        Vector2 padding = halfTextSize * scale;
+        return bounds.Contains(position - padding) && bounds.Contains(position + padding);
+    }
+
     /// <summary>
     /// Якорь ушёл за спину камеры. Проецировать его нельзя: z
     /// отрицательный, и точка отразилась бы через центр экрана,
@@ -183,6 +192,7 @@ public class DamageNumber : MonoBehaviour
     {
         age = 0f;
         worldPosition = Vector3.zero;
+        OriginPosition = Vector3.zero;
         hasShownPosition = false;
         shownScale = -1f;
         isCritical = false;

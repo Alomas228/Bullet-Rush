@@ -61,8 +61,8 @@ MonoBehaviour:
   phase3AbilityWarningDuration: 1.6
   phase3SummonCooldown: 6
   phase3SummonCount: 0
-  waveHealthPercent: 0.1
-  waveDamagePercent: 0.01
+  waveHealthPercent: 0.065
+  waveDamagePercent: 0.008
   waveScorePercent: 0.1
   scoreValue: 500
   usesBasicRangedAttack: 0

@@ -56,6 +56,9 @@ public class UpgradeData : ScriptableObject
 
     public string UpgradeName => upgradeName;
     public string Description => description;
+    public RunPerk Perk { get; private set; }
+    public UpgradeType CardIcon => Perk != RunPerk.None ? RunBuildMechanics.Icon(Perk) : type == UpgradeType.AbilityPower ? UpgradeType.Bomb :
+        type == UpgradeType.AbilityHaste ? UpgradeType.FireRate : type == UpgradeType.AbilityRange ? UpgradeType.ExplosiveRounds : type;
 
     public UpgradeType Type => type;
     public Rarity Rarity => rarity;
@@ -87,6 +90,10 @@ public class UpgradeData : ScriptableObject
     {
         get
         {
+            if (Perk != RunPerk.None) return RunBuildMechanics.Name(Perk);
+            if (type == UpgradeType.AbilityPower) return GameplayJourney.T("Сила умений", "Ability Power", "Yetenek Gucu");
+            if (type == UpgradeType.AbilityHaste) return GameplayJourney.T("Поток энергии", "Ability Haste", "Enerji Akisi");
+            if (type == UpgradeType.AbilityRange) return GameplayJourney.T("Размах", "Ability Reach", "Yetenek Menzili");
             if (weaponData != null && type == UpgradeType.Weapon)
                 return weaponData.LocalizedName;
 
@@ -152,6 +159,10 @@ public class UpgradeData : ScriptableObject
     {
         get
         {
+            if (Perk != RunPerk.None) return RunBuildMechanics.Description(Perk);
+            if (type == UpgradeType.AbilityPower) return GameplayJourney.T("Урон умений ", "Ability damage ", "Yetenek hasari ") + GainText + GameplayJourney.T("; усиливает щит.", "; extends shield.", "; kalkani guclendirir.");
+            if (type == UpgradeType.AbilityHaste) return GameplayJourney.T("Время перезарядки умений −", "Ability cooldown -", "Yetenek bekleme suresi -") + Mathf.RoundToInt(percentValue*100f) + "%";
+            if (type == UpgradeType.AbilityRange) return GameplayJourney.T("Радиус и дальность умений ", "Ability radius and range ", "Yetenek alani ve menzili ") + GainText;
             if (weaponData != null && type == UpgradeType.Weapon)
                 return weaponData.LocalizedDescription;
 
@@ -192,5 +203,23 @@ public class UpgradeData : ScriptableObject
         // Перевод берётся из WeaponData, поэтому свой ключ не нужен.
         langKey = null;
         maxStacks = 1;
+    }
+
+    public void InitializeRunPerk(RunPerk perk, UpgradeFamily family, Rarity grade)
+    {
+        Perk = perk;
+        type = UpgradeType.RunPerk;
+        rarity = grade;
+        families = family;
+        maxStacks = 1;
+        percentValue = 0;
+        upgradeName = RunBuildMechanics.Name(perk);
+        description = RunBuildMechanics.Description(perk);
+    }
+
+    public void InitializeAbilityUpgrade(UpgradeType upgradeType, float value)
+    {
+        type=upgradeType; rarity=Rarity.Uncommon; families=UpgradeFamily.Ability;
+        maxStacks=3; percentValue=value; upgradeName=LocalizedName; description=LocalizedDescription;
     }
 }

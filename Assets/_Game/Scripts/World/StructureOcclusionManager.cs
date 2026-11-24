@@ -222,7 +222,7 @@ public class StructureOcclusionManager : MonoBehaviour
                 continue;
             }
 
-            result.Add(structure);
+            if (!structure.IsArenaBoundary) result.Add(structure);
         }
     }
 

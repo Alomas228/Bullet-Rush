@@ -82,6 +82,11 @@ public class UpgradeManager : MonoBehaviour
     private List<UpgradeData> runtimeWeaponUpgrades =
         new List<UpgradeData>();
 
+    private List<UpgradeData> runPerkCards;
+    private readonly List<UpgradeData> abilityUpgradeCards = new(3);
+    private bool bossChoice, evolutionChoice;
+    public string ChoiceTitle => RunBuildMechanics.ChoiceTitle(bossChoice, evolutionChoice);
+
     // Сколько раз за текущий забег взято каждое улучшение.
     // Раньше выбор ничем не помнился, поэтому лимита не существовало
     // и улучшение с математическим множителем можно было брать
@@ -157,6 +162,15 @@ public class UpgradeManager : MonoBehaviour
         }
 
         Instance = this;
+        AddAbilityUpgrade(UpgradeType.AbilityPower,.22f);
+        AddAbilityUpgrade(UpgradeType.AbilityHaste,.10f);
+        AddAbilityUpgrade(UpgradeType.AbilityRange,.12f);
+    }
+
+    private void AddAbilityUpgrade(UpgradeType type,float value)
+    {
+        var card=ScriptableObject.CreateInstance<UpgradeData>();
+        card.InitializeAbilityUpgrade(type,value); abilityUpgradeCards.Add(card); availableUpgrades.Add(card);
     }
 
     private void Start()
@@ -166,6 +180,7 @@ public class UpgradeManager : MonoBehaviour
         // этого обучение, где окно выбора открывается вне волны,
         // могло применить эффект раньше, чем компонент появился.
         EnsureRunUpgrades();
+        EnsureAbilityManager();
 
         // Сцена может стартовать сразу в игре, а может прийти из
         // меню. В обоих случаях первый забег должен быть чистым.
@@ -217,14 +232,16 @@ public class UpgradeManager : MonoBehaviour
         if (runStarted)
             return;
 
-        runStarted = true;
-
         ResetRunStacks();
+        runStarted = true;
     }
 
     private void ResetRunStacks()
     {
         runStarted = false;
+        RunBuildMechanics.Reset();
+
+        ClearPreviousChoices();
 
         takenStacks.Clear();
 
@@ -358,11 +375,63 @@ public class UpgradeManager : MonoBehaviour
         !IsMaxed(upgrade) &&
         IsUsefulForCurrentWeapon(upgrade);
 
-    public void GenerateChoices()
+    public void GenerateChoices() => GenerateChoices(0, false);
+
+    public void GenerateChoices(int wave, bool bossReward)
     {
         ClearPreviousChoices();
 
+        bossChoice = evolutionChoice = false;
+        EnsureState();
+        if (wave > 0 && !GameModeManager.IsPvp)
+        {
+            runPerkCards ??= RunBuildMechanics.CreateCards();
+            var special = new List<UpgradeData>();
+            if (bossReward)
+            {
+                foreach (var card in runPerkCards)
+                    if (RunBuildMechanics.IsRelic(card.Perk) && !RunBuildMechanics.Has(card.Perk)) special.Add(card);
+                bossChoice = special.Count > 0;
+            }
+            else if (wave >= 5 && weapon != null && RunBuildMechanics.Evolution(weapon.Data) == RunPerk.None)
+            {
+                foreach (var card in runPerkCards)
+                    if (RunBuildMechanics.CanEvolve(card.Perk, weapon.Data)) special.Add(card);
+                evolutionChoice = special.Count > 0;
+            }
+            if (special.Count > 0)
+            {
+                if (evolutionChoice)
+                {
+                    var signature = special.Find(card => RunBuildMechanics.IsSignature(card.Perk));
+                    if (signature != null) { currentChoices.Add(signature); special.Remove(signature); }
+                }
+                while (currentChoices.Count < choicesCount && special.Count > 0)
+                {
+                    int index = Random.Range(0, special.Count);
+                    currentChoices.Add(special[index]); special.RemoveAt(index);
+                }
+                return;
+            }
+        }
+
         List<UpgradeData> pool = BuildValidPool();
+        // Reserve a slot for a reachable branch. The other cards keep the
+        // existing smart continuation, cross-build and wildcard logic.
+        if (wave >= 2 && runPerkCards != null && !GameModeManager.IsPvp)
+        {
+            var branch = new List<UpgradeData>();
+            foreach (var card in runPerkCards)
+                if (RunBuildMechanics.CanUseTree(card.Perk, buildState)) branch.Add(card);
+            if (branch.Count > 0)
+            {
+                var preferred = new List<UpgradeData>();
+                foreach (var card in branch)
+                    if (buildState.HasAnyFamily(card.Families)) preferred.Add(card);
+                var options = preferred.Count > 0 && Random.value < .75f ? preferred : branch;
+                currentChoices.Add(options[Random.Range(0, options.Count)]);
+            }
+        }
 
         if (pool.Count == 0)
         {
@@ -462,6 +531,10 @@ public class UpgradeManager : MonoBehaviour
     /// </summary>
     private bool IsUsefulForCurrentWeapon(UpgradeData upgrade)
     {
+        if (upgrade.Type == UpgradeType.Bomb || upgrade.Type == UpgradeType.Shield)
+            return abilityManager == null || abilityManager.CanUnlock(upgrade.Type == UpgradeType.Bomb ? AbilityKind.Bomb : AbilityKind.Shield);
+        if (upgrade.Type == UpgradeType.AbilityRange) return abilityManager != null && abilityManager.HasDamagingAbility;
+        if (upgrade.Type == UpgradeType.AbilityPower || upgrade.Type == UpgradeType.AbilityHaste) return abilityManager != null && abilityManager.HasAny;
         WeaponData current =
             weapon != null
                 ? weapon.Data
@@ -498,7 +571,7 @@ public class UpgradeManager : MonoBehaviour
 
     private void GenerateNormalChoices(List<UpgradeData> pool)
     {
-        FillChoiceSlots(pool, choicesCount);
+        FillChoiceSlots(pool, choicesCount - currentChoices.Count);
     }
 
     private void GenerateChoicesWithWeapon(List<UpgradeData> pool)
@@ -506,7 +579,7 @@ public class UpgradeManager : MonoBehaviour
         WeaponData selectedWeapon =
             GetRandomWeapon();
 
-        if (selectedWeapon != null)
+        if (selectedWeapon != null && currentChoices.Count < choicesCount)
         {
             UpgradeData weaponUpgrade =
                 ScriptableObject.CreateInstance<UpgradeData>();
@@ -556,12 +629,17 @@ public class UpgradeManager : MonoBehaviour
         List<WeaponData> candidates =
             new List<WeaponData>(availableWeapons.Count);
 
+        WaveManager waves = FindAnyObjectByType<WaveManager>();
+        int wave = waves != null ? waves.CurrentWave : 0;
         foreach (WeaponData weapon in availableWeapons)
         {
             if (weapon == null)
                 continue;
 
-            if (EquipmentManager.IsOwned(weapon))
+            if (EquipmentManager.IsOwned(weapon) || takenWeapons.Contains(weapon))
+                continue;
+
+            if (!EquipmentManager.IsUnlocked(weapon) && wave < weapon.UnlockLevel)
                 continue;
 
             candidates.Add(weapon);
@@ -652,7 +730,7 @@ public class UpgradeManager : MonoBehaviour
         // Оружие из дропа создаётся в рантайме и каждый раз новое,
         // поэтому счётчики стаков по нему не ведём. Иначе штраф за
         // повтор съедал бы настоящее улучшение, выбранное следом.
-        if (!availableUpgrades.Contains(upgrade))
+        if (!availableUpgrades.Contains(upgrade) && !RunBuildMechanics.IsTree(upgrade.Perk))
             return;
 
         takenStacks.TryGetValue(upgrade, out int stacks);
@@ -669,10 +747,52 @@ public class UpgradeManager : MonoBehaviour
         RebuildState();
     }
 
+    public string PreviewStat(UpgradeData upgrade)
+    {
+        float value = upgrade.PercentValue;
+        switch (upgrade.Type)
+        {
+            case UpgradeType.MaxHealth when playerHealth != null:
+                return Change(playerHealth.MaxHealth, playerHealth.MaxHealth * (1f + Mathf.Max(0, value)));
+            case UpgradeType.Damage when playerStats != null && weapon != null && weapon.Data != null:
+                float damage = weapon.Data.Damage * playerStats.DamageMultiplier;
+                return Change(damage, damage * (1f + value));
+            case UpgradeType.MoveSpeed when playerStats != null:
+                return Change(playerStats.MoveSpeed, playerStats.MoveSpeed * (1f + value));
+            case UpgradeType.FireRate when playerStats != null:
+                return Change(playerStats.FireRateMultiplier, playerStats.FireRateMultiplier * (1f + value), "×");
+            case UpgradeType.ProjectileSpeed when playerStats != null:
+                return Change(playerStats.ProjectileSpeedMultiplier, playerStats.ProjectileSpeedMultiplier * (1f + value), "×");
+            case UpgradeType.CriticalChance when playerStats != null:
+                return Change(playerStats.CriticalChance * 100, Mathf.Clamp01(playerStats.CriticalChance + value) * 100, "%");
+            case UpgradeType.CriticalDamage when playerStats != null:
+                return Change(playerStats.CriticalDamageMultiplier, playerStats.CriticalDamageMultiplier + value, "×");
+            case UpgradeType.ProjectileCount when playerStats != null:
+                return Change((1f + playerStats.ProjectileCountPercent) * 100, (1f + playerStats.ProjectileCountPercent + value) * 100, "%");
+            case UpgradeType.Pierce when playerStats != null:
+                return Change(playerStats.BonusPierce, playerStats.BonusPierce + Mathf.RoundToInt(value));
+            default:
+                return null;
+        }
+    }
+
+    private static string Change(float before, float after, string suffix = "")
+    {
+        var format = System.Globalization.CultureInfo.InvariantCulture;
+        string text = before.ToString("0.##", format) + suffix + " → " + after.ToString("0.##", format) + suffix;
+        return Lang.Code == LangCode.En ? text : text.Replace('.', ',');
+    }
+
     public void ApplyUpgrade(UpgradeData upgrade)
     {
         if (upgrade == null)
             return;
+
+        if (upgrade.Perk != RunPerk.None)
+        {
+            RunBuildMechanics.Apply(upgrade.Perk, weapon, playerStats, playerHealth);
+            return;
+        }
 
         EnsureAbilityManager();
 
@@ -811,6 +931,15 @@ public class UpgradeManager : MonoBehaviour
 
                 break;
 
+            case UpgradeType.AbilityPower:
+                abilityManager?.UpgradePower(upgrade.PercentValue);
+                break;
+            case UpgradeType.AbilityHaste:
+                abilityManager?.ReduceCooldown(upgrade.PercentValue);
+                break;
+            case UpgradeType.AbilityRange:
+                abilityManager?.UpgradeRange(upgrade.PercentValue);
+                break;
             case UpgradeType.Bomb:
 
                 if (abilityManager != null)
@@ -1024,6 +1153,9 @@ public class UpgradeManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        foreach(var card in abilityUpgradeCards) if(card!=null) Destroy(card);
+        if (runPerkCards != null)
+            foreach (var card in runPerkCards) if (card != null) Destroy(card);
         if (subscribed && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.OnGameStateChanged -=

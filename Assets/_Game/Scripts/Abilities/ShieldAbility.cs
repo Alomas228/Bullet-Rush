@@ -4,13 +4,17 @@ using UnityEngine;
 public class ShieldAbility : MonoBehaviour
 {
     [Header("Settings")]
-    [SerializeField] private float baseDuration = 2.5f;
-    [SerializeField] private float cooldown = 12f;
+    [SerializeField] private float baseDuration = 2.25f;
+    [SerializeField] private float cooldown = 14f;
 
     [Header("Visual")]
     [SerializeField] private GameObject shieldVisual;
 
     private float cooldownTimer;
+    private float activeUntil, activeDuration;
+    public float ActiveRemaining => IsActive ? Mathf.Max(0f, activeUntil - Time.time) : 0f;
+    public float ActiveFraction => Mathf.Clamp01(ActiveRemaining / Mathf.Max(.01f, activeDuration));
+    private float initialDuration, initialCooldown;
     private GameObject shieldInstance;
 
     public bool IsUnlocked { get; set; }
@@ -19,6 +23,29 @@ public class ShieldAbility : MonoBehaviour
     public float CooldownRemaining => cooldownTimer;
     public bool IsReady => cooldownTimer <= 0f;
     public bool IsActive { get; private set; }
+
+    private void Awake()
+    {
+        initialDuration = baseDuration;
+        initialCooldown = cooldown;
+    }
+
+    internal void ResetForSession()
+    {
+        ClearMenuVisual();
+        baseDuration = initialDuration;
+        cooldown = initialCooldown;
+        cooldownTimer = 0f;
+        IsUnlocked = false;
+    }
+
+    internal void ClearMenuVisual()
+    {
+        StopAllCoroutines();
+        IsActive = false;
+        activeUntil = activeDuration = 0f;
+        if (shieldInstance != null) shieldInstance.SetActive(false);
+    }
 
     private Transform GetOwnerTransform()
     {
@@ -108,11 +135,13 @@ public class ShieldAbility : MonoBehaviour
         }
 
         IsActive = true;
+        activeDuration = baseDuration;
+        activeUntil = Time.time + activeDuration;
 
         if (shieldInstance != null)
             shieldInstance.SetActive(true);
 
-        yield return new WaitForSeconds(baseDuration);
+        yield return new WaitForSeconds(activeDuration);
 
         IsActive = false;
 
@@ -123,12 +152,12 @@ public class ShieldAbility : MonoBehaviour
     public void UpgradeCooldown(float percent)
     {
         cooldown *= 1f - percent;
-        cooldown = Mathf.Max(cooldown, 1f);
+        cooldown = Mathf.Max(cooldown, 6f);
     }
 
     public void UpgradeDuration(float percent)
     {
-        baseDuration *= 1f + percent;
+        baseDuration = Mathf.Min(baseDuration * (1f + percent), 4f);
     }
 
     private GameObject BuildProceduralShield(

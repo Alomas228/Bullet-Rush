@@ -16,7 +16,7 @@ MonoBehaviour:
   upgradeName: Projectile Count
   description: Fires more projectiles per shot
   type: 10
-  rarity: 0
-  percentValue: 0.7
-  maxStacks: 3
+  rarity: 2
+  percentValue: 0.6
+  maxStacks: 2
   weaponData: {fileID: 0}

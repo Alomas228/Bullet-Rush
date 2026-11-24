@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 132a8a1c3c7364d4eabfa7b14d8acc39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Weapon
-  weaponData: {fileID: 0}
+  weaponData: {fileID: 11400000, guid: b9fdcd2d33e756645906583835d9ca49, type: 2}
   weaponVisualRoot: {fileID: 0}
   bulletPrefab: {fileID: 1602565924594960533, guid: d5a2092c5403fbb48af2f957247037d3, type: 3}
   tracerPrefab: {fileID: 0}
@@ -209,7 +209,7 @@ MonoBehaviour:
   moveSpeed: 6
   dashDistance: 4
   dashDuration: 0.15
-  dashCooldown: 1
+  dashCooldown: 1.2
   playerCamera: {fileID: 0}
   spawnGrowDuration: 0.25
   recoilDamping: 10
@@ -239,9 +239,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e90612e2045e8449a6f47899dbfbd9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BombAbility
-  baseDamage: 50
+  baseDamage: 300
   radius: 5
-  cooldown: 8
+  cooldown: 12
   bombEffectPrefab: {fileID: 0}
 --- !u!114 &4213202100366201386
 MonoBehaviour:
@@ -255,8 +255,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6ea0023ff2184245a95bb3aee90d5ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShieldAbility
-  baseDuration: 2.5
-  cooldown: 12
+  baseDuration: 2.25
+  cooldown: 14
   shieldVisual: {fileID: 0}
 --- !u!1 &4504913539658407303
 GameObject:

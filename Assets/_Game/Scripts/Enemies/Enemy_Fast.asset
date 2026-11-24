@@ -25,8 +25,8 @@ MonoBehaviour:
   damageMultiplier: 1
   healthMultiplier: 1
   knockbackResistance: 0.15
-  waveHealthPercent: 0.15
-  waveDamagePercent: 0.05
+  waveHealthPercent: 0.105
+  waveDamagePercent: 0.028
   waveScorePercent: 0.1
   scoreValue: 15
   dashWarningTime: 0.4
@@ -39,3 +39,9 @@ MonoBehaviour:
   maxInterceptDistance: 2.5
   variantChance: 0.15
   variantMinWave: 4
+  bodySkinMaterial: {fileID: 2100000, guid: 0bfbf8897514a2fed82c03c52763e58a, type: 2}
+  bodySkins:
+  - {fileID: 4300000, guid: 3f2d7767470eb430c0d569bdf06b2b43, type: 2}
+  - {fileID: 4300000, guid: f33a7ed7fd4ea23a79421d23ccb8e34f, type: 2}
+  - {fileID: 4300000, guid: 4a0b5c594d0a649cfe6c777303f7bdf0, type: 2}
+  - {fileID: 4300000, guid: 5b829ba398c754c3b15047e644dbbfd7, type: 2}

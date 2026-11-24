@@ -160,6 +160,20 @@ public class EnemyData : ScriptableObject
     [Tooltip("Разлёт залпа (градусы).")]
     [SerializeField] private float fanSpreadDegrees = 24f;
 
+    [Header("Ranged weapon visuals")]
+    [SerializeField] private GameObject[] rangedWeaponVisuals;
+    [SerializeField] private GameObject[] mobileWeaponVisuals;
+
+    public GameObject[] RangedWeaponVisuals => rangedWeaponVisuals;
+    public GameObject[] MobileWeaponVisuals => mobileWeaponVisuals;
+
+    [Header("Body skins (cosmetic)")]
+    [SerializeField] private Material bodySkinMaterial;
+    [SerializeField] private Mesh[] bodySkins;
+
+    public Material BodySkinMaterial => bodySkinMaterial;
+    public Mesh[] BodySkins => bodySkins;
+
     [Header("Elite Shockwave")]
     [Tooltip("Радиус зоны шока вокруг элиты.")]
     [SerializeField] private float abilityRadius = 4f;

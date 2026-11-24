@@ -19,10 +19,19 @@ public class MapStormOverlay : MonoBehaviour
     private static Texture2D stormTexture;
 
     private RawImage overlay;
+    private RawImage vignette;
     private Color baseColor =
         new Color(0.18f, 0.14f, 0.08f, 0f);
 
     private float windOffset;
+
+    public static void Clear()
+    {
+        if (instance == null) return;
+        instance.StopAllCoroutines();
+        instance.overlay.color = instance.baseColor;
+        instance.vignette.color = Color.clear;
+    }
 
     /// <summary>
     /// Вспышка бури: плавно затемняем, держим, плавно убираем.
@@ -63,7 +72,7 @@ public class MapStormOverlay : MonoBehaviour
         Canvas canvas = gameObject.AddComponent<Canvas>();
 
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 800;
+        canvas.sortingOrder = -1;
 
         overlay = gameObject.AddComponent<RawImage>();
 
@@ -76,6 +85,25 @@ public class MapStormOverlay : MonoBehaviour
         overlay.raycastTarget = false;
         overlay.texture = GetStormTexture();
         overlay.color = baseColor;
+
+        GameObject edge = new GameObject("Storm visibility", typeof(RectTransform));
+        edge.transform.SetParent(transform, false);
+        vignette = edge.AddComponent<RawImage>();
+        vignette.raycastTarget = false;
+        vignette.rectTransform.anchorMin = Vector2.zero;
+        vignette.rectTransform.anchorMax = Vector2.one;
+        vignette.rectTransform.offsetMin = vignette.rectTransform.offsetMax = Vector2.zero;
+        Texture2D mask = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+        mask.wrapMode = TextureWrapMode.Clamp;
+        for (int y = 0; y < 64; y++)
+            for (int x = 0; x < 64; x++)
+            {
+                float radius = new Vector2(x / 63f - .5f, y / 63f - .5f).magnitude * 2f;
+                mask.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.26f, .83f, radius))));
+            }
+        mask.Apply(false, true);
+        vignette.texture = mask;
+        vignette.color = Color.clear;
     }
 
     private static Texture2D GetStormTexture()
@@ -132,6 +160,7 @@ public class MapStormOverlay : MonoBehaviour
 
     private void Update()
     {
+        vignette.color = new Color(.1f, .075f, .045f, Mathf.Clamp01(overlay.color.a * 1.3f));
         windOffset += Time.deltaTime * 0.012f;
         overlay.uvRect = new Rect(
             windOffset,
@@ -201,6 +230,7 @@ public class MapStormOverlay : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (vignette != null && vignette.texture != null) Destroy(vignette.texture);
         if (instance == this)
             instance = null;
     }

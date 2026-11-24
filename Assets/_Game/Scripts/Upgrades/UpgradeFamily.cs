@@ -14,7 +14,8 @@ public enum UpgradeFamily
     Defensive = 1 << 7,
     Ability = 1 << 8,
     Weapon = 1 << 9,
-    Utility = 1 << 10
+    Utility = 1 << 10,
+    Cold = 1 << 11
 }
 
 public static class UpgradeFamilyUtility
@@ -31,7 +32,8 @@ public static class UpgradeFamilyUtility
         UpgradeFamily.Defensive,
         UpgradeFamily.Ability,
         UpgradeFamily.Weapon,
-        UpgradeFamily.Utility
+        UpgradeFamily.Utility,
+        UpgradeFamily.Cold
     };
 
     public static UpgradeFamily Resolve(
@@ -66,6 +68,9 @@ public static class UpgradeFamilyUtility
 
             case UpgradeType.Bomb:
             case UpgradeType.Shield:
+            case UpgradeType.AbilityPower:
+            case UpgradeType.AbilityHaste:
+            case UpgradeType.AbilityRange:
                 return UpgradeFamily.Ability;
 
             case UpgradeType.Weapon:

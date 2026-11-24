@@ -318,6 +318,8 @@ public class WorldStructureGenerator : MonoBehaviour
 
         for (int i = 0; i < renderers.Length && i < saved.rendererMaterials.Length; i++)
             renderers[i].sharedMaterials = saved.rendererMaterials[i];
+        ArenaStaticMeshBatcher.BatchObject(structure);
+        BattleMeshBatcher.RegisterTree(structure);
 
         structures.Add(structure);
         structurePrefabIndices[structure] = saved.prefabIndex;
@@ -471,6 +473,18 @@ public class WorldStructureGenerator : MonoBehaviour
             ),
             RebuildProfile()
         );
+    }
+
+    // The menu curtain is already opaque. Build in batches so the main thread
+    // stays responsive, but do not animate individual structures into view.
+    public void RebuildForMenu(int mapSeed)
+    {
+        BeginGeneration(new System.Random(LayoutSeed(mapSeed, 1)), new TransitionProfile
+        {
+            stagger = 0f,
+            scaleInDuration = 0f,
+            fadeOutScale = 0f
+        });
     }
 
     // Зерно раскладки. Стабильный режим держит одну конфигурацию
@@ -823,7 +837,10 @@ public class WorldStructureGenerator : MonoBehaviour
         foreach (GameObject structure in structures)
         {
             if (structure != null)
+            {
+                structure.SetActive(false);
                 Destroy(structure);
+            }
         }
 
         structures.Clear();
@@ -1639,6 +1656,8 @@ public class WorldStructureGenerator : MonoBehaviour
             );
 
         ApplyLook(structure, rng, useFallbackCube);
+        ArenaStaticMeshBatcher.BatchObject(structure);
+        BattleMeshBatcher.RegisterTree(structure);
 
         structures.Add(structure);
         structurePrefabIndices[structure] = prefab == null

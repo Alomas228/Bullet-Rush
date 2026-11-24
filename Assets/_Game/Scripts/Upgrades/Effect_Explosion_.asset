@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2a185270d74892478ab5ed3332aa650, type: 3}
   m_Name: Effect_Explosion_
   m_EditorClassIdentifier: Assembly-CSharp::ExplosionEffectData
-  radius: 3
-  damage: 80
+  radius: 2.8
+  damage: 70

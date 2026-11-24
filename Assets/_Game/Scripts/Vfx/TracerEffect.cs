@@ -69,7 +69,7 @@ public sealed class TracerEffect : VfxEffect
     /// занимает примерно треть ширины, то есть 3-4 пикселя -
     /// тонко, но глазом ловится.
     /// </summary>
-    public const float DefaultWidth = 0.26f;
+    public const float DefaultWidth = 0.20f;
 
     /// <summary>
     /// Длина хвоста, если скорость неизвестна.
@@ -160,6 +160,16 @@ public sealed class TracerEffect : VfxEffect
 
     private float fullLength;
     private float fullWidth;
+    private Vector3 launchPosition;
+    private Vector3 launchDirection;
+    private Vector3 visualOffset;
+    private float offsetConvergenceDistance;
+    private Vector3 trailDirection;
+    private float visibleLength;
+    private float muzzleFlashRemaining;
+    private int spawnFrame;
+    private int fadeStartFrame;
+    private const float MuzzleFlashLifetime = 0.055f;
 
     /// <summary>
     /// Насколько сейчас развёрнута форма: 1 - полная, 0 - схлопнута.
@@ -249,18 +259,20 @@ public sealed class TracerEffect : VfxEffect
     /// </summary>
     internal void BuildMatrices(
         Vector3 position,
-        Quaternion rotation,
         out Matrix4x4 tail,
         out Matrix4x4 core)
     {
-        float lengthNow = fullLength * Retract;
+        // The tail cannot extend behind the point where this shot appeared.
+        float lengthNow = Mathf.Max(0.0001f, visibleLength * Retract);
 
         float widthNow =
-            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, Retract);
+            fullWidth * Mathf.Lerp(MinWidthRatio, 1f, Retract) *
+            Mathf.Lerp(0.4f, 1f, Mathf.Clamp01(visibleLength / 0.3f));
 
         float sideNow = coreSize * Retract;
 
-        Matrix4x4 basis = Matrix4x4.TRS(position, rotation, Vector3.one);
+        Matrix4x4 basis = Matrix4x4.TRS(position,
+            VfxSharedAssets.FaceDirection(trailDirection), Vector3.one);
 
         // Хвост: меш от -1 до 0 по X и от -0.5 до 0.5 по Y, поэтому
         // масштаб идёт полными величинами - длиной и шириной.
@@ -271,7 +283,21 @@ public sealed class TracerEffect : VfxEffect
         // масштабом идёт сторона, а не полусторона. Иначе ядро
         // получилось бы вдвое меньше прежнего.
         core = basis * Matrix4x4.Scale(
-            new Vector3(sideNow, sideNow, 1f));
+            new Vector3(sideNow * 1.55f, sideNow, 1f));
+    }
+
+    internal bool HasMuzzleFlash => muzzleFlashRemaining > 0f;
+
+    internal bool TryBuildMuzzleFlash(out Matrix4x4 matrix)
+    {
+        matrix = default;
+        if (!HasMuzzleFlash) return false;
+        float t = Mathf.Clamp01(muzzleFlashRemaining / MuzzleFlashLifetime);
+        float size = Mathf.Lerp(0.055f, 0.25f, t * t);
+        matrix = Matrix4x4.TRS(launchPosition + visualOffset + launchDirection * 0.035f,
+            VfxSharedAssets.FaceDirection(launchDirection),
+            new Vector3(size * 1.55f, size * 0.85f, 1f));
+        return true;
     }
 
     /// <summary>
@@ -283,7 +309,9 @@ public sealed class TracerEffect : VfxEffect
     public void Play(
         Vector3 direction,
         float speed,
-        Transform target)
+        Transform target,
+        Vector3? visualMuzzle = null,
+        bool muzzleFlash = false)
     {
         fullLength = speed > 0f
             ? Mathf.Clamp(
@@ -297,11 +325,23 @@ public sealed class TracerEffect : VfxEffect
         // Поворот считается один раз: пуля летит по Vector3.forward
         // и не поворачивается, так что ось X (длина хвоста)
         // остаётся верной до конца полёта.
-        transform.rotation =
-            VfxSharedAssets.FaceDirection(direction);
-
         followTarget = followBullet ? target : null;
         following = followTarget != null;
+
+        launchPosition = target != null ? target.position : transform.position;
+        launchDirection = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.forward;
+        visualOffset = (visualMuzzle ?? launchPosition) - launchPosition;
+        // Enemy weapons are mounted further from the original simulation
+        // origin. A longer blend prevents the visible head from moving
+        // backwards while it joins the unchanged projectile path.
+        float forwardOffset = Mathf.Max(0f, Vector3.Dot(visualOffset, launchDirection));
+        offsetConvergenceDistance = Mathf.Max(0.65f, 1.7f * forwardOffset + 0.1f);
+        trailDirection = launchDirection;
+        visibleLength = following ? 0f : fullLength;
+        transform.position = launchPosition + visualOffset;
+        muzzleFlashRemaining = muzzleFlash ? MuzzleFlashLifetime : 0f;
+        spawnFrame = Time.frameCount;
+        fadeStartFrame = -1;
 
         Retract = 1f;
 
@@ -320,7 +360,11 @@ public sealed class TracerEffect : VfxEffect
 
     protected override void Tick(float deltaTime)
     {
-        TimeLeft -= deltaTime;
+        // Guarantee the first rendered flash even at a low frame rate.
+        if (Time.frameCount != spawnFrame)
+            muzzleFlashRemaining = Mathf.Max(0f, muzzleFlashRemaining - deltaTime);
+        if (following || Time.frameCount != fadeStartFrame)
+            TimeLeft -= deltaTime;
 
         if (TimeLeft <= 0f)
         {
@@ -328,6 +372,8 @@ public sealed class TracerEffect : VfxEffect
             {
                 // Потолок Follow reached: пуля не умерла, но ждать
                 // больше нельзя - переходим в затухание.
+                if (followTarget != null && followTarget.gameObject.activeInHierarchy)
+                    SamplePosition(followTarget.position);
                 StartFade();
                 return;
             }
@@ -341,7 +387,7 @@ public sealed class TracerEffect : VfxEffect
             if (followTarget != null &&
                 followTarget.gameObject.activeInHierarchy)
             {
-                transform.position = followTarget.position;
+                SamplePosition(followTarget.position);
 
                 // Пока пуля жива, хвост и ядро полной формы.
                 Retract = 1f;
@@ -370,16 +416,44 @@ public sealed class TracerEffect : VfxEffect
     /// </summary>
     public void Detach()
     {
-        if (!following)
-            return;
+        Detach(followTarget);
+    }
 
+    internal void Detach(Transform expectedTarget)
+    {
+        // Never detach a different shot through an old pooled reference.
+        if (!following || followTarget != expectedTarget) return;
+        if (expectedTarget != null) SamplePosition(expectedTarget.position);
         followTarget = null;
         StartFade();
+    }
+
+    private void SamplePosition(Vector3 position)
+    {
+        float distance = Mathf.Max(0f, Vector3.Dot(position - launchPosition, launchDirection));
+        float tailDistance = Mathf.Min(fullLength, distance);
+        Vector3 head = position + visualOffset * OffsetWeight(distance);
+        Vector3 tail = position - launchDirection * tailDistance +
+            visualOffset * OffsetWeight(distance - tailDistance);
+        Vector3 segment = head - tail;
+        visibleLength = segment.magnitude;
+        trailDirection = visibleLength > 0.0001f ? segment / visibleLength : launchDirection;
+        transform.position = head;
+    }
+
+    private float OffsetWeight(float distance)
+    {
+        // Cosmetic emitters on wide props smoothly converge on the actual
+        // projectile path. The collider and gameplay FirePoint never move.
+        float t = Mathf.Clamp01(distance / offsetConvergenceDistance);
+        return 1f - t * t * (3f - 2f * t);
     }
 
     private void StartFade()
     {
         following = false;
+        followTarget = null;
+        fadeStartFrame = Time.frameCount;
 
         Duration = Mathf.Max(0.01f, fadeLifetime);
         TimeLeft = Duration;
@@ -400,6 +474,7 @@ public sealed class TracerEffect : VfxEffect
     {
         followTarget = null;
         following = false;
+        muzzleFlashRemaining = 0f;
 
         // Снимаем с отрисовки до возврата в пул: объект переиспользуют
         // следующим же выстрелом, и на кадр между возвратом и новым

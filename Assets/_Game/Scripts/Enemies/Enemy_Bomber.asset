@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyName: Enemy_Bomber
   enemyType: 6
   maxHealth: 260
-  moveSpeed: 2.7
+  moveSpeed: 3.2
   contactDamage: 8
   damageCooldown: 1
   attackRange: 4
@@ -27,10 +27,16 @@ MonoBehaviour:
   flankAngle: 0
   flankRetargetInterval: 2.2
   blastRadius: 4.2
-  blastDamage: 70
+  blastDamage: 44
   blastWarning: 0.85
   knockbackResistance: 0.15
-  waveHealthPercent: 0.15
-  waveDamagePercent: 0.05
+  waveHealthPercent: 0.105
+  waveDamagePercent: 0.025
   waveScorePercent: 0.1
   scoreValue: 25
+  bodySkinMaterial: {fileID: 2100000, guid: 0bfbf8897514a2fed82c03c52763e58a, type: 2}
+  bodySkins:
+  - {fileID: 4300000, guid: 6d676a6e20f7ae9fe43d6b60c84790c9, type: 2}
+  - {fileID: 4300000, guid: 22f8f858597cb4630896ea8d299d8911, type: 2}
+  - {fileID: 4300000, guid: 15fda6994554f1aee01f79ba9d8226c8, type: 2}
+  - {fileID: 4300000, guid: a92de8befc180cfba00c55cd0b0905ed, type: 2}

@@ -27,6 +27,10 @@ public class Weapon : MonoBehaviour
     private PlayerController playerController;
     private CameraFollow cachedCamera;
     private Transform cachedFirePoint;
+    private readonly System.Collections.Generic.List<Transform> cachedVisualMuzzles = new();
+    private int nextVisualMuzzle;
+    private GameObject activeWeaponVisual;
+    private float appliedWeaponScoreBonus;
 
     private RunUpgrades runUpgrades;
     private PlayerHealth playerHealth;
@@ -41,6 +45,38 @@ public class Weapon : MonoBehaviour
 
     private bool doubleShotActive;
     private float doubleShotTimer;
+
+    private int ammo;
+    private float reloadRemaining, reloadDuration, overdriveCharge, lastVolleyTime;
+    private bool firedSinceReload;
+    public bool UsesMagazine => !GameModeManager.IsPvp && weaponData != null;
+    public int MagazineCapacity => weaponData == null ? 0 : Mathf.Max(1, Mathf.RoundToInt(weaponData.BaseMagazineSize * RunBuildMechanics.MagazineMultiplier(weaponData)));
+    public int Ammo => ammo;
+    public bool IsReloading => reloadRemaining > 0f;
+    public float ReloadRemaining => Mathf.Max(0f, reloadRemaining);
+    public float ReloadProgress => IsReloading ? 1f - reloadRemaining / Mathf.Max(.01f, reloadDuration) : 1f;
+
+    public void RefreshMagazine()
+    {
+        ammo = MagazineCapacity;
+        reloadRemaining = reloadDuration = overdriveCharge = 0f;
+        firedSinceReload = false;
+        lastVolleyTime = -100f;
+    }
+
+    public void RestoreAmmo(int rounds)
+    {
+        if (UsesMagazine && !IsReloading && rounds > 0) ammo = Mathf.Min(MagazineCapacity, ammo + rounds);
+    }
+
+    public void RequestReload()
+    {
+        if (!UsesMagazine || !canShoot || Time.timeScale <= 0f || IsReloading || ammo >= MagazineCapacity) return;
+        burstActive = doubleShotActive = false;
+        burstShotsRemaining = 0;
+        reloadRemaining = reloadDuration = Mathf.Max(.25f, weaponData.BaseReloadSeconds * RunBuildMechanics.ReloadMultiplier(weaponData));
+        overdriveCharge = 0f;
+    }
 
     public float FireCooldownRemaining =>
         Mathf.Max(fireTimer, 0f);
@@ -79,8 +115,11 @@ public class Weapon : MonoBehaviour
         }
     }
 
+    private WeaponData menuDefaultWeapon;
+
     private void Awake()
     {
+        menuDefaultWeapon = weaponData;
         playerStats = GetComponentInParent<PlayerStats>();
 
         if (playerStats == null)
@@ -108,6 +147,61 @@ public class Weapon : MonoBehaviour
             GetComponentInParent<PlayerHealth>();
 
         ApplyWeaponVisual();
+        RefreshMagazine();
+    }
+
+    internal void RefreshMenuWeapon()
+    {
+        if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Menu) return;
+        WeaponData preview = ResolveSessionWeapon();
+        if (preview == null || preview == weaponData) return;
+        // Read-only preview: do not apply a score bonus or combat upgrades.
+        weaponData = preview;
+        ApplyWeaponVisual();
+    }
+
+    private WeaponData ResolveSessionWeapon()
+    {
+        WeaponData preview = menuDefaultWeapon;
+        string selected = EquipmentManager.EquippedWeaponName;
+        var upgrades = UpgradeManager.Instance;
+        if (upgrades != null && !string.IsNullOrEmpty(selected))
+        {
+            foreach (WeaponData candidate in upgrades.GetAvailableWeapons())
+            {
+                if (candidate != null && candidate.WeaponName == selected && EquipmentManager.IsOwned(candidate))
+                {
+                    preview = candidate;
+                    break;
+                }
+            }
+        }
+        return preview;
+    }
+
+    internal void ResetForSession(bool startingRun)
+    {
+        // PlayerStats has already restored its base multiplier.
+        appliedWeaponScoreBonus = 0f;
+        canShoot = false;
+        fireTimer = 0f;
+        shotCycle = 0;
+        volleyIndex = 0;
+        nextVisualMuzzle = 0;
+        burstActive = false;
+        burstShotsRemaining = 0;
+        burstTimer = 0f;
+        burstShotInterval = 0f;
+        doubleShotActive = false;
+        doubleShotTimer = 0f;
+        WeaponData selected = ResolveSessionWeapon();
+        if (selected != weaponData)
+        {
+            weaponData = selected;
+            ApplyWeaponVisual();
+        }
+        if (startingRun) ApplyWeaponScoreBonus();
+        RefreshMagazine();
     }
 
     private bool canShoot;
@@ -214,15 +308,43 @@ public class Weapon : MonoBehaviour
 
     private void Update()
     {
-        if (weaponData == null || RamLiftArena.InTransit)
+        if (!canShoot || Time.timeScale <= 0f || weaponData == null || RamLiftArena.InTransit)
             return;
 
         UpdateFireTimer();
+        RunBuildMechanics.TickDrone(this, playerStats);
+        if (Time.time - lastVolleyTime > .28f)
+            overdriveCharge = Mathf.MoveTowards(overdriveCharge, 0f, Time.deltaTime * 1.5f);
+
+        if (UsesMagazine)
+        {
+            if (IsReloading)
+            {
+                reloadRemaining -= Time.deltaTime;
+                if (reloadRemaining <= 0f) RefreshMagazine();
+                else return;
+            }
+            if (ammo <= 0 || (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame))
+            {
+                RequestReload();
+                if (IsReloading) return;
+            }
+        }
         UpdateBurst();
         UpdateDoubleShot();
 
         if (!CanShootNow())
             return;
+
+        if (MobileControls.IsTouchDevice)
+        {
+            if (MobileControls.IsFiring)
+            {
+                playerController?.ApplyMobileAim();
+                TryShoot();
+            }
+            return;
+        }
 
         if (Mouse.current == null ||
             !Mouse.current.leftButton.isPressed)
@@ -239,6 +361,8 @@ public class Weapon : MonoBehaviour
         // Пауза, меню, экран улучшений
         if (Time.timeScale <= 0f)
             return false;
+
+        if (MobileControls.IsTouchDevice) return MobileControls.CanControl;
 
         // Клик по кнопке UI не должен стрелять
         if (IsPointerOverUi())
@@ -268,6 +392,8 @@ public class Weapon : MonoBehaviour
     {
         if (weaponData == null)
             return;
+
+        if (UsesMagazine && (IsReloading || ammo <= 0)) return;
 
         if (burstActive || doubleShotActive)
             return;
@@ -376,6 +502,7 @@ public class Weapon : MonoBehaviour
     {
         if (weaponData == null)
             return;
+        if (UsesMagazine && (IsReloading || ammo <= 0)) return;
         volleyIndex++;
 
         Transform firePoint =
@@ -390,9 +517,28 @@ public class Weapon : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < GetProjectileCount(); i++)
+        bool first = UsesMagazine && !firedSinceReload;
+        bool last = UsesMagazine && ammo == 1;
+        int ammoBefore = ammo;
+        if (UsesMagazine) { ammo--; firedSinceReload = true; }
+        RunPerk evolution = RunBuildMechanics.Evolution(weaponData);
+        if (evolution == RunPerk.SmgOverdrive || evolution == RunPerk.MinigunHeat)
         {
-            FireProjectile(firePoint);
+            float gap = Time.time - lastVolleyTime;
+            if (gap <= .28f) overdriveCharge = Mathf.Clamp01(overdriveCharge + gap / (evolution == RunPerk.MinigunHeat ? 2f : 1.65f));
+        }
+        lastVolleyTime = Time.time;
+        Vector3 visualMuzzle = GetVisualMuzzle(firePoint).position;
+        int count = GetProjectileCount();
+        float volleyScale = WeaponData.GetVolleyDamageScale(weaponData.ProjectileCount, count);
+        if (evolution == RunPerk.ShotgunSlug && playerStats != null)
+        {
+            int virtualCount = WeaponData.ResolveProjectileCount(weaponData.ProjectileCount, playerStats.ProjectileCountPercent);
+            volleyScale *= 1f + .45f * (virtualCount - weaponData.ProjectileCount) / Mathf.Max(1, weaponData.ProjectileCount);
+        }
+        for (int i = 0; i < count; i++)
+        {
+            FireProjectile(firePoint, visualMuzzle, i == 0, volleyScale, first, last, evolution, ammoBefore);
         }
 
         ApplyRecoil(firePoint);
@@ -417,13 +563,10 @@ public class Weapon : MonoBehaviour
                 1
             );
 
-        if (playerStats == null)
-            return baseCount;
-
-        return WeaponData.ResolveProjectileCount(
-            baseCount,
-            playerStats.ProjectileCountPercent
-        );
+        RunPerk evolution = RunBuildMechanics.Evolution(weaponData);
+        if (evolution == RunPerk.ShotgunSlug) return 1;
+        int count = playerStats == null ? baseCount : WeaponData.ResolveProjectileCount(baseCount, playerStats.ProjectileCountPercent);
+        return evolution == RunPerk.ShotgunWide ? Mathf.Min(baseCount + 4, count + 2) : count;
     }
 
     private void ApplyFireShake()
@@ -444,7 +587,11 @@ public class Weapon : MonoBehaviour
     }
 
     private void FireProjectile(
-        Transform firePoint)
+        Transform firePoint,
+        Vector3 visualMuzzle,
+        bool muzzleFlash,
+        float volleyScale,
+        bool first, bool last, RunPerk evolution, int ammoBefore)
     {
         if (bulletPrefab == null)
         {
@@ -458,7 +605,7 @@ public class Weapon : MonoBehaviour
         Vector3 direction =
             GetProjectileDirection(
                 firePoint,
-                weaponData.SpreadAngle
+                evolution == RunPerk.ShotgunSlug ? 0f : evolution == RunPerk.ShotgunWide ? weaponData.SpreadAngle * 1.25f : weaponData.SpreadAngle
             );
 
         Quaternion rotation =
@@ -475,7 +622,7 @@ public class Weapon : MonoBehaviour
             return;
 
         float damageMultiplier =
-            GetDamageMultiplier();
+            GetDamageMultiplier() * volleyScale * RunBuildMechanics.VolleyDamage(weaponData, first, last, volleyIndex, overdriveCharge, ammoBefore, MagazineCapacity);
 
         float damage =
             weaponData.Damage *
@@ -501,18 +648,19 @@ public class Weapon : MonoBehaviour
             isCritical,
             weaponData.PierceCount + GetBonusPierce(),
 
-            weaponData.BurnDamagePerSecond * damageMultiplier,
-            weaponData.BurnDuration,
+            weaponData.BurnDamagePerSecond * damageMultiplier * RunBuildMechanics.BurnFactor * (evolution == RunPerk.PlasmaFurnace ? 1.65f / .9f : evolution == RunPerk.InfernoCinders ? 1.35f : 1f),
+            weaponData.BurnDuration * (evolution == RunPerk.PlasmaFurnace ? 1.30f : 1f),
             weaponData.BurnTickInterval,
 
-            weaponData.LightningChance,
-            weaponData.LightningDamage * damageMultiplier,
-            weaponData.LightningTargets,
+            Mathf.Clamp01(weaponData.LightningChance + (evolution == RunPerk.LightningSurge ? .18f : 0f)),
+            weaponData.LightningDamage * damageMultiplier * RunBuildMechanics.LightningFactor * (evolution == RunPerk.LightningSurge ? 1.2f : 1f),
+            weaponData.LightningTargets + (evolution == RunPerk.LightningSurge ? 1 : 0),
             weaponData.LightningRange
         );
 
         bullet.SetWeaponIdentity(weaponData.WeaponName);
         bullet.SetShotIdentity(shotCycle, volleyIndex);
+        bullet.SetRunMechanics(this, evolution);
         bullet.SetRunEffects(
             runUpgrades,
             playerHealth,
@@ -521,9 +669,11 @@ public class Weapon : MonoBehaviour
         );
 
         SpawnTracer(
-            bullet.transform,
+            bullet,
             direction,
-            projectileSpeed
+            projectileSpeed,
+            visualMuzzle,
+            muzzleFlash
         );
 
         PlayFireSound();
@@ -597,17 +747,21 @@ public class Weapon : MonoBehaviour
     // =========================================================
 
     private void SpawnTracer(
-        Transform bullet,
+        Bullet bullet,
         Vector3 direction,
-        float speed)
+        float speed,
+        Vector3 visualMuzzle,
+        bool muzzleFlash)
     {
-        VfxFactory.SpawnTracer(
-            bullet.position,
+        bullet.SetVisualTracer(VfxFactory.SpawnTracer(
+            bullet.transform.position,
             direction,
             speed,
-            bullet,
-            tracerPrefab
-        );
+            bullet.transform,
+            tracerPrefab,
+            visualMuzzle,
+            muzzleFlash
+        ));
     }
 
     // =========================================================
@@ -624,6 +778,8 @@ public class Weapon : MonoBehaviour
 
         weaponData =
             newWeaponData;
+
+        RefreshMagazine();
 
         burstActive = false;
         burstShotsRemaining = 0;
@@ -666,15 +822,18 @@ public class Weapon : MonoBehaviour
         GameObject weaponPrefab =
             testVisualOverride;
 
-        if (weaponPrefab == null)
+        if (weaponPrefab == null && weaponData != null)
+            weaponPrefab = weaponData.WeaponPrefab;
+
+        if (activeWeaponVisual != null)
         {
-            if (weaponData == null)
-                return;
-
-            weaponPrefab =
-                weaponData.WeaponPrefab;
+            activeWeaponVisual.SetActive(false);
+            Destroy(activeWeaponVisual);
+            activeWeaponVisual = null;
         }
-
+        cachedFirePoint = null;
+        cachedVisualMuzzles.Clear();
+        nextVisualMuzzle = 0;
         foreach (Transform child in weaponVisualRoot)
         {
             child.gameObject.SetActive(false);
@@ -683,13 +842,12 @@ public class Weapon : MonoBehaviour
         if (weaponPrefab == null)
             return;
 
-        cachedFirePoint = null;
-
         GameObject visual =
             Instantiate(
                 weaponPrefab,
                 weaponVisualRoot
             );
+        activeWeaponVisual = visual;
 
         visual.transform.localPosition =
             Vector3.zero;
@@ -713,27 +871,37 @@ public class Weapon : MonoBehaviour
         if (weaponVisualRoot == null)
             return null;
 
+        cachedVisualMuzzles.Clear();
+        nextVisualMuzzle = 0;
         Transform[] children =
-            weaponVisualRoot
+            (activeWeaponVisual != null ? activeWeaponVisual.transform : weaponVisualRoot)
                 .GetComponentsInChildren<Transform>(
-                    true
+                    false
                 );
 
         foreach (Transform child in children)
         {
-            if (child.name == "FirePoint")
-            {
+            if (child.name == "FirePoint" && cachedFirePoint == null)
                 cachedFirePoint = child;
-
-                return child;
-            }
+            else if (child.name.StartsWith("VisualMuzzle_", System.StringComparison.Ordinal))
+                cachedVisualMuzzles.Add(child);
         }
+        if (cachedFirePoint != null) return cachedFirePoint;
 
         // У префаба оружия может не быть FirePoint — стреляем
         // из точки крепления оружия.
         cachedFirePoint = weaponVisualRoot;
 
         return cachedFirePoint;
+    }
+
+    private Transform GetVisualMuzzle(Transform fallback)
+    {
+        int count = cachedVisualMuzzles.Count;
+        if (count == 0) return fallback;
+        Transform muzzle = cachedVisualMuzzles[nextVisualMuzzle];
+        nextVisualMuzzle = (nextVisualMuzzle + 1) % count;
+        return muzzle != null ? muzzle : fallback;
     }
 
     // =========================================================
@@ -750,18 +918,20 @@ public class Weapon : MonoBehaviour
 
     private float GetFireRateMultiplier()
     {
-        if (playerStats == null)
-            return 1f;
-
-        return playerStats.FireRateMultiplier;
+        float value = playerStats != null ? playerStats.FireRateMultiplier : 1f;
+        RunPerk evolution = RunBuildMechanics.Evolution(weaponData);
+        if (evolution == RunPerk.RifleRapid) value *= 1.35f;
+        if (evolution == RunPerk.BasicSmgDrum) value *= 1.15f;
+        if (evolution == RunPerk.SmgOverdrive) value *= 1f + .55f * overdriveCharge;
+        return value;
     }
 
     private int GetBonusPierce()
     {
-        if (playerStats == null)
-            return 0;
-
-        return playerStats.BonusPierce;
+        RunPerk evolution = RunBuildMechanics.Evolution(weaponData);
+        return (playerStats != null ? playerStats.BonusPierce : 0) +
+            (evolution == RunPerk.RiflePiercer ? 2 : evolution == RunPerk.ShotgunSlug || evolution == RunPerk.HunterChain ||
+            evolution == RunPerk.HeavyRam || evolution == RunPerk.VoidGravity || (evolution == RunPerk.TwinCrossfire && volleyIndex == 2) ? 1 : 0);
     }
 
     private float GetProjectileSpeedMultiplier()
@@ -788,7 +958,7 @@ public class Weapon : MonoBehaviour
 
         return Mathf.Clamp01(
             playerChance +
-            weaponChance
+            weaponChance + (RunBuildMechanics.Evolution(weaponData) == RunPerk.RifleMarksman ? .20f : RunBuildMechanics.Evolution(weaponData) == RunPerk.GoldenFortune ? .12f : 0f)
         );
     }
 
@@ -803,6 +973,9 @@ public class Weapon : MonoBehaviour
         if (weaponData != null)
             multiplier +=
                 weaponData.CriticalDamageBonus;
+
+        if (RunBuildMechanics.Evolution(weaponData) == RunPerk.RifleMarksman) multiplier += .5f;
+        if (RunBuildMechanics.Evolution(weaponData) == RunPerk.GoldenFortune) multiplier += 1f;
 
         return Mathf.Max(
             multiplier,
@@ -822,31 +995,19 @@ public class Weapon : MonoBehaviour
         if (playerStats == null)
             return;
 
-        if (
+        if (appliedWeaponScoreBonus == 0f &&
             weaponData.SpecialType ==
             WeaponSpecialType.ScoreBonus)
         {
-            playerStats.AddScorePercent(
-                weaponData.ScoreBonusPercent
-            );
+            appliedWeaponScoreBonus = weaponData.ScoreBonusPercent;
+            playerStats.AddScorePercent(appliedWeaponScoreBonus);
         }
     }
 
     private void RemoveCurrentWeaponScoreBonus()
     {
-        if (weaponData == null)
-            return;
-
-        if (playerStats == null)
-            return;
-
-        if (
-            weaponData.SpecialType ==
-            WeaponSpecialType.ScoreBonus)
-        {
-            playerStats.RemoveScorePercent(
-                weaponData.ScoreBonusPercent
-            );
-        }
+        if (playerStats != null && appliedWeaponScoreBonus != 0f)
+            playerStats.RemoveScorePercent(appliedWeaponScoreBonus);
+        appliedWeaponScoreBonus = 0f;
     }
 }

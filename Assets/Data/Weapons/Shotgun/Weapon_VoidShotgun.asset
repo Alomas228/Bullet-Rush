@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Широкая дробь пробивает передний ряд. Хорошо накрывает плотные группы."
   weaponType: 1
   rarity: 4
-  unlockLevel: 12
-  price: 3000
-  weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 95
+  unlockLevel: 21
+  price: 1700
+  weaponPrefab: {fileID: 8559010253350651214, guid: ff43ce9dbf9a59d2f5503a128e386246, type: 3}
+  preview: {fileID: 21300000, guid: 9612470737ffd9633baa134f062ccbad, type: 3}
+  damage: 105
   fireRate: 1.2
   projectileSpeed: 14
   projectileCount: 6

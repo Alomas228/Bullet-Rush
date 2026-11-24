@@ -2540,7 +2540,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1820, y: 980}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &86627696
 GameObject:
@@ -14727,9 +14727,35 @@ MonoBehaviour:
   availableAbilities:
   - {fileID: 11400000, guid: 4a0e3bb22c5f4d2b0d3f6c7e8f900112, type: 2}
   - {fileID: 11400000, guid: 5b1f4cc33d6a5e3c1e4a7d8f90a12345, type: 2}
+  - {fileID: 11400000, guid: 6fa83d2a6e21214e8d7f7d1815a4ef93, type: 2}
+  - {fileID: 11400000, guid: d7cb459e196b7302a5a1f5d1a7877b96, type: 2}
+  - {fileID: 11400000, guid: cde8bf47954e9b58827c32f324c95cdc, type: 2}
+  - {fileID: 11400000, guid: 9637b120dbc96202f54f417bea81f639, type: 2}
+  - {fileID: 11400000, guid: 6baa2661539532c8158efb8927f52650, type: 2}
+  - {fileID: 11400000, guid: be47f0515de74745e78e0354bb938500, type: 2}
+  - {fileID: 11400000, guid: 64d3953dba8bde57c84afaf9a49739dc, type: 2}
+  - {fileID: 11400000, guid: dbc112796bf20a3f9ec86c6c42bc3e9f, type: 2}
+  - {fileID: 11400000, guid: 4b22dcee6fe99cb0a4e8fd3f4c10d403, type: 2}
+  - {fileID: 11400000, guid: 937a39f0ca87f9f19504f5538c1ed3ce, type: 2}
   availableClothing:
-  - {fileID: 11400000, guid: 9f53800772ae927c5c8e1b2cde567890, type: 2}
   - {fileID: 11400000, guid: 7d316ee55f8c705e3a6c9f0abc345678, type: 2}
+  - {fileID: 11400000, guid: 702119badf28134795822e6945579078, type: 2}
+  - {fileID: 11400000, guid: 7b0ccbc980b9488a85fbdc1642b6ca33, type: 2}
+  - {fileID: 11400000, guid: 66f6ee2706d973626c99b938e1635dc3, type: 2}
+  - {fileID: 11400000, guid: eeaf1b96ba7e350827d9dc6c7ed445b0, type: 2}
+  - {fileID: 11400000, guid: 291fccb681ff13123be2905b4531a486, type: 2}
+  - {fileID: 11400000, guid: bd42d370312bad0bb0e63170e8a995a3, type: 2}
+  - {fileID: 11400000, guid: 1560b14387414d4b1e484f484e6deda0, type: 2}
+  - {fileID: 11400000, guid: c54b7484355a7e03c9ce93715b8103c4, type: 2}
+  - {fileID: 11400000, guid: 3fa29ddf52caaa38a8e7ac7b3b867ab7, type: 2}
+  - {fileID: 11400000, guid: a8b7424317634d6e662ab9c9bf3e57e5, type: 2}
+  - {fileID: 11400000, guid: 73fcea1652fae38b661c3a5e81c5404a, type: 2}
+  - {fileID: 11400000, guid: 0627631dc3ddc8edcf4686c45712700c, type: 2}
+  - {fileID: 11400000, guid: eb7988785efcbc0573d31378ad3b0f22, type: 2}
+  - {fileID: 11400000, guid: 41731490390c1fc75a13e15ae011fb38, type: 2}
+  - {fileID: 11400000, guid: 28b53d8056108b2887e8a5209408c1ff, type: 2}
+  - {fileID: 11400000, guid: e82d0e33843d55a081c7e1723e1b8157, type: 2}
+  - {fileID: 11400000, guid: 9f53800772ae927c5c8e1b2cde567890, type: 2}
   - {fileID: 11400000, guid: 8e427ff6619d816f4b7d0a1bcd456789, type: 2}
   choicesCount: 3
   smartChoices:
@@ -23955,9 +23981,6 @@ MonoBehaviour:
   progressBar: {fileID: 138632350}
   claimButton: {fileID: 58827385}
   claimLabel: {fileID: 813262217}
-  completedTint: {r: 0.16, g: 0.32, b: 0.2, a: 0.55}
-  claimedTint: {r: 0.12, g: 0.2, b: 0.16, a: 0.4}
-  activeTint: {r: 1, g: 1, b: 1, a: 0.06}
 --- !u!114 &720083174
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -26566,7 +26589,7 @@ MonoBehaviour:
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 1920, y: 1080}
-  m_ScreenMatchMode: 0
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -36906,7 +36929,7 @@ MonoBehaviour:
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 1920, y: 1080}
-  m_ScreenMatchMode: 0
+  m_ScreenMatchMode: 1
   m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
@@ -37287,10 +37310,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::XpManager
   maxLevel: 50
-  baseXPReward: 100
-  xpPerWave: 15
-  xpPerBoss: 50
-  bossWaveInterval: 10
 --- !u!4 &1039512957
 Transform:
   m_ObjectHideFlags: 0
@@ -42601,23 +42620,26 @@ MonoBehaviour:
   bossPrefab: {fileID: 825037764437159876, guid: e2aa28d1f0962614a98d3b1faf7efdd3, type: 3}
   bomberPrefab: {fileID: 825037764437159876, guid: c11f2e3d4a5b6c7d8e9f0a1b2c3d4e5f, type: 3}
   minimumSpawnDistance: 1.5
-  spawnAttempts: 20
+  spawnAttempts: 32
   spawnBatchSize: 4
   firstBatchSize: 3
-  spawnBatchInterval: 1.2
-  spawnStagger: 0.15
-  batchSizeGrowthDivisor: 5
-  spawnIntervalDecay: 0.95
-  minSpawnInterval: 0.3
-  maxScaledBatchSize: 12
+  spawnBatchInterval: 1.55
+  spawnStagger: 0.24
+  batchSizeGrowthDivisor: 8
+  spawnIntervalDecay: 0.98
+  minSpawnInterval: 0.85
+  maxScaledBatchSize: 8
   swarmBatchSizeMultiplier: 1.5
-  swarmIntervalMultiplier: 0.6
+  swarmIntervalMultiplier: 0.8
   siegeBatchSizeMultiplier: 0.7
   siegeIntervalMultiplier: 1.35
   huntBatchSizeMultiplier: 0.8
   huntIntervalMultiplier: 0.9
-  maxAliveEnemies: 30
-  aliveCapWaitLimit: 4
+  maxAliveEnemies: 45
+  mobileMaxAliveEnemies: 35
+  maxWaveTanks: 3
+  maxWaveRanged: 7
+  spawnRetryInterval: 0.35
   eliteRevealFraction: 0.4
   eliteRevealMinDelay: 4
   baseEliteCount: 1
@@ -42634,16 +42656,16 @@ MonoBehaviour:
   rangedAssaultWeight: 0.45
   ambushFastWeight: 0.3
   dangerZoneRangedWeight: 0.2
-  playerRingMinDistance: 15
-  playerRingMaxDistance: 22
-  minPlayerSpawnDistance: 8
-  normalMinSpawnDistance: 15
-  fastMinSpawnDistance: 20
-  tankMinSpawnDistance: 16
-  rangedMinSpawnDistance: 18
-  eliteMinSpawnDistance: 20
-  bossMinSpawnDistance: 22
-  bomberMinSpawnDistance: 17
+  playerRingMinDistance: 17
+  playerRingMaxDistance: 27
+  minPlayerSpawnDistance: 12
+  normalMinSpawnDistance: 14
+  fastMinSpawnDistance: 21
+  tankMinSpawnDistance: 12
+  rangedMinSpawnDistance: 14
+  eliteMinSpawnDistance: 16
+  bossMinSpawnDistance: 21
+  bomberMinSpawnDistance: 16
   arenaHalfSize: 50
   arenaWallMargin: 1
   minAngularSeparation: 18
@@ -54568,8 +54590,6 @@ MonoBehaviour:
   background: {fileID: 1513648278}
   progressBar: {fileID: 0}
   rewardLabel: {fileID: 1952244868}
-  unlockedTint: {r: 0.16, g: 0.32, b: 0.2, a: 0.55}
-  lockedTint: {r: 1, g: 1, b: 1, a: 0.05}
 --- !u!224 &1513648277
 RectTransform:
   m_ObjectHideFlags: 0
@@ -76637,7 +76657,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -27.999878}
+  m_AnchoredPosition: {x: 0, y: -27.999908}
   m_SizeDelta: {x: 0, y: -436}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2047470704
@@ -77837,7 +77857,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -1820, y: -980}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2070210465
 GameObject:
@@ -80022,7 +80042,7 @@ PrefabInstance:
     - target: {fileID: 6513190377178077395, guid: 15b17f8ea4d5c7f4b8431098d11eb5ea, type: 3}
       propertyPath: weaponData
       value: 
-      objectReference: {fileID: 11400000, guid: e5f03519e6bf9d24aa2606c88ae85e0b, type: 2}
+      objectReference: {fileID: 11400000, guid: b9fdcd2d33e756645906583835d9ca49, type: 2}
     - target: {fileID: 6513190377178077395, guid: 15b17f8ea4d5c7f4b8431098d11eb5ea, type: 3}
       propertyPath: tracerPrefab
       value: 

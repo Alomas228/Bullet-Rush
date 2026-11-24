@@ -60,8 +60,7 @@ public class LeaderboardService : MonoBehaviour
 
         if (yg != null)
         {
-            SendToLeaderboard(result.finalScore);
-            Debug.Log("[Leaderboard] Final score sent: " + result.finalScore);
+            yg.SubmitLeaderboard("BestScore", result.finalScore);
             SaveProgress(result);
             yield break;
         }
@@ -69,19 +68,6 @@ public class LeaderboardService : MonoBehaviour
         // Fallback: локальное сохранение в PlayerPrefs
         Debug.LogWarning("[Leaderboard] YandexGames not available — saving locally");
         SaveLocally(result);
-    }
-
-    private void SendToLeaderboard(int score)
-    {
-        #if Leaderboards_yg
-        if (YG2.isSDKEnabled && YG2.player.auth)
-        {
-            YG2.SetLeaderboard("BestScore", score);
-            Debug.Log("[Leaderboard] Score submitted to Yandex: " + score);
-        }
-        #else
-        Debug.LogWarning("[Leaderboard] Leaderboards_yg not defined");
-        #endif
     }
 
     private void SaveProgress(RunResult result)

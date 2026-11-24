@@ -28,17 +28,24 @@ public sealed class WeaponRangePreview : MonoBehaviour
     private readonly Stack<RectTransform> freeShots = new Stack<RectTransform>();
     private readonly System.Random random = new System.Random(713);
     private float cycle, volleyTimer, distance = 1, totalDamage, elapsed;
-    private int remainingVolleys;
+    private int remainingVolleys, ammo;
+    private float reloadLeft;
     private Vector2 origin, aim = Vector2.right;
     public void Build(RectTransform parent, WeaponData weapon)
     {
-        StopPreview(); data = weapon; totalDamage = elapsed = cycle = 0; remainingVolleys = 0;
+        StopPreview(); data = weapon; totalDamage = elapsed = cycle = reloadLeft = 0; remainingVolleys = 0;
+        ammo = weapon.BaseMagazineSize;
         var hint = ArcadeUiFactory.Label(ArcadeUiFactory.At(parent, "RangeHint", Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, new Vector2(700, 95)),
             T("Проба базовой стрельбы без улучшений. Наводи мышью, удерживай ЛКМ внутри поля. WASD — движение. Колесо — дистанция. Мишени восстанавливаются; награды не начисляются.",
                 "Base-weapon practice without upgrades. Aim with the mouse; hold left click inside the board. WASD moves; wheel changes distance. Targets reset; no rewards are earned.",
                 "Geliştirmesiz temel silah denemesi. Fareyle nişan al; alan içinde sol tıkı tut. WASD hareket, tekerlek mesafe. Hedefler yenilenir; ödül verilmez."),
             ArcadeKitAssets.Body, 17, ArcadeUiTheme.TextSecondary, TextAlignmentOptions.TopLeft);
         hint.gameObject.AddComponent<LayoutElement>().preferredHeight = 95;
+        if (MobileControls.IsTouchDevice)
+            hint.text = T("Проба оружия без улучшений. Коснись поля и удерживай палец для стрельбы. Мишени восстанавливаются, награды не начисляются.",
+                "Base-weapon practice without upgrades. Touch and hold the board to aim and fire. Targets reset; no rewards are earned.",
+                "Gelistirmesiz silah denemesi. Nisan almak ve ates etmek icin alana dokun ve basili tut. Hedefler yenilenir; odul verilmez.");
+        if (!MobileControls.IsTouchDevice) hint.text += T(" R — перезарядка.", " R reloads.", " R sarjor yeniler.");
         board = ArcadeUiFactory.At(parent, "PracticeBoard", Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, new Vector2(700, 280));
         board.gameObject.AddComponent<LayoutElement>().preferredHeight = 280;
         ArcadeUiFactory.Image(board, null, new Color(0.035f, 0.065f, 0.09f));
@@ -70,6 +77,13 @@ public sealed class WeaponRangePreview : MonoBehaviour
         if (board == null || !board.gameObject.activeInHierarchy || data == null) return;
         float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
         elapsed += dt; cycle -= dt;
+        if (reloadLeft > 0)
+        {
+            reloadLeft -= dt;
+            if (reloadLeft <= 0) ammo = data.BaseMagazineSize;
+        }
+        if (reloadLeft <= 0 && (ammo <= 0 || (ammo < data.BaseMagazineSize && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)))
+        { reloadLeft = data.BaseReloadSeconds; remainingVolleys = 0; }
         Vector2 half = board.rect.size * 0.5f;
         if (Keyboard.current != null)
         {
@@ -79,7 +93,16 @@ public sealed class WeaponRangePreview : MonoBehaviour
         origin.x = Mathf.Clamp(origin.x, -half.x + 15, half.x - 15); origin.y = Mathf.Clamp(origin.y, -half.y + 15, half.y - 15);
         shooter.anchoredPosition = origin;
         bool held = false;
-        if (Mouse.current != null)
+        if (MobileControls.IsTouchDevice && Touchscreen.current != null)
+        {
+            var touch = Touchscreen.current.primaryTouch;
+            if (touch.press.isPressed && RectTransformUtility.ScreenPointToLocalPointInRectangle(board, touch.position.ReadValue(), null, out var point) && board.rect.Contains(point))
+            {
+                aim = (point - origin).normalized;
+                held = true;
+            }
+        }
+        else if (Mouse.current != null)
         {
             RectTransformUtility.ScreenPointToLocalPointInRectangle(board, Mouse.current.position.ReadValue(), null, out var point);
             if (board.rect.Contains(point))
@@ -88,16 +111,16 @@ public sealed class WeaponRangePreview : MonoBehaviour
                 distance = Mathf.Clamp(distance + Mouse.current.scroll.ReadValue().y * 0.001f, 0.5f, 1.4f);
             }
         }
-        if (held && cycle <= 0 && remainingVolleys == 0)
+        if (held && reloadLeft <= 0 && ammo > 0 && cycle <= 0 && remainingVolleys == 0)
         {
             cycle = data.GetFireCycleDuration(1);
             remainingVolleys = data.SpecialType == WeaponSpecialType.Burst ? data.ShotsPerBurst : data.SpecialType == WeaponSpecialType.DoubleShot ? 2 : 1;
             volleyTimer = 0;
         }
         volleyTimer -= dt;
-        while (remainingVolleys > 0 && volleyTimer <= 0)
+        while (remainingVolleys > 0 && volleyTimer <= 0 && ammo > 0 && reloadLeft <= 0)
         {
-            Fire(); remainingVolleys--;
+            Fire(); remainingVolleys--; ammo--;
             volleyTimer += data.SpecialType == WeaponSpecialType.Burst ? data.GetBurstInterval(1) : data.GetDoubleShotInterval(1);
         }
         for (int i = 0; i < targets.Count; i++)
@@ -137,6 +160,7 @@ public sealed class WeaponRangePreview : MonoBehaviour
         }
         totals.text = T("Нанесённый урон: ", "Damage dealt: ", "Verilen hasar: ") + Mathf.RoundToInt(totalDamage) + "    " +
             T("Базовый цикл: ", "Base cycle: ", "Temel döngü: ") + data.GetFireCycleDuration(1).ToString("0.00") + " s";
+        totals.text += "    " + (reloadLeft > 0 ? T("Перезарядка", "Reloading", "Yenileniyor") : ammo + "/" + data.BaseMagazineSize);
     }
     private void Hit(Target target, float damage)
     {

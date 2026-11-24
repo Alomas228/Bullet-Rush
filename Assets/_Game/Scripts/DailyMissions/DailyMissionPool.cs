@@ -31,88 +31,88 @@ public static class DailyMissionPool
                 "kill_25",
                 DailyMissionObjective.KillEnemies,
                 25f,
-                120,
-                60),
+                80,
+                50),
 
             new DailyMissionTemplate(
                 "kill_75",
                 DailyMissionObjective.KillEnemies,
                 75f,
-                250,
-                120),
+                140,
+                80),
 
             new DailyMissionTemplate(
                 "kill_150",
                 DailyMissionObjective.KillEnemies,
                 150f,
-                400,
-                200),
+                220,
+                130),
 
             new DailyMissionTemplate(
                 "burn_kills",
                 DailyMissionObjective.KillByDamageSource,
                 20f,
-                200,
-                100,
+                130,
+                80,
                 DamageSource.Burn),
 
             new DailyMissionTemplate(
                 "explosion_kills",
                 DailyMissionObjective.KillByDamageSource,
                 20f,
-                200,
-                100,
+                130,
+                80,
                 DamageSource.Explosion),
 
             new DailyMissionTemplate(
                 "chain_kills",
                 DailyMissionObjective.KillByDamageSource,
                 15f,
-                220,
-                110,
+                140,
+                90,
                 DamageSource.ChainLightning),
 
             new DailyMissionTemplate(
                 "perfect_waves",
                 DailyMissionObjective.PerfectWaves,
                 3f,
-                250,
-                120),
+                150,
+                90),
 
             new DailyMissionTemplate(
                 "reach_wave",
                 DailyMissionObjective.ReachWave,
                 8f,
-                300,
-                150),
+                180,
+                110),
 
             new DailyMissionTemplate(
                 "boss_kill",
                 DailyMissionObjective.KillBosses,
                 1f,
-                400,
-                200),
+                220,
+                140),
 
             new DailyMissionTemplate(
                 "event_kills",
                 DailyMissionObjective.KillsInSingleEvent,
                 8f,
-                250,
-                130),
+                150,
+                90),
 
             new DailyMissionTemplate(
                 "no_damage_streak",
                 DailyMissionObjective.KillsWithoutDamage,
                 30f,
-                300,
-                150),
+                180,
+                110),
 
             new DailyMissionTemplate(
                 "win_run",
                 DailyMissionObjective.CompleteRuns,
                 1f,
-                500,
-                250)
+                300,
+                200)
         };
     }
 }

@@ -94,6 +94,7 @@ public class DailyMissionManager : MonoBehaviour
         AchievementEvents.PlayerDamaged += HandlePlayerDamaged;
         AchievementEvents.WaveCleared += HandleWaveCleared;
         AchievementEvents.RunStarted += HandleRunStarted;
+        AchievementEvents.RunResumed += HandleRunResumed;
         AchievementEvents.RunEnded += HandleRunEnded;
     }
 
@@ -103,6 +104,7 @@ public class DailyMissionManager : MonoBehaviour
         AchievementEvents.PlayerDamaged -= HandlePlayerDamaged;
         AchievementEvents.WaveCleared -= HandleWaveCleared;
         AchievementEvents.RunStarted -= HandleRunStarted;
+        AchievementEvents.RunResumed -= HandleRunResumed;
         AchievementEvents.RunEnded -= HandleRunEnded;
     }
 
@@ -344,6 +346,8 @@ public class DailyMissionManager : MonoBehaviour
 
         OnProgressChanged?.Invoke();
     }
+
+    private void HandleRunResumed() { runActive = true; }
 
     private void HandleRunEnded(RunEndInfo info)
     {

@@ -58,11 +58,16 @@ public class AchievementNotificationUI : MonoBehaviour
 
     private void OnEnable()
     {
+        if (running == null && pending.Count > 0) running = StartCoroutine(ShowQueue());
         AchievementEvents.RunStarted += HandleRunStarted;
     }
 
     private void OnDisable()
     {
+        if (running != null) StopCoroutine(running);
+        running = null;
+        if (group != null) group.alpha = 0;
+        RunNoticeSlot.Release(this);
         AchievementEvents.RunStarted -= HandleRunStarted;
     }
 
@@ -94,6 +99,8 @@ public class AchievementNotificationUI : MonoBehaviour
     {
         while (pending.Count > 0)
         {
+            while (!RunNoticeSlot.TryTake(this)) yield return null;
+            if (pending.Count == 0) { RunNoticeSlot.Release(this); break; }
             AchievementData data = pending.Dequeue();
 
             if (titleLabel != null)
@@ -108,6 +115,7 @@ public class AchievementNotificationUI : MonoBehaviour
             yield return FadeTo(1f);
             yield return new WaitForSecondsRealtime(visibleSeconds);
             yield return FadeTo(0f);
+            RunNoticeSlot.Release(this);
         }
 
         running = null;
@@ -178,7 +186,7 @@ public class AchievementNotificationUI : MonoBehaviour
         CanvasScaler scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        ResponsiveUi.Configure(scaler, new Vector2(1920,1080));
 
         group = gameObject.AddComponent<CanvasGroup>();
         group.alpha = 0f;
@@ -217,9 +225,9 @@ public class AchievementNotificationUI : MonoBehaviour
             rootRect,
             "Title",
             new Vector2(86f, 20f),
-            new Vector2(600f, 46f),
-            23f,
-            ArcadeUiTheme.Gold,
+            new Vector2(350f, 50f),
+            21f,
+            MenuSheet.Ink,
             ArcadeKitAssets.Display
         );
 
@@ -227,7 +235,7 @@ public class AchievementNotificationUI : MonoBehaviour
             rootRect,
             "Reward",
             new Vector2(86f, -24f),
-            new Vector2(600f, 30f),
+            new Vector2(350f, 30f),
             18f,
             ArcadeUiTheme.TextSecondary,
             ArcadeKitAssets.BodyBold
@@ -237,21 +245,22 @@ public class AchievementNotificationUI : MonoBehaviour
     private Image CreatePanel()
     {
         GameObject go = new GameObject("Notification", typeof(RectTransform));
-        go.transform.SetParent(transform, false);
+        go.transform.SetParent(ResponsiveUi.SafeContent((RectTransform)transform), false);
 
         Image image = go.AddComponent<Image>();
-        image.sprite = ArcadeKitAssets.RoundRect;
+        image.sprite = ArcadeKitAssets.CutPanel;
         image.type = Image.Type.Sliced;
         image.pixelsPerUnitMultiplier = 1f;
         image.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f);
         image.raycastTarget = false;
 
         RectTransform rect = image.rectTransform;
-        rect.anchorMin = new Vector2(0.5f, 1f);
-        rect.anchorMax = new Vector2(0.5f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(720f, 118f);
-        rect.anchoredPosition = new Vector2(0f, -40f);
+        rect.anchorMin = new Vector2(1f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(1f, 0f);
+        rect.sizeDelta = new Vector2(448f, 104f);
+        rect.anchoredPosition = new Vector2(-18f, 78f);
+        rect.gameObject.AddComponent<ResponsiveRunNotice>();
 
         return image;
     }
@@ -276,7 +285,9 @@ public class AchievementNotificationUI : MonoBehaviour
 
         TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
         text.font = font;
-        text.fontSize = fontSize;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = 14;
+        text.fontSizeMax = fontSize;
         text.color = color;
         text.alignment = TextAlignmentOptions.Left;
         text.textWrappingMode = TextWrappingModes.Normal;

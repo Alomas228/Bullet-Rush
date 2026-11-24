@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Точная винтовка с повышенным шансом и уроном критических попаданий."
   weaponType: 0
   rarity: 3
-  unlockLevel: 8
-  price: 1500
-  weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 95
+  unlockLevel: 13
+  price: 1100
+  weaponPrefab: {fileID: 9071840178064284164, guid: 0b0c166e81cb764408c21a0c488c7851, type: 3}
+  preview: {fileID: 21300000, guid: 85a32ab095f51f635de102fa4171e762, type: 3}
+  damage: 103
   fireRate: 5.5
   projectileSpeed: 19
   projectileCount: 1

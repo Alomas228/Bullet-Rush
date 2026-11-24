@@ -67,7 +67,7 @@ public class GameplayHUD : MonoBehaviour
         if (scorePanel != null)
             scorePanel.SetActive(!hidden);
         if (comboPanel != null)
-            comboPanel.SetActive(!hidden && lastCombo > 0);
+            comboPanel.SetActive(false);
     }
 
     private void OnEnable()
@@ -159,6 +159,12 @@ public class GameplayHUD : MonoBehaviour
 
     private void OnScoreAdded(int amount, string bonusName)
     {
+        if (bonusName == Lang.Get("bonus.combo10") || bonusName == Lang.Get("bonus.combo20") ||
+            bonusName == Lang.Get("bonus.combo30") || bonusName == Lang.Get("bonus.combo50"))
+        {
+            ComboSystem.Instance?.GetComponent<PlayerComboFeedback>()?.ShowScoreReward(amount);
+            return;
+        }
         // Показываем всплывающий бонус с названием
         ShowBonusPopup(bonusName, amount);
     }
@@ -172,7 +178,7 @@ public class GameplayHUD : MonoBehaviour
         lastCombo = combo;
 
         if (comboPanel != null)
-            comboPanel.SetActive(!pvpHidden && combo > 0);
+            comboPanel.SetActive(false);
 
         if (comboCountText != null)
             comboCountText.text = combo.ToString();

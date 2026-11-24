@@ -13,7 +13,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private const string BonusAdDateKey = "ArcadeSurvivor.Menu.BonusAdDate";
     private const string WeaponAdDateKey = "ArcadeSurvivor.Menu.WeaponAdDate";
     private const int BonusAdCoins = 75;
-    private const int FallbackWeaponCoins = 300;
+    private const int FallbackWeaponCoins = 100;
 
     public static ArcadeMenuSkin Instance { get; private set; }
 
@@ -33,16 +33,12 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private Button legacyPlayButton;
     private TMP_Dropdown modifierDropdown;
 
-    private TMP_Text levelValueText;
     private TMP_Text recordValueText;
     private TMP_Text coinsValueText;
-    private TMP_Text xpValueText;
-    private Slider topXpBar;
 
     private RailCard dailyCard;
     private RailCard upgradesCard;
     private RailCard equipmentCard;
-    private RailCard mapsCard;
 
     private TMP_Text weaponTagText;
     private TMP_Text weaponTitleText;
@@ -67,10 +63,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private Button pvpModeButton;
     private TMP_Text pveModeLabel;
     private TMP_Text pvpModeLabel;
-    private Image playGlow;
-    private Image playShine;
 
-    private StatTile statsTile;
     private StatTile tipsTile;
     private StatTile missionsTile;
     private StatTile achievementsTile;
@@ -240,6 +233,14 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void Update()
     {
+        ProcessQueuedMenuActions();
+        if (CampMenuLayoutEnabled)
+        {
+            FitCampSidebar();
+            RefreshCampAppearance();
+            SyncCampSceneryVisibility();
+        }
+
         for (int i = 0; i < legacyHidden.Count; i++)
         {
             GameObject hidden = legacyHidden[i];
@@ -252,6 +253,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private void OnDestroy()
     {
         UnbindServices();
+        DestroyCampScene();
 
         if (toastRoutine != null)
             StopCoroutine(toastRoutine);
@@ -269,12 +271,19 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         root = rootRect.gameObject;
         rootGroup = root.AddComponent<CanvasGroup>();
 
-        BuildBackground(rootRect);
-        BuildTopBar(rootRect);
-        BuildLeftRail(rootRect);
-        BuildRightRail(rootRect);
-        BuildCenter(rootRect);
-        BuildBottom(rootRect);
+        if (CampMenuLayoutEnabled)
+        {
+            BuildCampMenu(ResponsiveUi.SafeContent(rootRect));
+        }
+        else
+        {
+            var board = UiArtboard.Create(rootRect, new Vector2(1920, 1080), true);
+            BuildTopBar(board);
+            BuildLeftRail(board);
+            BuildRightRail(board);
+            BuildCenter(board);
+            BuildBottom(board);
+        }
         HideLegacyMenu();
         BuildPanels();
         BuildToast();
@@ -398,7 +407,10 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         environment = FindFirstObjectByType<EnvironmentController>(FindObjectsInactive.Include);
 
         if (environment != null)
+        {
             environment.OnMapChanged += HandleMapChanged;
+            environment.OnMenuMapCommitted += HandleMapChanged;
+        }
 
         Lang.OnLanguageChanged += HandleLanguageChanged;
 
@@ -446,7 +458,10 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             gameStateManager.OnGameStateChanged -= HandleGameStateChanged;
 
         if (environment != null)
+        {
             environment.OnMapChanged -= HandleMapChanged;
+            environment.OnMenuMapCommitted -= HandleMapChanged;
+        }
 
         Lang.OnLanguageChanged -= HandleLanguageChanged;
 
@@ -470,6 +485,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private void HandlePvpProgressChanged()
     {
         RefreshPvpProfile();
+        RefreshCampLevel();
     }
 
     private void HandlePlayerXpChanged(int value)
@@ -521,6 +537,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void HandleGameStateChanged(GameState state)
     {
+        RefreshCampScene();
         if (state != GameState.Menu)
             return;
 
@@ -533,6 +550,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private void HandleMapChanged(GameMap map)
     {
         RefreshMapChip();
+        RefreshCampScene();
     }
 
     private void HandleLanguageChanged(LangCode code)
@@ -568,19 +586,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         int xpNext = xpManager != null ? xpManager.GlobalXPNeededForNextLevel : 1;
         float progress = xpManager != null ? xpManager.GlobalLevelProgress : 0f;
 
-        if (levelValueText != null)
-            levelValueText.text = level.ToString();
-
         if (coinsValueText != null)
             coinsValueText.text = FormatAmount(coins);
-
-        if (xpValueText != null)
-            xpValueText.text = Lang.GetOr("menu.xp", "{0} / {1} XP")
-                .Replace("{0}", xpIn.ToString())
-                .Replace("{1}", xpNext.ToString());
-
-        if (topXpBar != null)
-            topXpBar.value = progress;
 
         if (playerLevelText != null)
             playerLevelText.text = Lang.GetOr("menu.level", "Уровень {0}")
@@ -593,6 +600,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
         if (playerXpBar != null)
             playerXpBar.value = progress;
+
+        RefreshCampLevel();
     }
 
     private void RefreshRecord()
@@ -799,11 +808,6 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
                 : Lang.GetOr("menu.skin.tips_new", "НОВОЕ");
         }
 
-        if (statsTile != null && statsTile.Value != null)
-        {
-            statsTile.Value.text = Lang.GetOr("menu.wave_reached", "Волна: {0}")
-                .Replace("{0}", PersonalBestRecord.BestWave.ToString());
-        }
     }
 
     private void RefreshMapChip()
@@ -812,6 +816,11 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             return;
 
         GameMap map = environment != null ? environment.CurrentMap : null;
+        if (map != null && map.langKey == "pvp.arena")
+        {
+            mapNameText.text = Lang.Get("menu.pvp.arena");
+            return;
+        }
 
         if (map != null)
         {
@@ -846,6 +855,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private void RefreshGameMode()
     {
         bool pvp = GameModeManager.IsPvp;
+        RefreshMapChip();
 
         if (pveModeButton != null)
             pveModeButton.GetComponent<Image>().color = pvp
@@ -874,6 +884,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             pvpModeLabel.text = Lang.GetOr("menu.mode.pvp", "PVP");
 
         RefreshPvpProfile();
+        RefreshCampMode();
+        RefreshCampScene();
     }
 
     private void RefreshStats()
@@ -1043,8 +1055,47 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         Bind(new LangBinding(), label, value);
     }
 
+    private bool playAfterPreparation;
+    private GameMode? queuedMode;
+
+    internal bool IsMainMenuVisible => root == null || (root.activeInHierarchy &&
+        (campExtras == null || !campExtras.activeSelf));
+
+    private void ProcessQueuedMenuActions()
+    {
+        if (gameStateManager == null || gameStateManager.CurrentState != GameState.Menu)
+        {
+            playAfterPreparation = false;
+            queuedMode = null;
+            return;
+        }
+        // Opening another window after requesting Play means the player decided
+        // to stay in the menu; don't interrupt an equipment/settings change.
+        if (playAfterPreparation && ((root != null && !root.activeInHierarchy) ||
+            (campExtras != null && campExtras.activeSelf))) playAfterPreparation = false;
+        if (MapTransitionBusy()) return;
+        if (queuedMode.HasValue)
+        {
+            GameMode next = queuedMode.Value;
+            queuedMode = null;
+            if (next == GameMode.Pvp) SelectPvpMode(); else SelectPveMode();
+            if (MapTransitionBusy()) return;
+        }
+        if (playAfterPreparation)
+        {
+            playAfterPreparation = false;
+            Play();
+        }
+    }
+
     private void Play()
     {
+        if (MapTransitionBusy())
+        {
+            playAfterPreparation = true;
+            ShowToast(Lang.Get("maps.preparing"));
+            return;
+        }
         if (GameModeManager.IsPvp)
         {
             PvpMatchManager.EnsureExists().BeginSearch();
@@ -1063,6 +1114,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void SelectPveMode()
     {
+        if (MapTransitionBusy()) { queuedMode = GameMode.Pve; return; }
         GameModeManager.Select(GameMode.Pve);
         PvpMatchManager pvp = FindAnyObjectByType<PvpMatchManager>();
         if (pvp != null)
@@ -1077,6 +1129,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void SelectPvpMode()
     {
+        if (MapTransitionBusy()) { queuedMode = GameMode.Pvp; return; }
         GameModeManager.Select(GameMode.Pvp);
         WaveManager waves = FindAnyObjectByType<WaveManager>(FindObjectsInactive.Include);
         if (waves != null)
@@ -1106,6 +1159,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         OpenLegacyPanel("MapsPanel");
     }
+
+    private bool MapTransitionBusy() => environment != null && environment.IsMenuPreparationPending;
 
     private void OpenAchievements()
     {
@@ -1148,46 +1203,6 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
         legacyHidden.Remove(found.gameObject);
         menu.OpenSubPanel(found.gameObject);
-        StyleLegacyBackButtons(found.gameObject);
-    }
-
-    private void StyleLegacyBackButtons(GameObject panel)
-    {
-        if (panel == null)
-            return;
-
-        Button[] buttons = panel.GetComponentsInChildren<Button>(true);
-
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            Button button = buttons[i];
-
-            if (button == null || !button.name.StartsWith("BackButton"))
-                continue;
-
-            Image background = button.targetGraphic as Image;
-
-            if (background == null)
-                background = button.GetComponent<Image>();
-
-            if (background != null)
-            {
-                background.sprite = ArcadeKitAssets.RoundRect;
-                background.type = Image.Type.Sliced;
-                background.pixelsPerUnitMultiplier = 1f;
-                background.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.78f);
-            }
-
-            TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
-
-            if (label != null)
-            {
-                label.font = ArcadeKitAssets.BodyBold;
-                label.fontSize = 18f;
-                label.color = ArcadeUiTheme.TextPrimary;
-                label.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            }
-        }
     }
 
     private void OpenSettings()
@@ -1304,7 +1319,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
         bool granted = false;
 
-        if (reward != null && !EquipmentManager.IsOwned(reward))
+        if (reward != null && EquipmentManager.IsUnlocked(reward) && !EquipmentManager.IsOwned(reward))
         {
             EquipmentManager.GrantWeapon(reward.WeaponName);
             granted = true;
@@ -1381,15 +1396,17 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         if (weapons == null)
             return null;
 
+        WeaponData cheapest = null;
         for (int i = 0; i < weapons.Count; i++)
         {
             WeaponData weapon = weapons[i];
 
-            if (weapon != null && weapon.Price > 0 && !EquipmentManager.IsOwned(weapon))
-                return weapon;
+            if (weapon != null && weapon.Price > 0 && EquipmentManager.IsUnlocked(weapon) &&
+                !EquipmentManager.IsOwned(weapon) && (cheapest == null || weapon.Price < cheapest.Price))
+                cheapest = weapon;
         }
 
-        return null;
+        return cheapest;
     }
 
     private static bool IsAdAvailable(string key)

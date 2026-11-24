@@ -16,7 +16,8 @@ MonoBehaviour:
   description: Fires multiple projectiles at once.
   weaponType: 1
   rarity: 0
-  weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
+  weaponPrefab: {fileID: 8559010253350651214, guid: cf87e7567a1d2d3a17761d237a7a02b6, type: 3}
+  preview: {fileID: 21300000, guid: c38ddf638cbdd5ab8569ef6ff966dcfc, type: 3}
   damage: 10
   fireRate: 1.5
   projectileSpeed: 12

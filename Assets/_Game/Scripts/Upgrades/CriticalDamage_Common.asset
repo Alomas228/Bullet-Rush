@@ -17,6 +17,6 @@ MonoBehaviour:
   description: Increase damage of critical hits
   type: 8
   rarity: 0
-  percentValue: 0.25
+  percentValue: 0.2
   maxStacks: 3
   weaponData: {fileID: 0}

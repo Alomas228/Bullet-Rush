@@ -42,6 +42,7 @@ public class RewardChoicePoint : MonoBehaviour
 
         bool nearby = player != null &&
             Vector3.SqrMagnitude(player.position - transform.position) <= 4f;
+        if (MobileControls.IsTouchDevice) MobileControls.SetRewardChoice(this, nearby);
         int seconds = Mathf.CeilToInt(lifetime);
         if (seconds != lastDisplayedSecond)
             ShowPrompt(seconds);
@@ -72,14 +73,26 @@ public class RewardChoicePoint : MonoBehaviour
     {
         if (waveUI != null)
         {
-            waveUI.ShowEvent(Lang.Get("wave.reward_point", seconds));
+            waveUI.ShowEvent(MobileControls.IsTouchDevice
+                ? GameplayJourney.T("ВЫБЕРИ НАГРАДУ · ", "CHOOSE A REWARD · ", "ODUL SEC · ") + seconds
+                : Lang.Get("wave.reward_point", seconds));
             lastDisplayedSecond = seconds;
         }
     }
 
+    public void TryChooseMobile(int option)
+    {
+        if (chosen || !MobileControls.CanControl || player==null || lifetime<=0f || option<0 || option>1 ||
+            Vector3.SqrMagnitude(player.position-transform.position)>4f) return;
+        Choose(option);
+    }
+
+    private void OnDisable() => MobileControls.SetRewardChoice(this,false);
+
     private void Choose(int option)
     {
         chosen = true;
+        MobileControls.SetRewardChoice(this,false);
 
         PlayerStats stats = player != null
             ? player.GetComponent<PlayerStats>()

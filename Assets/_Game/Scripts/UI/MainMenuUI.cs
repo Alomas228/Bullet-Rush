@@ -297,6 +297,16 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
     public void ShowMenu()
     {
         slidingOut = false;
+        if (startGameRoutine != null)
+        {
+            StopCoroutine(startGameRoutine);
+            startGameRoutine = null;
+        }
+        if (slideCoroutine != null)
+        {
+            StopCoroutine(slideCoroutine);
+            slideCoroutine = null;
+        }
 
         RefreshPlayerDisplay();
 
@@ -308,9 +318,9 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
         Time.timeScale = 0f;
 
         if (playButton != null)
-            playButton.interactable = !MenuReloadPending;
+            playButton.interactable = true;
 
-        SetMenuInteractive(!MenuReloadPending);
+        SetMenuInteractive(true);
 
         if (ShowWithoutAnimation)
         {
@@ -319,9 +329,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             OnMenuAppeared?.Invoke();
             return;
         }
-
-        if (slideCoroutine != null)
-            StopCoroutine(slideCoroutine);
 
         PlaceElementsAtOffset();
 
@@ -364,8 +371,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             menuPanel.SetActive(false);
 
         CloseSubPanelsWhenHidden();
-
-        Time.timeScale = 1f;
 
         if (slideCoroutine != null)
             StopCoroutine(slideCoroutine);
@@ -672,8 +677,12 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
             isRandom ? RunModifier.None : ModifierOptionValues[index];
     }
 
+    internal void StartPreparedRun() => OnPlayClicked();
+
     private void OnPlayClicked()
     {
+        if (startGameRoutine != null || GameStateManager.Instance == null ||
+            GameStateManager.Instance.CurrentState != GameState.Menu) return;
         PlayStartSound();
 
         if (slideCoroutine != null)
@@ -681,8 +690,6 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
         if (playButton != null)
             playButton.interactable = false;
-
-        Time.timeScale = 1f;
 
         if (HasSlideElements())
         {
@@ -715,10 +722,12 @@ public class MainMenuUI : MonoBehaviour, ILangRefreshable
 
     private IEnumerator StartGameWhenWorldReady()
     {
+        // Always yield once so the coroutine handle is assigned before it can
+        // clear itself. A ready arena can otherwise leave a stale start handle.
+        yield return null;
         EnvironmentController environment =
             FindAnyObjectByType<EnvironmentController>();
-        while (environment != null &&
-               (environment.IsTransitioning || environment.IsRestoringRuntimeMap))
+        while (environment != null && environment.IsMenuPreparationPending)
         {
             yield return null;
         }

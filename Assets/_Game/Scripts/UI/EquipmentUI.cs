@@ -36,7 +36,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
     [Header("Разметка")]
     [SerializeField] private int cardsPerPage = 4;
 
-    private int CardsPerPage => Mathf.Max(1, cardsPerPage);
+    private int CardsPerPage => Mathf.Clamp(cardsPerPage, 1, Mathf.Min(4, cardSlots.Count));
 
     private enum TabKind
     {
@@ -122,6 +122,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
     /// <summary>Страница у каждой вкладки своя.</summary>
     private readonly int[] pages = new int[3];
 
+    private int focusedSlot;
+    private EquipmentCardView detail;
     private bool built;
     private bool subscribed;
 
@@ -153,6 +155,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         if (!built)
             return;
 
+        weapons.Clear();
+        abilities.Clear();
+        clothing.Clear();
+        EnsureItems();
         Refresh();
     }
 
@@ -182,6 +188,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         built = true;
 
         CacheTabs();
+        BuildSheet();
         WireButtons();
         EnsureItems();
     }
@@ -232,7 +239,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
                         ? button.GetComponent<Image>()
                         : null,
                     label = button != null
-                        ? button.GetComponentInChildren<TMP_Text>(true)
+                        ? button.transform.Find("LabelText")?.GetComponent<TMP_Text>()
+                            ?? button.GetComponentInChildren<TMP_Text>(true)
                         : null,
                     value = value
                 }
@@ -261,35 +269,69 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             RegisterCard(cardSlots[i]);
     }
 
-    /// <summary>
-    /// Раздаёт карточкам обработчики. Клик по карточке и по строке
-    /// действия делают одно и то же, поэтому обработчика один.
-    /// </summary>
+    private void BuildSheet()
+    {
+        var sheet = MenuSheet.Build(this, previousButton, nextButton, dotsRoot);
+        sheet.Balance(coinsText, levelText);
+        for (int i = 0; i < tabs.Count; i++)
+        {
+            TabRefs tab = tabs[i];
+            MenuSheet.Place(tab.button, sheet.Body, 42 + 464 * i, 146, 448, 69);
+            MenuSheet.Surface(tab.image, MenuSheet.Recess, true);
+            MenuSheet.Label(tab.label, tab.button.transform, 18, 5, 412, 31, 24, MenuSheet.Ink);
+            MenuSheet.Label(tab.value, tab.button.transform, 18, 37, 412, 23, 16, MenuSheet.Muted);
+            sheet.PortraitPlace(tab.button,42+292*i,190,284,69);
+            sheet.PortraitPlace(tab.label,18,5,248,31);
+            sheet.PortraitPlace(tab.value,18,37,248,23);
+        }
+
+        // One inspector reuses the same item data and purchase/equip handlers as the tiles.
+        detail = Instantiate(cardSlots[0], sheet.Body);
+        detail.name = "ItemDetails";
+        detail.Prepare(sheet.Body, 850, 233, 580, 471, true);
+        sheet.PortraitPlace(detail,186,758,580,471);
+        detail.ActionButton.onClick.AddListener(ApplyFocusedItem);
+        for (int i = 0; i < CardsPerPage; i++)
+        {
+            cardSlots[i].Prepare(sheet.Body, 42 + (i % 2) * 399, 233 + (i / 2) * 240, 384, 225, false);
+            sheet.PortraitPlace(cardSlots[i],84+(i%2)*399,278+(i/2)*240,384,225);
+        }
+
+        if (emptyState != null)
+        {
+            MenuSheet.Place(emptyState.transform, sheet.Body, 42, 233, 1388, 471);
+            MenuSheet.Surface(emptyState.GetComponent<Image>(), MenuSheet.Recess);
+            MenuSheet.Label(emptyStateText, emptyState.transform, 40, 0, 1308, 471, 27,
+                MenuSheet.Muted, TextAlignmentOptions.Center);
+            sheet.PortraitPlace(emptyState.transform,42,278,868,950);
+            sheet.PortraitPlace(emptyStateText,40,0,788,950);
+        }
+        if (pageCounterText != null)
+        {
+            MenuSheet.Label(pageCounterText, sheet.Body, 1090, 746, 340, 52, 20,
+                MenuSheet.Muted, TextAlignmentOptions.Right);
+            sheet.PortraitPlace(pageCounterText,570,1374,340,52);
+        }
+        sheet.Reflow();
+    }
+
     public void RegisterCard(EquipmentCardView card)
     {
-        if (card == null)
-            return;
-
-        if (card.Wired)
-            return;
-
+        if (card == null || card.Wired) return;
         card.MarkWired();
-
-        EquipmentCardView captured = card;
-
-        if (card.CardButton != null)
+        card.CardButton.onClick.AddListener(() =>
         {
-            card.CardButton.onClick.AddListener(
-                () => OnActionClicked(captured)
-            );
-        }
+            focusedSlot = cardSlots.IndexOf(card);
+            PlayUiClick();
+            ShowPage(CurrentCoins());
+        });
+    }
 
-        if (card.ActionButton != null)
-        {
-            card.ActionButton.onClick.AddListener(
-                () => OnActionClicked(captured)
-            );
-        }
+    private void ApplyFocusedItem()
+    {
+        int index = CurrentPage() * CardsPerPage + focusedSlot;
+        if (index >= 0 && index < CountOf((int)activeTab))
+            Handle((int)activeTab, index);
     }
 
     // =====================================================
@@ -308,6 +350,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         }
 
         activeTab = (TabKind)index;
+        focusedSlot = 0;
 
         PlayUiClick();
         Refresh();
@@ -326,22 +369,22 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             if (tab.image != null)
             {
                 tab.image.color = active
-                    ? EquipmentWireframeTheme.Surface
-                    : EquipmentWireframeTheme.SurfaceMuted;
+                    ? MenuSheet.Ink
+                    : MenuSheet.Recess;
             }
 
             if (tab.label != null)
             {
                 tab.label.color = active
-                    ? EquipmentWireframeTheme.TextPrimary
-                    : EquipmentWireframeTheme.TextSecondary;
+                    ? MenuSheet.Paper
+                    : MenuSheet.Ink;
             }
 
             if (tab.value != null)
             {
                 tab.value.color = active
-                    ? EquipmentWireframeTheme.TextSecondary
-                    : EquipmentWireframeTheme.TextMuted;
+                    ? MenuSheet.Sage
+                    : MenuSheet.Muted;
             }
         }
     }
@@ -382,8 +425,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             return;
 
         SetTabValue(0, EquipmentManager.EquippedWeaponName);
-        SetTabValue(1, JoinAbilities(EquipmentManager.EquippedAbilityNames));
-        SetTabValue(2, EquipmentManager.EquippedClothingName);
+        SetTabValue(1, EquipmentManager.EquippedAbilityCount(false) + "/" + AbilityPresentation.ActiveSlots + " " + AbilityPresentation.Type(false) +
+            " · " + EquipmentManager.EquippedAbilityCount(true) + "/" + AbilityPresentation.AutomaticSlots + " " + AbilityPresentation.Type(true));
+        ClothingEntry equipped = clothing.Find(entry => EquipmentManager.IsEquipped(entry.data));
+        SetTabValue(2, equipped?.card.Name);
     }
 
     private void SetTabValue(int index, string value)
@@ -427,6 +472,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         pages[tabIndex] = page;
 
         int start = page * CardsPerPage;
+        focusedSlot = Mathf.Clamp(focusedSlot, 0, Mathf.Max(0, Mathf.Min(count - start, CardsPerPage) - 1));
+        detail.gameObject.SetActive(count > 0);
 
         for (int i = 0; i < cardSlots.Count; i++)
         {
@@ -436,7 +483,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
                 continue;
 
             int index = start + i;
-            bool visible = index < count;
+            bool visible = i < CardsPerPage && index < count;
 
             if (slot.gameObject.activeSelf != visible)
                 slot.gameObject.SetActive(visible);
@@ -454,7 +501,9 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             card.SyncState();
             FillState(card);
 
-            slot.Refresh(card, coins);
+            bool focused = i == focusedSlot;
+            slot.Refresh(card, coins, focused);
+            if (focused) detail.Refresh(card, coins);
         }
 
         if (emptyState != null)
@@ -490,9 +539,14 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             return;
         }
 
-        card.State = card.Equipped
-            ? Lang.Get("eq.state_equipped")
-            : Lang.Get("eq.state_owned");
+        if (card.Equipped)
+            card.State = Lang.Get("eq.state_equipped");
+        else if (card.Ability != null && !EquipmentManager.HasFreeAbilitySlot(card.Ability.IsAutomatic))
+            card.State = GameplayJourney.T("СЛОТЫ ЗАНЯТЫ", "SLOTS FULL", "YUVALAR DOLU");
+        else if (card.Clothing != null && card.Price == 0)
+            card.State = Lang.Get("eq.skin_free");
+        else
+            card.State = Lang.Get("eq.state_owned");
     }
 
     private void UpdatePagination(int page, int pageCount)
@@ -509,15 +563,15 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         if (previousImage != null)
         {
             previousImage.color = hasPrevious
-                ? EquipmentWireframeTheme.Surface
-                : EquipmentWireframeTheme.SurfaceDisabled;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         if (nextImage != null)
         {
             nextImage.color = hasNext
-                ? EquipmentWireframeTheme.Surface
-                : EquipmentWireframeTheme.SurfaceDisabled;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         if (pageCounterText != null)
@@ -596,8 +650,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             if (dot.image != null)
             {
                 dot.image.color = active
-                    ? EquipmentWireframeTheme.DotActive
-                    : EquipmentWireframeTheme.DotInactive;
+                    ? MenuSheet.Ink
+                    : MenuSheet.Rule;
             }
         }
     }
@@ -652,6 +706,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             return;
 
         pages[tabIndex] = clamped;
+        focusedSlot = 0;
 
         PlayUiClick();
         Refresh();
@@ -818,7 +873,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         {
             Ability = data,
             Name = data.LocalizedName,
-            TypeLabel = AbilityKindLabel(data.Kind),
+            TypeLabel = AbilityPresentation.Type(data.IsAutomatic),
             RarityLabel = string.Empty,
             Stats = string.IsNullOrEmpty(data.LocalizedStats)
                 ? data.LocalizedDescription
@@ -851,25 +906,6 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
     // =====================================================
     // ACTIONS
     // =====================================================
-
-    private void OnActionClicked(EquipmentCardView view)
-    {
-        if (view == null)
-            return;
-
-        int tabIndex = (int)activeTab;
-        int start = CurrentPage() * CardsPerPage;
-
-        for (int i = 0; i < cardSlots.Count; i++)
-        {
-            if (cardSlots[i] != view)
-                continue;
-
-            Handle(tabIndex, start + i);
-
-            return;
-        }
-    }
 
     private void Handle(int tabIndex, int index)
     {
@@ -1070,7 +1106,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         var lines = new List<string>
         {
             Lang.Get("eq.stat_damage", Num(data.Damage)),
-            Lang.Get("eq.stat_firerate", Num(data.FireRate))
+            Lang.Get("eq.stat_firerate", Num(data.FireRate)),
+            GameplayJourney.T("Магазин: ", "Magazine: ", "Sarjor: ") + data.BaseMagazineSize + " / " + Num(data.BaseReloadSeconds) + GameplayJourney.T(" с", " s", " sn")
         };
 
         if (data.ProjectileCount > 1)

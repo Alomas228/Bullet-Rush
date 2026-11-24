@@ -25,7 +25,7 @@ public sealed class MasteryManager : MonoBehaviour
 
     private const string PrefsKey = "ArcadeSurvivor.Mastery";
     private const int PrestigeLevel = 50;
-    private static readonly int[] MasteryKillThresholds = { 100, 300, 700, 1400, 2500 };
+    private static readonly int[] MasteryKillThresholds = { 60, 150, 300, 500, 800 };
 
     public static MasteryManager Instance { get; private set; }
     private ProfileData data = new ProfileData();
@@ -59,6 +59,9 @@ public sealed class MasteryManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         Load();
         EnsureCosmetics();
+        foreach (WeaponEntry entry in data.weapons)
+            if (entry != null && !string.IsNullOrEmpty(entry.weaponId))
+                UnlockMasteryRewards(entry.weaponId, GetWeaponMasteryLevel(entry.weaponId));
     }
 
     private void OnEnable() => AchievementEvents.EnemyKilled += HandleEnemyKilled;
@@ -174,15 +177,19 @@ public sealed class MasteryManager : MonoBehaviour
         entry.kills++;
         int newLevel = GetWeaponMasteryLevel(info.weaponId);
         if (newLevel > oldLevel)
-        {
-            if (newLevel == 1) UnlockTitle("weapon_title_" + SafeId(info.weaponId));
-            if (newLevel == 2) UnlockCosmetic("weapon_skin_" + SafeId(info.weaponId));
-            if (newLevel == 3) UnlockCosmetic("weapon_effect_" + SafeId(info.weaponId));
-            if (newLevel == 4) UnlockTitle("weapon_master_" + SafeId(info.weaponId));
-            if (newLevel == 5) UnlockCosmetic("weapon_aura_" + SafeId(info.weaponId));
-        }
+            UnlockMasteryRewards(info.weaponId, newLevel);
         Save();
         OnWeaponMasteryChanged?.Invoke(info.weaponId);
+    }
+
+    private void UnlockMasteryRewards(string weaponId, int level)
+    {
+        string id = SafeId(weaponId);
+        if (level >= 1) UnlockTitle("weapon_title_" + id);
+        if (level >= 2) UnlockCosmetic("weapon_skin_" + id);
+        if (level >= 3) UnlockCosmetic("weapon_effect_" + id);
+        if (level >= 4) UnlockTitle("weapon_master_" + id);
+        if (level >= 5) UnlockCosmetic("weapon_aura_" + id);
     }
 
     private void EnsureCosmetics()

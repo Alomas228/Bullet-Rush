@@ -14,6 +14,10 @@ public class PlayerHealth : MonoBehaviour
 
     private float healthRegenPerSecond;
     private float healTimer;
+    private float baseMaxHealth;
+    private float baseHealthRegen;
+    private float lifestealBudget;
+    private float lifestealLastTime;
 
     private PlayerController playerController;
     private ShieldAbility shieldAbility;
@@ -32,9 +36,28 @@ public class PlayerHealth : MonoBehaviour
 
     public float HealthRegenPerSecond => healthRegenPerSecond;
 
+    private void Awake()
+    {
+        baseMaxHealth = maxHealth;
+        baseHealthRegen = healthRegenPerSecond;
+    }
+
+    internal void ResetForSession()
+    {
+        maxHealth = baseMaxHealth;
+        CurrentHealth = maxHealth;
+        healthRegenPerSecond = baseHealthRegen;
+        healTimer = 0f;
+        lifestealBudget = 0f;
+        lifestealLastTime = Time.time;
+        shieldAbility = GetComponent<ShieldAbility>();
+    }
+
     private void Start()
     {
         Instance = this;
+        if (GetComponent<LowHealthVignette>() == null)
+            gameObject.AddComponent<LowHealthVignette>();
 
         CurrentHealth = maxHealth;
 
@@ -78,10 +101,21 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(float damage, int attackId = 0)
     {
+        ApplyDamage(damage, attackId, false);
+    }
+
+    public void TakeSuffocationDamage(float damage)
+    {
+        ApplyDamage(damage, 0, true);
+    }
+
+    private void ApplyDamage(float damage, int attackId, bool suffocation)
+    {
+        if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState != GameState.Playing) return;
         if (damage <= 0f || CurrentHealth <= 0f || RamLiftArena.InTransit)
             return;
 
-        if (playerController != null &&
+        if (!suffocation && playerController != null &&
             playerController.IsDashing)
         {
             playerController.RegisterPreciseDodge(attackId);
@@ -91,7 +125,7 @@ public class PlayerHealth : MonoBehaviour
         if (shieldAbility == null)
             shieldAbility = GetComponent<ShieldAbility>();
 
-        if (shieldAbility != null &&
+        if (!suffocation && shieldAbility != null &&
             shieldAbility.IsActive)
             return;
 
@@ -132,12 +166,26 @@ public class PlayerHealth : MonoBehaviour
 
     public void Kill()
     {
+        if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState != GameState.Playing) return;
         if (CurrentHealth <= 0f)
             return;
 
         CurrentHealth = 0f;
 
         Die();
+    }
+
+    public void HealFromLifesteal(float amount)
+    {
+        if (amount <= 0f || CurrentHealth <= 0f) return;
+        float capacity = MaxHealth * GameBalance.LifestealHealthPerSecondFraction;
+        lifestealBudget = Mathf.Min(capacity, lifestealBudget + capacity *
+            Mathf.Max(0f, Time.time - lifestealLastTime));
+        lifestealLastTime = Time.time;
+        float applied = Mathf.Min(amount, lifestealBudget, MaxHealth - CurrentHealth);
+        if (applied <= 0f) return;
+        lifestealBudget -= applied;
+        Heal(applied);
     }
 
     public void Heal(float amount)

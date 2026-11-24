@@ -29,6 +29,9 @@ public class YandexGameManager : MonoBehaviour
     [SerializeField] private float interstitialDelayAfterGameOver = 1.2f;
 
     [Header("Leaderboard")]
+    [Tooltip("Enable online leaderboards only after they are configured in Yandex Games.")]
+    [SerializeField] private bool enableOnlineLeaderboards = false;
+
     [Tooltip("TechnoName лидерборда на консоли Яндекс Игр. Пусто = запись рекордов выключена.")]
     [SerializeField] private string leaderboardName = "BestScore";
 
@@ -311,7 +314,7 @@ public class YandexGameManager : MonoBehaviour
     public void SubmitLeaderboard(string name, int score)
     {
 #if Leaderboards_yg
-        if (string.IsNullOrEmpty(name))
+        if (!enableOnlineLeaderboards || !IsReady || !YG2.isSDKEnabled || string.IsNullOrEmpty(name))
             return;
 
         if (!YG2.player.auth)
@@ -440,6 +443,12 @@ public class YandexGameManager : MonoBehaviour
     public void RequestLeaderboard(string nameLB, int quantityTop, int quantityAround, Action<LBData> onResult)
     {
 #if Leaderboards_yg
+        if (!enableOnlineLeaderboards || !IsReady || !YG2.isSDKEnabled || string.IsNullOrEmpty(nameLB))
+        {
+            onResult?.Invoke(null);
+            return;
+        }
+
         void Handler(LBData lb)
         {
             YG2.onGetLeaderboard -= Handler;

@@ -13,7 +13,8 @@ public partial class WaveEventDirector
         { IsEventActive = false; yield break; }
         cacheSegment = (wave - 1) / 10;
         eventFiredThisWave = true; lastEventTime = Time.time;
-        activeObjective = CreateObjectiveMarker("ProtectedCache", position, new Color(1, 0.75f, 0.2f), 0.8f);
+        activeObjective = new GameObject("ProtectedCache");
+        activeObjective.transform.position = new Vector3(position.x, .4f, position.z);
         activeObjective.AddComponent<ProtectedCache>().Initialize(enemySpawner, () =>
         { activeObjective = null; IsEventActive = eliteHuntActive; });
     }

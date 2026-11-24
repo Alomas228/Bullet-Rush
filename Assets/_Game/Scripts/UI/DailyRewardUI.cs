@@ -53,6 +53,8 @@ public class DailyRewardUI : MonoBehaviour, ILangRefreshable
         gameObject.SetActive(false);
     }
 
+    private RectTransform calendar;
+
     public void UpdateUI()
     {
         DailyRewardManager manager = DailyRewardManager.Instance;
@@ -65,6 +67,21 @@ public class DailyRewardUI : MonoBehaviour, ILangRefreshable
 
         int cycle = manager.CycleLength;
         int shown = Mathf.Min(rewardSlots.Length, cycle);
+
+        if (calendar == null)
+        {
+            int lines = Mathf.CeilToInt(shown / 4f);
+            calendar = RuntimeWindow.Open((RectTransform)transform, titleText, closeButton, 1120, 136 + 218 * lines);
+            for (int i = 0; i < rewardSlots.Length; i++)
+            {
+                var slot = rewardSlots[i];
+                if (slot == null) continue;
+                if (i >= shown) { slot.gameObject.SetActive(false); continue; }
+                int width = i == 6 && shown == 7 ? 518 : 251;
+                MenuSheet.Place(slot, calendar, 36 + (i % 4) * 265, 112 + (i / 4) * 218, width, 202);
+                slot.LayoutCard(width);
+            }
+        }
 
         for (int i = 0; i < shown; i++)
         {

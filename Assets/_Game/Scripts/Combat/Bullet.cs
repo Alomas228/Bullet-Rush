@@ -63,11 +63,16 @@ public class Bullet : MonoBehaviour
     private float ricochetDamageMultiplier = 1f;
 
     private PlayerHealth cachedPlayerHealth;
+    private Weapon sourceWeapon;
+    private RunPerk runEvolution;
+    private bool isRicochet;
     private GameObject bulletPrefab;
     private string weaponId;
     private int shotCycle, volleyIndex;
     private readonly HashSet<int> directHitIds = new HashSet<int>();
+    private TracerEffect visualTracer;
     public void SetShotIdentity(int cycle, int volley) { shotCycle = cycle; volleyIndex = volley; }
+    public void SetRunMechanics(Weapon source, RunPerk evolution) { sourceWeapon = source; runEvolution = evolution; }
 
     // Враг, в которого снаряд уже попал (нужен рикошету,
     // чтобы новая пуля не ударила в ту же цель повторно).
@@ -118,6 +123,16 @@ public class Bullet : MonoBehaviour
     private void OnDisable()
     {
         activeBullets.Remove(this);
+        if (visualTracer != null)
+            visualTracer.Detach(transform);
+        visualTracer = null;
+    }
+
+    internal void SetVisualTracer(TracerEffect tracer)
+    {
+        if (visualTracer != null && visualTracer != tracer)
+            visualTracer.Detach(transform);
+        visualTracer = tracer;
     }
 
     private void Awake()
@@ -256,6 +271,7 @@ public class Bullet : MonoBehaviour
         float nearestDistance =
             float.MaxValue;
 
+        Collider nearestCollider = null;
         Vector3 nearestPoint =
             to;
 
@@ -271,6 +287,7 @@ public class Bullet : MonoBehaviour
 
             nearestDistance = hit.distance;
             nearestPoint = hit.point;
+            nearestCollider = hit.collider;
             found = true;
         }
 
@@ -278,6 +295,8 @@ public class Bullet : MonoBehaviour
             return false;
 
         transform.position = nearestPoint;
+        if (nearestCollider != null)
+            nearestCollider.GetComponentInParent<ArenaBreakable>()?.Hit(damage);
 
         return true;
     }
@@ -299,6 +318,10 @@ public class Bullet : MonoBehaviour
     )
     {
         weaponId = string.Empty;
+        sourceWeapon = null; runEvolution = RunPerk.None; isRicochet = false;
+        lifestealPercent = runBurnChance = runBurnDamage = runBurnDuration = bleedChance = bleedDamage = bleedDuration = 0f;
+        explosionRadius = explosionDamage = chainLightningChance = chainLightningDamage = chainLightningRadius = ricochetChance = 0f;
+        chainLightningMaxTargets = ricochetBouncesRemaining = 0;
         directHitIds.Clear(); shotCycle = volleyIndex = 0;
         damage = newDamage;
         speed = newSpeed;
@@ -370,10 +393,10 @@ public class Bullet : MonoBehaviour
             run.RunBurnChance;
 
         runBurnDamage =
-            run.RunBurnDamage * damageMultiplier;
+            run.RunBurnDamage * damageMultiplier * RunBuildMechanics.BurnFactor;
 
         runBurnDuration =
-            run.RunBurnDuration;
+            run.RunBurnDuration * (RunBuildMechanics.Has(RunPerk.FireCatalyst) ? 1.25f : 1f);
 
         runBurnTickInterval =
             run.RunBurnTickInterval;
@@ -382,25 +405,25 @@ public class Bullet : MonoBehaviour
             run.BleedChance;
 
         bleedDamage =
-            run.BleedDamage * damageMultiplier;
+            run.BleedDamage * damageMultiplier * RunBuildMechanics.BleedFactor;
 
         bleedDuration =
-            run.BleedDuration;
+            run.BleedDuration * (RunBuildMechanics.Has(RunPerk.DeepCuts) ? 1.2f : 1f);
 
         bleedTickInterval =
             run.BleedTickInterval;
 
         explosionRadius =
-            run.ExplosionRadius;
+            Mathf.Min(5f, run.ExplosionRadius * (RunBuildMechanics.Has(RunPerk.Shockwave) ? 1.2f : 1f));
 
         explosionDamage =
-            run.ExplosionDamage * damageMultiplier;
+            run.ExplosionDamage * damageMultiplier * RunBuildMechanics.ExplosionFactor;
 
         chainLightningChance =
-            run.LightningChance;
+            Mathf.Clamp01(run.LightningChance * (RunBuildMechanics.Has(RunPerk.Conductor) ? 1.2f : 1f));
 
         chainLightningDamage =
-            run.LightningDamage * damageMultiplier;
+            run.LightningDamage * damageMultiplier * RunBuildMechanics.LightningFactor;
 
         chainLightningRadius =
             run.LightningRadius;
@@ -409,7 +432,7 @@ public class Bullet : MonoBehaviour
             run.LightningMaxTargets;
 
         ricochetChance =
-            run.RicochetChance;
+            Mathf.Clamp01(run.RicochetChance + (RunBuildMechanics.Has(RunPerk.RicochetFocus) ? .15f : 0f));
 
         ricochetBouncesRemaining =
             run.RicochetMaxBounces;
@@ -418,7 +441,7 @@ public class Bullet : MonoBehaviour
             run.RicochetSearchRadius;
 
         ricochetDamageMultiplier =
-            run.RicochetDamageMultiplier;
+            run.RicochetDamageMultiplier * (RunBuildMechanics.Has(RunPerk.RicochetPower) ? 1.35f : 1f);
     }
 
     /// <summary>
@@ -430,6 +453,8 @@ public class Bullet : MonoBehaviour
     private void CopyRunEffectsFrom(
         Bullet source)
     {
+        isRicochet = true;
+        runEvolution = source.runEvolution;
         lifestealPercent =
             source.lifestealPercent;
 
@@ -478,6 +503,7 @@ public class Bullet : MonoBehaviour
     {
         if (StructureQuery.IsWorldStructure(other))
         {
+            other.GetComponentInParent<ArenaBreakable>()?.Hit(damage);
             ReturnToPool();
             return;
         }
@@ -511,18 +537,27 @@ public class Bullet : MonoBehaviour
         if (JourneyRules.UsesPiercingTrial(weaponId))
             GameplayJourney.Instance?.ProgressTrial(weaponId, directHitIds.Count, true);
         enemy.RecordPairedHit(weaponId, shotCycle, volleyIndex);
+        bool wasBurning = enemy.IsBurning, wasBleeding = enemy.IsBleeding;
+        bool wasChilled = enemy.IsWet || enemy.IceHealth > 0f;
+        float beforeHit = enemy.CurrentHealth;
+        float hitDamage = isRicochet ? damage : damage * RunBuildMechanics.HitMultiplier(runEvolution, enemy, sourceWeapon, directHitIds.Count);
 
         // ============================================
         // NORMAL DAMAGE
         // ============================================
 
         enemy.TakeDamage(
-            enemy.ResolveDirectionalDamage(damage, transform.forward),
+            enemy.ResolveDirectionalDamage(hitDamage, transform.forward),
             isCritical,
             DamageSource.Weapon,
             0,
             weaponId
         );
+
+        if (!isRicochet && cachedPlayerHealth != null && RunBuildMechanics.Has(RunPerk.RelicVampire))
+            cachedPlayerHealth.HealFromLifesteal(Mathf.Max(0f, beforeHit - Mathf.Max(0f, enemy.CurrentHealth)) * .01f);
+        RunBuildMechanics.OnBulletHit(enemy, sourceWeapon, runEvolution, isRicochet, wasBurning, wasBleeding, wasChilled,
+            enemy.IsDead, isCritical, hitDamage, weaponId, cachedPlayerHealth);
 
         // Отдача: моб сбавляет разгон и чуть отходит назад.
         // Мёртвому она не нужна, а выбитый из толка моб уехал бы
@@ -532,7 +567,7 @@ public class Bullet : MonoBehaviour
         {
             enemy.ApplyKnockback(
                 transform.forward,
-                knockbackForce
+                knockbackForce * (runEvolution == RunPerk.HeavyRam ? 2f : 1f)
             );
         }
 
@@ -615,8 +650,8 @@ public class Bullet : MonoBehaviour
             cachedPlayerHealth != null
         )
         {
-            cachedPlayerHealth.Heal(
-                damage * lifestealPercent
+            cachedPlayerHealth.HealFromLifesteal(
+                hitDamage * lifestealPercent
             );
         }
 
@@ -909,7 +944,7 @@ public class Bullet : MonoBehaviour
 
         for (int i = 0; i < colliderCount; i++)
         {
-            if (targetsHit >= chainLightningMaxTargets)
+            if (targetsHit >= chainLightningMaxTargets + (wetOrigin ? 2 : 0))
                 break;
 
             Enemy target =
@@ -1119,7 +1154,7 @@ public class Bullet : MonoBehaviour
             cachedPlayerHealth != null
         )
         {
-            cachedPlayerHealth.Heal(
+            cachedPlayerHealth.HealFromLifesteal(
                 sourceDamage *
                 lifestealPercent
             );

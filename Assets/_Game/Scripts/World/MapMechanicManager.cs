@@ -94,6 +94,7 @@ public class MapMechanicManager : MonoBehaviour
     private bool wetInteractionShown;
     private bool iceInteractionShown;
     private WaveEventDirector waveEvents;
+    private MapSurvivalZones survivalZones;
 
     // Событие волны и залп механики — два независимых источника
     // давления. Их наложение превращает читаемую угрозу в хаос, где
@@ -214,6 +215,8 @@ public class MapMechanicManager : MonoBehaviour
         strength = 1f;
 
         StopHazards();
+        MapStormOverlay.Clear();
+        if (survivalZones != null) survivalZones.EndRun();
     }
 
     /// <summary>
@@ -233,6 +236,11 @@ public class MapMechanicManager : MonoBehaviour
             ? Mathf.Max(map.arenaLayout.halfSize, 8f) : defaultArenaHalfSize;
 
         ApplyPlayerBuffs();
+        if (strength > 0f && (mechanic == MapMechanic.LowGravity || mechanic == MapMechanic.None))
+        {
+            if (survivalZones == null) survivalZones = gameObject.AddComponent<MapSurvivalZones>();
+            survivalZones.BeginRun(mechanic, arenaHalfSize);
+        }
 
         if (HasPeriodicHazard)
             StartHazards();
@@ -534,7 +542,7 @@ public class MapMechanicManager : MonoBehaviour
             WaveManager waves = FindAnyObjectByType<WaveManager>();
             bool bossEncounter = waves != null && waves.IsBossWave(waves.CurrentWave);
 
-            if (playing && !eventBusy && !bossEncounter)
+            if (playing && !eventBusy && !bossEncounter && (waves == null || (waves.IsWaveActive && !waves.IsFinishingWave)))
                 SpawnHazardBurst();
 
             yield return new WaitForSeconds(LoopInterval);
@@ -579,9 +587,9 @@ public class MapMechanicManager : MonoBehaviour
             case MapMechanic.Sandstorm:
                 SpawnStormBurst();
                 MapStormOverlay.Pulse(
-                    stormOverlayIntensity,
+                    Mathf.Max(stormOverlayIntensity, 0.72f) * (MapSurvivalZones.HasOutfit("cowboy") ? 0.45f : 1f),
                     stormOverlayFadeIn,
-                    stormOverlayHold,
+                    Mathf.Max(stormOverlayHold, 2.5f),
                     stormOverlayFadeOut
                 );
                 break;

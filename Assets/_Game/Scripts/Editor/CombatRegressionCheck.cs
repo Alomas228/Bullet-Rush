@@ -57,11 +57,14 @@ public static class CombatRegressionCheck
         Near(MapCombatRules.LightningRange(5f, true), 6f, "Wet lightning retains range cap");
         Near(MapCombatRules.LightningRange(0f, true), 0f, "Wet does not create missing lightning");
         float ice = 30f;
-        Near(MapCombatRules.ResolveIceDamage(20f, false, ref ice), 20f, "Ordinary damage unchanged");
-        Near(ice, 10f, "Ordinary damage removes ice");
-        Near(MapCombatRules.ResolveIceDamage(10f, true, ref ice), 15f, "Burn bonus stops at ice boundary");
+        Near(MapCombatRules.ResolveIceDamage(20f, false, ref ice), 0f, "Ice absorbs all damage while intact");
+        Near(ice, 22f, "Ordinary damage removes ice");
+        Near(MapCombatRules.ResolveIceDamage(30f, true, ref ice), 22.666667f, "Only excess burn damage reaches health");
         Near(ice, 0f, "Coating breaks once");
         Near(MapCombatRules.ResolveIceDamage(10f, true, ref ice), 10f, "Flesh takes normal burn damage");
+        ice = 8f;
+        Near(MapCombatRules.ResolveIceDamage(20f, false, ref ice), 0f, "Exact shield break leaves health intact");
+        Near(ice, 0f, "Exact hit breaks shield");
         Require(MapCombatRules.ShouldHaveIce(MapMechanic.Highland, false, 0.1f), "Ordinary foes eligible");
         Require(!MapCombatRules.ShouldHaveIce(MapMechanic.Highland, true, 0.1f), "Bosses excluded");
         Require(!MapCombatRules.ShouldHaveIce(MapMechanic.OpenField, false, 0.1f), "Other maps excluded");

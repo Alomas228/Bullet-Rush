@@ -22,7 +22,21 @@ public class ComboSystem : MonoBehaviour
     private int lastComboThresholdReached = 0; // Для отслеживания порогов бонусов
     private WaveManager waves;
 
+    public static ComboSystem Instance { get; private set; }
+    public float RemainingFraction => comboCount > 0 ? Mathf.Clamp01(comboTimer / Mathf.Max(comboResetTime, 0.01f)) : 0f;
+    public float TempoMultiplier => comboCount >= 5 && comboTimer > 0f && !GameModeManager.IsPvp &&
+        GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing ? 1.18f : 1f;
+
     public int ComboCount => comboCount;
+
+    internal void ResetForSession()
+    {
+        comboCount = 0;
+        comboTimer = 0f;
+        lastKillTime = 0f;
+        lastComboThresholdReached = 0;
+        OnComboChanged?.Invoke(0);
+    }
 
     public float ComboMultiplier
     {
@@ -46,7 +60,16 @@ public class ComboSystem : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
         ResolveRefs();
+        PlayerComboFeedback feedback = GetComponent<PlayerComboFeedback>();
+        if (feedback == null) feedback = gameObject.AddComponent<PlayerComboFeedback>();
+        feedback.Bind(this);
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     private void ResolveRefs()
@@ -125,6 +148,8 @@ public class ComboSystem : MonoBehaviour
 
     private void ResetCombo()
     {
+        lastComboThresholdReached = 0;
+        lastKillTime = 0f;
         if (comboCount > 0)
         {
             comboCount = 0;
@@ -229,9 +254,6 @@ public class ComboSystem : MonoBehaviour
 
     public void ResetAll()
     {
-        comboCount = 0;
-        comboTimer = 0f;
-        lastKillTime = 0f;
-        lastComboThresholdReached = 0;
+        ResetForSession();
     }
 }

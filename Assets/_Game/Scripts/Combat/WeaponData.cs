@@ -18,7 +18,7 @@ public class WeaponData : ScriptableObject
     /// Базовая стрельба потолком не урезается — потолок всегда не
     /// меньше базового числа снарядов.
     /// </summary>
-    public const int MaxBonusProjectilesPerShot = 4;
+    public const int MaxBonusProjectilesPerShot = 2;
 
     /// <summary>
     /// Сколько снарядов выстрелит оружие при заданном процентном
@@ -39,10 +39,7 @@ public class WeaponData : ScriptableObject
         if (percentBonus <= 0f)
             return baseValue;
 
-        int ceiling = Mathf.Max(
-            baseValue,
-            MaxBonusProjectilesPerShot
-        );
+        int ceiling = baseValue + MaxBonusProjectilesPerShot;
 
         return Mathf.Clamp(
             Mathf.CeilToInt(
@@ -51,6 +48,14 @@ public class WeaponData : ScriptableObject
             baseValue,
             ceiling
         );
+    }
+
+    // Extra projectiles add 45% of a normal projectile's total damage.
+    public static float GetVolleyDamageScale(int baseCount, int actualCount)
+    {
+        int baseline = Mathf.Max(baseCount, 1);
+        int actual = Mathf.Max(actualCount, baseline);
+        return (baseline + (actual - baseline) * 0.45f) / actual;
     }
 
     [Header("Identity")]
@@ -78,11 +83,16 @@ public class WeaponData : ScriptableObject
 
     [Header("Visual")]
     [SerializeField] private GameObject weaponPrefab;
+    [SerializeField] private Sprite preview;
 
     [Header("Stats")]
     [SerializeField] private float damage = 1f;
     [SerializeField] private float fireRate = 5f;
     [SerializeField] private float projectileSpeed = 15f;
+
+    [Header("Magazine (0 = automatic by weapon fire cycle)")]
+    [SerializeField, Min(0)] private int magazineSize;
+    [SerializeField, Min(0f)] private float reloadSeconds;
 
     [Header("Projectile")]
     [SerializeField] private int projectileCount = 1;
@@ -157,11 +167,27 @@ public class WeaponData : ScriptableObject
         Mathf.Max(price, 0);
 
     public GameObject WeaponPrefab => weaponPrefab;
+    public Sprite Preview => preview;
 
 
     public float Damage => damage;
 
     public float FireRate => fireRate;
+
+    public int BaseMagazineSize
+    {
+        get
+        {
+            if (magazineSize > 0) return magazineSize;
+            int volleys = SpecialType == WeaponSpecialType.Burst ? ShotsPerBurst : SpecialType == WeaponSpecialType.DoubleShot ? 2 : 1;
+            int capacity = Mathf.RoundToInt(6.5f * volleys / Mathf.Max(.05f, GetFireCycleDuration(1f)));
+            return weaponType == WeaponType.Shotgun ? Mathf.Clamp(capacity, 5, 16) :
+                weaponType == WeaponType.SMG ? Mathf.Clamp(capacity, 36, 190) : Mathf.Clamp(capacity, 12, 90);
+        }
+    }
+
+    public float BaseReloadSeconds => reloadSeconds > 0f ? reloadSeconds :
+        weaponType == WeaponType.Shotgun ? 1.25f : weaponType == WeaponType.SMG ? 1.05f : 1.10f;
 
     public float ProjectileSpeed =>
         projectileSpeed;

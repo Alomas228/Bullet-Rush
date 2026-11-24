@@ -190,14 +190,8 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
             return;
 
         RectTransform rect = button.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 1f);
-        rect.anchorMax = new Vector2(0.5f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(240f, 52f);
-        rect.anchoredPosition = new Vector2(
-            button.name == "DailyTab" ? -130f : 130f,
-            -92f
-        );
+        UiArtboard.Place(rect, new Vector2(0,1), new Vector2(0,1),
+            new Vector2(button.name == "DailyTab" ? 36 : 252, -106), new Vector2(204,44));
         Image image = button.targetGraphic as Image;
         if (image == null)
             image = button.GetComponent<Image>();
@@ -290,8 +284,19 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
     // REFRESH
     // =========================================================
 
+    private RectTransform sheet;
     public void Refresh()
     {
+        if (sheet == null && content != null && rowTemplate != null)
+        {
+            sheet = RuntimeWindow.Ledger((RectTransform)transform, titleText, closeButton, progressText, content, true);
+            rowTemplate.LayoutRow();
+            rowTemplate.gameObject.SetActive(false);
+            EnsureTabButtons();
+            if (dailyTabButton != null) dailyTabButton.transform.SetParent(sheet, false);
+            if (weeklyTabButton != null) weeklyTabButton.transform.SetParent(sheet, false);
+            StyleTabButtons();
+        }
         DailyMissionManager daily = null;
         WeeklyMissionManager weekly = null;
         IReadOnlyList<DailyMissionSaveData.Entry> missions;
@@ -381,16 +386,16 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         CanvasScaler scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        ResponsiveUi.Configure(scaler, new Vector2(1920,1080));
 
         gameObject.AddComponent<GraphicRaycaster>();
 
         RectTransform root = gameObject.GetComponent<RectTransform>();
 
-        Image dim = CreateImage(root, "Dim", new Color(0f, 0f, 0f, 0.85f));
+        Image dim = CreateImage(root, "Dim", ArcadeUiTheme.Backdrop);
         Stretch(dim.rectTransform);
 
-        Image window = CreateImage(root, "Window", new Color(0.09f, 0.1f, 0.14f, 1f));
+        Image window = CreateImage(root, "Window", ArcadeUiTheme.Panel);
         RectTransform windowRect = window.rectTransform;
         windowRect.anchorMin = new Vector2(0.5f, 0.5f);
         windowRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -414,7 +419,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         progressRect.sizeDelta = new Vector2(260f, 60f);
         progressRect.anchoredPosition = new Vector2(-100f, -20f);
 
-        Image closeImage = CreateImage(windowRect, "CloseButton", new Color(0.5f, 0.12f, 0.14f, 1f));
+        Image closeImage = CreateImage(windowRect, "CloseButton", ArcadeUiTheme.PanelRaised);
         RectTransform closeRect = closeImage.rectTransform;
         closeRect.anchorMin = new Vector2(1f, 1f);
         closeRect.anchorMax = new Vector2(1f, 1f);
@@ -441,7 +446,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         scroll.horizontal = false;
         scroll.movementType = ScrollRect.MovementType.Clamped;
 
-        Image viewport = CreateImage(scrollRect, "Viewport", new Color(0f, 0f, 0f, 0.25f));
+        Image viewport = CreateImage(scrollRect, "Viewport", ArcadeUiTheme.CardSoft);
         Stretch(viewport.rectTransform);
         viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
 
@@ -479,7 +484,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         rowRect.sizeDelta = new Vector2(0f, 150f);
 
         Image bg = rowGo.AddComponent<Image>();
-        bg.color = new Color(1f, 1f, 1f, 0.06f);
+        bg.color = ArcadeUiTheme.Card;
 
         LayoutElement element = rowGo.AddComponent<LayoutElement>();
         element.minHeight = 150f;
@@ -494,7 +499,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         rowTitleRect.anchoredPosition = new Vector2(0f, -12f);
 
         TMP_Text rowDesc = CreateText(rowRect, "Description", 22f, TextAlignmentOptions.TopLeft);
-        rowDesc.color = new Color(0.8f, 0.82f, 0.88f, 1f);
+        rowDesc.color = ArcadeUiTheme.TextSecondary;
         RectTransform rowDescRect = rowDesc.rectTransform;
         rowDescRect.anchorMin = new Vector2(0f, 0f);
         rowDescRect.anchorMax = new Vector2(1f, 1f);
@@ -502,7 +507,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         rowDescRect.offsetMax = new Vector2(-220f, -52f);
 
         TMP_Text rowReward = CreateText(rowRect, "Reward", 20f, TextAlignmentOptions.BottomLeft);
-        rowReward.color = new Color(0.8f, 0.9f, 1f, 1f);
+        rowReward.color = ArcadeUiTheme.TextSecondary;
         RectTransform rowRewardRect = rowReward.rectTransform;
         rowRewardRect.anchorMin = new Vector2(0f, 0f);
         rowRewardRect.anchorMax = new Vector2(1f, 0f);
@@ -521,7 +526,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         Slider progressBar = CreateProgressBar(
             rowRect,
             "ProgressBar",
-            new Color(0.3f, 0.75f, 0.45f, 0.9f)
+            ArcadeUiTheme.Green
         );
 
         RectTransform barRect = progressBar.GetComponent<RectTransform>();
@@ -531,7 +536,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         barRect.sizeDelta = new Vector2(-24f, 6f);
         barRect.anchoredPosition = new Vector2(0f, 46f);
 
-        Image claimImage = CreateImage(rowRect, "ClaimButton", new Color(0.2f, 0.55f, 0.3f, 1f));
+        Image claimImage = CreateImage(rowRect, "ClaimButton", ArcadeUiTheme.Gold);
         RectTransform claimRect = claimImage.rectTransform;
         claimRect.anchorMin = new Vector2(1f, 0.5f);
         claimRect.anchorMax = new Vector2(1f, 0.5f);
@@ -569,7 +574,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         Image background = CreateImage(
             root.transform,
             "Background",
-            new Color(1f, 1f, 1f, 0.12f)
+            ArcadeUiTheme.Line
         );
 
         background.raycastTarget = false;
@@ -623,7 +628,8 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
         text.fontSize = size;
         text.alignment = alignment;
-        text.color = Color.white;
+        text.color = MenuSheet.Ink;
+        text.font = ArcadeKitAssets.BodyBold;
         text.raycastTarget = false;
 
         return text;

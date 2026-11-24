@@ -4,15 +4,18 @@ public class BombAbility : MonoBehaviour
 {
     [Header("Settings")]
     [Tooltip("Урон бомбы. Масштаб ×10 к прежнему — как и весь остальной урон в игре, игрок живёт 100 HP.")]
-    [SerializeField] private float baseDamage = 50f;
+    [SerializeField] private float baseDamage = 300f;
     [SerializeField] private float radius = 5f;
-    [SerializeField] private float cooldown = 8f;
+    [SerializeField] private float cooldown = 12f;
 
     [Header("Visual")]
     [Tooltip("Если не назначен — эффект создастся автоматически кодом.")]
     [SerializeField] private GameObject bombEffectPrefab;
 
     private float cooldownTimer;
+    private float initialDamage, initialRadius, initialCooldown;
+    private readonly System.Collections.Generic.List<GameObject> spawnedEffects = new System.Collections.Generic.List<GameObject>();
+    private readonly System.Collections.Generic.List<Enemy> targets = new(64);
     private PlayerStats playerStats;
 
     public bool IsUnlocked { get; set; }
@@ -23,7 +26,22 @@ public class BombAbility : MonoBehaviour
 
     private void Awake()
     {
+        initialDamage = baseDamage;
+        initialRadius = radius;
+        initialCooldown = cooldown;
         playerStats = GetComponent<PlayerStats>();
+    }
+
+    internal void ResetForSession()
+    {
+        baseDamage = initialDamage;
+        radius = initialRadius;
+        cooldown = initialCooldown;
+        cooldownTimer = 0f;
+        IsUnlocked = false;
+        foreach (GameObject effect in spawnedEffects)
+            if (effect != null) { effect.SetActive(false); Destroy(effect); }
+        spawnedEffects.Clear();
     }
 
     private void Update()
@@ -87,6 +105,9 @@ public class BombAbility : MonoBehaviour
                     Quaternion.identity
                 );
 
+            spawnedEffects.RemoveAll(item => item == null);
+            spawnedEffects.Add(effect);
+
             Destroy(effect, 2f);
         }
         else
@@ -94,24 +115,16 @@ public class BombAbility : MonoBehaviour
             SpawnProceduralEffect(center);
         }
 
-        Collider[] hits =
-            StructureQuery.OverlapSphere(
-                center,
-                radius,
-                out int hitCount
-            );
-
         float damage = CalculateDamage();
-
-        for (int i = 0; i < hitCount; i++)
+        Enemy.CopyAliveTo(targets);
+        int count=0, eventId=DamageEventId.Next();
+        foreach (Enemy enemy in targets)
         {
-            Enemy enemy =
-                ColliderKindQuery.GetEnemy(hits[i]);
-
-            if (enemy == null)
-                continue;
-
-            enemy.TakeDamage(damage);
+            if(count>=16) break;
+            if (enemy == null || enemy.IsDead) continue;
+            Vector3 delta=enemy.transform.position-center; delta.y=0;
+            if(delta.sqrMagnitude>radius*radius) continue;
+            count++; enemy.TakeDamage(damage,false,DamageSource.Ability,eventId);
         }
 
         Debug.Log(
@@ -127,7 +140,7 @@ public class BombAbility : MonoBehaviour
         if (playerStats != null)
             multiplier = playerStats.DamageMultiplier;
 
-        return baseDamage * multiplier;
+        return baseDamage * multiplier * RunBuildMechanics.EffectFactor;
     }
 
     private void PlayPlayerExplosionSound()
@@ -158,7 +171,7 @@ public class BombAbility : MonoBehaviour
     public void UpgradeCooldown(float percent)
     {
         cooldown *= 1f - percent;
-        cooldown = Mathf.Max(cooldown, 1f);
+        cooldown = Mathf.Max(cooldown, 5f);
     }
 
     public void UpgradeDamage(float percent)
@@ -168,6 +181,6 @@ public class BombAbility : MonoBehaviour
 
     public void UpgradeRadius(float percent)
     {
-        radius *= 1f + percent;
+        radius = Mathf.Min(radius * (1f + percent), 7f);
     }
 }

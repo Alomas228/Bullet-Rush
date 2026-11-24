@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using System.Collections;
 
 public class GameOverManager : MonoBehaviour
@@ -8,6 +7,8 @@ public class GameOverManager : MonoBehaviour
 
     public bool IsGameOver { get; private set; }
     public bool WasVictory { get; private set; }
+    private bool revivedThisRun;
+    public bool CanRevive => IsGameOver && !WasVictory && !revivedThisRun;
 
     /// <summary>
     /// Итог последнего завершения забега. Считается один раз и
@@ -16,8 +17,7 @@ public class GameOverManager : MonoBehaviour
     /// </summary>
     public RunResult LastResult { get; private set; }
 
-    private bool pendingRestart;
-    private bool menuReturnPending;
+    private Coroutine restartRoutine;
 
     // Итоги забега фиксируются один раз на его завершение. При
     // возрождении флаг снимается: забег продолжается, и следующий
@@ -34,29 +34,6 @@ public class GameOverManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-    }
-
-    private void OnEnable()
-    {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
-
-    private void OnDisable()
-    {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (pendingRestart)
-        {
-            pendingRestart = false;
-            runFinalized = false;
-            LastResult = null;
-
-            if (GameStateManager.Instance != null)
-                GameStateManager.Instance.SetState(GameState.Playing);
-        }
     }
 
     public void GameOver() => FinishRun(false);
@@ -180,28 +157,46 @@ public class GameOverManager : MonoBehaviour
 
     public void RestartGame()
     {
-        FinalizeRun();
+        if (restartRoutine != null || GameStateManager.Instance == null ||
+            GameStateManager.Instance.CurrentState == GameState.Menu) return;
+        GameMode requestedMode = GameModeManager.SelectedMode;
+        if (!GameModeManager.IsPvp) FinalizeRun();
+        BeginMenuReturn();
+        restartRoutine = StartCoroutine(RestartWhenPrepared(requestedMode));
+    }
 
-        runFinalized = false;
-        IsGameOver = false;
-        WasVictory = false;
-        pendingRestart = true;
-        Time.timeScale = 1f;
+    private IEnumerator RestartWhenPrepared(GameMode mode)
+    {
+        yield return null;
+        EnvironmentController environment = FindAnyObjectByType<EnvironmentController>();
+        while (environment != null && environment.IsMenuPreparationPending)
+        {
+            if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Menu) break;
+            yield return null;
+        }
+        restartRoutine = null;
+        if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Menu) yield break;
+        // A player who opened a menu window while preparing can stay there.
+        if (ArcadeMenuSkin.Instance != null && !ArcadeMenuSkin.Instance.IsMainMenuVisible) yield break;
 
-        if (AudioManager.Instance != null)
-            AudioManager.Instance.SwitchToMainMusic();
-
-        SceneManager.LoadScene(
-            SceneManager.GetActiveScene().buildIndex
-        );
+        if (mode == GameMode.Pvp)
+        {
+            GameModeManager.Select(GameMode.Pvp);
+            FindAnyObjectByType<WaveManager>(FindObjectsInactive.Include)?.DeactivateForPvp();
+            PvpMatchManager.EnsureExists().BeginSearch();
+        }
+        else if (!GameModeManager.IsPvp)
+        {
+            if (MainMenuUI.Instance != null) MainMenuUI.Instance.StartPreparedRun();
+            else GameStateManager.Instance.StartGame();
+        }
     }
 
     public void ResetForNewRun()
     {
+        revivedThisRun = false;
         WasVictory = false;
         IsGameOver = false;
-        pendingRestart = false;
-        menuReturnPending = false;
         runFinalized = false;
         LastResult = null;
     }
@@ -212,8 +207,9 @@ public class GameOverManager : MonoBehaviour
     /// </summary>
     public void RevivePlayer()
     {
-        if (!IsGameOver || WasVictory)
+        if (!CanRevive)
             return;
+        revivedThisRun = true;
 
         // Забег продолжается: снимаем фиксацию, чтобы следующий конец
         // снова зафиксировал уже улучшенный результат.
@@ -231,116 +227,57 @@ public class GameOverManager : MonoBehaviour
 
         if (PlayerHealth.Instance != null)
             PlayerHealth.Instance.Revive();
+        AchievementEvents.RaiseRunResumed();
     }
 
     public void BackToMenu()
     {
+        if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState == GameState.Menu) return;
         // Забег прерван (выход из паузы или с экрана итогов) — фиксируем
         // результат один раз: рекорд, лидерборд, достижения и награда.
-        FinalizeRun();
+        if (!GameModeManager.IsPvp) FinalizeRun();
 
         BeginMenuReturn();
     }
 
     public void BackToMenuWithoutFinalizing()
     {
-        BeginMenuReturn(false);
+        BeginMenuReturn();
     }
 
     private void BeginMenuReturn()
     {
-        BeginMenuReturn(true);
-    }
-
-    private void BeginMenuReturn(bool captureSceneSnapshot)
-    {
-        runFinalized = false;
+        if (GameStateManager.Instance == null || GameStateManager.Instance.CurrentState == GameState.Menu) return;
         IsGameOver = false;
         WasVictory = false;
 
         if (AudioManager.Instance != null)
             AudioManager.Instance.SwitchToMenuMusic();
 
-        Time.timeScale = 1f;
+        EnvironmentController menuEnvironment = FindAnyObjectByType<EnvironmentController>();
+        MainMenuUI.MenuReloadPending = false;
+        if (menuEnvironment != null)
+            menuEnvironment.RequestMenuSessionRefresh(PrepareReturnedMenuScene);
 
-        if (captureSceneSnapshot && !GameModeManager.IsPvp)
+        bool returningFromPvp = GameModeManager.IsPvp;
+        if (returningFromPvp) GameModeManager.Select(GameMode.Pve);
+        GameStateManager.Instance.SetState(GameState.Menu);
+        Time.timeScale = 0f;
+
+        if (returningFromPvp)
         {
-            EnvironmentController environment =
-                FindAnyObjectByType<EnvironmentController>();
-
-            if (environment != null)
-                WorldStructureGenerator.CaptureSceneReloadSnapshot(
-                    environment.CurrentMap
-                );
+            PvpMatchManager pvp = FindAnyObjectByType<PvpMatchManager>();
+            if (pvp != null) pvp.CancelAndReturnToPve();
         }
-
-        MainMenuUI.MenuReloadPending = true;
-
-        if (GameStateManager.Instance != null)
-            GameStateManager.Instance.SetState(GameState.Menu);
-
-        WorldFadeOutManager fadeOut =
-            FindAnyObjectByType<WorldFadeOutManager>();
-
-        if (fadeOut != null)
-            fadeOut.FadeOutEverything();
-
-        if (!menuReturnPending)
-            StartCoroutine(ReloadAfterCameraReachesMenu(fadeOut));
+        if (menuEnvironment == null) PrepareReturnedMenuScene();
     }
 
-    private IEnumerator ReloadAfterCameraReachesMenu(
-        WorldFadeOutManager fadeOut)
+    private void PrepareReturnedMenuScene()
     {
-        menuReturnPending = true;
-
-        const float maxWait = 5f;
-        float timer = 0f;
+        RunSessionResetter.ReturnToMenu();
 
         CameraFollow camera = FindAnyObjectByType<CameraFollow>();
-
-        if (fadeOut == null)
-            fadeOut = FindAnyObjectByType<WorldFadeOutManager>();
-
-        while (
-            timer < maxWait &&
-                ((camera != null && camera.IsTransitioning) ||
-                 (fadeOut != null && fadeOut.IsFading))
-        )
-        {
-            timer += Time.unscaledDeltaTime;
-
-            if (GameStateManager.Instance == null ||
-                GameStateManager.Instance.CurrentState != GameState.Menu)
-            {
-                CancelMenuReturn();
-                yield break;
-            }
-
-            yield return null;
-        }
-
-        if (GameStateManager.Instance == null ||
-            GameStateManager.Instance.CurrentState != GameState.Menu)
-        {
-            CancelMenuReturn();
-            yield break;
-        }
-
-        menuReturnPending = false;
-        MainMenuUI.MenuReloadPending = false;
-        MainMenuUI.ShowWithoutAnimation = true;
-
-        SceneManager.LoadScene(
-            SceneManager.GetActiveScene().buildIndex
-        );
-    }
-
-    private void CancelMenuReturn()
-    {
-        menuReturnPending = false;
-        MainMenuUI.MenuReloadPending = false;
-        MainMenuUI.ShowWithoutAnimation = false;
+        if (camera != null) camera.MoveToMenuPositionImmediate();
     }
 
     private void PlayGameOverSound()

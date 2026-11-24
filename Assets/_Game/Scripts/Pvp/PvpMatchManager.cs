@@ -221,7 +221,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         for (int i = 0; i < projectiles.Length; i++)
         {
             projectiles[i].gameObject.SetActive(false);
-            Destroy(projectiles[i]);
+            Destroy(projectiles[i].gameObject);
         }
 
         ClearPlayerBullets();
@@ -289,7 +289,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         EnvironmentController environment,
         int generation)
     {
-        while (environment.IsTransitioning || environment.IsRestoringRuntimeMap)
+        while (environment.IsMenuPreparationPending)
             yield return null;
 
         if (generation != modeGeneration || GameModeManager.IsPvp)
@@ -299,7 +299,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         }
 
         WorldStructureGenerator generator = FindAnyObjectByType<WorldStructureGenerator>();
-        if (generator != null && environment.CurrentMap != null)
+        if (generator != null && environment.CurrentMap != null && !environment.IsMenuWorldPrepared(environment.CurrentMap))
         {
             generator.RebuildForWave(environment.CurrentMap.layoutSeed, 1);
             while (generator.IsGenerating)
@@ -442,12 +442,26 @@ public sealed class PvpMatchManager : MonoBehaviour
             yield return null;
         }
 
+        EnvironmentController environment = FindAnyObjectByType<EnvironmentController>();
+        while (environment != null && environment.IsMenuPreparationPending)
+        {
+            if (!GameModeManager.IsPvp || GameStateManager.Instance == null ||
+                GameStateManager.Instance.CurrentState != GameState.Menu)
+            {
+                searchRoutine = null;
+                yield break;
+            }
+            yield return null;
+        }
+
         searchRoutine = null;
         if (searchPanel != null)
             searchPanel.SetActive(false);
 
         if (searchBackdrop != null)
             searchBackdrop.SetActive(false);
+        if (!GameModeManager.IsPvp || GameStateManager.Instance == null ||
+            GameStateManager.Instance.CurrentState != GameState.Menu) yield break;
         SelectOpponent();
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.StartGame();
@@ -472,7 +486,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         }
 
         WorldStructureGenerator generator = FindAnyObjectByType<WorldStructureGenerator>();
-        if (generator != null)
+        if (generator != null && (environment == null || !environment.IsMenuWorldPrepared(pvpMap)))
         {
             generator.RebuildForWave(pvpMap.layoutSeed, 1);
             while (generator.IsGenerating)
@@ -661,7 +675,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         for (int i = 0; i < projectiles.Length; i++)
         {
             projectiles[i].gameObject.SetActive(false);
-            Destroy(projectiles[i]);
+            Destroy(projectiles[i].gameObject);
         }
     }
 
@@ -723,12 +737,18 @@ public sealed class PvpMatchManager : MonoBehaviour
         CanvasScaler scaler = root.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-        RectTransform canvasRect = root.GetComponent<RectTransform>();
+        ResponsiveUi.Configure(scaler, new Vector2(1920,1080));
+        RectTransform full = root.GetComponent<RectTransform>();
+        RectTransform canvasRect = ResponsiveUi.SafeContent(full);
 
+        var top = new Vector2(.5f, 1);
+        var strip = ArcadeUiFactory.At(canvasRect, "MatchStrip", top, top, Vector2.zero, new Vector2(0,112));
+        strip.anchorMin = new Vector2(0,1);
+        strip.anchorMax = Vector2.one;
+        ArcadeUiFactory.Image(strip, null, ArcadeUiTheme.Alpha(MenuSheet.Ink,.96f));
         playerHealthLabel = ArcadeUiFactory.Label(
             canvasRect, "PlayerHealth", "", ArcadeKitAssets.BodyBold, 18f,
-            ArcadeUiTheme.TextPrimary, TextAlignmentOptions.Left,
+            MenuSheet.Paper, TextAlignmentOptions.Left,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(48f, -42f),
             new Vector2(340f, 30f)
         );
@@ -737,7 +757,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         );
         aiHealthLabel = ArcadeUiFactory.Label(
             canvasRect, "AIHealth", "", ArcadeKitAssets.BodyBold, 18f,
-            ArcadeUiTheme.TextPrimary, TextAlignmentOptions.Right,
+            MenuSheet.Paper, TextAlignmentOptions.Right,
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-48f, -42f),
             new Vector2(340f, 30f)
         );
@@ -750,9 +770,14 @@ public sealed class PvpMatchManager : MonoBehaviour
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -48f), new Vector2(520f, 30f)
         );
-        resultPanel = BuildResultPanel(canvasRect);
-        BuildIntermissionPanel(canvasRect);
-        BuildSearchPanel(canvasRect);
+        var modalHost = ArcadeUiFactory.Stretch(full, "Match windows");
+        var modalBoard = UiArtboard.Create(modalHost, new Vector2(920,520));
+        resultPanel = BuildResultPanel(modalBoard);
+        BuildIntermissionPanel(modalBoard);
+        BuildSearchPanel(full);
+        var responsive = strip.gameObject.AddComponent<ResponsiveMatchStrip>();
+        responsive.Bind(playerHealthLabel.rectTransform, (RectTransform)playerHealthFill.transform.parent,
+            aiHealthLabel.rectTransform, (RectTransform)aiHealthFill.transform.parent, matchStatusLabel.rectTransform);
         resultPanel.SetActive(false);
         root.SetActive(GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Playing);
@@ -801,7 +826,7 @@ public sealed class PvpMatchManager : MonoBehaviour
         shadow.useGraphicAlpha = true;
         resultTitle = ArcadeUiFactory.Label(
             panel, "ResultTitle", "", ArcadeKitAssets.Display, 34f,
-            ArcadeUiTheme.GoldBright, TextAlignmentOptions.Center,
+            MenuSheet.Ink, TextAlignmentOptions.Center,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -38f), new Vector2(500f, 60f)
         );
@@ -821,6 +846,9 @@ public sealed class PvpMatchManager : MonoBehaviour
             Lang.GetOr("menu.pvp.menu", "В МЕНЮ"), ArcadeKitAssets.BodyBold,
             16f, ArcadeUiTheme.TextPrimary, ReturnToMenu
         );
+        RuntimeWindow.Place(panel,"ResultTitle",panel,28,26,504,64);
+        RuntimeWindow.Place(panel,"ResultDetails",panel,28,106,504,96);
+        MenuSheet.Box(panel,"ResultRule",28,218,504,2,MenuSheet.Rule);
         return panel.gameObject;
     }
 
@@ -835,13 +863,13 @@ public sealed class PvpMatchManager : MonoBehaviour
         intermissionPanel = panel.gameObject;
         intermissionTitle = ArcadeUiFactory.Label(
             panel, "IntermissionTitle", "", ArcadeKitAssets.Display, 28f,
-            ArcadeUiTheme.GoldBright, TextAlignmentOptions.Center,
+            MenuSheet.Ink, TextAlignmentOptions.Center,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -60f), new Vector2(620f, 54f)
         );
         intermissionTimerLabel = ArcadeUiFactory.Label(
             panel, "IntermissionTimer", "", ArcadeKitAssets.BodyBold, 17f,
-            ArcadeUiTheme.Cyan, TextAlignmentOptions.Center,
+            MenuSheet.Ink, TextAlignmentOptions.Center,
             new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -16f), new Vector2(620f, 28f)
         );
@@ -858,6 +886,12 @@ public sealed class PvpMatchManager : MonoBehaviour
             new Vector2(0f, -130f), new Vector2(620f, 28f)
         );
 
+        panel.sizeDelta = new Vector2(850,382);
+        RuntimeWindow.Text(intermissionTitle,panel,28,20,644,60,30,true);
+        RuntimeWindow.Text(intermissionTimerLabel,panel,682,30,140,40,20,align: TextAlignmentOptions.Right);
+        RuntimeWindow.Text(intermissionScore,panel,28,88,794,38,22);
+        RuntimeWindow.Text(intermissionHint,panel,28,134,794,44,17);
+        MenuSheet.Box(panel,"ChoicesRule",28,188,794,2,MenuSheet.Rule);
         boostButtons = new Button[3];
         boostLabels = new TMP_Text[3];
         for (int i = 0; i < boostButtons.Length; i++)
@@ -865,7 +899,7 @@ public sealed class PvpMatchManager : MonoBehaviour
             int choice = i;
             RectTransform buttonRect = ArcadeUiFactory.At(
                 panel, "Boost" + i, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -205f - i * 74f), new Vector2(560f, 62f)
+                new Vector2((i-1) * 268f, -214f), new Vector2(254f, 136f)
             );
             boostButtons[i] = ArcadeUiFactory.Button(
                 buttonRect, ArcadeKitAssets.RoundRect, ArcadeUiTheme.PanelRaised,
@@ -892,8 +926,9 @@ public sealed class PvpMatchManager : MonoBehaviour
         backdropImage.raycastTarget = true;
         searchBackdrop = backdrop.gameObject;
 
+        var frame = UiArtboard.Create(backdrop, new Vector2(608,260));
         RectTransform panel = ArcadeUiFactory.At(
-            parent, "PvpSearchPanel", new Vector2(0.5f, 0.5f),
+            frame, "PvpSearchPanel", new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f), new Vector2(0f, 12f), new Vector2(560f, 340f)
         );
         ArcadeUiFactory.Image(
@@ -914,25 +949,13 @@ public sealed class PvpMatchManager : MonoBehaviour
             new Vector2(0f, -34f), new Vector2(500f, 150f)
         );
 
-        RectTransform cancel = ArcadeUiFactory.At(
-            panel,
-            "CancelSearch",
-            new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f),
-            new Vector2(0f, 28f),
-            new Vector2(280f, 56f)
-        );
-        ArcadeUiFactory.Button(
-            cancel,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Red,
-            Lang.GetOr("menu.pvp.cancel_search", "ОТМЕНА"),
-            ArcadeKitAssets.BodyBold,
-            16f,
-            ArcadeUiTheme.TextDark,
-            CancelSearch
-        );
-
+        panel.sizeDelta = new Vector2(560,208);
+        WindowCloseButton.Create(panel, CancelSearch);
+        if (panel.Find("SearchLabel") is RectTransform search)
+            RuntimeWindow.Text(search.GetComponent<TMP_Text>(),panel,98,24,362,156,24,true);
+        var targetIcon = MenuSheet.Box(panel,"Target",28,56,54,54,MenuSheet.Muted);
+        targetIcon.sprite = ArcadeKitAssets.Icon("target");
+        targetIcon.type = Image.Type.Simple;
         searchPanel = panel.gameObject;
         searchBackdrop.SetActive(false);
         searchPanel.SetActive(false);
@@ -1196,12 +1219,8 @@ public sealed class PvpMatchManager : MonoBehaviour
         else if (GameStateManager.Instance != null)
             GameStateManager.Instance.ReturnToMenu();
 
-        StartCoroutine(CleanupAfterMenuReturnStarts());
-    }
-
-    private IEnumerator CleanupAfterMenuReturnStarts()
-    {
-        yield return null;
+        // The runtime-map restore can now share the pending session preparation
+        // in one transition; there is no delayed full-scene reload to wait for.
         CancelAndReturnToPve();
     }
 }

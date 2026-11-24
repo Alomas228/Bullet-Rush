@@ -360,6 +360,7 @@ public partial class Enemy : MonoBehaviour
     /// сам знал, когда погаснуть.
     /// </summary>
     public bool IsBurning => burnActive;
+    public bool IsBleeding => bleedActive;
 
     public float CurrentHealth => currentHealth;
 
@@ -471,10 +472,12 @@ public partial class Enemy : MonoBehaviour
         baseScale = transform.localScale;
 
         variantRenderer = GetComponentInChildren<MeshRenderer>();
+        ApplyBodySkin();
 
         // Тинт карты применяется сразу: даже моб без варианта обязан
         // читаться как «местный».
         ApplyVariantTint();
+        if (!isBoss) BattleMeshBatcher.Register(variantRenderer as MeshRenderer);
 
         if (player == null)
             return;
@@ -529,6 +532,21 @@ public partial class Enemy : MonoBehaviour
             return System.Array.Empty<Enemy>();
 
         return aliveEnemies.ToArray();
+    }
+
+    public static void CopyAliveTo(List<Enemy> destination)
+    {
+        destination.Clear();
+        destination.AddRange(aliveEnemies);
+    }
+
+    public static int CountAliveOfType(EnemyType type)
+    {
+        int count = 0;
+        foreach (Enemy enemy in aliveEnemies)
+            if (enemy != null && !enemy.IsDead && enemy.cachedEnemyType == type)
+                count++;
+        return count;
     }
 
     // Враги двигаются через transform (скрипт), а не через физику.
@@ -600,6 +618,7 @@ public partial class Enemy : MonoBehaviour
 
         InitializeMapStatuses();
         InitializeTactics();
+        InitializeWeaponVisual();
 
         if (isBoss && bossData != null)
         {
@@ -1280,6 +1299,7 @@ public partial class Enemy : MonoBehaviour
         ApplyPreventivePlayerSlide(startPosition);
         if (liftArena != null)
             transform.position = liftArena.ClampFighter(transform.position, 1.25f);
+        UpdateWeaponVisualPose();
     }
 
 
@@ -1516,6 +1536,7 @@ public partial class Enemy : MonoBehaviour
             speedScale *
             runSpeedMultiplier *
             CommandSpeedScale *
+            ArenaSlowScale *
             knockbackSpeedScale;
 
         Vector3 moveDirection;
@@ -1735,6 +1756,7 @@ public partial class Enemy : MonoBehaviour
                 dashWindupDirection = toPlayer.normalized;
         }
 
+        DashVfxBatcher.UpdateWindupDirection(transform, dashWindupDirection);
         dashWindupRemainingTime -= Time.deltaTime;
 
         ApplyCrouchPose(
@@ -1763,6 +1785,8 @@ public partial class Enemy : MonoBehaviour
             enemyData != null
                 ? enemyData.DashDuration
                 : 0.25f;
+
+        DashVfxBatcher.BeginDash(transform, dashDirection, dashRemainingTime, true);
 
         dashTimer =
             dashCooldownMultiplier *
@@ -1803,6 +1827,9 @@ public partial class Enemy : MonoBehaviour
 
         dashWindupRemainingTime = dashWindupTotalTime;
 
+        if (dashWindupTotalTime > 0f)
+            DashVfxBatcher.BeginWindup(transform, dashWindupDirection, dashWindupTotalTime);
+
         if (dashWindupTotalTime <= 0f)
         {
             dashWindup = false;
@@ -1810,8 +1837,12 @@ public partial class Enemy : MonoBehaviour
             dashDirection = direction;
             dashRemainingTime = enemyData.DashDuration;
             dashTimer = dashCooldownMultiplier * enemyData.DashCooldown;
+            DashVfxBatcher.BeginDash(transform, dashDirection, dashRemainingTime, true);
         }
     }
+
+    private static readonly RaycastHit[] dashObstacleHits = new RaycastHit[24];
+    private static int dashObstacleMask = -1;
 
     private void ApplyDash()
     {
@@ -1820,6 +1851,7 @@ public partial class Enemy : MonoBehaviour
         if (dashRemainingTime <= 0f)
         {
             isDashing = false;
+            DashVfxBatcher.EndDash(transform);
             return;
         }
 
@@ -1829,12 +1861,25 @@ public partial class Enemy : MonoBehaviour
                 ? enemyData.MoveSpeed *
                   enemyData.DashSpeedMultiplier
                 : 14f) *
-            knockbackSpeedScale;
+            knockbackSpeedScale * ArenaSlowScale;
 
-        transform.position +=
-            dashDirection *
-            dashSpeed *
-            Time.deltaTime;
+        Vector3 direction = dashDirection;
+        direction.y = 0f;
+        direction.Normalize();
+        float step = Mathf.Max(0f, dashSpeed * Time.deltaTime);
+        float safeStep = GetSafeDashDistance(direction, step);
+        transform.position += direction * safeStep;
+
+        if (safeStep + 0.001f < step)
+        {
+            isDashing = false;
+            dashRemainingTime = 0f;
+            hasCachedMoveDirection = false;
+            hasResolveSlideTarget = false;
+            DashVfxBatcher.EndDash(transform);
+            ResolveStructureOverlap();
+            return;
+        }
 
         if (structureResolveTimer <= 0f)
         {
@@ -1843,6 +1888,44 @@ public partial class Enemy : MonoBehaviour
         }
 
         RotateTowards(dashDirection);
+    }
+
+    // Sweep the physical volume, rather than teleporting into a wall and
+    // trying to recover from penetration on the following frame.
+    private float GetSafeDashDistance(Vector3 direction, float distance)
+    {
+        if (selfCollider == null || distance <= 0f || direction.sqrMagnitude < 0.001f)
+            return distance;
+
+        if (dashObstacleMask == -1)
+        {
+            int layer = LayerMask.NameToLayer("World");
+            dashObstacleMask = layer >= 0 ? 1 << layer : Physics.DefaultRaycastLayers;
+        }
+
+        Bounds bounds = selfCollider.bounds;
+        Collider[] overlaps = StructureQuery.OverlapSphere(bounds.center, bounds.extents.magnitude, out int overlapCount);
+        for (int i = 0; i < overlapCount; i++)
+        {
+            Collider obstacle = overlaps[i];
+            if (!StructureQuery.IsWorldStructure(obstacle)) continue;
+            if (Physics.ComputePenetration(selfCollider, transform.position, transform.rotation,
+                obstacle, obstacle.transform.position, obstacle.transform.rotation, out _, out float penetration) && penetration > .025f)
+                return 0f;
+        }
+
+        const float skin = .055f;
+        Vector3 half = bounds.extents;
+        half.x = Mathf.Max(.06f, half.x - .015f);
+        half.y = Mathf.Max(.06f, half.y - .015f);
+        half.z = Mathf.Max(.06f, half.z - .015f);
+        int hits = Physics.BoxCastNonAlloc(bounds.center, half, direction, dashObstacleHits,
+            Quaternion.identity, distance + skin, dashObstacleMask, QueryTriggerInteraction.Ignore);
+        float result = distance;
+        for (int i = 0; i < hits; i++)
+            if (StructureQuery.IsWorldStructure(dashObstacleHits[i].collider))
+                result = Mathf.Min(result, Mathf.Max(0f, dashObstacleHits[i].distance - skin));
+        return result;
     }
 
     // =========================================================
@@ -2303,9 +2386,24 @@ public partial class Enemy : MonoBehaviour
         if (distance <= 0.01f)
             return;
 
+        // ComputePenetration may choose the vertical axis for tightly
+        // overlapping cubes. Transform movement bypasses Rigidbody Y
+        // constraints, so that used to push mobs through the floor/KillZone.
+        direction = PlanarSeparationDirection(direction, position, other.bounds.center);
         position +=
             direction *
             (distance * pushFactor + 0.005f);
+    }
+
+    private static Vector3 PlanarSeparationDirection(Vector3 direction, Vector3 position, Vector3 obstacleCenter)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = position - obstacleCenter;
+            direction.y = 0f;
+        }
+        return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.right;
     }
 
     // Плавный «досъезд» к точке выталкивания вместо жёсткого
@@ -2408,7 +2506,7 @@ public partial class Enemy : MonoBehaviour
         {
             if (distance > 0.0005f)
             {
-                normal = direction;
+                normal = PlanarSeparationDirection(direction, position, playerCollider.bounds.center);
                 return true;
             }
         }
@@ -4227,10 +4325,13 @@ public partial class Enemy : MonoBehaviour
 
         direction.Normalize();
 
+        Vector3? visualMuzzle = GetEnemyWeaponMuzzle(direction);
         SpawnEnemyProjectile(
             direction,
             damage,
-            projectileSpeed
+            projectileSpeed,
+            visualMuzzle,
+            visualMuzzle.HasValue
         );
     }
 
@@ -4290,6 +4391,7 @@ public partial class Enemy : MonoBehaviour
 
         baseDirection.Normalize();
         projectileCount = Mathf.Clamp(projectileCount, 1, 9);
+        Vector3? visualMuzzle = GetEnemyWeaponMuzzle(baseDirection);
 
         for (int i = 0; i < projectileCount; i++)
         {
@@ -4316,7 +4418,9 @@ public partial class Enemy : MonoBehaviour
             SpawnEnemyProjectile(
                 direction,
                 damage,
-                projectileSpeed
+                projectileSpeed,
+                visualMuzzle,
+                visualMuzzle.HasValue && i == 0
             );
         }
     }
@@ -4324,7 +4428,9 @@ public partial class Enemy : MonoBehaviour
     private void SpawnEnemyProjectile(
         Vector3 direction,
         float damage,
-        float projectileSpeed)
+        float projectileSpeed,
+        Vector3? visualMuzzle = null,
+        bool muzzleFlash = false)
     {
         if (enemyProjectilePrefab == null)
             return;
@@ -4341,7 +4447,9 @@ public partial class Enemy : MonoBehaviour
             projectile.Initialize(
                 direction,
                 damage,
-                projectileSpeed
+                projectileSpeed,
+                visualMuzzle,
+                muzzleFlash
             );
 
             PlayEnemyShotSound();
@@ -4390,9 +4498,13 @@ public partial class Enemy : MonoBehaviour
         lastDamageWeaponId = weaponId ?? string.Empty;
         suppressDeathSynergy = secondary;
 
+        if (IsWet && source == DamageSource.ChainLightning)
+            damage *= MapCombatRules.WetLightningMultiplier;
         bool hadIce = iceHealth > 0f;
+        float iceBeforeHit = iceHealth;
         damage = MapCombatRules.ResolveIceDamage(damage, source == DamageSource.Burn,
             ref iceHealth);
+        float iceDamage = iceBeforeHit - iceHealth;
         if (hadIce && iceHealth <= 0f)
         {
             MapMechanicManager.AnnounceInteraction(false);
@@ -4403,7 +4515,7 @@ public partial class Enemy : MonoBehaviour
         currentHealth -= damage;
 
         SpawnDamageNumber(
-            damage,
+            damage + iceDamage,
             isCritical
         );
 
@@ -4563,6 +4675,7 @@ public partial class Enemy : MonoBehaviour
             );
 
         bool wetOrigin = IsWet;
+        if (wetOrigin) targetCount += 2;
         float effectiveRange = MapCombatRules.LightningRange(range, wetOrigin);
         Collider[] nearbyColliders =
             StructureQuery.OverlapSphere(
@@ -4912,22 +5025,22 @@ public partial class Enemy : MonoBehaviour
         {
             if (liftArena != null) position = liftArena.Landing;
             LootPickup.SpawnHealth(position, 0.35f);
-            LootPickup.SpawnCoin(position, 12);
+            LootPickup.SpawnCoin(position, GameBalance.BossLootCoins);
 
             return;
         }
 
-        if (Random.value < 0.10f)
+        if (Random.value < GameBalance.HealthDropChance)
         {
             LootPickup.SpawnHealth(
                 position,
-                0.20f
+                GameBalance.HealthDropFraction
             );
         }
 
-        if (Random.value < 0.15f)
+        if (Random.value < GameBalance.CoinDropChance)
         {
-            int coins = Random.value < 0.35f ? 2 : 1;
+            int coins = Random.value < GameBalance.LargeCoinChance ? 2 : 1;
 
             LootPickup.SpawnCoin(
                 position,

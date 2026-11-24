@@ -19,6 +19,14 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
     [Tooltip("Корень HUD (HP/score/wave + кнопка паузы). Показывается только во время боя. Сам объект GameplayUI должен оставаться активным.")]
     [SerializeField] private GameObject hudRoot;
 
+    private TMP_Text healthLabel;
+
+    public void BindHealthLabel(TMP_Text label)
+    {
+        healthLabel = label;
+        cachedHealth = cachedHealthMax = float.NaN;
+    }
+
     private bool subscribed;
     private bool warnedAboutRoot;
     private bool pvpHidden;
@@ -28,6 +36,11 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
     private int cachedScore = int.MinValue;
     private int cachedWave = int.MinValue;
     private int cachedWaveLeft = int.MinValue;
+    private int cachedBossesDefeated = int.MinValue;
+    private bool cachedEndless;
+    private WaveGoal cachedWaveGoal;
+    private bool cachedWaveComplete;
+    private bool cachedWaveFinishing;
     private int cachedCoins = int.MinValue;
 
     /// <summary>
@@ -129,7 +142,8 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
         {
             float maxHealth = playerHealth.MaxHealth;
 
-            if (!Mathf.Approximately(maxHealth, cachedHealthMax))
+            bool maxChanged = !Mathf.Approximately(maxHealth, cachedHealthMax);
+            if (maxChanged)
             {
                 cachedHealthMax = maxHealth;
 
@@ -139,11 +153,13 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
 
             float health = playerHealth.CurrentHealth;
 
-            if (!Mathf.Approximately(health, cachedHealth))
+            if (maxChanged || !Mathf.Approximately(health, cachedHealth))
             {
                 cachedHealth = health;
 
                 healthSlider.value = health;
+                if (healthLabel != null)
+                    healthLabel.SetText("{0}/{1}", Mathf.Ceil(health), Mathf.Ceil(maxHealth));
             }
         }
 
@@ -162,22 +178,31 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
         if (waveManager != null && waveText != null)
         {
             int wave = waveManager.CurrentWave;
-            int left = waveManager.EnemiesLeft;
+            WaveGoal goal = waveManager.CurrentGoal;
+            bool finishing = waveManager.IsFinishingWave;
+            int left = finishing ? waveManager.CleanupEnemiesRemaining : waveManager.IsTimedWave
+                ? Mathf.CeilToInt(waveManager.WaveTimeRemaining)
+                : goal == WaveGoal.Hunt ? waveManager.HuntTargetsRemaining : 0;
+            int defeated = waveManager.BossesDefeated;
+            bool endless = waveManager.EndlessMode;
+            bool complete = waveManager.IsWaveComplete;
 
             // Обновляем и по смене волны, и по числу оставшихся:
             // счётчик обязан реагировать на убийства, иначе он
             // показывает только стартовое число и быстро врёт.
-            if (wave != cachedWave || left != cachedWaveLeft)
+            if (wave != cachedWave || left != cachedWaveLeft || defeated != cachedBossesDefeated ||
+                endless != cachedEndless || goal != cachedWaveGoal || complete != cachedWaveComplete ||
+                finishing != cachedWaveFinishing)
             {
                 cachedWave = wave;
                 cachedWaveLeft = left;
+                cachedBossesDefeated = defeated;
+                cachedEndless = endless;
+                cachedWaveGoal = goal;
+                cachedWaveComplete = complete;
+                cachedWaveFinishing = finishing;
 
-                // WAVE: 0 выглядит багом — во время обучения волны ещё нет.
-                if (waveManager.HasCoordinatorObjective)
-                    waveText.text = GameplayJourney.T("Волна 3 · Уничтожь координатора",
-                        "Wave 3 · Eliminate the coordinator", "Dalga 3 · Koordinatörü yok et");
-                else
-                    waveText.text = wave > 0 ? Lang.Get("hud.wave_left", wave, left) : string.Empty;
+                waveText.text = wave > 0 ? BuildWaveStatus(wave, left, defeated, endless, goal, complete, finishing) : string.Empty;
             }
         }
 
@@ -192,5 +217,49 @@ public class GameplayUI : MonoBehaviour, ILangRefreshable
                 coinsText.text = $"{coins}";
             }
         }
+    }
+
+    private static string BuildWaveStatus(int wave, int left, int defeated, bool endless, WaveGoal goal, bool complete, bool finishing)
+    {
+        string waveNumber = endless ? Lang.Get("wave.number", wave) :
+            Lang.Get("hud.wave_campaign", wave, BossCampaign.FinalWave);
+        string bossStatus;
+        if (BossCampaign.IsBossWave(wave, endless) && (endless || defeated < wave / BossCampaign.Interval))
+            bossStatus = Lang.Get("hud.boss_current");
+        else if (!endless && wave >= BossCampaign.FinalWave)
+            bossStatus = Lang.Get("hud.campaign_cleared");
+        else
+            bossStatus = Lang.Get("hud.boss_next_wave", (wave / BossCampaign.Interval + 1) * BossCampaign.Interval);
+
+        string objective;
+        if (complete)
+            objective = Lang.Get("hud.wave_complete");
+        else if (finishing)
+            objective = left > 0
+                ? GameplayJourney.T("Добивание", "Cleanup", "Temizlik") + $": {left}"
+                : GameplayJourney.T("Враги отступают", "Enemies retreating", "Dusmanlar cekiliyor");
+        else
+        {
+            switch (goal)
+            {
+                case WaveGoal.Coordinator:
+                    objective = GameplayJourney.T("Уничтожь координатора", "Eliminate the coordinator", "Koordinatörü yok et");
+                    break;
+                case WaveGoal.Hunt:
+                    objective = GameplayJourney.T("Элитных целей", "Elite targets", "Elit hedefler") + $": {left}";
+                    break;
+                case WaveGoal.Boss:
+                    objective = GameplayJourney.T("Победи босса", "Defeat the boss", "Bossu yen");
+                    break;
+                default:
+                    string label = goal == WaveGoal.Horde
+                        ? GameplayJourney.T("Орда", "Horde", "Sürü")
+                        : GameplayJourney.T("Выживание", "Survive", "Hayatta kal");
+                    string color = left <= 5 ? "#FF8060" : "#FFFFFF";
+                    objective = $"{label}: <color={color}>{left / 60:00}:{left % 60:00}</color>";
+                    break;
+            }
+        }
+        return $"{waveNumber} · <color=#{ColorUtility.ToHtmlStringRGB(ArcadeUiTheme.Gold)}>{bossStatus}</color>\n<size=85%>{objective}</size>";
     }
 }

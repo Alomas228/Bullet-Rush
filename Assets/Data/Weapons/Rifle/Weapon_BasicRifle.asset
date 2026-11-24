@@ -19,7 +19,8 @@ MonoBehaviour:
   rarity: 0
   unlockLevel: 1
   price: 0
-  weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
+  weaponPrefab: {fileID: 9071840178064284164, guid: 4672628a0300dc7700a773e6fcdcacd8, type: 3}
+  preview: {fileID: 21300000, guid: 2c7e6ec644ce69b38cc8dbefb6e07d62, type: 3}
   damage: 110
   fireRate: 6
   projectileSpeed: 18

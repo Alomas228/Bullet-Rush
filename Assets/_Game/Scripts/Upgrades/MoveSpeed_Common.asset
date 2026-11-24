@@ -17,6 +17,6 @@ MonoBehaviour:
   description: 
   type: 2
   rarity: 0
-  percentValue: 0.1
+  percentValue: 0.07
   maxStacks: 3
   weaponData: {fileID: 0}

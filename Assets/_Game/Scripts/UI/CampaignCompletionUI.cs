@@ -40,6 +40,7 @@ public sealed class CampaignCompletionUI : MonoBehaviour, ILangRefreshable
             var canvasObject = new GameObject("CampaignChoiceCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            ResponsiveUi.Configure(canvasObject.GetComponent<CanvasScaler>(), new Vector2(1920,1080));
             canvasObject.transform.SetParent(transform, false);
         }
         root = ArcadeUiFactory.Stretch(canvas.transform, "CampaignCompletionChoice");
@@ -48,13 +49,14 @@ public sealed class CampaignCompletionUI : MonoBehaviour, ILangRefreshable
         overlay.sortingOrder = 200;
         root.gameObject.AddComponent<GraphicRaycaster>();
         ArcadeUiFactory.Image(root, null, ArcadeUiTheme.Backdrop).raycastTarget = true;
-        float width = Mathf.Clamp(((RectTransform)canvas.transform).rect.width - 48f, 280f, 640f);
-        RectTransform card = ArcadeUiFactory.At(root, "ChoiceCard", new Vector2(0.5f, 0.5f),
+        const float width = 640f;
+        var board = UiArtboard.Create(root, new Vector2(width + 48,374));
+        RectTransform card = ArcadeUiFactory.At(board, "ChoiceCard", new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(width, 326f));
         ArcadeUiFactory.Image(card, ArcadeKitAssets.Panel, ArcadeUiTheme.Panel, true);
         title = ArcadeUiFactory.Label(ArcadeUiFactory.At(card, "Title", new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f), new Vector2(0f, -24f), new Vector2(width - 48f, 46f)), "",
-            ArcadeKitAssets.Display, 28f, ArcadeUiTheme.Gold, TextAlignmentOptions.Center);
+            ArcadeKitAssets.Display, 28f, ArcadeUiTheme.TextPrimary, TextAlignmentOptions.Center);
         title.enableAutoSizing = true;
         title.fontSizeMin = 18f;
         title.fontSizeMax = 28f;
@@ -72,6 +74,15 @@ public sealed class CampaignCompletionUI : MonoBehaviour, ILangRefreshable
             new Vector2(0.5f, 1f), new Vector2(0f, -244f), new Vector2(width - 48f, 48f)),
             ArcadeKitAssets.ButtonDark, ArcadeUiTheme.Card, "", ArcadeKitAssets.BodyBold, 20f,
             ArcadeUiTheme.TextPrimary, () => Choose(true));
+        var emblem = MenuSheet.Box(card, "VictoryEmblem", 24,26,56,56,MenuSheet.Ochre);
+        emblem.sprite = ArcadeKitAssets.Icon("trophy");
+        emblem.type = Image.Type.Simple;
+        RuntimeWindow.Text(title,card,98,22,width-122,62,28,true);
+        RuntimeWindow.Text(description,card,24,100,width-48,88,19);
+        MenuSheet.Box(card,"Rule",24,200,width-48,2,MenuSheet.Rule);
+        float column = (width - 60) * .5f;
+        MenuSheet.Control(finish,card,24,224,column,70,MenuSheet.Ochre);
+        MenuSheet.Control(keepPlaying,card,36+column,224,column,70,MenuSheet.Recess);
         foreach (Button button in new[] { finish, keepPlaying })
         {
             TMP_Text label = button.GetComponentInChildren<TMP_Text>();

@@ -67,6 +67,7 @@ public sealed class WeeklyMissionManager : MonoBehaviour
         AchievementEvents.PlayerDamaged += HandlePlayerDamaged;
         AchievementEvents.WaveCleared += HandleWaveCleared;
         AchievementEvents.RunStarted += HandleRunStarted;
+        AchievementEvents.RunResumed += HandleRunResumed;
         AchievementEvents.RunEnded += HandleRunEnded;
     }
 
@@ -76,6 +77,7 @@ public sealed class WeeklyMissionManager : MonoBehaviour
         AchievementEvents.PlayerDamaged -= HandlePlayerDamaged;
         AchievementEvents.WaveCleared -= HandleWaveCleared;
         AchievementEvents.RunStarted -= HandleRunStarted;
+        AchievementEvents.RunResumed -= HandleRunResumed;
         AchievementEvents.RunEnded -= HandleRunEnded;
     }
 
@@ -205,6 +207,8 @@ public sealed class WeeklyMissionManager : MonoBehaviour
     }
 
     private void HandleRunStarted() { EnsureCurrentWeek(); ResetRunState(); runActive = true; OnProgressChanged?.Invoke(); }
+
+    private void HandleRunResumed() { runActive = true; }
 
     private void HandleRunEnded(RunEndInfo info)
     {

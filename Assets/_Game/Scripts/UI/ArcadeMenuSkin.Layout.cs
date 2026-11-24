@@ -6,125 +6,8 @@ using UnityEngine.UI;
 
 public sealed partial class ArcadeMenuSkin
 {
-    private void BuildBackground(RectTransform parent)
-    {
-        RectTransform vignette = ArcadeUiFactory.Stretch(parent, "Vignette");
-        Image vignetteImage = ArcadeUiFactory.Image(
-            vignette,
-            ArcadeKitAssets.Vignette,
-            new Color(1f, 1f, 1f, 0.88f)
-        );
-        vignetteImage.raycastTarget = false;
-
-        RectTransform top = ArcadeUiFactory.At(
-            parent,
-            "TopShade",
-            new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f),
-            Vector2.zero,
-            new Vector2(1920f, 430f)
-        );
-        ArcadeUiFactory.Image(
-            top,
-            ArcadeKitAssets.BrushDark,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.BackgroundDeep, 0.72f)
-        );
-
-        RectTransform bottom = ArcadeUiFactory.At(
-            parent,
-            "BottomShade",
-            new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f),
-            Vector2.zero,
-            new Vector2(1920f, 400f)
-        );
-        ArcadeUiFactory.Image(
-            bottom,
-            ArcadeKitAssets.BrushDark,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.BackgroundDeep, 0.72f)
-        );
-        bottom.localEulerAngles = new Vector3(0f, 0f, 180f);
-
-        RectTransform dust = ArcadeUiFactory.At(
-            parent,
-            "Dust",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -40f),
-            new Vector2(1500f, 820f)
-        );
-        ArcadeDriftLayer drift = dust.gameObject.AddComponent<ArcadeDriftLayer>();
-        drift.Configure(dust, 18, ArcadeUiTheme.GoldBright, 7f, 20f);
-    }
-
     private void BuildTopBar(RectTransform parent)
     {
-        RectTransform badge = ArcadeUiFactory.At(
-            parent,
-            "LevelBadge",
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f),
-            new Vector2(40f, -32f),
-            new Vector2(184f, 80f)
-        );
-        ArcadeUiFactory.Image(
-            badge,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.PanelRaised, 0.94f),
-            true
-        );
-        AddShadow(badge, new Vector2(0f, -4f), 0.35f);
-
-        RectTransform hexFill = ArcadeUiFactory.At(
-            badge,
-            "HexFill",
-            new Vector2(0f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(42f, 0f),
-            new Vector2(64f, 72f)
-        );
-        ArcadeUiFactory.Image(hexFill, ArcadeKitAssets.HexFill, ArcadeUiTheme.Panel);
-
-        RectTransform hexRing = ArcadeUiFactory.At(
-            badge,
-            "HexRing",
-            new Vector2(0f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(42f, 0f),
-            new Vector2(72f, 80f)
-        );
-        ArcadeUiFactory.Image(hexRing, ArcadeKitAssets.HexRing, ArcadeUiTheme.Gold);
-
-        levelValueText = ArcadeUiFactory.Label(
-            badge,
-            "LevelValue",
-            "1",
-            ArcadeKitAssets.Display,
-            30f,
-            ArcadeUiTheme.GoldBright,
-            TextAlignmentOptions.Center,
-            new Vector2(0f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(42f, 1f),
-            new Vector2(64f, 40f)
-        );
-
-        TMP_Text badgeLabel = ArcadeUiFactory.Label(
-            badge,
-            "LevelLabel",
-            "",
-            ArcadeKitAssets.BodyBold,
-            14f,
-            ArcadeUiTheme.TextSecondary,
-            TextAlignmentOptions.Left,
-            new Vector2(0f, 0.5f),
-            new Vector2(0f, 0.5f),
-            new Vector2(84f, 12f),
-            new Vector2(90f, 20f),
-            true
-        );
-        AddLangBinding(badgeLabel, () => Lang.GetOr("menu.skin.level_short", "УРОВЕНЬ"));
-
         RectTransform record = ArcadeUiFactory.At(
             parent,
             "RecordChip",
@@ -248,7 +131,7 @@ public sealed partial class ArcadeMenuSkin
             "0",
             ArcadeKitAssets.BodyBold,
             22f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
@@ -285,61 +168,7 @@ public sealed partial class ArcadeMenuSkin
         );
         ArcadeUiFactory.Image(plusIcon, ArcadeKitAssets.Icon("plus"), ArcadeUiTheme.TextDark);
 
-        RectTransform xp = ArcadeUiFactory.At(
-            parent,
-            "XpPill",
-            new Vector2(1f, 1f),
-            new Vector2(1f, 1f),
-            new Vector2(-356f, -38f),
-            new Vector2(284f, 58f)
-        );
-        ArcadeUiFactory.Image(
-            xp,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.95f),
-            true
-        );
-        AddShadow(xp, new Vector2(0f, -3f), 0.3f);
 
-        RectTransform star = ArcadeUiFactory.At(
-            xp,
-            "Star",
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f),
-            new Vector2(26f, -18f),
-            new Vector2(24f, 24f)
-        );
-        ArcadeUiFactory.Image(star, ArcadeKitAssets.Icon("star"), ArcadeUiTheme.Gold);
-
-        xpValueText = ArcadeUiFactory.Label(
-            xp,
-            "XpValue",
-            "",
-            ArcadeKitAssets.BodyBold,
-            16f,
-            ArcadeUiTheme.TextPrimary,
-            TextAlignmentOptions.Center,
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f),
-            new Vector2(62f, -12f),
-            new Vector2(210f, 24f)
-        );
-
-        RectTransform xpBarRect = ArcadeUiFactory.At(
-            xp,
-            "XpBar",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-12f, 10f),
-            new Vector2(210f, 10f)
-        );
-        topXpBar = ArcadeUiFactory.Bar(
-            xpBarRect,
-            0f,
-            false,
-            ArcadeUiTheme.PanelRaised,
-            ArcadeUiTheme.Gold
-        );
     }
 
     private void BuildLeftRail(RectTransform parent)
@@ -377,16 +206,7 @@ public sealed partial class ArcadeMenuSkin
             OpenEquipment
         );
 
-        mapsCard = BuildRailCard(
-            parent,
-            "MapsCard",
-            () => Lang.GetOr("menu.maps", "КАРТЫ"),
-            () => Lang.GetOr("menu.skin.maps_sub", "ВЫБРАТЬ АРЕНУ"),
-            "target",
-            ArcadeUiTheme.Green,
-            new Vector2(44f, -510f),
-            OpenMaps
-        );
+
     }
 
     private RailCard BuildRailCard(
@@ -730,7 +550,7 @@ public sealed partial class ArcadeMenuSkin
             "",
             ArcadeKitAssets.BodyBold,
             15f,
-            ArcadeUiTheme.Gold,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
@@ -806,76 +626,22 @@ public sealed partial class ArcadeMenuSkin
 
     private void BuildCenter(RectTransform parent)
     {
-        TMP_Text logoTop = ArcadeUiFactory.Label(
-            parent,
-            "LogoTop",
-            "ARCADE",
-            ArcadeKitAssets.Display,
-            58f,
-            ArcadeUiTheme.TextPrimary,
-            TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 262f),
-            new Vector2(760f, 62f)
-        );
-        logoTop.characterSpacing = 12f;
-        AddShadowText(logoTop, new Vector2(0f, -3f), 0.55f);
-
-        RectTransform brush = ArcadeUiFactory.At(
-            parent,
-            "LogoBrush",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 186f),
-            new Vector2(860f, 116f)
-        );
-        ArcadeUiFactory.Image(
-            brush,
-            ArcadeKitAssets.BrushOrange,
-            new Color(1f, 1f, 1f, 0.9f)
-        );
-
-        TMP_Text logoBottom = ArcadeUiFactory.Label(
-            parent,
-            "LogoBottom",
-            "SURVIVOR",
-            ArcadeKitAssets.Display,
-            92f,
-            ArcadeUiTheme.TextPrimary,
-            TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 186f),
-            new Vector2(940f, 120f)
-        );
-        logoBottom.characterSpacing = 6f;
-        AddShadowText(logoBottom, new Vector2(0f, -4f), 0.6f);
-
-        TMP_Text tagline = ArcadeUiFactory.Label(
-            parent,
-            "LogoTagline",
-            "",
-            ArcadeKitAssets.BodyBold,
-            16f,
-            ArcadeUiTheme.TextSecondary,
-            TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 128f),
-            new Vector2(600f, 24f),
-            true
-        );
-        tagline.characterSpacing = 8f;
-        AddLangBinding(tagline, () => Lang.GetOr("menu.skin.tagline", "РОГАЛИК-АРЕНА"));
+        var topLeft = new Vector2(0, 1);
+        var brand = ArcadeUiFactory.At(parent, "Brand", topLeft, topLeft,
+            new Vector2(40, -32), new Vector2(286, 80));
+        ArcadeUiFactory.Image(brand, ArcadeKitAssets.CutPanel, ArcadeUiTheme.Ink, true);
+        var logo = ArcadeUiFactory.Label(ArcadeUiFactory.Stretch(brand, "Wordmark", 12, 6, 12, 6),
+            "BULLET <color=#E9C794>RUSH</color>", ArcadeKitAssets.Display, 36,
+            MenuSheet.Paper, TextAlignmentOptions.Center);
+        logo.enableWordWrapping = false;
 
         RectTransform mapChip = ArcadeUiFactory.At(
             parent,
             "MapChip",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, 62f),
-            new Vector2(400f, 60f)
+            new Vector2(-171f, -140f),
+            new Vector2(326f, 68f)
         );
         ArcadeUiFactory.Button(
             mapChip,
@@ -908,8 +674,8 @@ public sealed partial class ArcadeMenuSkin
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
-            new Vector2(54f, 0f),
-            new Vector2(220f, 30f)
+            new Vector2(64f, -9f),
+            new Vector2(240f, 34f)
         );
 
         TMP_Text change = ArcadeUiFactory.Label(
@@ -918,11 +684,11 @@ public sealed partial class ArcadeMenuSkin
             "",
             ArcadeKitAssets.BodyBold,
             13f,
-            ArcadeUiTheme.Gold,
-            TextAlignmentOptions.Right,
-            new Vector2(1f, 0.5f),
-            new Vector2(1f, 0.5f),
-            new Vector2(-20f, 0f),
+            ArcadeUiTheme.TextPrimary,
+            TextAlignmentOptions.Left,
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f),
+            new Vector2(64f, 16f),
             new Vector2(110f, 24f),
             true
         );
@@ -933,8 +699,8 @@ public sealed partial class ArcadeMenuSkin
             "ModifierCard",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -18f),
-            new Vector2(470f, 80f)
+            new Vector2(171f, -140f),
+            new Vector2(326f, 68f)
         );
         modifierButton = ArcadeUiFactory.Button(
             modifier,
@@ -980,12 +746,12 @@ public sealed partial class ArcadeMenuSkin
             "",
             ArcadeKitAssets.BodyBold,
             20f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
             new Vector2(66f, -12f),
-            new Vector2(320f, 28f),
+            new Vector2(210f, 28f),
             true
         );
 
@@ -999,28 +765,13 @@ public sealed partial class ArcadeMenuSkin
         );
         ArcadeUiFactory.Image(nextIcon, ArcadeKitAssets.Icon("arrow"), ArcadeUiTheme.Gold);
 
-        RectTransform glow = ArcadeUiFactory.At(
-            parent,
-            "PlayGlow",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -180f),
-            new Vector2(1120f, 520f)
-        );
-        playGlow = ArcadeUiFactory.Image(
-            glow,
-            ArcadeKitAssets.Glow,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.Gold, 0.13f)
-        );
-        glow.gameObject.AddComponent<ArcadePulse>().Bind(playGlow, 0.07f, 0.2f, 1.35f);
-
         RectTransform play = ArcadeUiFactory.At(
             parent,
             "PlayButton",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -180f),
-            new Vector2(620f, 128f)
+            new Vector2(0f, -236f),
+            new Vector2(668f, 92f)
         );
         playButton = ArcadeUiFactory.Button(
             play,
@@ -1039,28 +790,12 @@ public sealed partial class ArcadeMenuSkin
         playLabel.fontStyle = FontStyles.UpperCase;
         AddLangBinding(playLabel, () => Lang.GetOr("menu.play", "ИГРАТЬ"));
 
-        TMP_Text playSub = ArcadeUiFactory.Label(
-            play,
-            "Sub",
-            "",
-            ArcadeKitAssets.BodyBold,
-            15f,
-            ArcadeUiTheme.Alpha(ArcadeUiTheme.TextDark, 0.78f),
-            TextAlignmentOptions.Center,
-            new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f),
-            new Vector2(0f, 12f),
-            new Vector2(500f, 22f),
-            true
-        );
-        AddLangBinding(playSub, () => Lang.GetOr("menu.skin.play_sub", "НАЧАТЬ ЗАБЕГ"));
-
         RectTransform modeRow = ArcadeUiFactory.At(
             parent,
             "GameModeRow",
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, -350f),
+            new Vector2(0f, -66f),
             new Vector2(470f, 48f)
         );
 
@@ -1106,19 +841,6 @@ public sealed partial class ArcadeMenuSkin
         pvpModeLabel = pvp.transform.Find("Label").GetComponent<TMP_Text>();
         AddShadow(pvp, new Vector2(0f, -4f), 0.3f);
 
-        RectTransform shine = ArcadeUiFactory.At(
-            play,
-            "Shine",
-            new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f),
-            new Vector2(0f, -18f),
-            new Vector2(520f, 30f)
-        );
-        playShine = ArcadeUiFactory.Image(
-            shine,
-            ArcadeKitAssets.BrushOrange,
-            new Color(1f, 1f, 1f, 0.35f)
-        );
     }
 
     private void BuildBottom(RectTransform parent)
@@ -1126,19 +848,8 @@ public sealed partial class ArcadeMenuSkin
         const float tileWidth = 178f;
         const float gap = 10f;
 
-        float total = tileWidth * 7f + gap * 6f;
+        float total = tileWidth * 6f + gap * 5f;
         float start = -total * 0.5f + tileWidth * 0.5f;
-
-        statsTile = BuildStatTile(
-            parent,
-            "StatsTile",
-            () => Lang.GetOr("menu.skin.stats", "СТАТИСТИКА"),
-            "chart",
-            ArcadeUiTheme.Cyan,
-            new Vector2(start, 46f),
-            tileWidth,
-            OpenStats
-        );
 
         tipsTile = BuildStatTile(
             parent,
@@ -1146,7 +857,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.tips", "КАК ИГРАТЬ"),
             "book",
             ArcadeUiTheme.Green,
-            new Vector2(start + tileWidth + gap, 46f),
+            new Vector2(start, 46f),
             tileWidth,
             OpenTips
         );
@@ -1157,7 +868,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.missions", "ЗАДАНИЯ"),
             "scroll",
             ArcadeUiTheme.Gold,
-            new Vector2(start + (tileWidth + gap) * 2f, 46f),
+            new Vector2(start + (tileWidth + gap) * 1f, 46f),
             tileWidth,
             OpenMissions
         );
@@ -1168,7 +879,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.achievements", "ДОСТИЖЕНИЯ"),
             "trophy",
             ArcadeUiTheme.Purple,
-            new Vector2(start + (tileWidth + gap) * 3f, 46f),
+            new Vector2(start + (tileWidth + gap) * 2f, 46f),
             tileWidth,
             OpenAchievements
         );
@@ -1179,7 +890,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("progression.mastery.button", "МАСТЕРСТВО"),
             "sword",
             ArcadeUiTheme.Orange,
-            new Vector2(start + (tileWidth + gap) * 4f, 46f),
+            new Vector2(start + (tileWidth + gap) * 3f, 46f),
             tileWidth,
             OpenMastery
         );
@@ -1190,7 +901,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.leaderboard.title", "РЕЙТИНГИ"),
             "trophy",
             ArcadeUiTheme.Red,
-            new Vector2(start + (tileWidth + gap) * 5f, 46f),
+            new Vector2(start + (tileWidth + gap) * 4f, 46f),
             tileWidth,
             OpenLeaderboards
         );
@@ -1201,7 +912,7 @@ public sealed partial class ArcadeMenuSkin
             () => GameplayJourney.T("ПУТЬ БОЙЦА", "FIGHTER'S JOURNEY", "SAVAŞÇININ YOLU"),
             "book",
             ArcadeUiTheme.Gold,
-            new Vector2(start + (tileWidth + gap) * 6f, 46f),
+            new Vector2(start + (tileWidth + gap) * 5f, 46f),
             tileWidth,
             () => GameplayJourney.Instance?.UI?.OpenJournal()
         );
@@ -1227,7 +938,7 @@ public sealed partial class ArcadeMenuSkin
             TextAlignmentOptions.Left,
             new Vector2(0f, 0f),
             new Vector2(0f, 0f),
-            new Vector2(282f, 42f),
+            new Vector2(40f, 8f),
             new Vector2(160f, 22f)
         );
         versionText.text = "v" + Application.version;
@@ -1306,8 +1017,8 @@ public sealed partial class ArcadeMenuSkin
             "IconTile",
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
-            new Vector2(14f, 0f),
-            new Vector2(50f, 50f)
+            new Vector2(10f, 16f),
+            new Vector2(30f, 30f)
         );
         ArcadeUiFactory.Image(
             iconTile,
@@ -1323,7 +1034,7 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
             Vector2.zero,
-            new Vector2(28f, 28f)
+            new Vector2(20f, 20f)
         );
 
         tile.Title = ArcadeUiFactory.Label(
@@ -1331,18 +1042,18 @@ public sealed partial class ArcadeMenuSkin
             "Title",
             "",
             ArcadeKitAssets.BodyBold,
-            13f,
+            17f,
             ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
-            new Vector2(72f, 13f),
-            new Vector2(width - 82f, 24f),
+            new Vector2(46f, 14f),
+            new Vector2(width - 52f, 32f),
             true
         );
         tile.Title.enableAutoSizing = true;
-        tile.Title.fontSizeMin = 9f;
-        tile.Title.fontSizeMax = 13f;
+        tile.Title.fontSizeMin = 13f;
+        tile.Title.fontSizeMax = 17f;
 
         tile.Value = ArcadeUiFactory.Label(
             rect,
@@ -1354,13 +1065,13 @@ public sealed partial class ArcadeMenuSkin
             TextAlignmentOptions.Left,
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f),
-            new Vector2(72f, -13f),
-            new Vector2(width - 82f, 22f),
+            new Vector2(14f, -16f),
+            new Vector2(width - 28f, 24f),
             true
         );
         tile.Value.enableAutoSizing = true;
-        tile.Value.fontSizeMin = 8f;
-        tile.Value.fontSizeMax = 11f;
+        tile.Value.fontSizeMin = 11f;
+        tile.Value.fontSizeMax = 14f;
 
         RectTransform badge = ArcadeUiFactory.At(
             rect,
@@ -1475,6 +1186,7 @@ public sealed partial class ArcadeMenuSkin
             0f,
             0f
         );
+        ResponsiveUi.BindSafeArea(rect);
 
         toastGroup = rect.gameObject.AddComponent<CanvasGroup>();
         toastGroup.alpha = 0f;

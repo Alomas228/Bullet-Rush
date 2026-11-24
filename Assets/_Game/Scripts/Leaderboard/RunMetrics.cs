@@ -373,5 +373,6 @@ public class RunMetrics : MonoBehaviour
         totalDistanceTraveled = 0f;
         lastPosition = Vector3.zero;
         totalDashDistance = 0;
+        movementBurstCount = 0;
     }
 }

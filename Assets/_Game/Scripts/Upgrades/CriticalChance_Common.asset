@@ -17,6 +17,6 @@ MonoBehaviour:
   description: Increase chance to critically hit
   type: 7
   rarity: 0
-  percentValue: 0.05
+  percentValue: 0.04
   maxStacks: 4
   weaponData: {fileID: 0}

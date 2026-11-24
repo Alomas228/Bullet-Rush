@@ -76,8 +76,11 @@ public sealed class ArcadeHoverLift : MonoBehaviour,
         if (pressed)
             requested *= 0.985f;
 
-        targetScale = Mathf.Lerp(targetScale, requested, 14f * Time.unscaledDeltaTime);
-        transform.localScale = baseScale * targetScale;
+        if (!Mathf.Approximately(targetScale, requested))
+        {
+            targetScale = Mathf.MoveTowards(targetScale, requested, .32f * Time.unscaledDeltaTime);
+            transform.localScale = baseScale * targetScale;
+        }
 
         if (image.color != lastApplied)
             baseColor = image.color;
@@ -86,17 +89,15 @@ public sealed class ArcadeHoverLift : MonoBehaviour,
             ? ArcadeUiTheme.Bright(baseColor, brighten)
             : baseColor;
 
-        image.color = Color.Lerp(
-            image.color,
-            requestedColor,
-            16f * Time.unscaledDeltaTime
-        );
+        if (image.color != requestedColor)
+            image.color = Color.Lerp(image.color, requestedColor, 16f * Time.unscaledDeltaTime);
 
         lastApplied = image.color;
     }
 
     private void OnDisable()
     {
+        hovered = pressed = false;
         transform.localScale = baseScale;
         targetScale = 1f;
 

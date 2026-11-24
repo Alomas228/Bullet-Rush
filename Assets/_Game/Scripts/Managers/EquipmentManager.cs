@@ -17,12 +17,13 @@ using UnityEngine;
 public static class EquipmentManager
 {
     private const string PrefsKey = "ArcadeSurvivor.Equipment";
+    private const string StarterWeaponName = "Basic Rifle";
 
     [System.Serializable]
     private class EquipmentData
     {
         public List<string> ownedWeapons = new List<string>();
-        public string equippedWeapon = string.Empty;
+        public string equippedWeapon = StarterWeaponName;
         public List<string> ownedAbilities = new List<string>();
         public List<string> equippedAbilities = new List<string>();
         public List<string> ownedClothing = new List<string>();
@@ -90,7 +91,7 @@ public static class EquipmentManager
         if (weapon == null)
             return false;
 
-        return IsLevelReached(weapon.UnlockLevel);
+        return IsOwned(weapon) || IsLevelReached(weapon.UnlockLevel);
     }
 
     /// <summary>Уровень игрока достаточен для покупки/показа способности.</summary>
@@ -99,7 +100,7 @@ public static class EquipmentManager
         if (ability == null)
             return false;
 
-        return IsLevelReached(ability.UnlockLevel);
+        return IsOwned(ability) || IsLevelReached(ability.UnlockLevel);
     }
 
     /// <summary>Уровень игрока достаточен для покупки/показа одежды.</summary>
@@ -108,7 +109,7 @@ public static class EquipmentManager
         if (clothing == null)
             return false;
 
-        return IsLevelReached(clothing.UnlockLevel);
+        return IsOwned(clothing) || IsLevelReached(clothing.UnlockLevel);
     }
 
     /// <summary>Оружие куплено (бесплатные считаются купленными всегда).</summary>
@@ -175,8 +176,12 @@ public static class EquipmentManager
         if (clothing == null)
             return false;
 
+        string equipped = EquippedClothingName;
+        if (string.IsNullOrEmpty(equipped))
+            return clothing.IsDefaultOutfit;
+
         return string.Equals(
-            EquippedClothingName,
+            equipped,
             clothing.ClothingName,
             System.StringComparison.Ordinal
         );
@@ -319,6 +324,7 @@ public static class EquipmentManager
         }
         else
         {
+            if (!HasFreeAbilitySlot(ability.IsAutomatic)) return false;
             if (!data.equippedAbilities.Contains(ability.AbilityName))
                 data.equippedAbilities.Add(ability.AbilityName);
 
@@ -331,6 +337,20 @@ public static class EquipmentManager
 
         return true;
     }
+
+    public static int EquippedAbilityCount(bool automatic)
+    {
+        EnsureLoaded();
+        var manager = UpgradeManager.Instance;
+        if (manager == null) return automatic ? 0 : data.equippedAbilities.Count;
+        int count = 0;
+        foreach (AbilityData ability in manager.GetAvailableAbilities())
+            if (ability != null && ability.IsAutomatic == automatic && data.equippedAbilities.Contains(ability.AbilityName)) count++;
+        return count;
+    }
+
+    public static bool HasFreeAbilitySlot(bool automatic) => EquippedAbilityCount(automatic) <
+        (automatic ? AbilityPresentation.AutomaticSlots : AbilityPresentation.ActiveSlots);
 
     /// <summary>Надевает купленную одежду (одна за раз).</summary>
     public static bool TryEquip(ClothingData clothing)
@@ -424,14 +444,7 @@ public static class EquipmentManager
 
     private static bool IsLevelReached(int unlockLevel)
     {
-        XpManager xp = XpManager.Instance;
-
-        int playerLevel =
-            xp != null
-                ? xp.GetPlayerLevel()
-                : 1;
-
-        return playerLevel >= unlockLevel;
+        return MapProgression.PlayerLevel >= unlockLevel;
     }
 
     private static bool IsOwnedName(
@@ -567,11 +580,15 @@ public static class EquipmentManager
         if (target.ownedClothing == null)
             target.ownedClothing = new List<string>();
 
-        if (target.equippedWeapon == null)
-            target.equippedWeapon = string.Empty;
+        if (string.IsNullOrEmpty(target.equippedWeapon))
+            target.equippedWeapon = StarterWeaponName;
 
         if (target.equippedClothing == null)
             target.equippedClothing = string.Empty;
+        // Formerly free skins may still be equipped in existing profiles.
+        if (!string.IsNullOrEmpty(target.equippedClothing) &&
+            !target.ownedClothing.Contains(target.equippedClothing))
+            target.ownedClothing.Add(target.equippedClothing);
     }
 
     private static void Save()

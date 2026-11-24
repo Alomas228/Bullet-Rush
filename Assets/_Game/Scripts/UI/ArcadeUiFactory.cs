@@ -150,7 +150,7 @@ public static class ArcadeUiFactory
         UnityAction onClick,
         bool hologram = false)
     {
-        Image image = Image(rect, sprite, tint, true);
+        Image image = Image(rect, sprite == ArcadeKitAssets.RoundRect ? ArcadeKitAssets.CutPanel : sprite, tint, true);
         image.raycastTarget = true;
 
         Button button = rect.gameObject.AddComponent<Button>();
@@ -170,7 +170,7 @@ public static class ArcadeUiFactory
             4f
         );
 
-        Label(
+        var caption = Label(
             textRect,
             label ?? string.Empty,
             font,
@@ -178,6 +178,11 @@ public static class ArcadeUiFactory
             textColor,
             TextAlignmentOptions.Center
         );
+
+        caption.enableAutoSizing = true;
+        caption.fontSizeMin = fontSize * .78f;
+        caption.fontSizeMax = fontSize;
+        caption.overflowMode = TextOverflowModes.Ellipsis;
 
         ArcadeHoverLift hover = rect.gameObject.AddComponent<ArcadeHoverLift>();
         hover.Bind(image, 1.018f, 0.08f);

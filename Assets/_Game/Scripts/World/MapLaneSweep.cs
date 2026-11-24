@@ -634,7 +634,9 @@ public class MapLaneSweep : MonoBehaviour, IDangerZone
         if (!IsInsideBand(health.transform.position, origin))
             return;
 
-        health.TakeDamage(damage);
+        float multiplier = MapMechanicManager.CurrentMechanic == MapMechanic.Highland &&
+            MapSurvivalZones.HasOutfit("winter") ? .65f : 1f;
+        health.TakeDamage(damage * multiplier);
     }
 
     private void KnockAndDamageEnemies(Vector3 origin)

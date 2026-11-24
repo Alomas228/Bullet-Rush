@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Два быстрых залпа, затем передышка. Между выстрелами можно перевести прицел."
   weaponType: 1
   rarity: 2
-  unlockLevel: 5
-  price: 700
-  weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 75
+  unlockLevel: 7
+  price: 650
+  weaponPrefab: {fileID: 8559010253350651214, guid: 0fa91de4ccdf8fe7aac350645fcb2f34, type: 3}
+  preview: {fileID: 21300000, guid: 976d29bd5bd3f01c13c917eebe4eef20, type: 3}
+  damage: 82
   fireRate: 1
   projectileSpeed: 15
   projectileCount: 5

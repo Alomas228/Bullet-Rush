@@ -2,6 +2,15 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+public enum WaveGoal
+{
+    Survival,
+    Horde,
+    Hunt,
+    Coordinator,
+    Boss
+}
+
 public class WaveManager : MonoBehaviour
 {
     [Header("References")]
@@ -27,6 +36,15 @@ public class WaveManager : MonoBehaviour
     [SerializeField] private int maxEnemiesPerWave = 110;
     [Tooltip("Дополнительный линейный множитель размера с номером волны. Нужен потому, что здоровье врагов растёт на фиксированный процент за волну и никогда не останавливается, а количество упирается в потолок сжатия. Без этого множителя после ~20 волны сложность держалась бы только на HP, и волны переставали бы отличаться друг от друга.")]
     [SerializeField] private float countRampPerWave = 0.008f;
+
+    [Header("Timed Waves")]
+    [SerializeField, Min(1f)] private float openingWaveDuration = 30f;
+    [SerializeField, Min(1f)] private float lateWaveDuration = 45f;
+    [SerializeField, Min(1)] private int durationRampWaves = 15;
+    [SerializeField, Min(0f)] private float hordeExtraDuration = 5f;
+    [SerializeField, Min(0f)] private float finalSpawnQuietTime = 3f;
+    [SerializeField, Min(1)] private int huntTargetMinimum = 2;
+    [SerializeField, Min(1)] private int huntTargetMaximum = 3;
 
     [Header("Wave Modifiers")]
     [Tooltip("С какой волны включаются модификаторы. Раньше игрок ещё не знает базовые типы врагов — акценты только мешают учиться.")]
@@ -81,7 +99,23 @@ public class WaveManager : MonoBehaviour
     public bool CampaignCompleted { get; private set; }
     public bool EndlessMode { get; private set; }
     public bool AwaitingContinuationChoice { get; private set; }
+    public WaveGoal CurrentGoal { get; private set; }
+    public float WaveDuration { get; private set; }
+    public float WaveTimeRemaining { get; private set; }
+    public int HuntTargetsRemaining { get; private set; }
+    public bool IsWaveComplete => waitingForNextWave;
+    public bool IsTimedWave => CurrentGoal == WaveGoal.Survival || CurrentGoal == WaveGoal.Horde;
+    [SerializeField, Min(1f)] private float cleanupEnemyDistance = 11f;
+    [SerializeField, Min(2f)] private float cleanupTimeLimit = 7f;
+    public bool IsFinishingWave { get; private set; }
+    public int CleanupEnemiesRemaining => cleanupEnemies.Count;
+    private readonly List<Enemy> cleanupEnemies = new List<Enemy>();
+    private float cleanupElapsed;
+    private readonly HashSet<Enemy> huntTargets = new HashSet<Enemy>();
+    private bool coordinatorDefeated;
+    private bool bossDefeated;
     private CampaignCompletionUI completionChoice;
+    private ArenaDynamics arenaDynamics;
     private Enemy objectiveCoordinator;
     private readonly List<Enemy> escort = new List<Enemy>(4);
     private RamLiftArena ramLift;
@@ -304,6 +338,13 @@ public class WaveManager : MonoBehaviour
         else if (state == GameState.Menu)
         {
             ClearEncounter();
+            CurrentWave = 0;
+            CurrentGoal = WaveGoal.Survival;
+            WaveDuration = WaveTimeRemaining = 0f;
+            BossesDefeated = 0;
+            CampaignCompleted = false;
+            EndlessMode = false;
+            tookDamageThisWave = false;
             AwaitingContinuationChoice = false;
             if (completionChoice != null) completionChoice.Hide();
             gameStarted = false;
@@ -336,6 +377,9 @@ public class WaveManager : MonoBehaviour
 
             if (waveUI != null)
                 waveUI.Hide();
+
+            if (upgradeUI != null)
+                upgradeUI.Hide();
         }
     }
 
@@ -353,17 +397,46 @@ public class WaveManager : MonoBehaviour
         // полагаться только на счётчик живых.
         bool spawnerBusy =
             enemySpawner != null &&
-            enemySpawner.IsSpawning;
+            (enemySpawner.IsSpawning || enemySpawner.HasPendingReinforcements);
 
-        if (spawnerBusy || Enemy.AliveCount > 0 || ramLift != null)
-            return;
+        if (IsTimedWave)
+        {
+            WaveTimeRemaining = Mathf.Max(0f, WaveTimeRemaining - Time.deltaTime);
+            if (WaveTimeRemaining > 0f) return;
+            if (!IsFinishingWave)
+                BeginTimedWaveCleanup();
+            cleanupElapsed += Time.deltaTime;
+            cleanupEnemies.RemoveAll(enemy => enemy == null || enemy.IsDead);
+            if (cleanupElapsed < 1.7f ||
+                (cleanupEnemies.Count > 0 && cleanupElapsed < Mathf.Max(1.7f, cleanupTimeLimit)))
+                return;
+        }
+        else if (CurrentGoal == WaveGoal.Hunt)
+        {
+            if (spawnerBusy || HuntTargetsRemaining > 0) return;
+        }
+        else if (CurrentGoal == WaveGoal.Coordinator)
+        {
+            if (spawnerBusy || !coordinatorDefeated) return;
+        }
+        else if (CurrentGoal == WaveGoal.Boss)
+        {
+            if (!bossDefeated || ramLift != null || spawnerBusy) return;
+        }
 
         {
             waitingForNextWave = true;
             waveActive = false;
+            if (!IsFinishingWave)
+            {
+                arenaDynamics?.ClearWave();
+                enemySpawner?.EndWaveSpawning();
+                eventDirector?.OnWaveEnded();
+            }
+            IsFinishingWave = false;
+            cleanupEnemies.Clear();
 
-            if (eventDirector != null)
-                eventDirector.OnWaveEnded();
+            RetreatRemainingEnemies();
 
             if (waveCompleteShown)
                 return;
@@ -408,13 +481,14 @@ public class WaveManager : MonoBehaviour
 
             if (waveUI != null)
             {
-                waveUI.ShowWaveComplete();
+                waveUI.ShowWaveComplete(IsBossWave(CurrentWave) ? bossWaveCompleteDisplayTime : waveCompleteDisplayTime);
 
                 StartCoroutine(ShowUpgradeAfterWaveComplete());
             }
             else if (upgradeUI != null)
             {
-                upgradeUI.Show();
+                upgradeUI.Show(CurrentWave, IsBossWave(CurrentWave));
+                if (!upgradeUI.IsShowing) ContinueAfterUpgrade();
             }
             else
             {
@@ -435,9 +509,13 @@ public class WaveManager : MonoBehaviour
                 : waveCompleteDisplayTime
         );
 
+        if (waveUI != null)
+            waveUI.Hide();
+
         if (upgradeUI != null)
         {
-            upgradeUI.Show();
+            upgradeUI.Show(CurrentWave, IsBossWave(CurrentWave));
+            if (!upgradeUI.IsShowing) ContinueAfterUpgrade();
         }
         else
         {
@@ -507,13 +585,13 @@ public class WaveManager : MonoBehaviour
     /// </summary>
     public void StartFirstWave()
     {
+        if (CurrentWave != 0)
+            return;
+
         // Если мы вышли в меню и вернулись (обучение повторно не запускается),
         // тоже стартуем забег для достижений.
         AchievementManager.EnsureExists();
         AchievementEvents.RaiseRunStarted();
-
-        if (CurrentWave != 0)
-            return;
 
         // Статистика обнуляется заново: убийства во время
         // обучения не должны идти в счёт забега.
@@ -576,6 +654,13 @@ public class WaveManager : MonoBehaviour
         GameMap map = cachedEnvironment.CurrentMap;
         worldGenerator.ApplyTheme(map);
 
+        if (cachedEnvironment.IsMenuWorldPrepared(map))
+        {
+            preparedWorldMap = map;
+            generatedWorldWave = 1;
+            return;
+        }
+
         if (worldGenerator.TryRestoreSceneReloadSnapshot(map))
         {
             preparedWorldMap = map;
@@ -597,6 +682,13 @@ public class WaveManager : MonoBehaviour
 
     private void HandleMapChanged(GameMap map)
     {
+        if (cachedEnvironment != null && cachedEnvironment.IsMenuWorldPrepared(map))
+        {
+            preparedWorldMap = map;
+            generatedWorldWave = 1;
+            return;
+        }
+
         preparedWorldMap = null;
 
         if (map != null && worldGenerator != null)
@@ -641,6 +733,8 @@ public class WaveManager : MonoBehaviour
     {
         if (AwaitingContinuationChoice || !BossCampaign.CanAdvance(CurrentWave, EndlessMode)) yield break;
         CurrentWave++;
+        IsFinishingWave = false;
+        cleanupEnemies.Clear();
         GameplayJourney.Instance?.WaveStarted(CurrentWave);
         waveActive = false;
         waitingForNextWave = false;
@@ -658,6 +752,22 @@ public class WaveManager : MonoBehaviour
             IsBossWave(CurrentWave)
                 ? WaveModifier.None
                 : GetModifierForWave(CurrentWave);
+
+        CurrentGoal = PickWaveGoal(CurrentWave);
+        if (CurrentGoal == WaveGoal.Hunt)
+        {
+            currentArchetype = WaveArchetype.Hunt;
+            currentModifier = WaveModifier.EliteHunt;
+        }
+        else if (CurrentGoal == WaveGoal.Coordinator)
+            currentModifier = WaveModifier.None;
+
+        coordinatorDefeated = false;
+        bossDefeated = false;
+        huntTargets.Clear();
+        HuntTargetsRemaining = CurrentGoal == WaveGoal.Hunt ? GetHuntTargetCount() : 0;
+        WaveDuration = IsTimedWave ? GetTimedWaveDuration() : 0f;
+        WaveTimeRemaining = WaveDuration;
 
         currentApproach = IsBossWave(CurrentWave)
             ? WaveApproach.Surround
@@ -716,7 +826,16 @@ public class WaveManager : MonoBehaviour
                 subtitle = bossProfile.BossName;
         }
 
-        if (CurrentWave == 3) subtitle = CoordinatorObjectiveText();
+        if (CurrentGoal == WaveGoal.Coordinator)
+            subtitle = CoordinatorObjectiveText();
+        else if (CurrentGoal == WaveGoal.Hunt)
+            subtitle = GameplayJourney.T("Уничтожь элитных врагов", "Eliminate the elites", "Elit dusmanlari yok et");
+        else if (IsTimedWave)
+        {
+            int seconds = Mathf.RoundToInt(WaveDuration);
+            subtitle = GameplayJourney.T($"Продержись {seconds} сек.", $"Survive {seconds}s", $"{seconds} sn hayatta kal") +
+                (string.IsNullOrEmpty(subtitle) ? "" : " · " + subtitle);
+        }
 
         if (isFirstWave &&
             RunModifierManager.Instance != null &&
@@ -725,10 +844,12 @@ public class WaveManager : MonoBehaviour
             subtitle = RunModifierManager.Instance.ShortName;
         }
 
+        bool shortIntro = !isFirstWave && (!isBossWave || IsRamDuel);
         if (waveUI != null)
-            waveUI.ShowWave(CurrentWave, subtitle);
+            waveUI.ShowWave(CurrentWave, subtitle, shortIntro ? waveDisplayTime :
+                isBossWave ? bossWaveDisplayTime : firstWaveDisplayTime);
 
-        if (!isFirstWave && (!isBossWave || IsRamDuel))
+        if (shortIntro)
         {
             yield return new WaitForSeconds(
                 waveDisplayTime
@@ -753,26 +874,26 @@ public class WaveManager : MonoBehaviour
         );
 
         if (waveUI != null)
-            waveUI.ShowPrepare();
+            waveUI.ShowPrepare(prepareTime);
 
         yield return new WaitForSeconds(prepareTime);
 
         if (waveUI != null)
-            waveUI.ShowCountdown(3);
+            waveUI.ShowCountdown(3, countdownStepTime);
 
         PlayCountdownSound();
 
         yield return new WaitForSeconds(countdownStepTime);
 
         if (waveUI != null)
-            waveUI.ShowCountdown(2);
+            waveUI.ShowCountdown(2, countdownStepTime);
 
         PlayCountdownSound();
 
         yield return new WaitForSeconds(countdownStepTime);
 
         if (waveUI != null)
-            waveUI.ShowCountdown(1);
+            waveUI.ShowCountdown(1, countdownStepTime);
 
         PlayCountdownSound();
 
@@ -823,9 +944,12 @@ public class WaveManager : MonoBehaviour
     private void HandleCampaignBossKilled(Enemy enemy)
     {
         if (objectiveCoordinator != null && enemy == objectiveCoordinator)
-            ReleaseEscort();
+            coordinatorDefeated = true;
+        if (huntTargets.Remove(enemy))
+            HuntTargetsRemaining = Mathf.Max(0, HuntTargetsRemaining - 1);
         if (!IsBossWave(CurrentWave) || enemy == null || enemy.GetEnemyData() == null ||
             enemy.GetEnemyData().EnemyType != EnemyType.Boss) return;
+        bossDefeated = true;
         BossesDefeated = Mathf.Max(BossesDefeated, BossCampaign.IndexForWave(CurrentWave) + 1);
     }
 
@@ -856,7 +980,7 @@ public class WaveManager : MonoBehaviour
 
         enemySpawner.CurrentWave = CurrentWave;
 
-        if (CurrentWave == 3)
+        if (CurrentGoal == WaveGoal.Coordinator)
         {
             eventDirector?.OnWaveStarted(CurrentWave, false);
             enemySpawner.SetManualSpawning(true);
@@ -864,10 +988,18 @@ public class WaveManager : MonoBehaviour
             return;
         }
 
+        if (CurrentGoal == WaveGoal.Hunt)
+        {
+            eventDirector?.OnWaveStarted(CurrentWave, true, currentModifier);
+            enemySpawner.SetManualSpawning(true, WaveModifier.EliteHunt);
+            StartCoroutine(SpawnHuntSquad());
+            return;
+        }
+
         // Босс-волна начинает «материализацию» сразу после каунтдауна.
         // События посреди босс-волны не запускаем — у босса и так
         // есть прислуга и способности.
-        if (IsBossWave(CurrentWave))
+        if (CurrentGoal == WaveGoal.Boss)
         {
             SpawnBossWave();
 
@@ -890,13 +1022,89 @@ public class WaveManager : MonoBehaviour
 
         // Start the director first so it can observe modifier-driven
         // enemies initialized synchronously by the spawn coroutine.
-        enemySpawner.SpawnWave(
+        enemySpawner.SpawnTimedWave(
             enemyCount,
             CurrentWave,
+            WaveDuration,
+            Mathf.Clamp(finalSpawnQuietTime, 0f, WaveDuration - 1f),
             currentArchetype,
             currentModifier,
-            currentApproach
+            currentApproach,
+            CurrentGoal == WaveGoal.Horde
         );
+        if (arenaDynamics == null) arenaDynamics = gameObject.AddComponent<ArenaDynamics>();
+        arenaDynamics.StartWave(this, worldGenerator, CurrentWave);
+    }
+
+    private WaveGoal PickWaveGoal(int wave)
+    {
+        if (IsBossWave(wave)) return WaveGoal.Boss;
+        if (wave % BossCampaign.Interval == 3) return WaveGoal.Coordinator;
+        if (wave >= 7 && (currentArchetype == WaveArchetype.Hunt ||
+            currentModifier.Has(WaveModifier.EliteHunt))) return WaveGoal.Hunt;
+        return currentArchetype == WaveArchetype.Swarm ? WaveGoal.Horde : WaveGoal.Survival;
+    }
+
+    private float GetTimedWaveDuration()
+    {
+        float maxDuration = Mathf.Max(openingWaveDuration, lateWaveDuration);
+        float t = Mathf.Clamp01((CurrentWave - 1f) / Mathf.Max(1, durationRampWaves - 1));
+        float duration = Mathf.Lerp(openingWaveDuration, maxDuration, t);
+        if (CurrentGoal == WaveGoal.Horde)
+            duration += hordeExtraDuration;
+        return Mathf.Round(Mathf.Clamp(duration, 1f, maxDuration));
+    }
+
+    private int GetHuntTargetCount() => Mathf.Clamp(huntTargetMinimum +
+        Mathf.Max(0, CurrentWave - 7) / 12, 1, Mathf.Max(1, huntTargetMaximum));
+
+    private IEnumerator SpawnHuntSquad()
+    {
+        int planned = HuntTargetsRemaining;
+        int spawnedCount = 0;
+        for (int i = 0; i < planned; i++)
+        {
+            Enemy target = null;
+            for (int attempt = 0; attempt < 8 && target == null; attempt++)
+            {
+                target = enemySpawner.SpawnEnemyAtPosition(EnemyType.Elite,
+                    enemySpawner.GetPlayerRingSpawnPosition(), 0.65f);
+                if (target == null) yield return new WaitForSeconds(0.15f);
+            }
+
+            if (target != null)
+            {
+                huntTargets.Add(target);
+                spawnedCount++;
+            }
+            else
+                HuntTargetsRemaining = Mathf.Max(0, HuntTargetsRemaining - 1);
+        }
+
+        if (spawnedCount == 0)
+        {
+            // An entirely failed objective spawn must not block the run.
+            StartFallbackSurvival();
+            yield break;
+        }
+
+        int guards = Mathf.Min(8, 3 + planned * 2);
+        for (int i = 0; i < guards && HuntTargetsRemaining > 0; i++)
+            enemySpawner.SpawnEnemyAtPosition(i % 3 == 0 ? EnemyType.Fast : EnemyType.Normal,
+                enemySpawner.GetPlayerRingSpawnPosition(), 0.45f);
+        enemySpawner.SetManualSpawning(false);
+    }
+
+    private void StartFallbackSurvival()
+    {
+        CurrentGoal = WaveGoal.Survival;
+        currentArchetype = WaveArchetype.Standard;
+        currentModifier = WaveModifier.None;
+        HuntTargetsRemaining = 0;
+        WaveDuration = GetTimedWaveDuration();
+        WaveTimeRemaining = WaveDuration;
+        enemySpawner.SetManualSpawning(false);
+        SpawnCurrentWave();
     }
 
     // Акцент волны больше не запрещает событие целиком. Раньше волны
@@ -962,6 +1170,13 @@ public class WaveManager : MonoBehaviour
             MapMechanicManager.EnemyCountScale *
             ramp;
 
+        // Keep the existing campaign/modifiers, but give the opening waves a
+        // denser baseline. Special encounters still use their own spawn rules.
+        float openingFloor = 10f + Mathf.Min(Mathf.Max(wave - 1, 0), 4) * 5f +
+            Mathf.Min(Mathf.Max(wave - 5, 0) * 1.5f, 14f);
+        scaled = Mathf.Max(scaled, openingFloor * Mathf.Max(RunModifierManager.EnemyCountScale, 0f) *
+            Mathf.Max(MapMechanicManager.EnemyCountScale, 0f));
+
         return Mathf.Clamp(
             Mathf.RoundToInt(scaled),
             1,
@@ -1015,15 +1230,19 @@ public class WaveManager : MonoBehaviour
             }
         }
 
-        Vector3 bossPosition =
-            enemySpawner.GetPlayerRingSpawnPosition();
-
-        enemySpawner.SpawnEnemyAtPosition(
-            EnemyType.Boss,
-            bossPosition,
-            bossSpawnInDuration,
-            bossProfile
-        );
+        Vector3 bossPosition = Vector3.zero;
+        Enemy boss = null;
+        for (int attempt = 0; boss == null; attempt++)
+        {
+            bossPosition = enemySpawner.GetPlayerRingSpawnPosition();
+            boss = enemySpawner.SpawnEnemyAtPosition(EnemyType.Boss, bossPosition,
+                bossSpawnInDuration, bossProfile);
+            if (boss == null)
+            {
+                if (attempt == 7) Debug.LogWarning("Boss spawn blocked; retrying until a free position is found.");
+                yield return new WaitForSeconds(0.35f);
+            }
+        }
 
         // Пауза: игрок видит «ритуал» появления босса, потом выходит прислуга.
         yield return new WaitForSeconds(bossMinionDelay);
@@ -1037,6 +1256,7 @@ public class WaveManager : MonoBehaviour
 
         for (int i = 0; i < minionCount; i++)
         {
+            if (bossDefeated) break;
             enemySpawner.SpawnEnemyAtPosition(
                 EnemyType.Normal,
                 GetMinionPositionAround(bossPosition)
@@ -1056,8 +1276,8 @@ public class WaveManager : MonoBehaviour
     }
 
     private static string CoordinatorObjectiveText() => GameplayJourney.T(
-        "Уничтожь координатора с фиолетовой короной", "Eliminate the purple-crowned coordinator",
-        "Mor taçlı koordinatörü yok et");
+        "Уничтожь координатора с золотым камнем в короне", "Eliminate the coordinator with the gold crown jewel",
+        "Tacında altın taş olan koordinatörü yok et");
 
     private IEnumerator SpawnCoordinatorSquad()
     {
@@ -1069,10 +1289,10 @@ public class WaveManager : MonoBehaviour
         }
         if (objectiveCoordinator == null)
         {
-            enemySpawner.SpawnWave(GetEnemyCountForWave(CurrentWave), CurrentWave, currentArchetype);
+            StartFallbackSurvival();
             yield break;
         }
-        objectiveCoordinator.AssignCoordinator();
+        objectiveCoordinator.AssignCoordinator(objective: true);
         Vector3 center = objectiveCoordinator.transform.position;
         for (int i = 0; i < 4; i++)
         {
@@ -1092,8 +1312,55 @@ public class WaveManager : MonoBehaviour
         escort.Clear();
     }
 
+    private void BeginTimedWaveCleanup()
+    {
+        IsFinishingWave = true;
+        cleanupElapsed = 0f;
+        cleanupEnemies.Clear();
+        enemySpawner?.EndWaveSpawning();
+        eventDirector?.OnWaveEnded();
+        arenaDynamics?.ClearWave();
+
+        foreach (Enemy enemy in Enemy.SnapshotAlive())
+        {
+            if (enemy == null || enemy.IsDead) continue;
+            if (playerHealth != null && enemy.HasDirectCleanupPath(playerHealth.transform.position, cleanupEnemyDistance))
+                cleanupEnemies.Add(enemy);
+            else
+                enemy.Retreat(animate: true);
+        }
+    }
+
+    private void RetreatRemainingEnemies()
+    {
+        foreach (Enemy enemy in Enemy.SnapshotAlive())
+            if (enemy != null) enemy.Retreat(animate: true);
+        objectiveCoordinator = null;
+        escort.Clear();
+        huntTargets.Clear();
+        HuntTargetsRemaining = 0;
+
+        // A completed objective must not leave stray hostile shots hitting the
+        // player during the transition or immediately after the next choice.
+        foreach (EnemyProjectile projectile in FindObjectsByType<EnemyProjectile>())
+            if (projectile != null) projectile.ReturnToPool();
+        foreach (BossAttackZone zone in FindObjectsByType<BossAttackZone>())
+            if (zone != null) Destroy(zone.gameObject);
+        foreach (MapStrikeZone zone in FindObjectsByType<MapStrikeZone>())
+            if (zone != null) Destroy(zone.gameObject);
+        foreach (MapLaneSweep zone in FindObjectsByType<MapLaneSweep>())
+            if (zone != null) Destroy(zone.gameObject);
+        foreach (MapGravityCrater zone in FindObjectsByType<MapGravityCrater>())
+            if (zone != null) Destroy(zone.gameObject);
+    }
+
     private void ClearEncounter()
     {
+        IsFinishingWave = false;
+        cleanupEnemies.Clear();
+        arenaDynamics?.ClearWave();
+        huntTargets.Clear();
+        HuntTargetsRemaining = 0;
         if (objectiveCoordinator != null) objectiveCoordinator.Retreat();
         ReleaseEscort();
         if (ramLift != null) ramLift.Close();
@@ -1122,7 +1389,7 @@ public class WaveManager : MonoBehaviour
         if (GameplayJourney.Instance != null && GameplayJourney.Instance.ConsumeCacheReward() && upgradeUI != null)
         {
             upgradeUI.Show();
-            return;
+            if (upgradeUI.IsShowing) return;
         }
 
         Time.timeScale = 1f;

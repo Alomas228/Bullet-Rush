@@ -119,10 +119,11 @@ public class GameOverUI : MonoBehaviour
         bool victory = GameOverManager.Instance != null && GameOverManager.Instance.WasVictory;
         foreach (TMP_Text label in gameOverPanel.GetComponentsInChildren<TMP_Text>(true))
         {
-            if (label.text == Lang.Get("over.title") || label.text == "{over.title}")
+            if (label.name == "GameOverText" || label.text == "{over.title}")
                 label.text = Lang.Get(victory ? "boss_campaign.victory" : "over.title");
         }
-        coinsDoubled = false;
+        XpManager rewardXp = XpManager.Instance;
+        coinsDoubled = rewardXp == null || rewardXp.RunCoins <= rewardXp.RunCoinAdBonus;
 
         // Показываем итоговый счёт (с бонусом за стиль) — то же число,
         // что ушло в лидерборд и показано на панели результатов.
@@ -161,7 +162,7 @@ public class GameOverUI : MonoBehaviour
         if (coinsText != null && XpManager.Instance != null)
             coinsText.text = Lang.Get(
                 "menu.coins_earned",
-                XpManager.Instance.RunCoins
+                XpManager.Instance.RunCoins + XpManager.Instance.RunCoinAdBonus
             );
 
         ShowPlayerProgression();
@@ -291,13 +292,15 @@ public class GameOverUI : MonoBehaviour
 
         if (doubleCoinsButton != null)
         {
+            doubleCoinsButton.interactable = !coinsDoubled;
             doubleCoinsButton.onClick.RemoveListener(OnDoubleCoinsClicked);
             doubleCoinsButton.onClick.AddListener(OnDoubleCoinsClicked);
         }
 
         if (reviveButton != null)
         {
-            reviveButton.gameObject.SetActive(GameOverManager.Instance == null || !GameOverManager.Instance.WasVictory);
+            reviveButton.gameObject.SetActive(GameOverManager.Instance != null && GameOverManager.Instance.CanRevive);
+            reviveButton.interactable = GameOverManager.Instance != null && GameOverManager.Instance.CanRevive;
             reviveButton.onClick.RemoveListener(OnReviveClicked);
             reviveButton.onClick.AddListener(OnReviveClicked);
         }
@@ -360,6 +363,7 @@ public class GameOverUI : MonoBehaviour
 
     private void OnDoubleCoinsClicked()
     {
+        if (coinsDoubled) return;
         if (doubleCoinsButton != null)
             doubleCoinsButton.interactable = false;
 
@@ -386,22 +390,21 @@ public class GameOverUI : MonoBehaviour
         // Награда удваивает их: добавляем ровно заработанную сумму
         // в глобальный баланс и НЕ трогаем RunCoins, иначе счётчик
         // забега раздувается, а повторное нажатие удваивает дважды.
-        if (coinsDoubled)
+        if (coinsDoubled || xp == null || !xp.TryDoubleRunCoins())
             return;
 
         coinsDoubled = true;
 
-        xp.AddGlobalCoins(xp.RunCoins);
-
         if (coinsText != null)
             coinsText.text = Lang.Get(
                 "menu.coins_earned",
-                xp.RunCoins * 2
+                xp.RunCoins + xp.RunCoinAdBonus
             );
     }
 
     private void OnReviveClicked()
     {
+        if (GameOverManager.Instance == null || !GameOverManager.Instance.CanRevive) return;
         if (reviveButton != null)
             reviveButton.interactable = false;
 

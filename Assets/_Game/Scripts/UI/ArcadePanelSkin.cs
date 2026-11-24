@@ -29,10 +29,8 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         ("MenuPanelUI/Menu/DailyMissionsPanel", ArcadePanelKind.Menu),
         ("MenuPanelUI/Menu/MasteryPanel", ArcadePanelKind.Menu),
         ("Canvas/GameOverPanel", ArcadePanelKind.GameOver),
-        ("Canvas/UpgradePanel", ArcadePanelKind.LevelUp),
         ("Canvas/WavePanel", ArcadePanelKind.Wave),
         ("Canvas/TutorialPanel", ArcadePanelKind.Tutorial),
-        ("Canvas/LeaderboardPanel", ArcadePanelKind.Leaderboard),
         ("Canvas/HUD", ArcadePanelKind.Hud)
     };
 
@@ -121,13 +119,18 @@ public sealed class ArcadePanelSkin : MonoBehaviour
             return;
 
         applied = true;
+        // These panels build their own controls when first opened.
+        if (GetComponent<EquipmentUI>() || GetComponent<PermanentUpgradesUI>() || GetComponent<MapSelectionUI>() ||
+            GetComponent<DailyRewardUI>() || GetComponent<AchievementsUI>() || GetComponent<DailyMissionUI>() || GetComponent<MasteryPanelUI>())
+            return;
+
         kind = panelKind;
 
         Canvas.ForceUpdateCanvases();
 
         if (kind == ArcadePanelKind.Menu)
             ApplyMenuBackdrop();
-        else if (kind != ArcadePanelKind.Hud &&
+        else if (kind != ArcadePanelKind.GameOver && kind != ArcadePanelKind.Hud &&
             kind != ArcadePanelKind.Wave &&
             kind != ArcadePanelKind.Tutorial)
             EnsureBackdrop();
@@ -136,6 +139,190 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         StyleSliders();
         StyleImages();
         StyleTexts();
+        if (kind == ArcadePanelKind.GameOver) LayoutResults();
+        if (kind == ArcadePanelKind.Wave) LayoutWave();
+        if (kind == ArcadePanelKind.Tutorial) LayoutTutorial();
+    }
+
+    private void LayoutWave()
+    {
+        var rect = (RectTransform)transform;
+        rect.anchorMin = new Vector2(.12f, .64f);
+        rect.anchorMax = new Vector2(.88f, .64f);
+        rect.pivot = Vector2.one * .5f;
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(0, 116);
+        var plate = GetComponent<Image>();
+        if (plate != null)
+        {
+            plate.enabled = false;
+            plate.raycastTarget = false;
+        }
+        var complete = transform.parent?.Find("HUD/GameplayUI/waveCompleteText");
+        if (complete != null) complete.SetParent(rect, false);
+        foreach (var label in GetComponentsInChildren<TMP_Text>(true))
+        {
+            label.rectTransform.pivot = Vector2.one * .5f;
+            UiArtboard.Stretch(label.rectTransform);
+            label.rectTransform.offsetMin = new Vector2(16,4);
+            label.rectTransform.offsetMax = new Vector2(-16,-4);
+            float size = label.name == "CountdownText" ? 68f : label.name == "WaveText" ? 36f : 32f;
+            FitLabel(label, 16, size, MenuSheet.Paper);
+            label.richText = true;
+            label.outlineColor = MenuSheet.Ink;
+            label.outlineWidth = .16f;
+        }
+    }
+
+    private void LayoutTutorial()
+    {
+        var root = (RectTransform)transform;
+        var safe = ResponsiveUi.SafeContent(root, "Tutorial content");
+        // Keep the full-screen dimmer and serialized references intact.
+        foreach (string name in new[] { "ProgressText", "ObjectiveText", "SkipButton",
+                     "Image_Aim", "Image_WASD", "Image_Dash", "Image_Shoot" })
+        {
+            var child = root.Find(name) as RectTransform;
+            if (child != null) child.SetParent(safe, false);
+        }
+        var title = safe.Find("ObjectiveText")?.GetComponent<TMP_Text>();
+        if (title != null)
+        {
+            var r = title.rectTransform;
+            r.anchorMin = new Vector2(.22f, 1);
+            r.anchorMax = new Vector2(.75f, 1);
+            r.pivot = new Vector2(.5f,1);
+            r.anchoredPosition = new Vector2(0,-22);
+            r.sizeDelta = new Vector2(0,74);
+            FitLabel(title, 18, 26, MenuSheet.Paper);
+        }
+        var step = safe.Find("ProgressText")?.GetComponent<TMP_Text>();
+        if (step != null)
+        {
+            UiArtboard.Place(step.rectTransform, new Vector2(0,1), new Vector2(0,1),
+                new Vector2(20,-20), new Vector2(180,50));
+            FitLabel(step, 16, 22, MenuSheet.Paper);
+        }
+        if (safe.Find("SkipButton") is RectTransform skip)
+            UiArtboard.Place(skip, Vector2.one, Vector2.one, new Vector2(-20,-20), new Vector2(220,64));
+        foreach (string name in new[] { "Image_Aim", "Image_WASD", "Image_Dash", "Image_Shoot" })
+        {
+            if (!(safe.Find(name) is RectTransform image)) continue;
+            var frame = ArcadeUiFactory.Stretch(safe, name + " frame", 36, 108, 36, 108);
+            if (name == "Image_WASD")
+            {
+                frame.anchorMin = new Vector2(0,.10f);
+                frame.anchorMax = new Vector2(1,.58f);
+                frame.offsetMin = new Vector2(36,0);
+                frame.offsetMax = new Vector2(-36,0);
+            }
+            var board = UiArtboard.Create(frame, new Vector2(800,470));
+            image.SetParent(board, false);
+            UiArtboard.Place(image, Vector2.one*.5f, Vector2.one*.5f, Vector2.zero, new Vector2(760,430));
+            if (image.TryGetComponent<Image>(out var art)) art.preserveAspect = true;
+        }
+        var dim = transform.Find("DimBackground")?.GetComponent<Image>();
+        if (dim != null) { dim.sprite = null; dim.color = ArcadeUiTheme.Alpha(MenuSheet.Ink, .54f); dim.raycastTarget = false; }
+    }
+
+    private void LayoutResults()
+    {
+        var root = (RectTransform)transform;
+        UiArtboard.Stretch(root);
+        var dim = GetComponent<Image>();
+        dim.sprite = null;
+        dim.color = ArcadeUiTheme.Backdrop;
+        dim.raycastTarget = true;
+        var details = root.parent.Find("LeaderboardPanel") as RectTransform;
+        var board = UiArtboard.Create(root, new Vector2(details != null ? 1520 : 940, 650));
+        var mid = Vector2.one * .5f;
+        var paper = ArcadeUiFactory.At(board, "ResultSheet", mid, mid, Vector2.zero, new Vector2(892,596));
+        ArcadeUiFactory.Image(paper, ArcadeKitAssets.CutPanel, MenuSheet.Paper, true);
+        if (details != null)
+        {
+            paper.anchoredPosition = new Vector2(-294,0);
+            LayoutReport(details, board);
+            root.gameObject.AddComponent<ResponsiveResultsLayout>().Bind(board,paper,details);
+        }
+        ResultRow(root, paper, "GameOverText", 244, 56);
+        ResultRow(root, paper, "LevelUpText", 193, 32);
+        ResultRow(root, paper, "TextLayot", 72, 186);
+        ResultRow(root, paper, "LevelText", -48, 32);
+        ResultRow(root, paper, "xpProgressBar", -86, 18);
+        ResultRow(root, paper, "XpProgressText", -116, 34);
+        ResultRow(root, paper, "ButtonLayot", -218, 82);
+        var group = paper.Find("ButtonLayot")?.GetComponent<HorizontalLayoutGroup>();
+        if (group != null)
+        {
+            group.spacing = 12;
+            group.padding = new RectOffset(0, 0, 0, 0);
+            group.childControlWidth = group.childControlHeight = true;
+            group.childForceExpandWidth = group.childForceExpandHeight = true;
+        }
+        var stats = paper.Find("TextLayot")?.GetComponent<VerticalLayoutGroup>();
+        if (stats != null)
+        {
+            stats.padding = new RectOffset(0,0,0,0);
+            stats.spacing = 2;
+            stats.childControlHeight = stats.childForceExpandHeight = true;
+        }
+        foreach (var label in paper.GetComponentsInChildren<TMP_Text>(true))
+        {
+            int max = label.name == "GameOverText" ? 38 : label.GetComponentInParent<Button>() != null ? 19 : 24;
+            FitLabel(label, 15, max, MenuSheet.Ink);
+        }
+    }
+
+    private static void LayoutReport(RectTransform report, RectTransform board)
+    {
+        report.SetParent(board, false);
+        UiArtboard.Place(report, Vector2.one * .5f, Vector2.one * .5f, new Vector2(458,0),new Vector2(568,596));
+        if (report.TryGetComponent<Image>(out var sheet)) MenuSheet.Surface(sheet, MenuSheet.Card);
+        if (report.Find("Divider") is RectTransform divider) divider.gameObject.SetActive(false);
+        string[] totals = { "BaseScoreText", "StyleBonusText", "FinalScoreText" };
+        for (int i = 0; i < totals.Length; i++)
+        {
+            var label = report.Find(totals[i])?.GetComponent<TMP_Text>();
+            RuntimeWindow.Text(label,report,24,22+i*37,338,35,i==2 ? 23 : 18,i==2);
+        }
+        MenuSheet.Box(report,"ReportRule",24,142,520,2,MenuSheet.Rule);
+        ReportSection(report,"RankPanel",372,16,170,52);
+        ReportSection(report,"StatsPanel",24,169,258,39);
+        ReportSection(report,"SpeedPanel",294,169,250,56);
+        ReportSection(report,"StylePanel",294,455,250,46);
+    }
+
+    private static void ReportSection(RectTransform report,string name,int x,int y,int width,int lineHeight)
+    {
+        if (!(report.Find(name) is RectTransform group)) return;
+        bool visible = group.gameObject.activeSelf;
+        var labels = group.GetComponentsInChildren<TMP_Text>(true);
+        if (group.TryGetComponent<LayoutGroup>(out var layout)) layout.enabled = false;
+        MenuSheet.Place(group,report,x,y,width,lineHeight*labels.Length);
+        if (group.TryGetComponent<Image>(out var bg)) MenuSheet.Surface(bg,MenuSheet.Recess);
+        for (int i=0;i<labels.Length;i++)
+            RuntimeWindow.Text(labels[i],group,8,lineHeight*i,width-16,lineHeight,18);
+        group.gameObject.SetActive(visible);
+    }
+
+    private static void ResultRow(Transform old, RectTransform sheet, string name, float y, float height)
+    {
+        if (!(old.Find(name) is RectTransform row)) return;
+        row.SetParent(sheet, false);
+        UiArtboard.Place(row, Vector2.one * .5f, Vector2.one * .5f, new Vector2(0,y), new Vector2(816,height));
+    }
+
+    private static void FitLabel(TMP_Text text, float min, float max, Color color)
+    {
+        text.font = max >= 30 ? ArcadeKitAssets.Display : ArcadeKitAssets.BodyBold;
+        text.fontStyle = FontStyles.Normal;
+        text.fontSizeMin = min;
+        text.fontSizeMax = max;
+        text.enableAutoSizing = true;
+        text.alignment = TextAlignmentOptions.Center;
+        text.margin = Vector4.zero;
+        text.raycastTarget = false;
+        text.color = color;
     }
 
     private void ApplyMenuBackdrop()
@@ -298,6 +485,8 @@ public sealed class ArcadePanelSkin : MonoBehaviour
             image.raycastTarget = true;
             button.targetGraphic = image;
             button.transition = Selectable.Transition.None;
+
+            if (kind == ArcadePanelKind.GameOver && button.name == "MenuButton") primary = true;
 
             if (tab)
             {
@@ -544,7 +733,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         string lower = name.ToLowerInvariant();
 
         if (lower.Contains("health") || lower.Contains("hp"))
-            return ArcadeUiTheme.Green;
+            return ArcadeUiTheme.Red;
 
         if (lower.Contains("dash"))
             return ArcadeUiTheme.Cyan;
@@ -585,7 +774,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
 
             string name = image.name.ToLowerInvariant();
 
-            if (name == "skindim")
+            if (name == "skindim" || name == "dimbackground" || (kind == ArcadePanelKind.Hud && image == own))
                 continue;
 
             // Комбо показывается без плашки — фон не трогаем,
@@ -718,14 +907,15 @@ public sealed class ArcadePanelSkin : MonoBehaviour
             if (title && text.text != null && text.text.Length < 40)
                 text.fontStyle |= FontStyles.UpperCase;
 
-            text.color = TextColor(name, text.color);
+            text.color = kind == ArcadePanelKind.Hud || kind == ArcadePanelKind.Wave || kind == ArcadePanelKind.Tutorial
+                ? MenuSheet.Paper : TextColor(name, text.color);
         }
     }
 
     private static Color TextColor(string name, Color color)
     {
         if (ContainsAny(name, "score", "coin", "rank", "final", "record", "gold"))
-            return ArcadeUiTheme.Gold;
+            return ArcadeUiTheme.Ink;
 
         if (ContainsAny(name, "secondary", "subtitle", "description", "hint"))
             return ArcadeUiTheme.TextSecondary;
@@ -738,7 +928,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         if (normalized == color && color.grayscale < 0.35f)
             return ArcadeUiTheme.TextMuted;
 
-        return normalized;
+        return normalized.grayscale > .53f ? ArcadeUiTheme.TextPrimary : normalized;
     }
 
     private static Color NormalizeColor(Color color)
@@ -789,8 +979,6 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         if (Matches(color, 0x64769A) || Matches(color, 0x7385A6))
             return KeepAlpha(ArcadeUiTheme.TextMuted, color.a);
 
-        if (color.r > 0.9f && color.g > 0.9f && color.b > 0.9f)
-            return KeepAlpha(ArcadeUiTheme.TextPrimary, color.a);
 
         return color;
     }

@@ -233,7 +233,7 @@ public class RunUpgrades : MonoBehaviour
         if (data == null)
             return;
 
-        lifestealPercent = Mathf.Min(lifestealPercent + data.Percentage, 1f);
+        lifestealPercent = Mathf.Min(lifestealPercent + data.Percentage, GameBalance.MaxLifestealFraction);
     }
 
     public void AddChainLightning(ChainLightningEffectData data)
@@ -305,6 +305,9 @@ public class RunUpgrades : MonoBehaviour
 
         explosionRadius = 0f;
         explosionDamage = 0f;
+        explosionBaseRadius = 0f;
+        spreadBudgetFrame = -1;
+        spreadBudget = 0;
 
         bleedChance = 0f;
         bleedDamage = 0f;

@@ -151,6 +151,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
 
         Array.Copy(DefaultOrder, order, DefaultOrder.Length);
 
+        BuildSheet();
         WireButtons();
         RegisterSlots();
         BuildDots();
@@ -161,6 +162,33 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
     /// Нужна, потому что старая панель в сцене ещё может сохраниться
     /// с прошлой версии компонента, где полей не было.
     /// </summary>
+    private void BuildSheet()
+    {
+        var sheet = MenuSheet.Build(this, previousButton, nextButton, dotsRoot);
+        sheet.Balance(coinsText);
+        for (int i = 0; i < cardSlots.Count; i++)
+        {
+            cardSlots[i].Prepare(sheet.Body, 42 + (i % 2) * 704, 152 + (i / 2) * 280);
+            sheet.PortraitPlace(cardSlots[i],134,190+i*280,684,262);
+        }
+
+        if (refreshButton == null)
+        {
+            refreshButton = MenuSheet.NewButton(sheet.Body, "RefreshButton", 1030, 746, 400, 52,
+                MenuSheet.Recess, null, out refreshCostText);
+            refreshImage = refreshButton.GetComponent<Image>();
+        }
+        else
+        {
+            MenuSheet.Control(refreshButton, sheet.Body, 1030, 746, 400, 52, MenuSheet.Recess);
+            MenuSheet.HideChildren(refreshButton.transform);
+            MenuSheet.Label(refreshCostText, refreshButton.transform, 8, 0, 384, 52, 23,
+                MenuSheet.Ink, TextAlignmentOptions.Center);
+        }
+        sheet.PortraitPlace(refreshButton,510,1374,400,52);
+        sheet.Reflow();
+    }
+
     private bool HasLayout()
     {
         if (cardSlots == null || cardSlots.Count == 0)
@@ -252,12 +280,12 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
         if (refreshImage != null)
         {
             refreshImage.color = coins >= refreshCost
-                ? UpgradesWireframeTheme.Action
-                : UpgradesWireframeTheme.ActionDisabled;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         if (refreshCostText != null)
-            refreshCostText.text = Lang.Get("upg.refresh_cost", refreshCost);
+            refreshCostText.text = Lang.Get("upg.refresh") + "  ·  " + Lang.Get("upg.refresh_cost", refreshCost);
     }
 
     private void ShowPage(int coins)
@@ -284,8 +312,7 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
             if (!visible)
                 continue;
 
-            if (!slot.HasStat || slot.Stat != order[index])
-                slot.Bind(order[index]);
+            slot.Bind(order[index]);
 
             slot.SetSelected(index == selectedIndex);
             slot.Refresh(coins);
@@ -308,15 +335,15 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
         if (previousImage != null)
         {
             previousImage.color = hasPrevious
-                ? UpgradesWireframeTheme.Surface
-                : UpgradesWireframeTheme.SurfaceDisabled;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         if (nextImage != null)
         {
             nextImage.color = hasNext
-                ? UpgradesWireframeTheme.Surface
-                : UpgradesWireframeTheme.SurfaceDisabled;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         for (int i = 0; i < dots.Count; i++)
@@ -335,8 +362,8 @@ public class PermanentUpgradesUI : MonoBehaviour, ILangRefreshable
             if (dot.image != null)
             {
                 dot.image.color = active
-                    ? UpgradesWireframeTheme.DotActive
-                    : UpgradesWireframeTheme.DotInactive;
+                    ? MenuSheet.Ink
+                    : MenuSheet.Rule;
             }
         }
     }

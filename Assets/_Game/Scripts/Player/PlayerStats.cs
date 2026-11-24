@@ -31,18 +31,78 @@ public class PlayerStats : MonoBehaviour
     [Header("Score")]
     [SerializeField] private float scoreMultiplier = 1f;
 
+    // Preserve the inspector's base stats, not a hard-coded set of defaults.
+    private float baseDamage, baseFireRate, baseMoveSpeed, baseProjectileSpeed;
+    private float baseCriticalChance, baseCriticalDamage, baseProjectileCount, baseScore;
+    private int basePierce;
+    private float damageBoostUntil, fireBoostUntil, speedBoostUntil;
+    private readonly float[] boostDurations = new float[3];
+
+    public enum BattleBoost { Damage, FireRate, MoveSpeed }
+
+    public void GrantBattleBoost(BattleBoost boost, float seconds)
+    {
+        if (seconds <= 0f || (int)boost < 0 || (int)boost >= boostDurations.Length) return;
+        if (seconds >= BattleBoostRemaining(boost)) boostDurations[(int)boost] = seconds;
+        float end = Time.time + seconds;
+        switch (boost)
+        {
+            case BattleBoost.Damage: damageBoostUntil = Mathf.Max(damageBoostUntil, end); break;
+            case BattleBoost.FireRate: fireBoostUntil = Mathf.Max(fireBoostUntil, end); break;
+            case BattleBoost.MoveSpeed: speedBoostUntil = Mathf.Max(speedBoostUntil, end); break;
+        }
+    }
+
+    public float BattleBoostRemaining(BattleBoost boost)
+    {
+        float end = boost == BattleBoost.Damage ? damageBoostUntil : boost == BattleBoost.FireRate ? fireBoostUntil : speedBoostUntil;
+        return Mathf.Max(0f, end - Time.time);
+    }
+
+    public float BattleBoostFraction(BattleBoost boost) => Mathf.Clamp01(BattleBoostRemaining(boost) /
+        Mathf.Max(.01f, boostDurations[(int)boost]));
+
+    private void Awake()
+    {
+        baseDamage = damageMultiplier;
+        baseFireRate = fireRateMultiplier;
+        baseMoveSpeed = moveSpeedMultiplier;
+        baseProjectileSpeed = projectileSpeedMultiplier;
+        baseCriticalChance = criticalChance;
+        baseCriticalDamage = criticalDamageMultiplier;
+        baseProjectileCount = projectileCountPercent;
+        basePierce = bonusPierce;
+        baseScore = scoreMultiplier;
+    }
+
+    internal void ResetForSession()
+    {
+        damageBoostUntil = fireBoostUntil = speedBoostUntil = 0f;
+        System.Array.Clear(boostDurations, 0, boostDurations.Length);
+        damageMultiplier = baseDamage;
+        fireRateMultiplier = baseFireRate;
+        moveSpeedMultiplier = baseMoveSpeed;
+        projectileSpeedMultiplier = baseProjectileSpeed;
+        criticalChance = baseCriticalChance;
+        criticalDamageMultiplier = baseCriticalDamage;
+        projectileCountPercent = baseProjectileCount;
+        bonusPierce = basePierce;
+        scoreMultiplier = baseScore;
+    }
+
     // =========================================================
     // PROPERTIES
     // =========================================================
 
     public float DamageMultiplier =>
-        Mathf.Max(damageMultiplier, 0f);
+        Mathf.Max(damageMultiplier, 0f) * (Time.time < damageBoostUntil ? 1.35f : 1f);
 
     public float FireRateMultiplier =>
-        Mathf.Max(fireRateMultiplier, 0f);
+        Mathf.Max(fireRateMultiplier, 0f) * Mathf.Max(Time.time < fireBoostUntil ? 1.4f : 1f,
+            ComboSystem.Instance != null ? ComboSystem.Instance.TempoMultiplier : 1f);
 
     public float MoveSpeed =>
-        5f * Mathf.Max(moveSpeedMultiplier, 0f);
+        5f * Mathf.Max(moveSpeedMultiplier, 0f) * (Time.time < speedBoostUntil ? 1.25f : 1f);
 
     public float ProjectileSpeedMultiplier =>
         Mathf.Max(projectileSpeedMultiplier, 0f);

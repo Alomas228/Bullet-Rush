@@ -17,14 +17,15 @@ MonoBehaviour:
   description: "Максимальная частота огня, слабые отдельные пули и широкий разброс. Для плотного потока попаданий."
   weaponType: 2
   rarity: 4
-  unlockLevel: 12
-  price: 3000
-  weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 26
+  unlockLevel: 21
+  price: 1700
+  weaponPrefab: {fileID: 105748006008224434, guid: 29260c3dad4c26393e038f8351ac6a19, type: 3}
+  preview: {fileID: 21300000, guid: d9a92c319cc3cef0dadc4d25a6edf0b9, type: 3}
+  damage: 28
   fireRate: 28
   projectileSpeed: 16
   projectileCount: 1
-  spreadAngle: 7
+  spreadAngle: 5
   pierceCount: 0
   specialType: 0
   shotsPerBurst: 3

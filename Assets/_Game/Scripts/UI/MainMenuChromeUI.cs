@@ -13,7 +13,7 @@ public class MainMenuChromeUI : MonoBehaviour, ILangRefreshable
         "ArcadeSurvivor.Menu.WeaponAdDate";
 
     private const int BonusAdCoins = 75;
-    private const int FallbackWeaponCoins = 300;
+    private const int FallbackWeaponCoins = 100;
 
     [Header("Top Bar")]
     [SerializeField] private TMP_Text coinsText;
@@ -613,7 +613,7 @@ public class MainMenuChromeUI : MonoBehaviour, ILangRefreshable
 
         bool grantedWeapon = false;
 
-        if (reward != null && !EquipmentManager.IsOwned(reward))
+        if (reward != null && EquipmentManager.IsUnlocked(reward) && !EquipmentManager.IsOwned(reward))
         {
             EquipmentManager.GrantWeapon(reward.WeaponName);
             grantedWeapon = true;
@@ -701,19 +701,22 @@ public class MainMenuChromeUI : MonoBehaviour, ILangRefreshable
         System.Collections.Generic.IReadOnlyList<WeaponData> weapons =
             upgrades.GetAvailableWeapons();
 
+        WeaponData cheapest = null;
         for (int i = 0; i < weapons.Count; i++)
         {
             WeaponData weapon = weapons[i];
 
             if (weapon != null &&
                 weapon.Price > 0 &&
-                !EquipmentManager.IsOwned(weapon))
+                EquipmentManager.IsUnlocked(weapon) &&
+                !EquipmentManager.IsOwned(weapon) &&
+                (cheapest == null || weapon.Price < cheapest.Price))
             {
-                return weapon;
+                cheapest = weapon;
             }
         }
 
-        return null;
+        return cheapest;
     }
 
     private void OpenSettings()

@@ -38,11 +38,11 @@ public static class EnemyHealthBarSystem
     // попадать под физику, ни участвовать в raycast'ах.
     private const int UiLayer = 5;
 
-    private const int CanvasSortingOrder = 0;
+    private const int CanvasSortingOrder = -20;
 
     // Запас за краем экрана, чтобы моб, стоящий на самом краю
     // кадра, не терял половину полосы.
-    private const float ViewportMargin = 16f;
+    private const float ViewportMargin = 0f;
 
     // Как часто искать камеру заново, пока её нет (меню, смена
     // сцены). Camera.main - это поиск по тегу, каждый кадр он
@@ -172,13 +172,25 @@ public static class EnemyHealthBarSystem
     /// </summary>
     internal static void Tick()
     {
+        for (int i = 0; i < activeCount; i++)
+        {
+            if (activeBars[i] != null)
+                activeBars[i].Claimed = false;
+        }
+
         if (count == 0)
+        {
+            ReleaseUnclaimed();
             return;
+        }
 
         Camera cam = ResolveCamera();
 
         if (cam == null)
+        {
+            ReleaseUnclaimed();
             return;
+        }
 
         // Пока не показана ни одна полоса, пересматривать мобов
         // каждый кадр смысла нет: 10 раз в секунду хватает, чтобы
@@ -197,12 +209,22 @@ public static class EnemyHealthBarSystem
         EnsureCanvas();
 
         if (canvasRect == null)
+        {
+            ReleaseUnclaimed();
             return;
+        }
 
         int found = Collect(cam);
 
-        PlaceBars(found);
+        // Recycle bars leaving the viewport before renting new ones.
+        for (int i = 0; i < found; i++)
+        {
+            EnemyHealthBarView existing = candidates[i].HealthBarView;
+            if (existing != null)
+                existing.Claimed = true;
+        }
         ReleaseUnclaimed();
+        PlaceBars(found);
     }
 
     /// <summary>
@@ -214,11 +236,8 @@ public static class EnemyHealthBarSystem
     {
         int found = 0;
 
-        float halfWidth =
-            canvasRect.rect.width * 0.5f + ViewportMargin;
-
-        float halfHeight =
-            canvasRect.rect.height * 0.5f + ViewportMargin;
+        Rect bounds = ResponsiveUi.SafeRect(canvasRect);
+        Rect viewport = cam.pixelRect;
 
         for (int i = 0; i < count; i++)
         {
@@ -230,7 +249,7 @@ public static class EnemyHealthBarSystem
 
             // Полосы нет, пока моб целый. Проверка дешевле любой
             // работы с камерой, поэтому идёт первой.
-            if (enemy.IsDead || !enemy.HasTakenDamage)
+            if (!enemy.isActiveAndEnabled || enemy.IsDead || !enemy.HasTakenDamage)
                 continue;
 
             EnemyHealthBarSettings settings =
@@ -244,7 +263,8 @@ public static class EnemyHealthBarSystem
 
             // z - расстояние вдоль взгляда камеры. За спиной
             // камеры оно отрицательное, это и есть "за экраном".
-            if (screen.z <= 0f)
+            if (screen.z < cam.nearClipPlane || screen.z > cam.farClipPlane ||
+                !viewport.Contains((Vector2)screen))
                 continue;
 
             float maxDistance = settings.MaxDistance;
@@ -252,17 +272,24 @@ public static class EnemyHealthBarSystem
             if (maxDistance > 0f && screen.z > maxDistance)
                 continue;
 
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRect,
                 screen,
                 null,
-                out Vector2 local);
+                out Vector2 local))
+                continue;
 
             // В кадре проверяется сам моб, а не полоса: сдвиг на
             // пару десятков пикселей вверх не должен убирать
             // полосу у моба, стоящего на самом краю экрана.
-            if (Mathf.Abs(local.x) > halfWidth ||
-                Mathf.Abs(local.y) > halfHeight)
+            Vector2 position = local + settings.ScreenOffset +
+                (enemy.Tactic != Enemy.TacticalRole.None ? Vector2.up * 20f : Vector2.zero);
+            Vector2 halfSize = settings.BarSize * 0.5f;
+            if (!bounds.Contains(local) ||
+                position.x - halfSize.x < bounds.xMin + ViewportMargin ||
+                position.x + halfSize.x > bounds.xMax - ViewportMargin ||
+                position.y - halfSize.y < bounds.yMin + ViewportMargin ||
+                position.y + halfSize.y > bounds.yMax - ViewportMargin)
             {
                 continue;
             }
@@ -272,7 +299,7 @@ public static class EnemyHealthBarSystem
             // зависит от того, под каким углом стоит камера.
             InsertCandidate(
                 enemy,
-                local + settings.ScreenOffset,
+                position,
                 screen.z,
                 ref found);
         }
@@ -386,7 +413,7 @@ public static class EnemyHealthBarSystem
         {
             EnemyHealthBarView bar = activeBars[i];
 
-            if (bar == null || bar.Claimed)
+            if (bar != null && bar.Claimed)
                 continue;
 
             RemoveActiveAt(i);
@@ -550,7 +577,7 @@ public static class EnemyHealthBarSystem
         scaler.screenMatchMode =
             CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
 
-        scaler.matchWidthOrHeight = 0.5f;
+        ResponsiveUi.Configure(scaler, ReferenceResolution);
 
         canvasRect = (RectTransform)canvasObject.transform;
     }

@@ -47,7 +47,7 @@ public static class DamageNumberSystem
 
     // Выше канваса HP-баров (у него 0), чтобы число перекрывало
     // полосу, а не наоборот.
-    private const int CanvasSortingOrder = 1;
+    private const int CanvasSortingOrder = -19;
 
     // Опорное разрешение то же, что у игрового HUD, поэтому
     // канвасные единицы совпадают с пикселями остального
@@ -132,6 +132,10 @@ public static class DamageNumberSystem
         if (numberTemplate == null)
             return;
 
+        Camera cam = ResolveCamera();
+        if (cam == null || !IsVisible(cam, cam.WorldToScreenPoint(worldPosition)))
+            return;
+
         // Все мобы ссылаются на один префаб. Если попался вдруг
         // другой - берётся первый: смешивать в одном батче два
         // разных кегля незачем, а ломать чужой префаб нельзя.
@@ -212,9 +216,13 @@ public static class DamageNumberSystem
         Camera cam = ResolveCamera();
 
         if (cam == null)
+        {
+            HideAll();
             return;
+        }
 
         float deltaTime = Time.deltaTime;
+        Rect bounds = ResponsiveUi.SafeRect(canvasRect);
 
         // Обратный обход + swap-back: элемент, переехавший в i,
         // уже был обработан выше по индексу.
@@ -248,23 +256,35 @@ public static class DamageNumberSystem
             // За спиной камеры проекция зеркальная: точка
             // отразилась бы через центр экрана и число моргнуло
             // бы в другой половине кадра. Гасим, а не проецируем.
-            if (screen.z <= 0f)
+            if (!IsVisible(cam, screen) ||
+                !IsVisible(cam, cam.WorldToScreenPoint(number.OriginPosition)))
             {
                 number.Hide();
                 continue;
             }
 
-            RectTransformUtility
+            if (!RectTransformUtility
                 .ScreenPointToLocalPointInRectangle(
                     canvasRect,
                     screen,
                     null,
-                    out Vector2 local);
+                    out Vector2 local) || !number.FitsInside(bounds, local, NominalDistance / screen.z))
+            {
+                number.Hide();
+                continue;
+            }
 
             number.Show(
                 local,
                 NominalDistance / screen.z);
         }
+    }
+
+    private static bool IsVisible(Camera cam, Vector3 screen)
+    {
+        return screen.z >= cam.nearClipPlane && screen.z <= cam.farClipPlane &&
+               cam.pixelRect.Contains((Vector2)screen) &&
+               ResponsiveUi.ScreenSafeArea.Contains((Vector2)screen);
     }
 
     private static DamageNumber Rent()
@@ -408,7 +428,7 @@ public static class DamageNumberSystem
         scaler.screenMatchMode =
             CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
 
-        scaler.matchWidthOrHeight = 0.5f;
+        ResponsiveUi.Configure(scaler, ReferenceResolution);
 
         canvasRect = (RectTransform)canvasObject.transform;
     }

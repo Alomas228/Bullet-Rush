@@ -49,7 +49,18 @@ public static class MapMechanicText
     {
         string key = KeyOf(mechanic);
 
-        return key == null ? string.Empty : Lang.Get(key + ".desc");
+        if (key == null) return string.Empty;
+        string description = Lang.Get(key + ".desc");
+        return mechanic switch
+        {
+            MapMechanic.None => Lang.GetOr("map_tip.forest", description),
+            MapMechanic.LowGravity => Lang.GetOr("map_tip.oxygen", description),
+            MapMechanic.Highland => Lang.GetOr("map_tip.ice", description),
+            MapMechanic.OpenField => Lang.GetOr("map_tip.wet", description),
+            MapMechanic.Urban => Lang.GetOr("map_tip.traffic", description),
+            MapMechanic.Sandstorm => Lang.GetOr("map_tip.storm", description),
+            _ => description
+        };
     }
 
     private static string KeyOf(MapMechanic mechanic)

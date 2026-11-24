@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using static GameplayJourney;
 
-public sealed class ProtectedCache : MonoBehaviour
+public sealed class ProtectedCache : CombatMarkSource
 {
     private EnemySpawner spawner;
     private Action complete;
@@ -14,7 +14,6 @@ public sealed class ProtectedCache : MonoBehaviour
     public void Initialize(EnemySpawner source, Action done)
     {
         spawner = source; complete = done;
-        JourneyVisuals.Ring(transform, "CacheRing", new Color(1, 0.7f, 0.2f), 2.2f);
         Enemy.OnEnemyKilled += Killed;
         Instance?.Notify(T("Защищённый тайник: подойди и нажми E. 6 стражей → выбор улучшения после волны.",
             "Protected cache: approach and press E. 6 guards → an extra upgrade choice after the wave.",
@@ -46,10 +45,16 @@ public sealed class ProtectedCache : MonoBehaviour
         {
             Vector3 position = spawner.GetPlayerRingSpawnPosition();
             Enemy enemy = spawner.SpawnEnemyAtPosition(i == 0 ? EnemyType.Tank : i % 2 == 0 ? EnemyType.Fast : EnemyType.Normal, position, 0.8f);
-            if (enemy != null) { guards.Add(enemy); JourneyVisuals.Ring(enemy.transform, "CacheGuard", new Color(1, 0.7f, 0.2f), 0.9f); }
+            if (enemy != null) { guards.Add(enemy); enemy.MarkCacheGuard(); }
         }
         if (guards.Count == 0) Finish();
-        else Instance?.Notify(T("Стражи отмечены золотым кольцом", "Guards are marked by golden rings", "Muhafızlar altın halkayla işaretli"));
+        else Instance?.Notify(T("У стражей золотые щитки", "Look for the guards with gold badges", "Muhafızlarda altın kalkan rozeti var"));
+    }
+    internal override void Draw(CombatMarkBatch batch)
+    {
+        Vector3 position = transform.position;
+        position.y -= .4f;
+        batch.Stamp(CombatMarkShape.Cache, Matrix4x4.TRS(position, Quaternion.Euler(0,-18,0), Vector3.one));
     }
     private void Killed(Enemy enemy)
     {

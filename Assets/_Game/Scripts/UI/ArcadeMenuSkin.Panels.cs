@@ -22,7 +22,7 @@ public sealed partial class ArcadeMenuSkin
     private GameObject BuildSettingsPanel()
     {
         RectTransform root = BuildPanelBackdrop("SkinSettingsPanel");
-        RectTransform card = BuildPanelCard(root, "Card", new Vector2(980f, 740f));
+        RectTransform card = BuildPanelCard(root, "Card", new Vector2(980f, 578f));
 
         BuildPanelHeader(
             card,
@@ -137,28 +137,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("settings.reset", "СБРОСИТЬ НАСТРОЙКИ")
         );
 
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "CloseButton",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-36f, 24f),
-            new Vector2(240f, 56f)
-        );
-        Button closeButton = ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Gold,
-            "",
-            ArcadeKitAssets.BodyBold,
-            18f,
-            ArcadeUiTheme.TextDark,
-            () => CloseCustomPanel(settingsPanel)
-        );
-
-        TMP_Text closeLabel = close.Find("Label").GetComponent<TMP_Text>();
-        AddLangBinding(closeLabel, () => Lang.GetOr("settings.close", "ЗАКРЫТЬ"));
-
+        RuntimeWindow.Settings(card);
         return root.gameObject;
     }
 
@@ -173,13 +152,15 @@ public sealed partial class ArcadeMenuSkin
             () => CloseCustomPanel(statsPanel)
         );
 
+        var profile = MenuSheet.Box(card, "PlayerProfile", 36,106,948,108,MenuSheet.Card);
+        profile.transform.SetAsFirstSibling();
         RectTransform avatar = ArcadeUiFactory.At(
             card,
             "Avatar",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -116f),
-            new Vector2(124f, 138f)
+            new Vector2(58f, -124f),
+            new Vector2(60f, 66f)
         );
         ArcadeUiFactory.Image(avatar, ArcadeKitAssets.HexFill, ArcadeUiTheme.Panel);
         RectTransform avatarRing = ArcadeUiFactory.At(
@@ -187,8 +168,8 @@ public sealed partial class ArcadeMenuSkin
             "AvatarRing",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -116f),
-            new Vector2(134f, 148f)
+            new Vector2(58f, -124f),
+            new Vector2(68f, 74f)
         );
         ArcadeUiFactory.Image(avatarRing, ArcadeKitAssets.HexRing, ArcadeUiTheme.Gold);
         RectTransform avatarIcon = ArcadeUiFactory.At(
@@ -196,8 +177,8 @@ public sealed partial class ArcadeMenuSkin
             "AvatarIcon",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -116f),
-            new Vector2(60f, 60f)
+            new Vector2(58f, -124f),
+            new Vector2(38f, 38f)
         );
         ArcadeUiFactory.Image(avatarIcon, ArcadeKitAssets.Icon("person"), ArcadeUiTheme.Gold);
 
@@ -211,7 +192,7 @@ public sealed partial class ArcadeMenuSkin
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -272f),
+            new Vector2(146f, -136f),
             new Vector2(300f, 32f),
             true
         );
@@ -221,8 +202,8 @@ public sealed partial class ArcadeMenuSkin
             "AuthButton",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -320f),
-            new Vector2(280f, 52f)
+            new Vector2(736f, -132f),
+            new Vector2(226f, 52f)
         );
         statsAuthButton = ArcadeUiFactory.Button(
             auth,
@@ -242,11 +223,11 @@ public sealed partial class ArcadeMenuSkin
             "1",
             ArcadeKitAssets.Display,
             30f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -400f),
+            new Vector2(438f, -116f),
             new Vector2(120f, 38f)
         );
 
@@ -255,8 +236,8 @@ public sealed partial class ArcadeMenuSkin
             "LevelBar",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -450f),
-            new Vector2(300f, 14f)
+            new Vector2(438f, -166f),
+            new Vector2(254f, 10f)
         );
         statsXpBar = ArcadeUiFactory.Bar(
             levelBar,
@@ -276,7 +257,7 @@ public sealed partial class ArcadeMenuSkin
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(40f, -476f),
+            new Vector2(438f, -179f),
             new Vector2(300f, 24f)
         );
 
@@ -286,7 +267,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.achievements", "ДОСТИЖЕНИЯ"),
             "trophy",
             ArcadeUiTheme.Purple,
-            new Vector2(400f, -116f)
+            new Vector2(36f, -240f)
         );
 
         statsBestWaveText = BuildStatsTile(
@@ -295,7 +276,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.wave_short", "ЛУЧШАЯ ВОЛНА"),
             "flame",
             ArcadeUiTheme.Orange,
-            new Vector2(710f, -116f)
+            new Vector2(358f, -240f)
         );
 
         statsBestScoreText = BuildStatsTile(
@@ -304,7 +285,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.best_score", "ЛУЧШИЙ СЧЁТ"),
             "star",
             ArcadeUiTheme.Gold,
-            new Vector2(400f, -266f)
+            new Vector2(680f, -240f)
         );
 
         statsRunsText = BuildStatsTile(
@@ -313,7 +294,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.runs", "ЗАБЕГИ"),
             "play",
             ArcadeUiTheme.Cyan,
-            new Vector2(710f, -266f)
+            new Vector2(36f, -392f)
         );
 
         statsCoinsText = BuildStatsTile(
@@ -322,7 +303,7 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.coins", "МОНЕТЫ"),
             "coin",
             ArcadeUiTheme.Gold,
-            new Vector2(400f, -416f)
+            new Vector2(358f, -392f)
         );
 
         statsWeaponsText = BuildStatsTile(
@@ -331,30 +312,8 @@ public sealed partial class ArcadeMenuSkin
             () => Lang.GetOr("menu.skin.weapons", "ОРУЖИЕ"),
             "sword",
             ArcadeUiTheme.Green,
-            new Vector2(710f, -416f)
+            new Vector2(680f, -392f)
         );
-
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "CloseButton",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-36f, 32f),
-            new Vector2(240f, 56f)
-        );
-        Button closeButton = ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Gold,
-            "",
-            ArcadeKitAssets.BodyBold,
-            18f,
-            ArcadeUiTheme.TextDark,
-            () => CloseCustomPanel(statsPanel)
-        );
-
-        TMP_Text closeLabel = close.Find("Label").GetComponent<TMP_Text>();
-        AddLangBinding(closeLabel, () => Lang.GetOr("settings.close", "ЗАКРЫТЬ"));
 
         return root.gameObject;
     }
@@ -374,30 +333,14 @@ public sealed partial class ArcadeMenuSkin
         {
             int index = i + 1;
 
-            RectTransform dot = ArcadeUiFactory.At(
-                card,
-                "TipDot" + index,
-                new Vector2(0f, 1f),
-                new Vector2(0f, 1f),
-                new Vector2(44f, -122f - i * 66f),
-                new Vector2(18f, 18f)
-            );
-            ArcadeUiFactory.Image(dot, ArcadeKitAssets.Spark, ArcadeUiTheme.Gold);
-
-            TMP_Text tip = ArcadeUiFactory.Label(
-                card,
-                "Tip" + index,
-                "",
-                ArcadeKitAssets.Body,
-                19f,
-                ArcadeUiTheme.TextSecondary,
-                TextAlignmentOptions.TopLeft,
-                new Vector2(0f, 1f),
-                new Vector2(0f, 1f),
-                new Vector2(76f, -128f - i * 66f),
-                new Vector2(900f, 58f)
-            );
-
+            var entry = MenuSheet.Box(card, "TipCard" + index, 36 + (i % 2) * 482, 112 + (i / 2) * 148,
+                466, 134, MenuSheet.Card);
+            string[] icons = { "target", "sword", "coin", "shield", "flame", "gift" };
+            ArcadeUiFactory.Icon(entry.transform, "Icon", icons[i], MenuSheet.Muted, new Vector2(0,1), new Vector2(0,1),
+                new Vector2(18,-20), new Vector2(34,34));
+            TMP_Text tip = ArcadeUiFactory.Label(ArcadeUiFactory.Stretch(entry.transform,"Tip",66,12,16,12), "",
+                ArcadeKitAssets.Body,21, MenuSheet.Ink, TextAlignmentOptions.MidlineLeft);
+            tip.enableAutoSizing = true; tip.fontSizeMin = 16; tip.fontSizeMax = 21;
             AddLangBinding(tip, () => Lang.GetOr(
                 "menu.skin.tips." + index,
                 TipFallback(index)
@@ -443,28 +386,6 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(360f, 28f)
         );
 
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "CloseButton",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-36f, 32f),
-            new Vector2(240f, 56f)
-        );
-        Button closeButton = ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.PanelRaised,
-            "",
-            ArcadeKitAssets.BodyBold,
-            18f,
-            ArcadeUiTheme.TextPrimary,
-            () => CloseCustomPanel(tipsPanel)
-        );
-
-        TMP_Text closeLabel = close.Find("Label").GetComponent<TMP_Text>();
-        AddLangBinding(closeLabel, () => Lang.GetOr("settings.close", "ЗАКРЫТЬ"));
-
         return root.gameObject;
     }
 
@@ -482,13 +403,13 @@ public sealed partial class ArcadeMenuSkin
         for (int i = 0; i < leaderboardTabs.Length; i++)
         {
             int tab = i;
-            float width = 218f;
+            float width = 234f;
             RectTransform tabRect = ArcadeUiFactory.At(
                 card,
                 "LeaderboardTab" + i,
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
-                new Vector2(40f + i * (width + 12f), -112f),
+                new Vector2(36f, -116f - 70f * i),
                 new Vector2(width, 52f)
             );
             leaderboardTabs[i] = ArcadeUiFactory.Button(
@@ -513,13 +434,13 @@ public sealed partial class ArcadeMenuSkin
             "LeaderboardViewport",
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
-            new Vector2(46f, -184f),
-            new Vector2(928f, 430f)
+            new Vector2(294f, -116f),
+            new Vector2(688f, 490f)
         );
-        Image viewportImage = ArcadeUiFactory.Image(viewport, null, Color.white);
+        Image viewportImage = ArcadeUiFactory.Image(viewport, ArcadeKitAssets.CutPanel, MenuSheet.Card, true);
         viewportImage.raycastTarget = false;
         viewport.gameObject.AddComponent<RectMask2D>();
-        RectTransform content = ArcadeUiFactory.Stretch(viewport, "Content");
+        RectTransform content = ArcadeUiFactory.Stretch(viewport, "Content", 22, 14, 22, 14);
         leaderboardText = ArcadeUiFactory.Label(
             content,
             Lang.GetOr("lb.loading", "ЗАГРУЗКА...").ToUpperInvariant(),
@@ -533,29 +454,6 @@ public sealed partial class ArcadeMenuSkin
         leaderboardUi = gameObject.AddComponent<LeaderboardUI>();
         leaderboardUi.Configure(LeaderboardName(0), leaderboardText, true);
         RefreshLeaderboardTabs();
-
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "CloseButton",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-36f, 28f),
-            new Vector2(240f, 56f)
-        );
-        ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.PanelRaised,
-            "",
-            ArcadeKitAssets.BodyBold,
-            18f,
-            ArcadeUiTheme.TextPrimary,
-            () => CloseCustomPanel(leaderboardPanel)
-        );
-        AddLangBinding(
-            close.Find("Label").GetComponent<TMP_Text>(),
-            () => Lang.GetOr("settings.close", "ЗАКРЫТЬ")
-        );
 
         return root.gameObject;
     }
@@ -651,8 +549,9 @@ public sealed partial class ArcadeMenuSkin
         string name,
         Vector2 size)
     {
+        var board = UiArtboard.Create(parent, size + new Vector2(48, 48));
         RectTransform card = ArcadeUiFactory.At(
-            parent,
+            board,
             name,
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
@@ -662,7 +561,7 @@ public sealed partial class ArcadeMenuSkin
 
         Image image = ArcadeUiFactory.Image(
             card,
-            ArcadeKitAssets.RoundRect,
+            ArcadeKitAssets.CutPanel,
             ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.99f),
             true
         );
@@ -703,34 +602,7 @@ public sealed partial class ArcadeMenuSkin
         );
         ArcadeUiFactory.Image(line, null, ArcadeUiTheme.Alpha(ArcadeUiTheme.Gold, 0.5f));
 
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "Close",
-            new Vector2(1f, 1f),
-            new Vector2(1f, 1f),
-            new Vector2(-28f, -24f),
-            new Vector2(56f, 56f)
-        );
-        ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.Knob,
-            ArcadeUiTheme.PanelRaised,
-            null,
-            ArcadeKitAssets.Body,
-            16f,
-            ArcadeUiTheme.TextPrimary,
-            onClose
-        );
-
-        RectTransform icon = ArcadeUiFactory.At(
-            close,
-            "Icon",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            new Vector2(24f, 24f)
-        );
-        ArcadeUiFactory.Image(icon, ArcadeKitAssets.Icon("close"), ArcadeUiTheme.TextPrimary);
+        WindowCloseButton.Create(card, onClose);
     }
 
     private TMP_Text SectionTitle(
@@ -745,7 +617,7 @@ public sealed partial class ArcadeMenuSkin
             "",
             ArcadeKitAssets.BodyBold,
             17f,
-            ArcadeUiTheme.Gold,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 0.5f),
@@ -805,7 +677,7 @@ public sealed partial class ArcadeMenuSkin
             "",
             ArcadeKitAssets.BodyBold,
             17f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Right,
             new Vector2(1f, 1f),
             new Vector2(1f, 0.5f),
@@ -904,7 +776,7 @@ public sealed partial class ArcadeMenuSkin
             new Vector2(0f, 1f),
             new Vector2(0f, 1f),
             position,
-            new Vector2(270f, 130f)
+            new Vector2(304f, 132f)
         );
         ArcadeUiFactory.Image(
             rect,

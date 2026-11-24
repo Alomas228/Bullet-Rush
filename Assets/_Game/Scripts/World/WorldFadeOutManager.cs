@@ -11,6 +11,39 @@ public class WorldFadeOutManager : MonoBehaviour
 
     public bool IsFading => fading;
 
+    // Called while the menu curtain is opaque. Preserve the player and scene UI;
+    // the arena generator owns structures, and the next run reuses this scene.
+    public static void ClearRunVisualsForMenu()
+    {
+        LootPickup.ClearRunLoot();
+        DashVfxBatcher.ClearAll();
+        DamageNumberSystem.HideAll();
+        BloodPoolBatcher.FadeOut(.08f);
+
+        foreach (Enemy enemy in FindObjectsByType<Enemy>(FindObjectsInactive.Include))
+        {
+            if (enemy == null) continue;
+            enemy.gameObject.SetActive(false);
+            Destroy(enemy.gameObject);
+        }
+
+        foreach (EnemyProjectile projectile in FindObjectsByType<EnemyProjectile>())
+            if (projectile != null) projectile.ReturnToPool();
+
+        foreach (Bullet bullet in FindObjectsByType<Bullet>())
+            if (bullet != null) bullet.ReturnToPool();
+
+        foreach (VfxEffect effect in FindObjectsByType<VfxEffect>())
+            if (effect != null) effect.Stop();
+
+        foreach (TraceBoltEffect effect in FindObjectsByType<TraceBoltEffect>())
+            if (effect != null)
+            {
+                effect.gameObject.SetActive(false);
+                Destroy(effect.gameObject);
+            }
+    }
+
     public void FadeOutEverything()
     {
         if (fading)
@@ -70,7 +103,9 @@ public class WorldFadeOutManager : MonoBehaviour
         CollectFrom(result, FindObjectsByType<Enemy>());
         CollectFrom(result, FindObjectsByType<EnemyProjectile>());
         CollectFrom(result, FindObjectsByType<Bullet>());
-        CollectFrom(result, FindObjectsByType<WorldStructure>());
+        foreach (WorldStructure structure in FindObjectsByType<WorldStructure>())
+            if (structure != null && !structure.IsArenaBoundary && !result.Contains(structure.gameObject))
+                result.Add(structure.gameObject);
 
         return result;
     }

@@ -13,6 +13,12 @@ public class CameraFollow : MonoBehaviour
 
     public static PersistedPose SavedPose;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetPendingPose()
+    {
+        SavedPose = default;
+    }
+
     public event System.Action OnReachedMenu;
 
     public bool IsTransitioning => transitioning;
@@ -33,9 +39,6 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private float shakeAmplitude = 0.35f;
     [SerializeField] private float shakeDecay = 3f;
     [SerializeField] private float maxShakeRotation = 3f;
-
-    [Tooltip("При слабой тряске (< этого уровня) камера дёргается через кадр — меньше лишних проходов рендера.")]
-    [SerializeField] private float shakeSkipFramesThreshold = 0.3f;
 
     [Header("Mouse Parallax")]
     [Tooltip("Сила смещения камеры в сторону курсора.")]
@@ -62,9 +65,16 @@ public class CameraFollow : MonoBehaviour
     private bool followTarget;
     private bool transitioning;
     private bool menuReported;
+    private Vector3 transitionOrigin;
+    private Quaternion transitionOriginRotation;
+    private Vector3 transitionOriginParallax;
+    private float transitionElapsed;
+    private float transitionDuration;
+    private bool transitionInitialized;
 
     private float trauma;
-    private int shakeFrameIndex;
+    private float fireTrauma;
+    private float shakePhase;
     private Vector3 basePosition;
     private Quaternion baseRotation;
     private bool baseInitialized;
@@ -80,11 +90,14 @@ public class CameraFollow : MonoBehaviour
 
     public void AddShake(float amount)
     {
+        if (amount <= 0f) return;
         if (SettingsManager.Instance != null &&
             !SettingsManager.Instance.ScreenShakeEnabled)
             return;
 
-        trauma = Mathf.Min(trauma + amount, 1f);
+        // Damage, explosions and impacts refresh the stronger impulse;
+        // multiple simultaneous hits must not stack into a violent shake.
+        trauma = Mathf.Max(trauma, Mathf.Min(amount, .78f));
     }
 
     public void AddFireShake(float amount)
@@ -96,7 +109,7 @@ public class CameraFollow : MonoBehaviour
             !SettingsManager.Instance.FireShakeEnabled)
             return;
 
-        trauma = Mathf.Min(trauma + amount, 1f);
+        fireTrauma = Mathf.Min(fireTrauma + amount, .42f);
     }
 
     private void Start()
@@ -107,23 +120,26 @@ public class CameraFollow : MonoBehaviour
             instance != null &&
             instance.CurrentState == GameState.Playing;
 
-        if (isPlaying)
+        if (SavedPose.hasPose)
         {
-            MoveToGameplayPositionImmediate();
-            SavedPose = default;
+            transform.SetPositionAndRotation(SavedPose.position, SavedPose.rotation);
+            basePosition = transform.position;
+            baseRotation = transform.rotation;
+            baseInitialized = true;
+            shakeBasePosition = transform.position;
+            followTarget = false;
+            transitioning = true;
+        }
+        else if (isPlaying)
+        {
+            // A scene may already have received Playing before Start. Always
+            // enter gameplay from the menu framing, even on a restarted scene.
+            MoveToMenuPositionImmediate();
+            transitioning = true;
         }
         else
         {
-            if (SavedPose.hasPose)
-            {
-                transform.position = SavedPose.position;
-                transform.rotation = SavedPose.rotation;
-                transitioning = true;
-            }
-            else
-            {
-                MoveToMenuPositionImmediate();
-            }
+            MoveToMenuPositionImmediate();
         }
 
         SavedPose = default;
@@ -146,11 +162,16 @@ public class CameraFollow : MonoBehaviour
             case GameState.Menu:
                 followTarget = false;
                 transitioning = true;
+                transitionInitialized = false;
+                trauma = 0f;
+                fireTrauma = 0f;
                 menuReported = false;
                 break;
 
             case GameState.Playing:
+                followTarget = false;
                 transitioning = true;
+                transitionInitialized = false;
                 menuReported = false;
                 break;
 
@@ -184,7 +205,7 @@ public class CameraFollow : MonoBehaviour
     // и переиспользуются в FreezeIfSettled и ApplyMouseParallaxToPosition.
     private void RefreshParallaxOffsetOncePerFrame()
     {
-        if (Mouse.current == null)
+        if (Mouse.current == null || MobileControls.IsTouchDevice)
         {
             cachedParallaxOffset = Vector3.zero;
             return;
@@ -244,10 +265,7 @@ public class CameraFollow : MonoBehaviour
     {
         EnsureBaseInitialized();
 
-        Vector3 targetPos =
-            target.position + offset;
-        if (RamLiftArena.Active != null)
-            targetPos = RamLiftArena.Active.CameraPosition(targetPos, offset, Screen.width / (float)Mathf.Max(Screen.height, 1));
+        Vector3 targetPos = GetGameplayPosition();
 
         basePosition = Vector3.Lerp(
             basePosition,
@@ -345,6 +363,15 @@ public class CameraFollow : MonoBehaviour
         );
     }
 
+    private Vector3 GetGameplayPosition()
+    {
+        Vector3 destination = target.position + offset;
+        if (RamLiftArena.Active != null)
+            destination = RamLiftArena.Active.CameraPosition(destination, offset,
+                Screen.width / (float)Mathf.Max(Screen.height, 1));
+        return destination;
+    }
+
     private Vector3 GetMouseParallaxOffset()
     {
         return cachedParallaxOffset;
@@ -382,38 +409,32 @@ public class CameraFollow : MonoBehaviour
 
     private void ApplyShakeOverBase()
     {
-        if (trauma <= 0f)
+        if (trauma <= 0f && fireTrauma <= 0f)
             return;
 
         trauma = Mathf.Max(
             0f,
             trauma - shakeDecay * Time.unscaledDeltaTime
         );
+        fireTrauma = Mathf.Max(0f, fireTrauma - shakeDecay * 1.55f * Time.unscaledDeltaTime);
 
-        // Слабая тряска обновляется через кадр: камера держит
-        // предыдущее смещение, а лишний проход рендера не вызывается.
-        if (trauma < shakeSkipFramesThreshold)
-        {
-            shakeFrameIndex =
-                (shakeFrameIndex + 1) % 2;
-
-            if (shakeFrameIndex == 1)
-                return;
-        }
-
-        float strength = trauma * trauma;
+        // Use the dominant channel, never their sum. Smooth noise avoids
+        // the alternating-frame pops caused by independent random offsets.
+        float dominant = Mathf.Max(trauma, fireTrauma);
+        float strength = dominant * dominant;
+        shakePhase += Time.unscaledDeltaTime * 19f;
 
         Vector3 offset =
             new Vector3(
-                Random.Range(-1f, 1f),
-                Random.Range(-1f, 1f),
-                Random.Range(-1f, 1f)
+                ShakeNoise(12.7f),
+                ShakeNoise(47.1f) * .35f,
+                ShakeNoise(81.4f)
             ) *
             shakeAmplitude *
             strength;
 
         float rotation =
-            Random.Range(-1f, 1f) *
+            ShakeNoise(113.9f) *
             maxShakeRotation *
             strength;
 
@@ -428,6 +449,8 @@ public class CameraFollow : MonoBehaviour
             ) *
             baseRotation;
     }
+
+    private float ShakeNoise(float offset) => Mathf.PerlinNoise(shakePhase, offset) * 2f - 1f;
 
     private void ReportMenuSettledIfNeeded()
     {
@@ -455,86 +478,110 @@ public class CameraFollow : MonoBehaviour
 
         if (isMenu)
         {
-            destination = menuPosition;
-            targetRotation = Quaternion.LookRotation(
-                menuLookAt - menuPosition
-            );
+            GetMenuPose(out destination, out targetRotation);
         }
         else
         {
             if (target == null)
                 return;
 
-            destination = target.position + offset;
-            Vector3 lookDir = target.position - destination;
-            targetRotation = Quaternion.LookRotation(lookDir);
+            destination = GetGameplayPosition();
+            targetRotation = GetGameplayLookRotation();
         }
 
         EnsureBaseInitialized();
+        if (!transitionInitialized)
+        {
+            transitionInitialized = true;
+            transitionElapsed = 0f;
+            transitionOrigin = basePosition;
+            transitionOriginRotation = baseRotation;
+            transitionOriginParallax = smoothedParallax;
+            transitionDuration = GetTransitionDuration(destination, targetRotation);
+        }
 
-        basePosition = Vector3.Lerp(
-            basePosition,
-            destination,
-            transitionSpeed * Time.unscaledDeltaTime
-        );
+        // Scene activation can produce a very long first frame. Do not let a
+        // single long delta consume the whole animation and teleport the camera.
+        float dt = Mathf.Min(Time.unscaledDeltaTime, .05f);
+        transitionElapsed = Mathf.Min(transitionElapsed + dt, transitionDuration);
+        float t = Mathf.Clamp01(transitionElapsed / transitionDuration);
+        // Match the old fast initial response, then ease into the exact final
+        // pose. Unlike the old distance cutoff, this has no final position snap.
+        float remaining = 1f - t;
+        float ease = 1f - remaining * remaining * remaining * remaining;
+        basePosition = Vector3.Lerp(transitionOrigin, destination, ease);
+        baseRotation = Quaternion.Slerp(transitionOriginRotation, targetRotation, ease);
 
-        baseRotation = Quaternion.Slerp(
-            baseRotation,
-            targetRotation,
-            transitionSpeed * Time.unscaledDeltaTime
-        );
-
-        transform.position = basePosition;
-        transform.rotation = baseRotation;
-
-        if (!isMenu)
-            ApplyMouseParallaxToPosition();
-
+        // Parallax is blended once per frame (also on the final frame), then
+        // handed off continuously to normal following rather than being reset.
+        if (isMenu)
+            smoothedParallax = Vector3.Lerp(transitionOriginParallax, Vector3.zero, ease);
+        else
+        {
+            float blend = 1f - Mathf.Exp(-parallaxSmoothSpeed * dt);
+            smoothedParallax = Vector3.Lerp(smoothedParallax, GetMouseParallaxOffset(), blend);
+        }
+        transform.SetPositionAndRotation(basePosition + smoothedParallax, baseRotation);
         shakeBasePosition = transform.position;
 
-        float distance = Vector3.Distance(
-            basePosition,
-            destination
-        );
-
-        if (distance < 0.1f)
+        if (t < 1f) return;
+        transitioning = false;
+        transitionInitialized = false;
+        followTarget = !isMenu;
+        if (isMenu)
         {
-            basePosition = destination;
-            baseRotation = targetRotation;
-            transitioning = false;
-
-            if (isMenu)
-            {
-                transform.position = basePosition;
-                transform.rotation = baseRotation;
-                menuReported = true;
-                OnReachedMenu?.Invoke();
-            }
-            else
-            {
-                transform.position = basePosition;
-                transform.rotation = baseRotation;
-                ApplyMouseParallaxToPosition();
-                followTarget = true;
-            }
-
-            shakeBasePosition = transform.position;
+            menuReported = true;
+            OnReachedMenu?.Invoke();
         }
+    }
+
+    private float GetTransitionDuration(Vector3 destination, Quaternion rotation)
+    {
+        float distance = Vector3.Distance(basePosition, destination);
+        float angle = Quaternion.Angle(baseRotation, rotation);
+        float speed = Mathf.Max(.1f, transitionSpeed);
+        float duration = Mathf.Log(1f + Mathf.Max(distance, angle * .12f) / .1f) / speed;
+        return Mathf.Clamp(duration, .65f, 2.5f);
     }
 
     public void MoveToMenuPositionImmediate()
     {
-        transform.position = menuPosition;
-
-        transform.rotation = Quaternion.LookRotation(
-            menuLookAt - menuPosition
-        );
+        GetMenuPose(out Vector3 position, out Quaternion rotation);
+        transform.SetPositionAndRotation(position, rotation);
 
         followTarget = false;
         transitioning = false;
+        transitionInitialized = false;
+        trauma = 0f;
+        fireTrauma = 0f;
 
         smoothedParallax = Vector3.zero;
         shakeBasePosition = transform.position;
+        basePosition = transform.position;
+        baseRotation = transform.rotation;
+        baseInitialized = true;
+    }
+
+    private void GetMenuPose(out Vector3 position, out Quaternion rotation)
+    {
+        if (ArcadeMenuSkin.CampMenuLayoutEnabled && target != null)
+        {
+            Vector3 offset = ArcadeMenuSkin.CampCameraOffset;
+            Vector3 forward = new Vector3(-offset.x, 0f, -offset.z).normalized;
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            // Frame the character to the right of the paper sidebar, without moving the player.
+            Rect safe = ResponsiveUi.ScreenSafeArea;
+            float scale = ResponsiveUi.Fit(safe.size, new Vector2(1320,1080), true);
+            float sidebar = 748f * scale + safe.xMin;
+            float shift = ResponsiveUi.Portrait ? 0f : 2.1f * (sidebar / Mathf.Max(1,Screen.height)) / (748f/1080f);
+            Vector3 lookAt = target.position - right * shift + Vector3.up * .08f;
+            position = lookAt + offset;
+            rotation = Quaternion.LookRotation(lookAt - position);
+            return;
+        }
+
+        position = menuPosition;
+        rotation = Quaternion.LookRotation(menuLookAt - menuPosition);
     }
 
     public void MoveToGameplayPositionImmediate()
@@ -549,9 +596,13 @@ public class CameraFollow : MonoBehaviour
 
         followTarget = true;
         transitioning = false;
+        transitionInitialized = false;
 
         smoothedParallax = Vector3.zero;
         shakeBasePosition = transform.position;
+        basePosition = transform.position;
+        baseRotation = transform.rotation;
+        baseInitialized = true;
     }
 
     public void SetTarget(Transform newTarget)
@@ -564,10 +615,8 @@ public class CameraFollow : MonoBehaviour
         if (transitionSpeed <= 0f)
             return 0f;
 
-        float distance = Vector3.Distance(
-            transform.position,
-            menuPosition
-        );
+        GetMenuPose(out Vector3 destination, out _);
+        float distance = Vector3.Distance(transform.position, destination);
 
         const float threshold = 0.1f;
 

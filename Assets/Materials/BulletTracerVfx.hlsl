@@ -101,8 +101,13 @@ half4 Frag(Varyings input) : SV_Target
     else
     {
         // Трассер: спад по ширине, хвост по длине.
-        shape = saturate(abs(p.y));
         tail = saturate(input.uv.x);
+        // Only the actual projectile-tail quad narrows toward its rear.
+        // Other streak/impact effects sharing this shader keep their shape.
+        float widthFactor = input.shapeOverride < -0.5
+            ? lerp(0.18, 1.0, sqrt(tail))
+            : 1.0;
+        shape = saturate(abs(p.y) / widthFactor);
     }
 
     // Один pow на пиксель, остальное - умножения.

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78d13c6105b39db45ab81a8ebdc3f415, type: 3}
   m_Name: Effect_ChainLightning_
   m_EditorClassIdentifier: Assembly-CSharp::ChainLightningEffectData
-  chance: 0.2
-  damage: 70
+  chance: 0.16
+  damage: 60
   radius: 4
   maxTargets: 2

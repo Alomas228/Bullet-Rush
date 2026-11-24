@@ -9,19 +9,19 @@ public static class ArcadeKitAssets
     private static readonly Dictionary<string, Sprite> Sprites =
         new Dictionary<string, Sprite>();
 
-    public static Sprite Panel => Sliced("panel", 72f, 72f, 72f, 72f);
-    public static Sprite Card => Sliced("card", 60f, 60f, 60f, 60f);
-    public static Sprite CardSoft => Sliced("card_soft", 60f, 60f, 60f, 60f);
-    public static Sprite Chip => Sliced("chip", 48f, 44f, 48f, 44f);
+    public static Sprite Panel => CutPanel;
+    public static Sprite Card => CutPanel;
+    public static Sprite CardSoft => CutPanel;
+    public static Sprite Chip => CutPanel;
     // Бордер должен покрывать весь скруглённый край текстуры
     // (pill 320x96 -> радиус 48, tag 192x64 -> радиус 32). Иначе
     // кривизна попадает в растягиваемую зону и форма плывёт.
     public static Sprite Pill => Sliced("pill", 48f, 48f, 48f, 48f);
-    public static Sprite Tag => Sliced("tag", 32f, 32f, 32f, 32f);
-    public static Sprite ButtonOrange => Sliced("button_orange", 100f, 56f, 100f, 56f);
-    public static Sprite ButtonDark => Sliced("button_dark", 76f, 48f, 76f, 48f);
-    public static Sprite ButtonGhost => Sliced("button_ghost", 64f, 40f, 64f, 40f);
-    public static Sprite IconTile => Sliced("icon_tile", 48f, 48f, 48f, 48f);
+    public static Sprite Tag => CutPanel;
+    public static Sprite ButtonOrange => CutPanel;
+    public static Sprite ButtonDark => CutPanel;
+    public static Sprite ButtonGhost => CutPanel;
+    public static Sprite IconTile => CutPanel;
     public static Sprite HexFill => Simple("hex_fill");
     public static Sprite HexRing => Simple("hex_ring");
     public static Sprite BrushDark => Simple("brush_dark");
@@ -37,6 +37,34 @@ public static class ArcadeKitAssets
     public static Sprite BarFill => RoundRect;
     public static Sprite SliderHandle => RoundRect;
     public static Sprite CardGrid => Simple("card_grid");
+
+    private static Sprite cutPanel;
+    public static Sprite CutPanel
+    {
+        get
+        {
+            if (cutPanel != null) return cutPanel;
+            const int size = 48;
+            const int cut = 16;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    int edge = 2 * size - cut - 1 - x - y;
+                    byte alpha = edge > 0 ? (byte)255 : edge == 0 ? (byte)128 : (byte)0;
+                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
+                }
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            cutPanel = Sprite.Create(texture, new Rect(0, 0, size, size), Vector2.one * 0.5f,
+                100f, 0, SpriteMeshType.FullRect, new Vector4(2, 2, cut, cut));
+            cutPanel.name = "Cut paper";
+            return cutPanel;
+        }
+    }
 
     private static Sprite roundRect;
 

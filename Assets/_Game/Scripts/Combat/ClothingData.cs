@@ -26,6 +26,7 @@ public class ClothingData : ScriptableObject
     [SerializeField] private string langKey;
 
     [SerializeField] private string clothingName;
+    [SerializeField] private bool defaultOutfit;
 
     [TextArea]
     [SerializeField] private string description;
@@ -48,6 +49,12 @@ public class ClothingData : ScriptableObject
     )]
     [SerializeField] private Texture2D skinTexture;
 
+    [SerializeField] private Mesh bodyMesh;
+    [SerializeField] private Sprite preview;
+
+    public Mesh BodyMesh => bodyMesh;
+    public Sprite Preview => preview;
+
     [Tooltip(
         "Цвет тела игрока при выбранной одежде. " +
         "Используется только когда текстура не задана."
@@ -55,6 +62,8 @@ public class ClothingData : ScriptableObject
     [SerializeField] private Color bodyColor = Color.white;
 
     public string ClothingName => clothingName;
+    public string MapPerkId => langKey;
+    public bool IsDefaultOutfit => defaultOutfit;
 
     public string Description => description;
 
@@ -64,7 +73,16 @@ public class ClothingData : ScriptableObject
 
     /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
     public string LocalizedDescription =>
-        Lang.GetOr("clo." + langKey + ".desc", description);
+        Lang.GetOr("clo." + langKey + ".desc", description) + MapPerkDescription;
+
+    private string MapPerkDescription => langKey switch
+    {
+        "astronaut" => "\n" + Lang.GetOr("map_perk.astronaut", "Space: oxygen capacity 36s instead of 10s."),
+        "cowboy" => "\n" + Lang.GetOr("map_perk.cowboy", "Desert: 55% less storm darkening."),
+        "police" => "\n" + Lang.GetOr("map_perk.police", "City: 45% less traffic damage."),
+        "winter" => "\n" + Lang.GetOr("map_perk.winter", "Mountains: 35% less boulder damage."),
+        _ => string.Empty
+    };
 
     public int UnlockLevel =>
         Mathf.Max(unlockLevel, 1);

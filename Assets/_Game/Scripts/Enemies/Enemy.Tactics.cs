@@ -6,7 +6,11 @@ public partial class Enemy
     public TacticalRole Tactic { get; private set; }
     private Enemy coordinator;
     private float commandUntil, nextCommand, nextTacticalAttack;
-    private LineRenderer[] commandLinks;
+    internal bool IsObjectiveCoordinator { get; private set; }
+    internal bool IsCacheGuard { get; private set; }
+    internal bool IsUnderCommand => coordinator != null && !coordinator.IsDead && Time.time < commandUntil;
+    internal bool ShowsDirectionalShield => HasDirectionalShield;
+    private const int MaxCommandedAllies = 4;
     private int lightningCharges;
     private float lightningReadyAt, feedbackReadyAt;
     private bool inheritedBleeding;
@@ -26,6 +30,9 @@ public partial class Enemy
     private void InitializeTactics()
     {
         Tactic = TacticalRole.None; coordinator = null; commandUntil = 0;
+        IsObjectiveCoordinator = false;
+        IsCacheGuard = false;
+        if (HasDirectionalShield) EnsureMapStatusVisual();
         lightningCharges = 0; lightningReadyAt = feedbackReadyAt = 0; inheritedBleeding = false;
         IsBurningAtDeath = false;
         if (GameModeManager.IsPvp || currentWave < 6 || currentWave % 10 == 0) return;
@@ -42,44 +49,85 @@ public partial class Enemy
             Tactic = TacticalRole.Blocker;
         if (Tactic == TacticalRole.Coordinator)
             AssignCoordinator();
-        if (Tactic == TacticalRole.Blocker)
-        {
-            var marker = JourneyVisuals.Line(transform, "BlockerFork", new Color(1, 0.6f, 0.1f), 0.12f);
-            marker.positionCount = 4; marker.SetPositions(new[] { new Vector3(-0.6f, 1.6f, 0), new Vector3(-0.6f, 2, 0), new Vector3(0.6f, 2, 0), new Vector3(0.6f, 1.6f, 0) });
-        }
-        if (HasDirectionalShield)
-        {
-            var shield = JourneyVisuals.Line(transform, "DirectionalShield", new Color(0.3f, 0.85f, 1), 0.14f);
-            shield.loop = true; shield.positionCount = 4;
-            shield.SetPositions(new[] { new Vector3(-0.6f, 0.15f, 0.65f), new Vector3(-0.6f, 1.4f, 0.65f), new Vector3(0.6f, 1.4f, 0.65f), new Vector3(0.6f, 0.15f, 0.65f) });
-        }
+        if (Tactic == TacticalRole.Blocker) EnsureMapStatusVisual();
         nextTacticalAttack = Time.time + 4f;
     }
-    internal void AssignCoordinator()
+    internal void AssignCoordinator(bool objective = false)
     {
         Tactic = TacticalRole.Coordinator;
-        var color = new Color(0.65f, 0.4f, 1);
-        JourneyVisuals.Ring(transform, "CoordinatorCrown", color, 0.65f, 1.7f, 6);
-        commandLinks = new LineRenderer[4];
-        for (int i = 0; i < commandLinks.Length; i++)
-        {
-            var link = JourneyVisuals.Line(transform, "CommandLink", color, 0.055f);
-            link.useWorldSpace = true;
-            link.positionCount = 2;
-            link.enabled = false;
-            commandLinks[i] = link;
-        }
+        IsObjectiveCoordinator |= objective;
+        EnsureMapStatusVisual();
     }
 
-    internal void Retreat()
+    internal void MarkCacheGuard()
+    {
+        IsCacheGuard = true;
+        EnsureMapStatusVisual();
+    }
+
+    internal void Retreat(bool animate = false)
     {
         if (IsDead) return;
         IsDead = true;
+        UnregisterAlive();
+        if (animate && isActiveAndEnabled)
+        {
+            foreach (Collider collider in GetComponentsInChildren<Collider>())
+                collider.enabled = false;
+            StartCoroutine(RetreatAnimation());
+            return;
+        }
         gameObject.SetActive(false);
         Destroy(gameObject);
     }
 
-    private float CommandSpeedScale => coordinator != null && !coordinator.IsDead && Time.time < commandUntil ? 1.18f : 1f;
+    internal bool HasDirectCleanupPath(Vector3 target, float maxDistance)
+    {
+        Vector3 delta = target - transform.position;
+        delta.y = 0f;
+        float distance = delta.magnitude;
+        if (distance > maxDistance || !isActiveAndEnabled) return false;
+        if (distance < 0.1f) return true;
+        float radius = selfCollider != null
+            ? Mathf.Clamp(Mathf.Min(selfCollider.bounds.extents.x, selfCollider.bounds.extents.z), 0.15f, 0.7f)
+            : 0.3f;
+        foreach (RaycastHit hit in Physics.SphereCastAll(transform.position + Vector3.up * rayHeight,
+            radius, delta / distance, distance, ~0, QueryTriggerInteraction.Ignore))
+            if (StructureQuery.IsWorldStructure(hit.collider)) return false;
+        return true;
+    }
+
+    private System.Collections.IEnumerator RetreatAnimation()
+    {
+        Vector3 start = transform.position;
+        Vector3 startScale = transform.localScale;
+        Vector3 direction = player != null ? start - player.position : transform.forward;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
+        direction.Normalize();
+        if (direction.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        const float duration = 1.65f;
+        float distance = 3.4f;
+        foreach (RaycastHit hit in Physics.SphereCastAll(start + Vector3.up * rayHeight,
+            0.25f, direction, distance, ~0, QueryTriggerInteraction.Ignore))
+            if (StructureQuery.IsWorldStructure(hit.collider))
+                distance = Mathf.Min(distance, Mathf.Max(0f, hit.distance - 0.15f));
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            transform.position = start + direction * (distance * t);
+            float fade = Mathf.InverseLerp(0.45f, 1f, t);
+            transform.localScale = startScale * (1f - Mathf.SmoothStep(0f, 1f, fade));
+            yield return null;
+            elapsed += Time.unscaledDeltaTime;
+        }
+        gameObject.SetActive(false);
+        Destroy(gameObject);
+    }
+
+    private float CommandSpeedScale => IsUnderCommand ? 1.18f : 1f;
     private bool HandleTactics()
     {
         if (Tactic == TacticalRole.None) return false;
@@ -90,19 +138,17 @@ public partial class Enemy
         else RotateTowards(delta);
         if (Tactic == TacticalRole.Coordinator && Time.time >= nextCommand)
         {
-            nextCommand = Time.time + 0.25f; int link = 0;
+            nextCommand = Time.time + 0.25f; int commanded = 0;
             foreach (var ally in aliveEnemies)
             {
-                if (link >= commandLinks.Length) break;
+                if (commanded >= MaxCommandedAllies) break;
                 if (ally == null || ally == this || ally.IsDead || ally.isBoss || ally.IsElite || ally.Tactic != TacticalRole.None ||
                     (ally.transform.position - transform.position).sqrMagnitude > 49) continue;
                 if (ally.coordinator != null && ally.coordinator != this && !ally.coordinator.IsDead && Time.time < ally.commandUntil) continue;
                 ally.coordinator = this; ally.commandUntil = Time.time + 0.4f;
-                commandLinks[link].enabled = true;
-                commandLinks[link].SetPosition(0, transform.position + Vector3.up);
-                commandLinks[link++].SetPosition(1, ally.transform.position + Vector3.up * 0.6f);
+                ally.EnsureMapStatusVisual();
+                commanded++;
             }
-            for (; link < commandLinks.Length; link++) commandLinks[link].enabled = false;
         }
         if (Tactic == TacticalRole.Blocker && Time.time >= nextTacticalAttack && distance < 15 && !TacticalBarrier.Exists)
         {

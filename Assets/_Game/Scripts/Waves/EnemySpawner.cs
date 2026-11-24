@@ -21,7 +21,7 @@ public class EnemySpawner : MonoBehaviour
 
     [Header("Spawn Settings")]
     [SerializeField] private float minimumSpawnDistance = 1.5f;
-    [SerializeField] private int spawnAttempts = 24;
+    [SerializeField] private int spawnAttempts = 32;
 
     [Header("Wave Emission")]
     [Tooltip("Сколько врагов выходит за один приём волны.")]
@@ -29,24 +29,24 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("Первый приём волны — «щуп», меньше остальных.")]
     [SerializeField] private int firstBatchSize = 3;
     [Tooltip("Пауза между приёмами волны.")]
-    [SerializeField] private float spawnBatchInterval = 1.2f;
+    [SerializeField] private float spawnBatchInterval = 1.55f;
     [Tooltip("Пауза между врагами внутри одного приёма.")]
-    [SerializeField] private float spawnStagger = 0.15f;
+    [SerializeField] private float spawnStagger = 0.24f;
 
     [Header("Wave Archetype Pressure")]
     [Tooltip("Делитель роста батчей от номера волны. Чем меньше — тем быстрее нарастает давление.")]
-    [SerializeField] private float batchSizeGrowthDivisor = 5f;
+    [SerializeField] private float batchSizeGrowthDivisor = 8f;
     [Tooltip("Затухание интервала между приёмами за волну (перемножается каждую волну).")]
-    [SerializeField] private float spawnIntervalDecay = 0.95f;
+    [SerializeField] private float spawnIntervalDecay = 0.98f;
     [Tooltip("Минимальный интервал между приёмами волны (до множителя архетипа).")]
-    [SerializeField] private float minSpawnInterval = 0.30f;
+    [SerializeField] private float minSpawnInterval = 0.85f;
     [Tooltip("Потолок размера приёма после масштабирования.")]
-    [SerializeField] private int maxScaledBatchSize = 12;
+    [SerializeField] private int maxScaledBatchSize = 8;
 
     [Tooltip("Множитель размера приёма для «Роя».")]
     [SerializeField] private float swarmBatchSizeMultiplier = 1.5f;
     [Tooltip("Множитель интервала для «Роя» (меньше = чаще).")]
-    [SerializeField] private float swarmIntervalMultiplier = 0.6f;
+    [SerializeField] private float swarmIntervalMultiplier = 0.8f;
 
     [Tooltip("Множитель размера приёма для «Осады».")]
     [SerializeField] private float siegeBatchSizeMultiplier = 0.7f;
@@ -60,9 +60,12 @@ public class EnemySpawner : MonoBehaviour
 
     [Header("Pacing Guards")]
     [Tooltip("Сколько врагов может одновременно находиться на арене. Очередь волны ждёт, пока игрок расчистит поле: без этого предел задаёт только количество в очереди, и на длинных волнах мобы копятся быстрее, чем игрок их убивает.")]
-    [SerializeField] private int maxAliveEnemies = 38;
-    [Tooltip("Сколько секунд очередь готова ждать, прежде чем выпустить приём всё равно. Страховка от бесконечной волны, если с поля никто не уходит.")]
-    [SerializeField] private float aliveCapWaitLimit = 4f;
+    [SerializeField] private int maxAliveEnemies = 45;
+    [SerializeField, Min(1)] private int mobileMaxAliveEnemies = 35;
+    [SerializeField, Min(0)] private int maxWaveTanks = 3;
+    [SerializeField, Min(0)] private int maxWaveRanged = 7;
+    [Tooltip("Пауза перед повторным поиском свободной точки за экраном.")]
+    [SerializeField] private float spawnRetryInterval = 0.35f;
 
     [Header("Elite Reveal (Hunt)")]
     [Tooltip("С какой доли волны выпущенного элита выходит на сцену. Пока охота не началась, игрок жерёт обычных врагов и не понимает, куда бежать.")]
@@ -108,33 +111,33 @@ public class EnemySpawner : MonoBehaviour
 
     [Header("Player Ring Spawning")]
     [Tooltip("Ближняя граница кольца спауна вокруг игрока.")]
-    [SerializeField] private float playerRingMinDistance = 15f;
+    [SerializeField] private float playerRingMinDistance = 17f;
     [Tooltip("Дальняя граница кольца спауна вокруг игрока.")]
-    [SerializeField] private float playerRingMaxDistance = 22f;
+    [SerializeField] private float playerRingMaxDistance = 27f;
     [Tooltip("Минимальная дистанция до игрока, ближе которой враги не появляются никогда, даже если арена не даёт места.")]
-    [SerializeField] private float minPlayerSpawnDistance = 8f;
+    [SerializeField] private float minPlayerSpawnDistance = 12f;
 
     [Header("Per-Type Ring Start")]
     [Tooltip("Ближняя граница кольца для обычных. Ниже playerRingMinDistance смысла не имеет.")]
-    [SerializeField] private float normalMinSpawnDistance = 15f;
+    [SerializeField] private float normalMinSpawnDistance = 17f;
 
     [Tooltip("Быстрые начинают с внешнего края кольца: до игрока ещё надо добежать, поэтому у него остаётся время на реакцию, а не мгновенный навал.")]
-    [SerializeField] private float fastMinSpawnDistance = 20f;
+    [SerializeField] private float fastMinSpawnDistance = 21f;
 
     [Tooltip("Танки идут ближе: медленный разгон делает их дистанцию менее опасной.")]
-    [SerializeField] private float tankMinSpawnDistance = 16f;
+    [SerializeField] private float tankMinSpawnDistance = 14f;
 
     [Tooltip("Дальники держат среднюю дистанцию: ближе они бьют точнее, но выходят у игрока из-за спины.")]
-    [SerializeField] private float rangedMinSpawnDistance = 18f;
+    [SerializeField] private float rangedMinSpawnDistance = 16f;
 
     [Tooltip("Элиты выходят с внешнего края кольца.")]
-    [SerializeField] private float eliteMinSpawnDistance = 20f;
+    [SerializeField] private float eliteMinSpawnDistance = 19f;
 
     [Tooltip("Боссы выходят с внешнего края кольца.")]
-    [SerializeField] private float bossMinSpawnDistance = 22f;
+    [SerializeField] private float bossMinSpawnDistance = 21f;
 
     [Tooltip("Фугасы выходят подальше: пока он добежит до радиуса детонации, игрок успевает обдумать дистанцию.")]
-    [SerializeField] private float bomberMinSpawnDistance = 17f;
+    [SerializeField] private float bomberMinSpawnDistance = 19f;
 
     [Header("Arena Bounds")]
     [Tooltip("Полуширина квадратной арены: враги не спавнятся за её пределами (0 — без ограничения). Стены арены на ±50.")]
@@ -189,13 +192,22 @@ public class EnemySpawner : MonoBehaviour
     private float waveLaneBaseAngle;
 
     private Coroutine spawnQueueCoroutine;
+    private Coroutine reinforcementRoutine;
+    private float timedSpawnDeadline = -1f;
+    public bool HasPendingReinforcements => reinforcementRoutine != null;
 
     private Camera cachedCamera;
 
     // Позиции уже заспавненных врагов волны: пока враг материализуется,
     // у него нет коллайдеров, поэтому только по ним можно отсечь соседство.
-    private readonly List<Vector3> spawnedPositions =
-        new List<Vector3>();
+    private struct SpawnReservation
+    {
+        public Vector3 Position;
+        public float ExpiresAt;
+    }
+
+    private readonly List<SpawnReservation> spawnedPositions =
+        new List<SpawnReservation>();
 
     // Углы текущего приёма волны — для равномерного распределения по кольцу.
     private readonly List<float> batchAngles =
@@ -272,6 +284,11 @@ public class EnemySpawner : MonoBehaviour
 
     public void StopSpawnQueue()
     {
+        if (reinforcementRoutine != null)
+        {
+            StopCoroutine(reinforcementRoutine);
+            reinforcementRoutine = null;
+        }
         if (spawnQueueCoroutine != null)
         {
             StopCoroutine(spawnQueueCoroutine);
@@ -282,9 +299,10 @@ public class EnemySpawner : MonoBehaviour
         batchAngles.Clear();
         PendingSpawnCount = 0;
         IsSpawning = false;
+        timedSpawnDeadline = -1f;
     }
 
-    public void SetManualSpawning(bool active)
+    public void SetManualSpawning(bool active, WaveModifier modifier = WaveModifier.None)
     {
         IsSpawning = active;
 
@@ -292,14 +310,23 @@ public class EnemySpawner : MonoBehaviour
         // сколько там будет врагов, решает сценарий, а не спавнер.
         if (active)
         {
+            timedSpawnDeadline = -1f;
             PendingSpawnCount = 0;
-            currentWaveModifier = WaveModifier.None;
+            currentWaveModifier = modifier;
             spawnedPositions.Clear();
         }
     }
 
     public int MaxAliveEnemies =>
-        Mathf.Max(maxAliveEnemies, 1);
+        Mathf.Max(MobileControls.IsTouchDevice
+            ? Mathf.Min(maxAliveEnemies, mobileMaxAliveEnemies) : maxAliveEnemies, 1);
+
+    // Also reject asynchronous event reinforcements during the upgrade break.
+    public void EndWaveSpawning()
+    {
+        StopSpawnQueue();
+        timedSpawnDeadline = Time.time;
+    }
 
     // События посреди волны идут мимо очереди, поэтому потолок живых
     // врагов сам по себе их не касается: без этой проверки засада
@@ -310,9 +337,77 @@ public class EnemySpawner : MonoBehaviour
     public bool HasRoomForEvent(int plannedCount)
     {
         return
+            (timedSpawnDeadline < 0f || Time.time < timedSpawnDeadline) &&
             Enemy.AliveCount +
             Mathf.Max(plannedCount, 0) <=
             MaxAliveEnemies;
+    }
+
+    // The count is a pacing estimate, not a finite queue. Kills make room for
+    // the next spawn; a full arena never accumulates a backlog.
+    public void SpawnTimedWave(int estimatedCount, int wave, float duration,
+        float quietSeconds, WaveArchetype archetype, WaveModifier modifier,
+        WaveApproach approach, bool horde)
+    {
+        StopSpawnQueue();
+        CurrentWave = wave;
+        CurrentArchetype = currentWaveArchetype = archetype;
+        currentWaveModifier = modifier;
+        currentWaveApproach = approach;
+        currentLaneIndex = 0;
+        waveLaneBaseAngle = MapMechanicManager.CurrentMechanic == MapMechanic.Urban
+            ? Random.Range(0, 4) * 90f : Random.Range(0f, 360f);
+        float activeDuration = Mathf.Max(1f, duration - quietSeconds);
+        timedSpawnDeadline = Time.time + activeDuration;
+        IsSpawning = true;
+        spawnQueueCoroutine = StartCoroutine(TimedWaveRoutine(estimatedCount, wave,
+            activeDuration, horde, modifier));
+    }
+
+    private IEnumerator TimedWaveRoutine(int estimatedCount, int wave, float duration,
+        bool horde, WaveModifier modifier)
+    {
+        float startedAt = Time.time;
+        float nextSpawnAt = startedAt;
+        const float spawnRateMultiplier = 2.25f;
+        float baseRate = Mathf.Clamp(estimatedCount / duration * 1.45f, 1.2f, 4.0f) * spawnRateMultiplier;
+        if (horde) baseRate *= 1.45f;
+        int opening = Mathf.Max(firstBatchSize + 3, 6);
+
+        while (Time.time < timedSpawnDeadline)
+        {
+            if (Time.timeScale <= 0f || Time.time < nextSpawnAt || !HasRoomForEvent(1))
+            {
+                yield return null;
+                continue;
+            }
+
+            batchAngles.Clear();
+            // Alternate opposite directions and fill diagonal gaps before
+            // repeating the ring. The regular wave never favors a single lane.
+            int sector = currentLaneIndex % 8;
+            int direction = (sector & 1) * 4 + (sector & 2) + ((sector & 4) >> 2);
+            float angle = waveLaneBaseAngle + direction * 45f;
+            bool spawned = SpawnEnemy(wave, preferredAngle: Mathf.Repeat(angle, 360f),
+                balancedDirection: true);
+            currentLaneIndex++;
+            if (spawned)
+            {
+                float progress = Mathf.Clamp01((Time.time - startedAt) / duration);
+                float rate = baseRate * Mathf.Lerp(0.95f, 1.75f, progress);
+                if (modifier.Has(WaveModifier.LastStand) && progress > 0.72f)
+                    rate *= 1.2f;
+                nextSpawnAt = Time.time + (opening-- > 0
+                    ? Mathf.Max(0.12f, spawnStagger) / spawnRateMultiplier : 1f / Mathf.Max(rate, 0.1f));
+            }
+            else
+                nextSpawnAt = Time.time + Mathf.Max(spawnRetryInterval, 0.1f);
+            yield return null;
+        }
+
+        // Keep the deadline in force for event spawns until the wave ends.
+        IsSpawning = false;
+        spawnQueueCoroutine = null;
     }
 
     // Волна не вываливается за один кадр, а «вытекает» приёмами:
@@ -351,9 +446,10 @@ public class EnemySpawner : MonoBehaviour
             batchSizeGrowth;
 
         effectiveBatchSize =
-            Mathf.Min(
+            Mathf.Clamp(
                 effectiveBatchSize,
-                Mathf.Max(maxScaledBatchSize, spawnBatchSize)
+                1,
+                Mathf.Max(maxScaledBatchSize, spawnBatchSize, 1)
             );
 
         float effectiveInterval =
@@ -370,6 +466,9 @@ public class EnemySpawner : MonoBehaviour
                 minSpawnInterval *
                 GetIntervalMultiplier(archetype)
             );
+
+        int openingBatch = Mathf.Clamp(firstBatchSize, 1, effectiveBatchSize);
+        float effectiveStagger = Mathf.Max(spawnStagger, 0.1f);
 
         int lastStandCount =
             GetLastStandCount(modifier, wave);
@@ -397,9 +496,7 @@ public class EnemySpawner : MonoBehaviour
                 int eliteCount = elitePending;
                 elitePending = 0;
 
-                PendingSpawnCount -= eliteCount;
-
-                SpawnEliteWave(wave, eliteCount);
+                yield return SpawnEliteWave(wave, eliteCount, effectiveStagger);
 
                 yield return new WaitForSeconds(
                     effectiveInterval
@@ -409,7 +506,7 @@ public class EnemySpawner : MonoBehaviour
             }
 
             int batchSize = firstBatch
-                ? Mathf.Min(firstBatchSize, remaining)
+                ? Mathf.Min(openingBatch, remaining)
                 : Mathf.Min(effectiveBatchSize, remaining);
             firstBatch = false;
 
@@ -427,9 +524,12 @@ public class EnemySpawner : MonoBehaviour
 
             batchAngles.Clear();
 
+            // Avoid an oversized opening batch spilling over the population cap.
+            batchSize = Mathf.Min(batchSize, Mathf.Max(1, MaxAliveEnemies - Enemy.AliveCount));
+
             for (int i = 0; i < batchSize; i++)
             {
-                SpawnEnemy(
+                yield return SpawnQueuedEnemy(
                     wave,
                     null,
                     GetLaneAngleForSlot(i, batchSize)
@@ -441,10 +541,10 @@ public class EnemySpawner : MonoBehaviour
                 if (remaining <= 0)
                     break;
 
-                if (spawnStagger > 0f)
+                if (effectiveStagger > 0f)
                 {
-                    elapsed += spawnStagger;
-                    yield return new WaitForSeconds(spawnStagger);
+                    elapsed += effectiveStagger;
+                    yield return new WaitForSeconds(effectiveStagger);
                 }
             }
 
@@ -455,8 +555,9 @@ public class EnemySpawner : MonoBehaviour
 
             if (remaining > 0 && effectiveInterval > 0f)
             {
-                elapsed += effectiveInterval;
-                yield return new WaitForSeconds(effectiveInterval);
+                float delay = effectiveInterval;
+                elapsed += delay;
+                yield return new WaitForSeconds(delay);
             }
         }
 
@@ -467,9 +568,7 @@ public class EnemySpawner : MonoBehaviour
         {
             yield return WaitForEliteRevealWindow(elapsed);
 
-            PendingSpawnCount -= elitePending;
-
-            SpawnEliteWave(wave, elitePending);
+            yield return SpawnEliteWave(wave, elitePending, effectiveStagger);
             elitePending = 0;
         }
 
@@ -484,9 +583,7 @@ public class EnemySpawner : MonoBehaviour
 
             yield return WaitForFieldRoom();
 
-            PendingSpawnCount -= lastStandPending;
-
-            SpawnLastStand(wave, lastStandPending);
+            yield return SpawnLastStand(wave, lastStandPending, effectiveStagger);
 
             lastStandPending = 0;
         }
@@ -495,24 +592,29 @@ public class EnemySpawner : MonoBehaviour
         IsSpawning = false;
     }
 
-    // Очередь ждёт, пока на поле появится место. Ожидание конечное:
-    // если с арены никто не уходит, волна всё равно должна
-    // продвинуться, иначе она не закончится никогда.
+    // A full arena pauses the queue. Spawned enemies are never removed to make room.
     private IEnumerator WaitForFieldRoom()
     {
-        int cap = Mathf.Max(maxAliveEnemies, 1);
-
-        if (Enemy.AliveCount < cap)
-            yield break;
-
-        float waited = 0f;
-        float limit = Mathf.Max(aliveCapWaitLimit, 0.1f);
-
-        while (Enemy.AliveCount >= cap && waited < limit)
-        {
-            waited += Time.deltaTime;
-
+        while (!HasRoomForEvent(1))
             yield return null;
+    }
+
+    private IEnumerator SpawnQueuedEnemy(int wave, GameObject forcedPrefab, float preferredAngle = -1f)
+    {
+        GameObject prefab = forcedPrefab != null ? forcedPrefab : GetEnemyPrefabForWave(wave);
+        if (prefab == null)
+        {
+            Debug.LogError($"EnemySpawner: No available enemy prefab for wave {wave}.");
+            yield break;
+        }
+
+        // The slot is consumed only after a successful spawn. A blocked
+        // direction or a crowded arena is retried, not counted as a kill.
+        while (true)
+        {
+            yield return WaitForFieldRoom();
+            if (SpawnEnemy(wave, prefab, preferredAngle)) yield break;
+            yield return new WaitForSeconds(Mathf.Max(spawnRetryInterval, 0.1f));
         }
     }
 
@@ -589,14 +691,19 @@ public class EnemySpawner : MonoBehaviour
     // Элиты выходят одной группой, но через обычный поиск свободной
     // точки у края арены — поэтому не слипаются в одну точку и
     // появляются с тем же «материализованием», что и остальные враги.
-    private void SpawnEliteWave(
+    private IEnumerator SpawnEliteWave(
         int wave,
-        int count)
+        int count,
+        float stagger)
     {
         batchAngles.Clear();
 
         for (int i = 0; i < count; i++)
-            SpawnEnemy(wave, elitePrefab);
+        {
+            yield return SpawnQueuedEnemy(wave, elitePrefab);
+            PendingSpawnCount--;
+            if (i + 1 < count) yield return new WaitForSeconds(stagger);
+        }
     }
 
     // =========================================================
@@ -630,18 +737,18 @@ public class EnemySpawner : MonoBehaviour
     // Пачка из сильных типов: танк, дальник и обычный. Роль не в том,
     // чтобы «страшнее», а в том, чтобы игрок последние секунды волны
     // решал, кого бить первым.
-    private void SpawnLastStand(
+    private IEnumerator SpawnLastStand(
         int wave,
-        int count)
+        int count,
+        float stagger)
     {
         batchAngles.Clear();
 
         for (int i = 0; i < count; i++)
         {
-            SpawnEnemyAtPosition(
-                PickLastStandType(wave),
-                GetPlayerRingSpawnPosition()
-            );
+            yield return SpawnQueuedEnemy(wave, GetPrefabByType(PickLastStandType(wave)));
+            PendingSpawnCount--;
+            if (i + 1 < count) yield return new WaitForSeconds(stagger);
         }
     }
 
@@ -718,19 +825,14 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    private void SpawnEnemy(
+    private bool SpawnEnemy(
         int wave,
         GameObject forcedPrefab = null,
-        float preferredAngle = -1f)
+        float preferredAngle = -1f,
+        bool balancedDirection = false)
     {
-        if (player == null)
-        {
-            Debug.LogWarning(
-                "EnemySpawner: Player is not assigned."
-            );
-
-            return;
-        }
+        ResolvePlayer();
+        if (!IsUsablePlayer(player) || !HasRoomForEvent(1)) return false;
 
         GameObject prefab =
             forcedPrefab != null
@@ -743,19 +845,17 @@ public class EnemySpawner : MonoBehaviour
                 $"EnemySpawner: No enemy prefab available for wave {wave}."
             );
 
-            return;
+            return false;
         }
 
+        EnemyType type = GetTypeForPrefab(prefab);
         if (!TryGetWaveSpawnPosition(
                 preferredAngle,
-                GetMinSpawnDistanceFor(GetTypeForPrefab(prefab)),
-                out Vector3 spawnPosition))
+                GetMinSpawnDistanceFor(type),
+                out Vector3 spawnPosition, true, true, GetMaxSpawnDistanceFor(type),
+                balancedDirection))
         {
-            Debug.LogWarning(
-                "EnemySpawner: Could not find a free spawn position."
-            );
-
-            return;
+            return false;
         }
 
         GameObject enemyObject =
@@ -765,7 +865,7 @@ public class EnemySpawner : MonoBehaviour
                 Quaternion.identity
             );
 
-        spawnedPositions.Add(spawnPosition);
+        ReserveSpawnPosition(spawnPosition, spawnInDuration);
 
         ApplySpawnInEffect(enemyObject, spawnInDuration);
 
@@ -773,6 +873,7 @@ public class EnemySpawner : MonoBehaviour
 
         if (enemy != null)
             enemy.Initialize(wave, currentWaveModifier);
+        return true;
     }
 
     // =========================================================
@@ -790,12 +891,11 @@ public class EnemySpawner : MonoBehaviour
     {
         if (!currentWaveModifier.Has(WaveModifier.Ambush))
         {
-            if (currentWaveApproach == WaveApproach.Surround)
-                return -1f;
-
             float approachCenter = waveLaneBaseAngle;
 
-            if (currentWaveApproach == WaveApproach.Flanks)
+            if (currentWaveApproach == WaveApproach.Surround)
+                approachCenter += (currentLaneIndex % 3) * 120f;
+            else if (currentWaveApproach == WaveApproach.Flanks)
                 approachCenter += (currentLaneIndex % 2) * 180f;
 
             float approachSpacing = Mathf.Max(minAngularSeparation, 15f);
@@ -867,13 +967,11 @@ public class EnemySpawner : MonoBehaviour
     // направлении до стены меньше, чем кольцо, радиус подрезается до
     // доступного, а если и его не хватает — направление отбрасывается.
     //
-    // Три прохода по строгости, чтобы враги гарантированно
-    // заспавнились даже если игрок зажат в углу: 0 — вне экрана,
-    // 1 — без проверки экрана, 2 — с гарантированным зазором.
+    // Три прохода: сначала нужный сектор, потом более широкий сектор,
+    // затем поиск во всех направлениях с увеличенным радиусом.
+    // Для волны все точки должны находиться за экраном.
     //
-    // preferredAngle >= 0 — враг обязан выйти из этого направления:
-    // повторные попытки поиска свободной точки не имеют права
-    // разбрасывать приём по всему кольцу.
+    // preferredAngle >= 0 — предпочтительное направление выхода.
     // Ближняя граница кольца для конкретного типа. Значение не может
     // оказаться выше playerRingMaxDistance: иначе кольцо схлопнется в
     // точку и спавн прижмётся к стене. В этом случае берётся дальняя
@@ -923,9 +1021,16 @@ public class EnemySpawner : MonoBehaviour
 
         return Mathf.Clamp(
             value,
-            0f,
+            minPlayerSpawnDistance,
             ringMax
         );
+    }
+
+    private float GetMaxSpawnDistanceFor(EnemyType type)
+    {
+        float min = GetMinSpawnDistanceFor(type);
+        float spread = type == EnemyType.Tank ? 5f : 6f;
+        return Mathf.Max(min + 1f, Mathf.Min(playerRingMaxDistance, min + spread));
     }
 
     // Обратная к GetPrefabByType: приём уже выбрал префаб, но
@@ -964,48 +1069,46 @@ public class EnemySpawner : MonoBehaviour
         return TryGetWaveSpawnPosition(
             preferredAngle,
             playerRingMinDistance,
-            out spawnPosition
+            out spawnPosition,
+            false
         );
     }
 
-    // preferredAngle >= 0 — враг обязан выйти из этого направления:
-    // повторные попытки поиска свободной точки не имеют права
-    // разбрасывать приём по всему кольцу.
+    // preferredAngle >= 0 — сначала ищем в заданном секторе.
     private bool TryGetWaveSpawnPosition(
         float preferredAngle,
         float typeMinDistance,
-        out Vector3 spawnPosition)
+        out Vector3 spawnPosition,
+        bool respectBatchAngles = true,
+        bool requireOffscreen = true,
+        float requestedMaxDistance = 0f,
+        bool balancedDirection = false)
     {
         Vector3 ringCenter = GetRingCenter();
 
         // Ближняя граница — это максимум из общей и типовой: обычные
         // берут playerRingMinDistance, быстрые отталкиваются дальше.
-        float ringMin =
-            Mathf.Max(typeMinDistance, 0f);
+        float ringMin = Mathf.Max(typeMinDistance, minPlayerSpawnDistance);
 
-        float ringMax =
-            Mathf.Max(playerRingMaxDistance, ringMin);
+        float ringMax = Mathf.Max(ringMin + 1f, requestedMaxDistance > 0f ? requestedMaxDistance : playerRingMaxDistance);
 
         for (int pass = 0; pass < 3; pass++)
         {
-            // Даже последний, «а лишь бы где-нибудь» проход держит
-            // минимальный зазор. Иначе на зажатой арене волна
-            // материализуется прямо на игроке.
-            float requiredDistance =
-                pass <= 1
-                    ? minPlayerSpawnDistance
-                    : Mathf.Max(minimumSpawnDistance * 3f, 4f);
+            // Fallbacks relax the preferred lane and extend the search radius,
+            // never the camera exclusion or the minimum player distance.
+            float maxSearchRadius = ringMax + (pass == 2 || (balancedDirection && pass == 1) ? 7f : 0f);
 
             for (int attempt = 0;
                  attempt < spawnAttempts;
                  attempt++)
             {
-                float angle =
-                    preferredAngle >= 0f
-                        ? preferredAngle
-                        : Random.Range(0f, 360f);
+                float spread = balancedDirection ? (pass == 0 ? 14f : 22f) : (pass == 0 ? 24f : 85f);
+                float angle = preferredAngle >= 0f && pass < 2
+                    ? preferredAngle + (attempt == 0 ? 0f : Random.Range(-spread, spread))
+                    : Random.Range(0f, 360f);
+                angle = Mathf.Repeat(angle, 360f);
 
-                if (!IsAngleSeparated(angle))
+                if (respectBatchAngles && pass < 2 && !IsAngleSeparated(angle))
                     continue;
 
                 // Дальняя граница — это ringMax, подрезанная лучом до стены.
@@ -1014,23 +1117,18 @@ public class EnemySpawner : MonoBehaviour
                 // того, чтобы подойти к игроку.
                 float maxRadius =
                     Mathf.Min(
-                        ringMax,
+                        maxSearchRadius,
                         GetRayLimitInsideArena(ringCenter, angle)
                     );
 
                 // В этом направлении арена не вмещает даже минимальный
                 // зазор: брать точку у стены под ногами игрока хуже,
                 // чем поискать другое направление.
-                if (maxRadius < requiredDistance)
+                if (maxRadius < ringMin)
                     continue;
 
-                // Ближняя граница поджимается к обрезанному лучу: иначе
-                // Random.Range получил бы min > max.
-                float minRadius =
-                    Mathf.Min(ringMin, maxRadius);
-
-                float radius =
-                    Random.Range(minRadius, maxRadius);
+                // Ближнюю границу больше не уменьшаем у стены.
+                float radius = Random.Range(ringMin, maxRadius);
 
                 // Высоту берём у игрока: пол арены приподнят относительно
                 // нуля, а коллайдер врага центрирован на его transform.
@@ -1058,17 +1156,17 @@ public class EnemySpawner : MonoBehaviour
                 // «не ближе minPlayerSpawnDistance» не работала вовсе.
                 if (IsUsablePlayer(player) &&
                     FlatDistance(player.position, candidate) <
-                    requiredDistance)
+                    ringMin - 0.01f)
                 {
                     continue;
                 }
 
-                if (pass == 0 && IsPositionVisible(candidate))
+                if (requireOffscreen && IsPositionVisible(candidate))
                     continue;
 
                 if (IsSpawnPositionFree(candidate))
                 {
-                    batchAngles.Add(angle);
+                    if (respectBatchAngles) batchAngles.Add(angle);
                     spawnPosition = candidate;
                     return true;
                 }
@@ -1171,19 +1269,27 @@ public class EnemySpawner : MonoBehaviour
         if (TryGetWaveSpawnPosition(-1f, out Vector3 spawnPosition))
             return spawnPosition;
 
+        // Scripted encounters and player revival need a position even if the
+        // entire free part of the arena is currently visible.
+        if (TryGetWaveSpawnPosition(-1f, playerRingMinDistance, out spawnPosition, false, false))
+            return spawnPosition;
+
         // Арена настолько забита, что свободной точки вне экрана не
         // нашлось. Отдаём ближний край кольца — хоть и близко, но
         // точно не в стене и не под ногами у игрока.
         Vector3 ringCenter = GetRingCenter();
 
-        float radius =
-            Mathf.Max(minPlayerSpawnDistance, 0.1f);
+        Vector3 towardCenter = GetArenaCenter() - ringCenter;
+        towardCenter.y = 0f;
+        if (towardCenter.sqrMagnitude < 0.01f) towardCenter = Vector3.forward;
+        float angle = Mathf.Atan2(towardCenter.z, towardCenter.x) * Mathf.Rad2Deg;
+        float radius = Mathf.Min(playerRingMaxDistance, GetRayLimitInsideArena(ringCenter, angle));
 
         Vector3 fallback =
             ringCenter +
-            new Vector3(0f, 0f, radius);
+            towardCenter.normalized * radius;
 
-        fallback.y = ringCenter.y;
+        fallback.y = IsUsablePlayer(player) ? player.position.y : ringCenter.y;
 
         return ClampToArena(fallback);
     }
@@ -1261,7 +1367,7 @@ public class EnemySpawner : MonoBehaviour
         if (viewport.z < 0f)
             return false;
 
-        const float margin = 0.03f;
+        const float margin = 0.06f;
 
         return
             viewport.x > -margin &&
@@ -1293,10 +1399,15 @@ public class EnemySpawner : MonoBehaviour
 
         // Враги, которые сейчас «материализуются», не имеют коллайдеров,
         // поэтому их позиции отслеживаем списком.
-        for (int i = 0; i < spawnedPositions.Count; i++)
+        for (int i = spawnedPositions.Count - 1; i >= 0; i--)
         {
+            if (spawnedPositions[i].ExpiresAt <= Time.time)
+            {
+                spawnedPositions.RemoveAt(i);
+                continue;
+            }
             if (Vector3.Distance(
-                    spawnedPositions[i],
+                    spawnedPositions[i].Position,
                     position
                 ) < minimumSpawnDistance * 2f)
             {
@@ -1305,6 +1416,15 @@ public class EnemySpawner : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void ReserveSpawnPosition(Vector3 position, float duration)
+    {
+        spawnedPositions.Add(new SpawnReservation
+        {
+            Position = position,
+            ExpiresAt = Time.time + Mathf.Max(duration, 0.05f) + 0.1f
+        });
     }
 
     private bool TryGetFreePositionAround(
@@ -1408,6 +1528,7 @@ public class EnemySpawner : MonoBehaviour
         float spawnDuration = -1f,
         BossData bossProfile = null)
     {
+        if (!HasRoomForEvent(1)) return null;
         GameObject prefab =
             GetPrefabByType(enemyType);
 
@@ -1451,6 +1572,7 @@ public class EnemySpawner : MonoBehaviour
                 ? spawnDuration
                 : spawnInDuration;
 
+        ReserveSpawnPosition(position, effectDuration);
         ApplySpawnInEffect(enemyObject, effectDuration);
 
         Enemy enemy = enemyObject.GetComponent<Enemy>();
@@ -1485,11 +1607,11 @@ public class EnemySpawner : MonoBehaviour
         bool allowRanged = true,
         float stagger = 0f)
     {
-        if (player == null || count <= 0)
+        if (player == null || count <= 0 || reinforcementRoutine != null)
             return;
 
-        StartCoroutine(
-            SpawnAmbushRoutine(
+        reinforcementRoutine = StartCoroutine(
+            TrackAmbush(
                 count,
                 minDistance,
                 maxDistance,
@@ -1497,6 +1619,13 @@ public class EnemySpawner : MonoBehaviour
                 stagger
             )
         );
+    }
+
+    private IEnumerator TrackAmbush(int count, float minDistance, float maxDistance, bool allowRanged, float stagger)
+    {
+        yield return null;
+        yield return SpawnAmbushRoutine(count, minDistance, maxDistance, allowRanged, stagger);
+        reinforcementRoutine = null;
     }
 
     private IEnumerator SpawnAmbushRoutine(
@@ -1513,90 +1642,33 @@ public class EnemySpawner : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
-            if (stagger > 0f &&
-                i > 0)
+            if (i > 0)
             {
-                yield return new WaitForSeconds(stagger);
+                yield return new WaitForSeconds(Mathf.Max(stagger, spawnStagger));
             }
 
             // Если за время шага игрок вышел из боя или начался
             // откат — не доспавниваем остаток: кольцо вокруг уже
             // не имеет смысла.
-            if (player == null)
+            if (player == null || (GameStateManager.Instance != null &&
+                GameStateManager.Instance.CurrentState != GameState.Playing) || !HasRoomForEvent(1))
                 yield break;
 
             float angle =
                 Mathf.Repeat(
                     startAngle +
-                    (float)i / count * 360f +
+                    (count > 1 ? ((float)i / (count - 1) - 0.5f) * 150f : 0f) +
                     Random.Range(-12f, 12f),
                     360f
                 );
 
-            float radius =
-                Random.Range(minDistance, maxDistance);
-
-            Vector3 desired =
-                player.position +
-                new Vector3(
-                    Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
-                    0f,
-                    Mathf.Sin(angle * Mathf.Deg2Rad) * radius
-                );
-
-            desired.y = player.position.y;
-
-            desired = ClampToArena(desired);
-
-            desired = RestorePlayerDistance(desired, minDistance);
-
-            if (!IsSpawnPositionFree(desired) &&
-                !TryGetFreePositionAround(desired, out desired))
-            {
-                continue;
-            }
-
-            desired = ClampToArena(desired);
-
-            SpawnEnemyAtPosition(
-                PickAmbushType(allowRanged),
-                desired
-            );
+            EnemyType type = PickAmbushType(allowRanged);
+            GameObject prefab = GetPrefabByType(type);
+            if (prefab != null && TryGetWaveSpawnPosition(angle,
+                Mathf.Max(minDistance, GetMinSpawnDistanceFor(type)), out Vector3 position,
+                false, true, Mathf.Max(maxDistance, GetMaxSpawnDistanceFor(type))))
+                SpawnSingle(prefab, position, -1f, null);
         }
-    }
-
-    // Зажим по квадрату арены срезает дистанцию: игрок у самой стены
-    // получал засаду в упор, потому что точка «в 13-17 метрах» от
-    // него оказывалась в метре от стены, то есть в полутора метрах
-    // от игрока.
-    //
-    // Лечится вдоль того же луча: берём максимум, который арена
-    // позволяет в этом направлении. Если арена помещается — враг
-    // выходит на запрошенную дистанцию, если нет — на максимально
-    // возможную, но всё равно не вплотную.
-    private Vector3 RestorePlayerDistance(
-        Vector3 position,
-        float minDistance)
-    {
-        if (player == null || minDistance <= 0f)
-            return position;
-
-        Vector3 origin = player.position;
-
-        Vector3 offset = position - origin;
-        offset.y = 0f;
-
-        if (offset.sqrMagnitude < 0.0001f)
-            return position;
-
-        Vector3 restored =
-            origin +
-            offset.normalized *
-            minDistance;
-
-        restored.y = position.y;
-
-        return ClampToArena(restored);
     }
 
     // Смесь внутри засады: быстрые давят, обычные держат кольцо,
@@ -1639,8 +1711,6 @@ public class EnemySpawner : MonoBehaviour
         if (player == null || count <= 0)
             return;
 
-        Vector3 ringCenter = GetRingCenter();
-
         // Стенда идёт с одного фланга и почти всегда быстрая, поэтому
         // ближняя граница берётся типовой: иначе пачка вылезала бы
         // из-под ног на максимальной скорости, ровно тот навал,
@@ -1652,9 +1722,6 @@ public class EnemySpawner : MonoBehaviour
 
         float ringMin =
             GetMinSpawnDistanceFor(type);
-        float ringMax =
-            Mathf.Max(playerRingMaxDistance, ringMin);
-
         if (centerAngle < 0f)
             centerAngle = Random.Range(0f, 360f);
 
@@ -1664,6 +1731,7 @@ public class EnemySpawner : MonoBehaviour
 
         for (int i = 0; i < count; i++)
         {
+            if (!HasRoomForEvent(1)) break;
             float angle =
                 centerAngle +
                 Random.Range(-halfArc, halfArc);
@@ -1672,40 +1740,8 @@ public class EnemySpawner : MonoBehaviour
             // ареной: если у игрока за спиной стена, пачка выходит
             // с доступной стороны. Дальняя граница — ringMax, иначе
             // кольцо растянулось бы до самой стены.
-            float maxRadius =
-                Mathf.Min(
-                    ringMax,
-                    GetRayLimitInsideArena(ringCenter, angle)
-                );
-
-            if (maxRadius < minPlayerSpawnDistance)
+            if (!TryGetWaveSpawnPosition(angle, ringMin, out Vector3 candidate, false, true, GetMaxSpawnDistanceFor(type)))
                 continue;
-
-            float minRadius =
-                Mathf.Min(ringMin, maxRadius);
-
-            float radius =
-                Random.Range(minRadius, maxRadius);
-
-            Vector3 candidate =
-                ringCenter +
-                new Vector3(
-                    Mathf.Cos(angle * Mathf.Deg2Rad) * radius,
-                    0f,
-                    Mathf.Sin(angle * Mathf.Deg2Rad) * radius
-                );
-
-            candidate.y = IsUsablePlayer(player)
-                ? player.position.y
-                : GetArenaCenter().y;
-
-            candidate = ClampToArena(candidate);
-
-            if (!IsSpawnPositionFree(candidate) &&
-                !TryGetFreePositionAround(candidate, out candidate))
-            {
-                continue;
-            }
 
             // Немного разного времени материализации, чтобы пачка
             // выходила «волной», а не одним кадром.
@@ -1715,7 +1751,8 @@ public class EnemySpawner : MonoBehaviour
                     spawnInDuration * 1.3f
                 );
 
-            SpawnEnemyAtPosition(type, candidate, materialize);
+            GameObject prefab = GetPrefabByType(type);
+            if (prefab != null) SpawnSingle(prefab, candidate, materialize, null);
         }
     }
 
@@ -1755,6 +1792,21 @@ public class EnemySpawner : MonoBehaviour
 
     private GameObject GetEnemyPrefabForWave(
         int wave)
+    {
+        GameObject prefab = RollEnemyPrefabForWave(wave);
+        if (normalPrefab == null) return prefab;
+
+        // Apply to all random composition paths, including map and run biases.
+        if (prefab == tankPrefab && tankPrefab != null &&
+            (Enemy.CountAliveOfType(EnemyType.Tank) >= maxWaveTanks || Random.value < 0.65f))
+            return normalPrefab;
+        if (prefab == rangedPrefab && rangedPrefab != null &&
+            (Enemy.CountAliveOfType(EnemyType.Ranged) >= maxWaveRanged || Random.value < 0.20f))
+            return normalPrefab;
+        return prefab;
+    }
+
+    private GameObject RollEnemyPrefabForWave(int wave)
     {
         // Тема забега подмешивает свой тип поверх любой волны —
         // это фон всего забега, а не акцент одной волны.

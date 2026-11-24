@@ -50,12 +50,12 @@ public class DailyRewardManager : MonoBehaviour
 
     public int CoinsForDay(int day)
     {
-        return Mathf.Max(day, 1) * Mathf.Max(coinsBase, 1);
+        return Mathf.Min(150, Mathf.Max(day, 1) * Mathf.Max(coinsBase, 1));
     }
 
     public int XpForDay(int day)
     {
-        return Mathf.Max(day, 1) * Mathf.Max(xpBase, 1);
+        return Mathf.Min(250, Mathf.Max(day, 1) * Mathf.Max(xpBase, 1));
     }
 
     public bool IsDayClaimed(int day)

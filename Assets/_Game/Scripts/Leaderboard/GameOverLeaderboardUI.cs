@@ -149,12 +149,11 @@ public class GameOverLeaderboardUI : MonoBehaviour
     {
         switch (rank)
         {
-            case "S+": return new Color(1f, 0.84f, 0f); // Золотой
-            case "S": return new Color(1f, 0.5f, 0f);   // Оранжевый
-            case "A": return new Color(0f, 1f, 0f);     // Зелёный
-            case "B": return new Color(0f, 0.6f, 1f);   // Синий
-            case "C": return new Color(0.7f, 0.7f, 0.7f); // Серый
-            default: return new Color(1f, 0f, 0f);      // Красный
+            case "S+": return ArcadeUiTheme.Rgb(0x79541D);
+            case "S": return ArcadeUiTheme.Rgb(0x924B34);
+            case "A": return ArcadeUiTheme.Rgb(0x3A6244);
+            case "B": return ArcadeUiTheme.Rgb(0x345B68);
+            default: return MenuSheet.Ink;
         }
     }
 

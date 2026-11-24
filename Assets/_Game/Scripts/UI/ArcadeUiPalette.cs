@@ -2,33 +2,33 @@ using UnityEngine;
 
 public static class ArcadeUiPalette
 {
-    public static readonly Color Background = Rgb(0x0D1526);
-    public static readonly Color BackgroundDeep = Rgb(0x0A1020);
-    public static readonly Color PanelBackground = Rgb(0x17233B);
-    public static readonly Color PanelWash = Rgb(0x1D2C49);
-    public static readonly Color DecorWash = Rgb(0x223354);
+    public static readonly Color Background = ArcadeUiTheme.Background;
+    public static readonly Color BackgroundDeep = ArcadeUiTheme.Ink;
+    public static readonly Color PanelBackground = ArcadeUiTheme.Panel;
+    public static readonly Color PanelWash = ArcadeUiTheme.PanelRaised;
+    public static readonly Color DecorWash = ArcadeUiTheme.Card;
 
-    public static readonly Color Surface = Rgb(0x1D2C49);
-    public static readonly Color SurfaceMuted = Rgb(0x223354);
-    public static readonly Color SurfaceDisabled = Rgb(0x141F36);
-    public static readonly Color Track = Rgb(0x0A1020);
+    public static readonly Color Surface = ArcadeUiTheme.Card;
+    public static readonly Color SurfaceMuted = ArcadeUiTheme.PanelRaised;
+    public static readonly Color SurfaceDisabled = ArcadeUiTheme.Background;
+    public static readonly Color Track = ArcadeUiTheme.Line;
 
-    public static readonly Color TextPrimary = Rgb(0xF4F7FF);
-    public static readonly Color TextSecondary = Rgb(0xADBBD4);
-    public static readonly Color TextMuted = Rgb(0x7385A6);
+    public static readonly Color TextPrimary = ArcadeUiTheme.TextPrimary;
+    public static readonly Color TextSecondary = ArcadeUiTheme.TextSecondary;
+    public static readonly Color TextMuted = ArcadeUiTheme.TextMuted;
 
-    public static readonly Color Cyan = Rgb(0x53DFFF);
-    public static readonly Color Magenta = Rgb(0xFF667F);
-    public static readonly Color Gold = Rgb(0xFFC83D);
-    public static readonly Color Lime = Rgb(0x54DFA0);
-    public static readonly Color Green = Rgb(0x54DFA0);
-    public static readonly Color Red = Rgb(0xFF667F);
-    public static readonly Color Purple = Rgb(0x9D83FF);
-    public static readonly Color Orange = Rgb(0xFF9D2E);
+    public static readonly Color Cyan = ArcadeUiTheme.Cyan;
+    public static readonly Color Magenta = ArcadeUiTheme.Red;
+    public static readonly Color Gold = ArcadeUiTheme.Gold;
+    public static readonly Color Lime = ArcadeUiTheme.Green;
+    public static readonly Color Green = ArcadeUiTheme.Green;
+    public static readonly Color Red = ArcadeUiTheme.Red;
+    public static readonly Color Purple = ArcadeUiTheme.Purple;
+    public static readonly Color Orange = ArcadeUiTheme.Orange;
 
-    public static readonly Color Frame = new Color(0.23f, 0.31f, 0.47f, 0.42f);
-    public static readonly Color Overlay = new Color(0.02f, 0.035f, 0.07f, 0.82f);
-    public static readonly Color Shadow = new Color(0f, 0f, 0f, 0.4f);
+    public static readonly Color Frame = ArcadeUiTheme.Line;
+    public static readonly Color Overlay = ArcadeUiTheme.Backdrop;
+    public static readonly Color Shadow = ArcadeUiTheme.Shadow;
 
     public static readonly Color Action = Gold;
     public static readonly Color ActionDisabled = SurfaceMuted;

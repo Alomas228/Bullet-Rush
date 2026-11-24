@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Elite
   enemyType: 4
-  maxHealth: 2400
-  moveSpeed: 2.2
-  contactDamage: 30
+  maxHealth: 2100
+  moveSpeed: 2.65
+  contactDamage: 24
   damageCooldown: 1
   attackRange: 8
   attackRate: 1.5
-  projectileDamage: 38
+  projectileDamage: 28
   projectileSpeed: 8
   damageMultiplier: 1
   healthMultiplier: 1.5
@@ -28,11 +28,17 @@ MonoBehaviour:
   summonCooldown: 2
   summonCount: 1
   knockbackResistance: 1
-  waveHealthPercent: 0.15
-  waveDamagePercent: 0.05
+  waveHealthPercent: 0.1
+  waveDamagePercent: 0.025
   waveScorePercent: 0.1
   scoreValue: 75
   flankAngle: 0
   abilityDpsMultiplier: 1
   variantChance: 0.2
   variantMinWave: 7
+  bodySkinMaterial: {fileID: 2100000, guid: 0bfbf8897514a2fed82c03c52763e58a, type: 2}
+  bodySkins:
+  - {fileID: 4300000, guid: 575a026a5a7f413b0ea6da0198235f8c, type: 2}
+  - {fileID: 4300000, guid: 169994ea1dd78580d575005cbd70033d, type: 2}
+  - {fileID: 4300000, guid: f93397e53a80dbf54528f2ef571ba0c4, type: 2}
+  - {fileID: 4300000, guid: 64ad2b4480ccaf52b5b6b8b85caf904e, type: 2}

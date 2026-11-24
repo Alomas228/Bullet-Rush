@@ -25,7 +25,9 @@ public class EnemyProjectile : MonoBehaviour
     public void Initialize(
         Vector3 newDirection,
         float newDamage,
-        float newSpeed)
+        float newSpeed,
+        Vector3? visualMuzzle = null,
+        bool muzzleFlash = false)
     {
         direction = newDirection.normalized;
         attackId = DamageEventId.Next();
@@ -35,7 +37,7 @@ public class EnemyProjectile : MonoBehaviour
         lifetimeRemaining = lifetime;
 
         if (showTracer)
-            SpawnTracer();
+            SpawnTracer(visualMuzzle, muzzleFlash);
     }
 
     /// <summary>
@@ -45,13 +47,15 @@ public class EnemyProjectile : MonoBehaviour
     /// сообщает сам снаряд через Detach (см. ReturnToPool), не
     /// полагаясь на опрос activeInHierarchy.
     /// </summary>
-    private void SpawnTracer()
+    private void SpawnTracer(Vector3? visualMuzzle, bool muzzleFlash)
     {
         tracer = VfxFactory.SpawnEnemyTracer(
             transform.position,
             direction,
             speed,
-            transform
+            transform,
+            visualMuzzle,
+            muzzleFlash
         );
     }
 
@@ -106,11 +110,18 @@ public class EnemyProjectile : MonoBehaviour
         // тут же выдать под новый выстрел.
         if (tracer != null)
         {
-            tracer.Detach();
+            tracer.Detach(transform);
             tracer = null;
         }
 
         EnemyProjectilePool.Despawn(this);
+    }
+
+    private void OnDisable()
+    {
+        if (tracer != null)
+            tracer.Detach(transform);
+        tracer = null;
     }
 
     private void OnTriggerEnter(Collider other)

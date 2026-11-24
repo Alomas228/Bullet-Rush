@@ -15,7 +15,7 @@ MonoBehaviour:
   langKey: gory
   mapName: "\u0413\u043E\u0440\u044B"
   icon: {fileID: 0}
-  unlockLevel: 6
+  unlockLevel: 9
   mechanic: 2
   mechanicStrength: 1
   groundMaterial: {fileID: 2100000, guid: d98fec8b07be6a648b8d02835d6a1129, type: 2}

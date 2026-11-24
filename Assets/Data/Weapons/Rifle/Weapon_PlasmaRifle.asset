@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Пробивает ряды врагов и поджигает их. Слабее отдельное попадание — сильнее охват группы."
   weaponType: 0
   rarity: 4
-  unlockLevel: 12
-  price: 3000
-  weaponPrefab: {fileID: 9071840178064284164, guid: 657e2bc9b6c5bf5438ab815da9fa9f24, type: 3}
-  damage: 130
+  unlockLevel: 21
+  price: 1700
+  weaponPrefab: {fileID: 9071840178064284164, guid: d6bd88a7a616be656f8f69c77c580991, type: 3}
+  preview: {fileID: 21300000, guid: 6f1cfe77e77d3674818907392b15a98d, type: 3}
+  damage: 142
   fireRate: 4.5
   projectileSpeed: 19
   projectileCount: 1

@@ -18,6 +18,9 @@ public class EnvironmentController : MonoBehaviour
 
     /// <summary>Событие после завершения перехода на карту.</summary>
     public event Action<GameMap> OnMapChanged;
+    // The map is committed while the menu transition is opaque; presentation
+    // systems can prepare the new scene before it is revealed.
+    public event Action<GameMap> OnMenuMapCommitted;
 
     [Header("Maps")]
     [Tooltip("Доступные карты в порядке карусели.")]
@@ -67,6 +70,12 @@ public class EnvironmentController : MonoBehaviour
     private GameMap runtimePreviousMap;
     private int runtimePreviousIndex = -1;
     private bool restoringRuntimeMap;
+    private GameMap preparedMenuMap;
+    private MenuMapTransitionOverlay menuTransitionOverlay;
+    private GameStateManager stateManager;
+    private Action pendingSessionPreparation;
+    private bool menuSessionRefreshRequested;
+    private int queuedMenuMapIndex = -1;
 
     public int CurrentIndex => currentIndex;
 
@@ -75,6 +84,14 @@ public class EnvironmentController : MonoBehaviour
 
     public bool IsTransitioning { get; private set; }
     public bool IsRestoringRuntimeMap => restoringRuntimeMap;
+    public bool IsSessionRefreshPending => menuSessionRefreshRequested;
+    public int RequestedMapIndex => queuedMenuMapIndex >= 0 ? queuedMenuMapIndex : currentIndex;
+    public bool IsMenuPreparationPending => IsTransitioning || restoringRuntimeMap ||
+        menuSessionRefreshRequested || queuedMenuMapIndex >= 0 ||
+        (worldGenerator != null && worldGenerator.IsGenerating);
+
+    public bool IsMenuWorldPrepared(GameMap map) => map != null && map == preparedMenuMap &&
+        map == CurrentMap && worldGenerator != null && !worldGenerator.IsGenerating;
 
     public int MapsCount =>
         maps != null ? maps.Length : 0;
@@ -177,6 +194,65 @@ public class EnvironmentController : MonoBehaviour
         PushThemeToGenerator();
 
         initialized = true;
+    }
+
+    private void Start()
+    {
+        stateManager = GameStateManager.Instance;
+        if (stateManager != null) stateManager.OnGameStateChanged += HandleGameStateChanged;
+    }
+
+    private void OnDestroy()
+    {
+        if (stateManager != null) stateManager.OnGameStateChanged -= HandleGameStateChanged;
+        if (menuTransitionOverlay != null) Destroy(menuTransitionOverlay.gameObject);
+    }
+
+    private void HandleGameStateChanged(GameState state)
+    {
+        if (state != GameState.Menu)
+        {
+            preparedMenuMap = null;
+            queuedMenuMapIndex = -1;
+        }
+    }
+
+    // Keep the UI alive on session return. A map change already requested by the
+    // player can reuse the same covered rebuild instead of rebuilding twice.
+    public void RequestMenuSessionRefresh(Action preparation)
+    {
+        pendingSessionPreparation = preparation;
+        menuSessionRefreshRequested = true;
+        preparedMenuMap = null;
+    }
+
+    public bool RequestMenuMap(int index)
+    {
+        if (!initialized || GameModeManager.IsPvp || GetMap(index) == null || !IsMapUnlocked(index)) return false;
+        queuedMenuMapIndex = index;
+        return true;
+    }
+
+    private void Update()
+    {
+        if (!initialized || IsTransitioning || restoringRuntimeMap ||
+            GameStateManager.Instance == null || GameStateManager.Instance.CurrentState != GameState.Menu) return;
+
+        if (queuedMenuMapIndex >= 0)
+        {
+            int index = queuedMenuMapIndex;
+            queuedMenuMapIndex = -1;
+            if (!GameModeManager.IsPvp && IsMapUnlocked(index) && GetMap(index) != CurrentMap)
+            {
+                SwitchTo(index);
+                return;
+            }
+        }
+
+        if (menuSessionRefreshRequested && CurrentMap != null)
+        {
+            StartCoroutine(MenuTransitionRoutine(CurrentMap, 1, false));
+        }
     }
 
     /// <summary>Следующая карта по кругу. Входит справа, старая уходит влево.</summary>
@@ -352,6 +428,14 @@ public class EnvironmentController : MonoBehaviour
         GameMap target,
         int enterSide)
     {
+        preparedMenuMap = null;
+        if (ArcadeMenuSkin.CampMenuLayoutEnabled && GameStateManager.Instance != null &&
+            GameStateManager.Instance.CurrentState == GameState.Menu)
+        {
+            StartCoroutine(MenuTransitionRoutine(target, enterSide));
+            return;
+        }
+
         EnvironmentLayer incoming =
             EnvironmentLayer.Create(
                 target,
@@ -374,6 +458,77 @@ public class EnvironmentController : MonoBehaviour
                 enterSide
             )
         );
+    }
+
+    private IEnumerator MenuTransitionRoutine(GameMap target, int enterSide, bool replaceEnvironment = true)
+    {
+        IsTransitioning = true;
+        try
+        {
+            menuTransitionOverlay = MenuMapTransitionOverlay.Create(target, enterSide);
+            float totalDuration = Mathf.Clamp(slideDuration, .85f, 1.5f);
+            yield return menuTransitionOverlay.Cover(totalDuration * .42f);
+            float coveredAt = Time.unscaledTime;
+
+            // Render at least one fully covered frame before creating/destroying
+            // objects. No old terrain, props or half-grown structures can leak through.
+            yield return null;
+
+            if (replaceEnvironment && currentLayer != null)
+            {
+                currentLayer.gameObject.SetActive(false);
+                Destroy(currentLayer.gameObject);
+            }
+            if (worldGenerator == null) worldGenerator = FindAnyObjectByType<WorldStructureGenerator>();
+            if (worldGenerator != null) worldGenerator.Clear();
+
+            if (replaceEnvironment || currentLayer == null)
+            {
+                currentLayer = EnvironmentLayer.Create(target, "Environment_Active", groundSize);
+                currentLayer.transform.SetParent(transform, false);
+                currentLayer.transform.localPosition = Vector3.zero;
+            }
+            currentIndex = Array.IndexOf(maps, target);
+            ApplyEnvironment(target);
+            PushThemeToGenerator();
+
+            if (menuSessionRefreshRequested)
+            {
+                Action prepare = pendingSessionPreparation;
+                pendingSessionPreparation = null;
+                menuSessionRefreshRequested = false;
+                prepare?.Invoke();
+            }
+
+            // Camp scenery is rebuilt underneath the opaque curtain, not after
+            // OnMapChanged. Existing map-changed listeners still run at the end.
+            OnMenuMapCommitted?.Invoke(target);
+            yield return null;
+
+            if (worldGenerator != null)
+            {
+                worldGenerator.RebuildForMenu(target.layoutSeed);
+                while (worldGenerator != null && worldGenerator.IsGenerating) yield return null;
+                if (worldGenerator != null) preparedMenuMap = target;
+            }
+
+            // The scene and all renderers are ready before the reveal begins.
+            yield return null;
+            while (Time.unscaledTime - coveredAt < .16f) yield return null;
+            yield return menuTransitionOverlay.Reveal(totalDuration * .43f);
+        }
+        finally
+        {
+            if (menuTransitionOverlay != null)
+            {
+                menuTransitionOverlay.gameObject.SetActive(false);
+                Destroy(menuTransitionOverlay.gameObject);
+            }
+            menuTransitionOverlay = null;
+            IsTransitioning = false;
+        }
+
+        OnMapChanged?.Invoke(target);
     }
 
     private IEnumerator SlideRoutine(
@@ -568,6 +723,7 @@ public class EnvironmentController : MonoBehaviour
 
     private void PushThemeToGenerator()
     {
+        ArenaBoundaryVisuals.ApplyTheme(CurrentMap);
         if (worldGenerator == null)
             return;
 

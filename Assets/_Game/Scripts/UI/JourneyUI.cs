@@ -11,6 +11,7 @@ using static GameplayJourney;
 public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
 {
     public static bool IsBlocking => current != null && current.modal != null && current.modal.gameObject.activeSelf;
+    public static bool IsJournalOpen => IsBlocking && current.journalOpen;
     private static JourneyUI current;
     private GameplayJourney journey;
     private RectTransform canvasRoot, modal, card, content;
@@ -18,7 +19,6 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     private Button journalButton;
     private bool ownsPause, journalOpen;
     private int tab;
-    private float nextRefresh;
     public void Bind(GameplayJourney owner)
     {
         journey = owner; current = this;
@@ -26,10 +26,20 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
         host.transform.SetParent(transform, false);
         canvasRoot = host.GetComponent<RectTransform>();
         var canvas = host.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 210;
-        var scaler = host.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1280, 720); scaler.matchWidthOrHeight = 0.5f;
-        journalButton = ButtonAt(canvasRoot, "Journey", new Vector2(1, 0), new Vector2(-18, 18), new Vector2(230, 40), "", OpenJournal);
-        notice = Label(canvasRoot, "Notice", new Vector2(0.5f, 0), new Vector2(0, 76), new Vector2(700, 56), 19, TextAlignmentOptions.Center);
+        ResponsiveUi.Configure(host.GetComponent<CanvasScaler>(), new Vector2(1280,720));
+        var safe = ResponsiveUi.SafeContent(canvasRoot);
+        journalButton = ButtonAt(safe, "Journey", new Vector2(1, 0), new Vector2(-18, 18), new Vector2(230, 40), "", OpenJournal);
+        notice = Label(safe, "Notice", new Vector2(0.5f, 0), new Vector2(0, 76), new Vector2(700, 56), 19, TextAlignmentOptions.Center);
+        notice.enableAutoSizing = true;
+        notice.fontSizeMin = 14;
+        notice.fontSizeMax = 19;
+        notice.rectTransform.anchorMin = new Vector2(.08f,0);
+        notice.rectTransform.anchorMax = new Vector2(.92f,0);
+        notice.rectTransform.sizeDelta = new Vector2(0,56);
+        notice.color = MenuSheet.Paper;
+        var shadow = notice.gameObject.AddComponent<Shadow>();
+        shadow.effectDistance = new Vector2(1, -2);
+        shadow.effectColor = ArcadeUiTheme.Ink;
         notice.raycastTarget = false;
         RefreshLang();
     }
@@ -44,22 +54,16 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
         }
         canvasRoot.gameObject.SetActive(true);
         journalButton.gameObject.SetActive(!IsBlocking && state == GameState.GameOver);
-        notice.gameObject.SetActive(!IsBlocking && state == GameState.Playing && Time.unscaledTime < journey.NoticeUntil);
+        notice.gameObject.SetActive(!IsBlocking && state == GameState.Playing && Time.timeScale > 0f && Time.unscaledTime < journey.NoticeUntil);
         notice.text = journey.Notice;
         if (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame)
         {
             if (journalOpen) Close();
             else if (!IsBlocking && !CampaignCompletionUI.IsOpen && (state != GameState.Playing || Time.timeScale > 0)) OpenJournal();
         }
-        if (journalOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) Close();
         if (IsBlocking && ownsPause && state != GameState.Playing) Close();
-        if (IsBlocking && Time.unscaledTime >= nextRefresh)
-        {
-            Canvas.ForceUpdateCanvases();
-            // Fit into both narrow windows and normal 16:9 screens.
-            card.sizeDelta = new Vector2(Mathf.Min(860, canvasRoot.rect.width - 24), Mathf.Min(620, canvasRoot.rect.height - 24));
-            nextRefresh = Time.unscaledTime + 0.5f;
-        }
+        notice.rectTransform.anchoredPosition = new Vector2(0, MobileControls.IsTouchDevice
+            ? (ResponsiveUi.Portrait ? 445 : 150) : 76);
     }
     public void Close()
     {
@@ -69,7 +73,7 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
             !CampaignCompletionUI.IsOpen && !(PauseManager.Instance != null && PauseManager.Instance.IsPaused)) Time.timeScale = 1;
         ownsPause = false;
     }
-    private void Prepare(string title, bool closeable)
+    private void Prepare(string title, bool closeable, UnityEngine.Events.UnityAction dismiss = null)
     {
         if (modal != null) { modal.gameObject.SetActive(false); Destroy(modal.gameObject); }
         ownsPause = GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing;
@@ -77,16 +81,17 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
         modal = ArcadeUiFactory.Stretch(canvasRoot, "JourneyModal");
         ArcadeUiFactory.Image(modal, null, ArcadeUiTheme.Backdrop).raycastTarget = true;
         Canvas.ForceUpdateCanvases();
-        card = ArcadeUiFactory.At(modal, "Card", Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero,
-            new Vector2(Mathf.Min(860, canvasRoot.rect.width - 24), Mathf.Min(620, canvasRoot.rect.height - 24)));
+        var board = UiArtboard.Create(modal, new Vector2(884,644));
+        card = ArcadeUiFactory.At(board, "Card", Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero,
+            new Vector2(860,620));
         ArcadeUiFactory.Image(card, ArcadeKitAssets.RoundRect, ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f), true);
         var shadow = card.gameObject.AddComponent<Shadow>();
         shadow.effectColor = ArcadeUiTheme.Shadow; shadow.effectDistance = new Vector2(0, -8);
         caption = Label(card, "Title", new Vector2(0.5f, 1), new Vector2(0, -24), new Vector2(card.sizeDelta.x - 100, 40), 26, TextAlignmentOptions.Center);
         caption.text = title;
         caption.font = ArcadeKitAssets.Display;
-        caption.color = ArcadeUiTheme.Gold;
-        if (closeable) ButtonAt(card, "Close", Vector2.one, new Vector2(-14, -14), new Vector2(42, 38), "×", Close);
+        caption.color = MenuSheet.Ink;
+        if (closeable) WindowCloseButton.Create(card, dismiss ?? Close);
         var view = ArcadeUiFactory.Stretch(card, "Scroll", 20, 22, 20, 80);
         var image = view.gameObject.AddComponent<Image>(); image.color = new Color(0, 0, 0, 0.01f);
         view.gameObject.AddComponent<RectMask2D>();
@@ -100,8 +105,17 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     private void Paragraph(string text, float height = 80)
     {
         var label = Label(content, "Text", new Vector2(0.5f, 1), Vector2.zero, new Vector2(700, height), 18, TextAlignmentOptions.TopLeft);
-        label.text = text; label.enableAutoSizing = false; label.textWrappingMode = TextWrappingModes.Normal;
-        var layout = label.gameObject.AddComponent<LayoutElement>(); layout.preferredHeight = height;
+        var block = ArcadeUiFactory.At(content, "Entry", Vector2.up, Vector2.up, Vector2.zero, Vector2.zero);
+        block.SetSiblingIndex(label.transform.GetSiblingIndex());
+        ArcadeUiFactory.Image(block, ArcadeKitAssets.CutPanel, MenuSheet.Card, true);
+        var layout = block.gameObject.AddComponent<LayoutElement>();
+        label.rectTransform.SetParent(block, false);
+        UiArtboard.Stretch(label.rectTransform);
+        label.margin = new Vector4(16,8,16,8);
+        label.text = text;
+        label.textWrappingMode = TextWrappingModes.Normal;
+        float width = Mathf.Max(140, card.rect.width - 110);
+        layout.preferredHeight = Mathf.Max(height, label.GetPreferredValues(text, width, float.PositiveInfinity).y + 24);
     }
     private void RowButton(string text, Action action)
     {
@@ -141,19 +155,17 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
         viewport.offsetMax = new Vector2(viewport.offsetMax.x, -148f);
         var navigation = ArcadeUiFactory.Rect(card, "PageNavigation", new Vector2(0, 1), Vector2.one,
             new Vector2(0.5f, 1), new Vector2(0, -82), new Vector2(-40, 48));
-        var previous = ButtonAt(navigation, "PreviousPage", new Vector2(0, 0.5f), Vector2.zero,
-            new Vector2(48, 48), "<", () => { tab = Mathf.Max(0, tab - 1); OpenJournal(); });
-        var next = ButtonAt(navigation, "NextPage", new Vector2(1, 0.5f), Vector2.zero,
-            new Vector2(48, 48), ">", () => { tab = Mathf.Min(pages.Length - 1, tab + 1); OpenJournal(); });
-        previous.interactable = tab > 0;
-        next.interactable = tab < pages.Length - 1;
-        previous.GetComponent<Image>().color = tab > 0 ? ArcadeUiTheme.Card : ArcadeUiTheme.Panel;
-        next.GetComponent<Image>().color = tab < pages.Length - 1 ? ArcadeUiTheme.Card : ArcadeUiTheme.Panel;
-        var titleRect = ArcadeUiFactory.Stretch(navigation, "PageTitle", 60, 0, 60, 0);
-        var pageTitle = ArcadeUiFactory.Label(titleRect, pages[tab], ArcadeKitAssets.BodyBold,
-            22, ArcadeUiTheme.TextPrimary, TextAlignmentOptions.Center);
-        pageTitle.enableAutoSizing = true; pageTitle.fontSizeMin = 13; pageTitle.fontSizeMax = 22;
-        pageTitle.raycastTarget = false;
+        for (int i = 0; i < pages.Length; i++)
+        {
+            int page = i;
+            float left = i / (float)pages.Length, right = (i + 1f) / pages.Length;
+            var segment = ArcadeUiFactory.Rect(navigation, "Page" + i, new Vector2(left,0), new Vector2(right,1),
+                Vector2.one * .5f, Vector2.zero, new Vector2(-6,0));
+            var button = ArcadeUiFactory.Button(segment, ArcadeKitAssets.CutPanel, page == tab ? MenuSheet.Ochre : MenuSheet.Recess,
+                pages[i], ArcadeKitAssets.BodyBold, 17, MenuSheet.Ink, () => { tab = page; OpenJournal(); });
+            var text = button.GetComponentInChildren<TMP_Text>();
+            text.enableAutoSizing = true; text.fontSizeMin = 12; text.fontSizeMax = 17;
+        }
     }
     private void BuildOverview()
     {
@@ -176,9 +188,9 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     }
     private void BuildWeapons()
     {
-        Paragraph(T("Испытания выполняются обычной игрой. Завершение открывает окраску и орбитальный знак. Выбери награду кнопкой ниже.",
-            "Complete trials in normal runs to earn a weapon tint and orbiting insignia. Equip a reward below.",
-            "Normal koşularda sınavları tamamlayarak silah rengi ve yörünge nişanı kazan. Ödülü aşağıdan kuşan."), 95);
+        Paragraph(T("Проходи испытания в забегах, чтобы открывать новые расцветки оружия. Здесь можно выбрать расцветку.",
+            "Complete trials during runs to unlock weapon colors. Choose a color below.",
+            "Koşularda sınavları tamamlayarak silah renklerini aç. Aşağıdan bir renk seç."), 95);
         var weapons = UpgradeManager.Instance?.GetAvailableWeapons(); if (weapons == null) return;
         foreach (var weapon in weapons)
         {
@@ -186,7 +198,7 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
             string id = weapon.WeaponName;
             var trial = journey.WeaponTrial(id);
             Paragraph(weapon.LocalizedName + $" — {trial.progress}/{JourneyRules.TrialTarget(id)}\n" + TrialDescription(id), 90);
-            if (journey.TrialComplete(id)) RowButton((journey.Data.equippedTrial == id ? "✓ " : "") + T("Надеть знак: ", "Equip insignia: ", "Nişanı kuşan: ") + weapon.LocalizedName,
+            if (journey.TrialComplete(id)) RowButton((journey.Data.equippedTrial == id ? "✓ " : "") + T("Расцветка: ", "Weapon color: ", "Silah rengi: ") + weapon.LocalizedName,
                 () => { journey.Equip(id); OpenJournal(); });
             if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Menu)
                 RowButton(T("Попробовать: ", "Try: ", "Dene: ") + weapon.LocalizedName, () => ShowWeaponTrial(weapon));
@@ -228,7 +240,7 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     }
     private void ShowWeaponTrial(WeaponData weapon)
     {
-        Prepare(weapon.LocalizedName + " — " + T("ТИР", "RANGE", "ATIŞ ALANI"), true);
+        Prepare(weapon.LocalizedName + " — " + T("ТИР", "RANGE", "ATIŞ ALANI"), true, OpenJournal);
         journalOpen = true;
         gameObject.GetComponent<WeaponRangePreview>()?.StopPreview();
         var range = gameObject.GetComponent<WeaponRangePreview>() ?? gameObject.AddComponent<WeaponRangePreview>();

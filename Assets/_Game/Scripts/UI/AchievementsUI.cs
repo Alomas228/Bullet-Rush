@@ -97,8 +97,15 @@ public class AchievementsUI : MonoBehaviour
     // REFRESH
     // =========================================================
 
+    private RectTransform sheet;
     public void Refresh()
     {
+        if (sheet == null && content != null && rowTemplate != null)
+        {
+            sheet = RuntimeWindow.Ledger((RectTransform)transform, titleText, closeButton, progressText, content, false);
+            rowTemplate.LayoutRow();
+            rowTemplate.gameObject.SetActive(false);
+        }
         AchievementManager manager = AchievementManager.EnsureExists();
 
         if (titleText != null)
@@ -179,18 +186,18 @@ public class AchievementsUI : MonoBehaviour
         CanvasScaler scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        ResponsiveUi.Configure(scaler, new Vector2(1920,1080));
 
         gameObject.AddComponent<GraphicRaycaster>();
 
         RectTransform root = gameObject.GetComponent<RectTransform>();
 
         // Затемняющий фон на весь экран.
-        Image dim = CreateImage(root, "Dim", new Color(0f, 0f, 0f, 0.85f));
+        Image dim = CreateImage(root, "Dim", ArcadeUiTheme.Backdrop);
         Stretch(dim.rectTransform);
 
         // Панель окна.
-        Image window = CreateImage(root, "Window", new Color(0.09f, 0.1f, 0.14f, 1f));
+        Image window = CreateImage(root, "Window", ArcadeUiTheme.Panel);
         RectTransform windowRect = window.rectTransform;
         windowRect.anchorMin = new Vector2(0.5f, 0.5f);
         windowRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -215,7 +222,7 @@ public class AchievementsUI : MonoBehaviour
         progressRect.anchoredPosition = new Vector2(-20f, -20f);
 
         // Кнопка закрытия.
-        Image closeImage = CreateImage(windowRect, "CloseButton", new Color(0.5f, 0.12f, 0.14f, 1f));
+        Image closeImage = CreateImage(windowRect, "CloseButton", ArcadeUiTheme.PanelRaised);
         RectTransform closeRect = closeImage.rectTransform;
         closeRect.anchorMin = new Vector2(1f, 1f);
         closeRect.anchorMax = new Vector2(1f, 1f);
@@ -243,7 +250,7 @@ public class AchievementsUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.movementType = ScrollRect.MovementType.Clamped;
 
-        Image viewport = CreateImage(scrollRect, "Viewport", new Color(0f, 0f, 0f, 0.25f));
+        Image viewport = CreateImage(scrollRect, "Viewport", ArcadeUiTheme.CardSoft);
         Stretch(viewport.rectTransform);
         viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
 
@@ -285,7 +292,7 @@ public class AchievementsUI : MonoBehaviour
         rowRect.sizeDelta = new Vector2(0f, 130f);
 
         Image bg = rowGo.AddComponent<Image>();
-        bg.color = new Color(1f, 1f, 1f, 0.06f);
+        bg.color = ArcadeUiTheme.Card;
 
         LayoutElement element = rowGo.AddComponent<LayoutElement>();
         element.minHeight = 130f;
@@ -300,7 +307,7 @@ public class AchievementsUI : MonoBehaviour
         rowTitleRect.anchoredPosition = new Vector2(0f, -12f);
 
         TMP_Text rowDesc = CreateText(rowRect, "Description", 22f, TextAlignmentOptions.TopLeft);
-        rowDesc.color = new Color(0.8f, 0.82f, 0.88f, 1f);
+        rowDesc.color = ArcadeUiTheme.TextSecondary;
         RectTransform rowDescRect = rowDesc.rectTransform;
         rowDescRect.anchorMin = new Vector2(0f, 0f);
         rowDescRect.anchorMax = new Vector2(1f, 1f);
@@ -350,7 +357,8 @@ public class AchievementsUI : MonoBehaviour
         TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
         text.fontSize = size;
         text.alignment = alignment;
-        text.color = Color.white;
+        text.color = MenuSheet.Ink;
+        text.font = ArcadeKitAssets.BodyBold;
         text.raycastTarget = false;
 
         return text;

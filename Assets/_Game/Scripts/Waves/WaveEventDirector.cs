@@ -13,18 +13,18 @@ public partial class WaveEventDirector : MonoBehaviour
 
     [Header("Scheduling")]
     [Tooltip("С какой волны начинаются события.")]
-    [SerializeField] private int minEventWave = 4;
+    [SerializeField] private int minEventWave = 2;
     [Tooltip("Вероятность события в пригодной волне. Ниже 0.5 — чтобы больше половины волн оставались без события и игрок мог выдохнуть.")]
     [Range(0f, 1f)]
-    [SerializeField] private float eventChancePerWave = 0.45f;
+    [SerializeField] private float eventChancePerWave = 0.65f;
     [Tooltip("Минимальная задержка события после начала волны.")]
-    [SerializeField] private float eventMinDelay = 6f;
+    [SerializeField] private float eventMinDelay = 3f;
     [Tooltip("Максимальная задержка события после начала волны.")]
-    [SerializeField] private float eventMaxDelay = 14f;
+    [SerializeField] private float eventMaxDelay = 7f;
     [Tooltip("Сколько волн подряд может пройти без события, прежде чем событие станет обязательным.")]
-    [SerializeField] private int eventRepeatLimit = 3;
+    [SerializeField] private int eventRepeatLimit = 2;
     [Tooltip("Минимальный отдых между событиями в секундах. Чинит главную проблему: волны могут идти по 15-20 секунд, и при шансе 0.55 событие успевало попадать и в предыдущую, и в следующую волну подряд.")]
-    [SerializeField] private float eventCooldownSeconds = 20f;
+    [SerializeField] private float eventCooldownSeconds = 14f;
     [Tooltip("Сколько волн подряд может идти с событием. Дальше — обязательная передышка, чтобы событие осталось событием, а не фоном.")]
     [Range(1, 4)]
     [SerializeField] private int maxConsecutiveEventWaves = 2;
@@ -352,8 +352,7 @@ public partial class WaveEventDirector : MonoBehaviour
         bool forced =
             wavesSinceEvent >= Mathf.Max(eventRepeatLimit, 1);
 
-        if (!forced && Random.value > eventChancePerWave)
-            yield break;
+        bool scheduled = forced || Random.value <= eventChancePerWave;
 
         float delay =
             Random.Range(
@@ -366,8 +365,20 @@ public partial class WaveEventDirector : MonoBehaviour
         if (!CanRunEvent())
             yield break;
 
-        WaveEventType type =
-            PickEventType(modifier);
+        // Reuse the existing rush event as a pressure recovery beat. Don't
+        // add reinforcements when the main queue still has enough enemies.
+        bool rushAllowed = IsCompatible(WaveEventType.Rush, modifier);
+        float deadline = Time.time + 4f;
+        while (!scheduled && rushAllowed && enemySpawner != null && CanRunEvent() && Time.time < deadline &&
+               (Enemy.AliveCount > 5 || enemySpawner.PendingSpawnCount > 3))
+            yield return new WaitForSeconds(0.2f);
+
+        if (!CanRunEvent()) yield break;
+        bool needsPressure = rushAllowed && enemySpawner != null && Enemy.AliveCount <= 5 &&
+            enemySpawner.PendingSpawnCount <= 3 && enemySpawner.HasRoomForEvent(GetPlannedCount(WaveEventType.Rush, wave));
+        if (!scheduled && !needsPressure) yield break;
+        WaveEventType type = needsPressure ? WaveEventType.Rush : PickEventType(modifier);
+        if (needsPressure) lastEventType = type;
 
         yield return RunEvent(type, wave);
     }

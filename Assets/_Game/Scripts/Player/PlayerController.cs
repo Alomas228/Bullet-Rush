@@ -25,6 +25,7 @@ public partial class PlayerController : MonoBehaviour
 
     private Vector2 input;
     private Vector3 movement;
+    private Vector3 mapDriftVelocity;
 
     private Vector3 recoilOffset;
     [SerializeField] private float recoilDamping = 10f;
@@ -34,6 +35,10 @@ public partial class PlayerController : MonoBehaviour
     private Vector3 dashDirection;
 
     private bool spawnGrowInProgress;
+    private Vector3 menuSpawnPosition;
+    private Quaternion menuSpawnRotation;
+    private Vector3 menuSpawnScale;
+    private float baseDashCooldown;
 
     public BonusSettings bonusSettings;
 
@@ -93,6 +98,10 @@ public partial class PlayerController : MonoBehaviour
 
     private void Awake()
     {
+        menuSpawnPosition = transform.position;
+        menuSpawnRotation = transform.rotation;
+        menuSpawnScale = transform.localScale;
+        baseDashCooldown = dashCooldown;
         rb = GetComponent<Rigidbody>();
 
         playerCollider = GetComponent<Collider>();
@@ -108,6 +117,64 @@ public partial class PlayerController : MonoBehaviour
 
         if (playerCamera == null)
             playerCamera = Camera.main;
+    }
+
+    internal void PrepareMenuPreview()
+    {
+        if (!gameObject.activeSelf) gameObject.SetActive(true);
+        StopAllCoroutines();
+        spawnGrowInProgress = false;
+        inputEnabled = false;
+        mapDriftVelocity = Vector3.zero;
+        input = Vector2.zero;
+        movement = Vector3.zero;
+        recoilOffset = Vector3.zero;
+        dashTimer = 0f;
+        dashCooldownTimer = 0f;
+        transform.localScale = menuSpawnScale;
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+        RestoreMenuPose(true);
+        if (playerCollider != null) playerCollider.enabled = true;
+        GetComponentInChildren<ShieldAbility>(true)?.ClearMenuVisual();
+        GetComponent<PlayerEquipmentApplier>()?.RefreshMenuAppearance();
+        GetComponentInChildren<Weapon>(true)?.RefreshMenuWeapon();
+    }
+
+    internal void ResetForSession()
+    {
+        dashCooldown = baseDashCooldown;
+        dashTimer = 0f;
+        dashCooldownTimer = 0f;
+        dashDirection = Vector3.zero;
+        recoilOffset = Vector3.zero;
+        input = Vector2.zero;
+        movement = Vector3.zero;
+        autoAimTarget = null;
+        autoAimSearchTimer = 0f;
+        autoAimManualUntil = 0f;
+        autoAimFrame = -1;
+        preciseDodgeAwarded = false;
+        dodgedAttacks.Clear();
+        recentDodges.Clear();
+    }
+
+    private void RestoreMenuPose(bool resetPosition)
+    {
+        // Rigidbody interpolation retains the previous physics pose when time
+        // is paused in the menu. Disable it before changing the visual pose.
+        if (rb != null)
+        {
+            rb.interpolation = RigidbodyInterpolation.None;
+            if (resetPosition) rb.position = menuSpawnPosition;
+            rb.rotation = menuSpawnRotation;
+        }
+        if (resetPosition) transform.SetPositionAndRotation(menuSpawnPosition, menuSpawnRotation);
+        else transform.rotation = menuSpawnRotation;
+        Physics.SyncTransforms();
     }
 
     private bool inputEnabled;
@@ -126,6 +193,7 @@ public partial class PlayerController : MonoBehaviour
         if (GameStateManager.Instance != null &&
             GameStateManager.Instance.CurrentState == GameState.Menu)
         {
+            RestoreMenuPose(false);
             PlaySpawnIn();
         }
     }
@@ -146,6 +214,7 @@ public partial class PlayerController : MonoBehaviour
 
     private void OnDisable()
     {
+        DashVfxBatcher.EndDash(transform);
         if (subscribed && GameStateManager.Instance != null)
         {
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
@@ -156,6 +225,14 @@ public partial class PlayerController : MonoBehaviour
     private void HandleStateChanged(GameState state)
     {
         inputEnabled = state == GameState.Playing;
+        if (!inputEnabled) mapDriftVelocity = Vector3.zero;
+
+        if (state == GameState.Menu) RestoreMenuPose(false);
+        else if (state == GameState.Playing && rb != null)
+        {
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.useGravity = true;
+        }
 
         if (!inputEnabled)
         {
@@ -187,19 +264,29 @@ public partial class PlayerController : MonoBehaviour
     {
         input = Vector2.zero;
 
-        if (Keyboard.current == null)
+        if (MobileControls.IsTouchDevice)
+        {
+            input = MobileControls.MoveInput;
+            movement = MobileControls.WorldDirection(input, playerCamera);
             return;
+        }
 
-        if (Keyboard.current.aKey.isPressed)
+        if (Keyboard.current == null)
+        {
+            movement = Vector3.zero;
+            return;
+        }
+
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed)
             input.x -= 1f;
 
-        if (Keyboard.current.dKey.isPressed)
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed)
             input.x += 1f;
 
-        if (Keyboard.current.sKey.isPressed)
+        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed)
             input.y -= 1f;
 
-        if (Keyboard.current.wKey.isPressed)
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed)
             input.y += 1f;
 
         movement =
@@ -225,10 +312,11 @@ public partial class PlayerController : MonoBehaviour
             currentSpeed =
                 playerStats.MoveSpeed;
 
-        Vector3 delta =
-            movement *
-            currentSpeed *
-            Time.fixedDeltaTime;
+        Vector3 desiredVelocity = movement * currentSpeed;
+        mapDriftVelocity = MapMechanicManager.CurrentMechanic == MapMechanic.LowGravity
+            ? Vector3.MoveTowards(mapDriftVelocity, desiredVelocity, currentSpeed * 3.2f * Time.fixedDeltaTime)
+            : desiredVelocity;
+        Vector3 delta = mapDriftVelocity * Time.fixedDeltaTime;
 
         if (recoilOffset.sqrMagnitude > 0.0001f)
         {
@@ -275,7 +363,7 @@ public partial class PlayerController : MonoBehaviour
                     ? playerStats.MoveSpeed
                     : moveSpeed;
 
-            return movement * speed;
+            return MapMechanicManager.CurrentMechanic == MapMechanic.LowGravity ? mapDriftVelocity : movement * speed;
         }
     }
 
@@ -302,7 +390,10 @@ public partial class PlayerController : MonoBehaviour
     private void UpdateDashTimers()
     {
         if (dashTimer > 0f)
+        {
             dashTimer -= Time.deltaTime;
+            if (dashTimer <= 0f) DashVfxBatcher.EndDash(transform);
+        }
 
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
@@ -310,8 +401,12 @@ public partial class PlayerController : MonoBehaviour
 
     private void TryStartDash()
     {
-        if (Keyboard.current == null)
-            return;
+        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame) TryDash();
+    }
+
+    public void TryDash()
+    {
+        if (!inputEnabled || Time.timeScale <= 0f || RamLiftArena.InTransit || JourneyUI.IsBlocking) return;
 
         if (dashCooldownTimer > 0f)
             return;
@@ -319,8 +414,7 @@ public partial class PlayerController : MonoBehaviour
         if (dashTimer > 0f)
             return;
 
-        if (!Keyboard.current.spaceKey.wasPressedThisFrame)
-            return;
+        if (MobileControls.IsTouchDevice) HandleMovementInput();
 
         if (movement.sqrMagnitude > 0.01f)
         {
@@ -340,6 +434,8 @@ public partial class PlayerController : MonoBehaviour
 
         dashTimer = dashDuration;
         dashCooldownTimer = dashCooldown;
+
+        DashVfxBatcher.BeginDash(transform, dashDirection, dashDuration, false);
 
         recoilOffset = Vector3.zero;
 
@@ -593,6 +689,11 @@ public partial class PlayerController : MonoBehaviour
 
     private void HandleAiming()
     {
+        if (MobileControls.IsTouchDevice)
+        {
+            ApplyMobileAim();
+            return;
+        }
         if (Mouse.current == null ||
             playerCamera == null)
             return;
@@ -633,4 +734,5 @@ public partial class PlayerController : MonoBehaviour
             }
         }
     }
+
 }

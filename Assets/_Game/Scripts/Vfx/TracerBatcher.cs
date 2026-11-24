@@ -59,7 +59,7 @@ public sealed class TracerBatcher : MonoBehaviour
         new Matrix4x4[InitialCapacity];
 
     private static Matrix4x4[] coreMatrices =
-        new Matrix4x4[InitialCapacity];
+        new Matrix4x4[InitialCapacity * 2];
 
     /// <summary>
     /// Ставит трассер в очередь на отрисовку. Зовётся из
@@ -171,6 +171,8 @@ public sealed class TracerBatcher : MonoBehaviour
 
         int kept = 0;
         int playerCount = 0;
+        int playerFlashCount = 0;
+        int enemyFlashCount = 0;
 
         for (int read = 0; read < total; read++)
         {
@@ -188,7 +190,11 @@ public sealed class TracerBatcher : MonoBehaviour
             active[kept++] = tracer;
 
             if (!tracer.EnemyStyle)
+            {
                 playerCount++;
+                if (tracer.HasMuzzleFlash) playerFlashCount++;
+            }
+            else if (tracer.HasMuzzleFlash) enemyFlashCount++;
 
             Vector3 position = tracer.transform.position;
 
@@ -217,6 +223,11 @@ public sealed class TracerBatcher : MonoBehaviour
         // область, и DrawBatch читает ровно то, что записал.
         int playerSlot = 0;
         int enemySlot = playerCount;
+        int enemyCount = kept - playerCount;
+        int playerFlashSlot = playerCount;
+        int playerCoreEnd = playerCount + playerFlashCount;
+        int enemyCoreSlot = playerCoreEnd;
+        int enemyFlashSlot = playerCoreEnd + enemyCount;
 
         for (int i = 0; i < kept; i++)
         {
@@ -225,25 +236,26 @@ public sealed class TracerBatcher : MonoBehaviour
 
             tracer.BuildMatrices(
                 tracerTransform.position,
-                tracerTransform.rotation,
                 out Matrix4x4 tail,
                 out Matrix4x4 core);
 
             if (tracer.EnemyStyle)
             {
                 tailMatrices[enemySlot] = tail;
-                coreMatrices[enemySlot] = core;
+                coreMatrices[enemyCoreSlot++] = core;
+                if (tracer.TryBuildMuzzleFlash(out Matrix4x4 enemyFlash))
+                    coreMatrices[enemyFlashSlot++] = enemyFlash;
                 enemySlot++;
             }
             else
             {
                 tailMatrices[playerSlot] = tail;
                 coreMatrices[playerSlot] = core;
+                if (tracer.TryBuildMuzzleFlash(out Matrix4x4 flash))
+                    coreMatrices[playerFlashSlot++] = flash;
                 playerSlot++;
             }
         }
-
-        int enemyCount = kept - playerCount;
 
         Camera camera = VfxSharedAssets.MainCamera;
 
@@ -275,7 +287,7 @@ public sealed class TracerBatcher : MonoBehaviour
                 VfxSharedAssets.TracerCoreMesh,
                 coreMatrices,
                 0,
-                playerCount,
+                playerCoreEnd,
                 camera,
                 bounds);
         }
@@ -295,8 +307,8 @@ public sealed class TracerBatcher : MonoBehaviour
                 VfxSharedAssets.EnemyTracerMaterial,
                 VfxSharedAssets.TracerCoreMesh,
                 coreMatrices,
-                playerCount,
-                enemyCount,
+                playerCoreEnd,
+                enemyCount + enemyFlashCount,
                 camera,
                 bounds);
         }
@@ -369,7 +381,7 @@ public sealed class TracerBatcher : MonoBehaviour
             capacity = total;
 
         System.Array.Resize(ref tailMatrices, capacity);
-        System.Array.Resize(ref coreMatrices, capacity);
+        System.Array.Resize(ref coreMatrices, capacity * 2);
     }
 
     [RuntimeInitializeOnLoadMethod(
@@ -380,6 +392,6 @@ public sealed class TracerBatcher : MonoBehaviour
         active.Clear();
 
         tailMatrices = new Matrix4x4[InitialCapacity];
-        coreMatrices = new Matrix4x4[InitialCapacity];
+        coreMatrices = new Matrix4x4[InitialCapacity * 2];
     }
 }

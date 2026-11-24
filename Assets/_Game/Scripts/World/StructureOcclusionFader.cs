@@ -64,7 +64,7 @@ public class StructureOcclusionFader : MonoBehaviour
     private void Awake()
     {
         meshRenderers =
-            GetComponentsInChildren<MeshRenderer>(true);
+            System.Array.FindAll(GetComponentsInChildren<MeshRenderer>(true), renderer => renderer.enabled);
 
         if (meshRenderers == null ||
             meshRenderers.Length == 0)

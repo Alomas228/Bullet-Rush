@@ -2,23 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Панель «Карты» в главном меню: выбор карты для следующего забега.
-///
-/// Список карт берёт из EnvironmentController (maps, заданные в его
-/// инспекторе). Композиция — горизонтальная: на экран помещается
-/// MapSelectionUI.CardsPerPage карточек, по краям стрелки листают
-/// страницы, снизу точки пагинации.
-///
-/// Клик по карточке вызывает EnvironmentController.SwitchTo(index) —
-/// мир под камерой уезжает/приезжает прямо на фоне панели, а рамка
-/// выбранной карточки переезжает следом. Намеренно не блокирует
-/// слайд: тот идёт через Time.unscaledDeltaTime.
-/// </summary>
-public class MapSelectionUI : MonoBehaviour
+/// <summary>Shows the PvE arenas. Browsing is local to the window until the player confirms.</summary>
+public class MapSelectionUI : MonoBehaviour, ILangRefreshable
 {
     /// <summary>Сколько карточек помещается на экран.</summary>
-    public const int CardsPerPage = 5;
+    public const int CardsPerPage = 3;
 
     private sealed class Dot
     {
@@ -42,6 +30,10 @@ public class MapSelectionUI : MonoBehaviour
 
     private EnvironmentController environment;
     private int page;
+    private int pendingIndex;
+    private bool waitingForArena;
+    private Button confirmButton;
+    private TMPro.TMP_Text confirmLabel;
     private bool built;
     private bool subscribed;
     private bool warnedNoEnvironment;
@@ -66,6 +58,8 @@ public class MapSelectionUI : MonoBehaviour
         if (!built)
             return;
 
+        pendingIndex = environment.RequestedMapIndex;
+        page = Mathf.Clamp(pendingIndex / CardsPerPage, 0, PageCount - 1);
         Subscribe();
         Refresh();
     }
@@ -128,6 +122,16 @@ public class MapSelectionUI : MonoBehaviour
 
         built = true;
 
+        var sheet = MenuSheet.Build(this, previousButton, nextButton, dotsRoot);
+        for (int i = 0; i < Mathf.Min(CardsPerPage, cardSlots.Count); i++)
+        {
+            cardSlots[i].Prepare(sheet.Body, 42 + 469 * i);
+            sheet.PortraitPlace(cardSlots[i],i == 2 ? 251 : 18+i*466,190+(i/2)*557,450,541);
+        }
+        confirmButton = MenuSheet.NewButton(sheet.Body, "ConfirmMap", 954, 746, 476, 52,
+            MenuSheet.Ochre, ConfirmMap, out confirmLabel);
+        sheet.PortraitPlace(confirmButton,434,1374,476,52);
+        sheet.Reflow();
         WireButtons();
         RegisterSlots();
         BuildDots();
@@ -236,7 +240,7 @@ public class MapSelectionUI : MonoBehaviour
             int index = start + i;
 
             bool visible =
-                index < mapsCount &&
+                i < CardsPerPage && index < mapsCount &&
                 environment.GetMap(index) != null;
 
             if (slot.gameObject.activeSelf != visible)
@@ -247,10 +251,30 @@ public class MapSelectionUI : MonoBehaviour
 
             slot.Bind(environment.GetMap(index), index);
 
-            slot.SetSelected(index == environment.CurrentIndex);
+            slot.SetState(index == pendingIndex, !GameModeManager.IsPvp && index == environment.CurrentIndex);
         }
 
+        RefreshConfirm();
         UpdatePagination();
+    }
+
+    private void RefreshConfirm()
+    {
+        GameMap pending = environment.GetMap(pendingIndex);
+        waitingForArena = environment.IsMenuPreparationPending;
+        confirmButton.interactable = !GameModeManager.IsPvp &&
+            pending != null && MapProgression.IsUnlocked(pending);
+        if (GameModeManager.IsPvp)
+            confirmLabel.text = Lang.Get("maps.pve_only");
+        else
+            confirmLabel.text = pending != null ? Lang.Get("maps.confirm", pending.LocalizedName) : Lang.Get("maps.pick");
+        confirmButton.image.color = confirmButton.interactable ? MenuSheet.Ochre : MenuSheet.Recess;
+    }
+
+    private void LateUpdate()
+    {
+        if (built && waitingForArena != environment.IsMenuPreparationPending)
+            RefreshConfirm();
     }
 
     private void UpdatePagination()
@@ -270,15 +294,15 @@ public class MapSelectionUI : MonoBehaviour
         if (previousImage != null)
         {
             previousImage.color = hasPrevious
-                ? MapSelectionTheme.Surface
-                : MapSelectionTheme.SurfaceMuted;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         if (nextImage != null)
         {
             nextImage.color = hasNext
-                ? MapSelectionTheme.Surface
-                : MapSelectionTheme.SurfaceMuted;
+                ? MenuSheet.Ochre
+                : MenuSheet.Recess;
         }
 
         for (int i = 0; i < dots.Count; i++)
@@ -297,8 +321,8 @@ public class MapSelectionUI : MonoBehaviour
             if (dot.image != null)
             {
                 dot.image.color = active
-                    ? MapSelectionTheme.DotActive
-                    : MapSelectionTheme.DotInactive;
+                    ? MenuSheet.Ink
+                    : MenuSheet.Rule;
             }
         }
     }
@@ -328,6 +352,8 @@ public class MapSelectionUI : MonoBehaviour
             return;
 
         page = clamped;
+        int current = environment.RequestedMapIndex;
+        pendingIndex = current >= 0 && current / CardsPerPage == page ? current : -1;
 
         ShowPage();
 
@@ -357,11 +383,29 @@ public class MapSelectionUI : MonoBehaviour
         if (!card.Unlocked)
             return;
 
-        environment.SwitchTo(mapIndex);
-
+        pendingIndex = mapIndex;
+        PlayUiClick();
         ShowPage();
+    }
 
-        PlayMapChange();
+    public void RefreshLang()
+    {
+        if (built && isActiveAndEnabled) Refresh();
+    }
+
+    private void ConfirmMap()
+    {
+        if (GameModeManager.IsPvp || pendingIndex < 0 || !environment.IsMapUnlocked(pendingIndex))
+            return;
+        if (pendingIndex != environment.RequestedMapIndex)
+        {
+            if (!environment.RequestMenuMap(pendingIndex)) return;
+            PlayMapChange();
+        }
+        else PlayUiClick();
+
+        if (MainMenuUI.Instance != null) MainMenuUI.Instance.CloseSubPanels();
+        else gameObject.SetActive(false);
     }
 
     // =====================================================

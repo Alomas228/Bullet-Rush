@@ -20,5 +20,9 @@ public enum UpgradeType
     Bleeding,
     Lifesteal,
     ChainLightning,
-    Ricochet
+    Ricochet,
+    RunPerk,
+    AbilityPower,
+    AbilityHaste,
+    AbilityRange
 }

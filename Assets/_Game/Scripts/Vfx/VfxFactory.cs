@@ -53,7 +53,9 @@ public static class VfxFactory
         Vector3 direction,
         float speed,
         Transform followTarget = null,
-        GameObject prefab = null)
+        GameObject prefab = null,
+        Vector3? visualMuzzle = null,
+        bool muzzleFlash = false)
     {
         TracerEffect tracer =
             VfxPools.Tracers.Spawn(
@@ -68,7 +70,9 @@ public static class VfxFactory
         tracer.Play(
             direction,
             speed,
-            followTarget
+            followTarget,
+            visualMuzzle,
+            muzzleFlash
         );
 
         return tracer;
@@ -87,7 +91,9 @@ public static class VfxFactory
         Vector3 position,
         Vector3 direction,
         float speed,
-        Transform followTarget = null)
+        Transform followTarget = null,
+        Vector3? visualMuzzle = null,
+        bool muzzleFlash = false)
     {
         TracerEffect tracer =
             VfxPools.EnemyTracers.Spawn(
@@ -102,7 +108,9 @@ public static class VfxFactory
         tracer.Play(
             direction,
             speed,
-            followTarget
+            followTarget,
+            visualMuzzle,
+            muzzleFlash
         );
 
         return tracer;

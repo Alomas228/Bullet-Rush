@@ -8,13 +8,10 @@ using UnityEngine;
 ///
 /// Правила:
 ///  - у каждого параметра ровно <see cref="MaxLevel"/> уровней;
-///  - цена следующего уровня растёт в <see cref="CostMultiplier"/> раз
-///    от базовых <see cref="BaseCost"/> монет (округление до
-///    <see cref="CostRoundStep"/>), то есть 25 -> 35 -> 45 -> ... -> 370;
-///    полностью прокачать все параметры — долгая цель, а не пара забегов;
+///  - цены задаются таблицей <see cref="GameBalance"/> от 25 до 320 монет;
 ///  - бонусы небольшие: полностью прокачанный параметр даёт ощутимый
 ///    прирост, но не ломает геймплей (скорость бега, например,
-///    растёт максимум примерно на треть);
+///    растёт максимум примерно на 20%);
 ///  - прогресс хранится в PlayerPrefs (как EquipmentManager) и не
 ///    требует объекта в сцене.
 ///
@@ -33,9 +30,6 @@ public static class PermanentUpgrades
     /// <summary>Сколько уровней у каждого параметра.</summary>
     public const int MaxLevel = 10;
 
-    private const int BaseCost = 25;
-    private const float CostMultiplier = 1.35f;
-    private const int CostRoundStep = 5;
 
     /// <summary>
     /// Как бонус одного уровня складывается с бонусами других уровней.
@@ -160,7 +154,7 @@ public static class PermanentUpgrades
 
     /// <summary>
     /// Цена следующего уровня параметра (0, если максимум).
-    /// Рост: 25, 35, 45, 60, 85, 110, 150, 205, 275, 370.
+    /// Рост: 25, 35, 50, 70, 95, 125, 160, 205, 255, 320.
     /// </summary>
     public static int GetCost(PermanentUpgradeStat stat)
     {
@@ -170,18 +164,7 @@ public static class PermanentUpgrades
     /// <summary>Цена покупки уровня level (level — уже купленный).</summary>
     public static int GetCostForLevel(int level)
     {
-        if (level < 0)
-            level = 0;
-
-        if (level >= MaxLevel)
-            return 0;
-
-        float raw = BaseCost * Mathf.Pow(CostMultiplier, level);
-
-        int rounded =
-            Mathf.RoundToInt(raw / CostRoundStep) * CostRoundStep;
-
-        return Mathf.Max(BaseCost, rounded);
+        return GameBalance.UpgradeCost(level);
     }
 
     /// <summary>Суммарная цена прокачки одного параметра от нуля до MaxLevel.</summary>
@@ -462,7 +445,7 @@ public static class PermanentUpgrades
         var map =
             new Dictionary<PermanentUpgradeStat, Def>();
 
-        // Урон: +5% за уровень -> +62.9% на максимуме.
+        // Урон: +3.5% за уровень.
         Add(
             map,
             new Def
@@ -470,12 +453,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.Damage,
                 Key = "damage",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = 0.05f,
+                ValuePerLevel = 0.035f,
                 Decimals = 1
             }
         );
 
-        // Скорострельность: +5% за уровень -> +62.9% на максимуме.
+        // Скорострельность: +3% за уровень.
         Add(
             map,
             new Def
@@ -483,12 +466,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.FireRate,
                 Key = "fire_rate",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = 0.05f,
+                ValuePerLevel = 0.03f,
                 Decimals = 1
             }
         );
 
-        // Скорость бега: +3% за уровень -> +34.4% на максимуме.
+        // Скорость бега: +1.8% за уровень.
         Add(
             map,
             new Def
@@ -496,12 +479,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.MoveSpeed,
                 Key = "move_speed",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = 0.03f,
+                ValuePerLevel = 0.018f,
                 Decimals = 1
             }
         );
 
-        // Максимум HP: +7% за уровень -> +96.7% на максимуме.
+        // Максимум HP: +4.5% за уровень.
         Add(
             map,
             new Def
@@ -509,15 +492,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.MaxHealth,
                 Key = "max_health",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = 0.07f,
+                ValuePerLevel = 0.045f,
                 Decimals = 1
             }
         );
 
-        // Регенерация: +1 HP/с за уровень -> +10 HP/с на максимуме.
-        // Плоское число, а не процент, поэтому оно обязано жить в том же
-        // масштабе, что и здоровье игрока (100 HP): при прежних +0.1
-        // регенерация стала бы одной сотой здоровья в секунду.
+        // Регенерация: +0.18 HP/с за уровень, суммарно +1.8 HP/с.
         Add(
             map,
             new Def
@@ -525,13 +505,13 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.HealthRegen,
                 Key = "health_regen",
                 Mode = ValueMode.FlatAdd,
-                ValuePerLevel = 1f,
+                ValuePerLevel = 0.18f,
                 ValueIsFraction = false,
                 Decimals = 1
             }
         );
 
-        // Шанс крита: +2% за уровень -> +20% на максимуме.
+        // Шанс крита: +1.4 процентного пункта за уровень.
         Add(
             map,
             new Def
@@ -539,12 +519,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.CriticalChance,
                 Key = "critical_chance",
                 Mode = ValueMode.FlatAdd,
-                ValuePerLevel = 0.02f,
+                ValuePerLevel = 0.014f,
                 Decimals = 0
             }
         );
 
-        // Сила крита: +0.15x за уровень -> +1.5x к криту (2.0 -> 3.5).
+        // Сила крита: +0.075x за уровень.
         Add(
             map,
             new Def
@@ -552,13 +532,13 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.CriticalDamage,
                 Key = "critical_damage",
                 Mode = ValueMode.FlatAdd,
-                ValuePerLevel = 0.15f,
+                ValuePerLevel = 0.075f,
                 ValueIsFraction = false,
                 Decimals = 2
             }
         );
 
-        // Скорость снарядов: +5% за уровень -> +62.9% на максимуме.
+        // Скорость снарядов: +3% за уровень.
         Add(
             map,
             new Def
@@ -566,12 +546,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.ProjectileSpeed,
                 Key = "projectile_speed",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = 0.05f,
+                ValuePerLevel = 0.03f,
                 Decimals = 1
             }
         );
 
-        // Перезарядка рывка: -4% за уровень -> -33% на максимуме.
+        // Перезарядка рывка: -2.5% за уровень.
         Add(
             map,
             new Def
@@ -579,12 +559,12 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.DashCooldown,
                 Key = "dash_cooldown",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = -0.04f,
+                ValuePerLevel = -0.025f,
                 Decimals = 1
             }
         );
 
-        // Перезарядка способностей: -4% за уровень -> -33% на максимуме.
+        // Перезарядка способностей: -2.5% за уровень.
         Add(
             map,
             new Def
@@ -592,7 +572,7 @@ public static class PermanentUpgrades
                 Stat = PermanentUpgradeStat.AbilityCooldown,
                 Key = "ability_cooldown",
                 Mode = ValueMode.PercentCompound,
-                ValuePerLevel = -0.04f,
+                ValuePerLevel = -0.025f,
                 Decimals = 1
             }
         );

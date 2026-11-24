@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Широкий залп надёжно поджигает врагов. Меняй позицию, пока они догорают."
   weaponType: 1
   rarity: 3
-  unlockLevel: 8
-  price: 1500
-  weaponPrefab: {fileID: 8559010253350651214, guid: b71d04f3f937acf4e9cd061f2fa299ef, type: 3}
-  damage: 70
+  unlockLevel: 13
+  price: 1100
+  weaponPrefab: {fileID: 8559010253350651214, guid: 2d66a94b2143dfe966024f0b761bfda6, type: 3}
+  preview: {fileID: 21300000, guid: b349d7487ebe30296e27b957cd6db4c6, type: 3}
+  damage: 82
   fireRate: 1.6
   projectileSpeed: 14
   projectileCount: 5

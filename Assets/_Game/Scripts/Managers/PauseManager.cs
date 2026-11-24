@@ -123,6 +123,9 @@ public class PauseManager : MonoBehaviour
         if (Keyboard.current != null &&
             Keyboard.current.escapeKey.wasPressedThisFrame)
         {
+            if (JourneyUI.IsBlocking && !JourneyUI.IsJournalOpen) return;
+            if (CampaignCompletionUI.IsOpen) return;
+            if (WindowCloseButton.CloseTop()) return;
             TogglePause();
         }
     }

@@ -25,15 +25,21 @@ public class PlayerEquipmentApplier : MonoBehaviour
         Shader.PropertyToID("_MainTex");
 
     private bool subscribed;
+    private bool started;
+    private bool gameplayApplied;
     private bool hasDefaultColor;
     private Color defaultColor = Color.white;
 
     private MeshRenderer bodyRenderer;
+    private MeshFilter bodyFilter;
+    private Mesh defaultMesh;
     private MaterialPropertyBlock bodyBlock;
 
     private void Awake()
     {
         bodyRenderer = GetComponent<MeshRenderer>();
+        bodyFilter = GetComponent<MeshFilter>();
+        defaultMesh = bodyFilter != null ? bodyFilter.sharedMesh : null;
 
         if (bodyRenderer == null)
             return;
@@ -49,17 +55,16 @@ public class PlayerEquipmentApplier : MonoBehaviour
     private void OnEnable()
     {
         EnsureSubscribed();
-
-        if (GameStateManager.Instance != null &&
-            GameStateManager.Instance.CurrentState == GameState.Playing)
-        {
-            ApplyAll();
-        }
+        if (started) ApplyCurrentState();
     }
 
     private void Start()
     {
+        started = true;
         EnsureSubscribed();
+        // A newly loaded scene can already have a state before this component
+        // subscribes. Always synchronize its actual state on initialization.
+        ApplyCurrentState();
     }
 
     private void OnDisable()
@@ -87,8 +92,46 @@ public class PlayerEquipmentApplier : MonoBehaviour
 
     private void HandleStateChanged(GameState state)
     {
-        if (state == GameState.Playing)
+        if (!started) return;
+        if (state == GameState.Menu) gameplayApplied = false;
+        ApplyCurrentState();
+    }
+
+    private void ApplyCurrentState()
+    {
+        if (GameStateManager.Instance == null) return;
+        GameState state = GameStateManager.Instance.CurrentState;
+        if (state == GameState.Menu)
+        {
+            ApplyClothing();
+            return;
+        }
+        if (state != GameState.Playing) return;
+        if (!gameplayApplied && UpgradeManager.Instance != null)
+        {
+            gameplayApplied = true;
             ApplyAll();
+        }
+        else
+        {
+            ApplyClothing();
+        }
+    }
+
+    internal void ResetForSession(bool startingRun)
+    {
+        gameplayApplied = false;
+        if (startingRun)
+        {
+            // Do this before any Playing subscribers apply permanent upgrades;
+            // ability references have to exist before cooldown bonuses are applied.
+            ApplyAll();
+            gameplayApplied = true;
+        }
+        else
+        {
+            ApplyClothing();
+        }
     }
 
     private void ApplyAll()
@@ -127,35 +170,16 @@ public class PlayerEquipmentApplier : MonoBehaviour
         if (upgradeManager == null)
             return;
 
-        foreach (string abilityName in
-                 EquipmentManager.EquippedAbilityNames)
+        // Reserve the original Q/E slots first whenever the old abilities
+        // are selected; new active abilities occupy the remaining slots.
+        for (int pass = 0; pass < 2; pass++)
         {
-            if (string.IsNullOrEmpty(abilityName))
-                continue;
-
-            AbilityData data =
-                FindAbility(upgradeManager, abilityName);
-
-            if (data == null)
-                continue;
-
-            switch (data.Kind)
+            foreach (string abilityName in EquipmentManager.EquippedAbilityNames)
             {
-                case AbilityKind.Bomb:
-                    if (abilityManager.UnlockBomb())
-                        Debug.Log(
-                            $"[Equipment] Способность '{abilityName}' " +
-                            "снаряжена: бомба разблокирована (клавиша E)."
-                        );
-                    break;
-
-                case AbilityKind.Shield:
-                    if (abilityManager.UnlockShield())
-                        Debug.Log(
-                            $"[Equipment] Способность '{abilityName}' " +
-                            "снаряжена: щит разблокирован (клавиша Q)."
-                        );
-                    break;
+                if (string.IsNullOrEmpty(abilityName)) continue;
+                AbilityData data = FindAbility(upgradeManager, abilityName);
+                if (data == null || data.IsLegacy != (pass == 0) || !EquipmentManager.IsOwned(data)) continue;
+                abilityManager.EquipAbility(data);
             }
         }
     }
@@ -181,6 +205,12 @@ public class PlayerEquipmentApplier : MonoBehaviour
     // CLOTHING
     // =========================================================
 
+    internal void RefreshMenuAppearance()
+    {
+        if (GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Menu)
+            ApplyClothing();
+    }
+
     private void ApplyClothing()
     {
         if (bodyRenderer == null)
@@ -195,6 +225,7 @@ public class PlayerEquipmentApplier : MonoBehaviour
                 : Color.white;
 
         Texture2D targetTexture = null;
+        Mesh targetMesh = defaultMesh;
 
         string clothingName =
             EquipmentManager.EquippedClothingName;
@@ -203,6 +234,10 @@ public class PlayerEquipmentApplier : MonoBehaviour
         {
             UpgradeManager upgradeManager =
                 UpgradeManager.Instance;
+
+            // Do not replace an already equipped skin with the default cube
+            // while the catalog is still initializing.
+            if (upgradeManager == null) return;
 
             if (upgradeManager != null)
             {
@@ -215,6 +250,9 @@ public class PlayerEquipmentApplier : MonoBehaviour
                 if (data != null &&
                     EquipmentManager.IsOwned(data))
                 {
+                    if (data.BodyMesh != null)
+                        targetMesh = data.BodyMesh;
+
                     if (data.HasSkinTexture)
                     {
                         // Текстура заменяет цвет: колор ставим белым,
@@ -229,6 +267,9 @@ public class PlayerEquipmentApplier : MonoBehaviour
                 }
             }
         }
+
+        if (bodyFilter != null)
+            bodyFilter.sharedMesh = targetMesh;
 
         ApplyBodyVisual(targetTexture, targetColor);
 

@@ -64,6 +64,7 @@ public class EnvironmentLayer : MonoBehaviour
                 GroundHeight
             );
 
+        int firstStampedChild = transform.childCount;
         if (map.groundDecorPrefab != null)
             Stamp(map.groundDecorPrefab);
 
@@ -78,6 +79,7 @@ public class EnvironmentLayer : MonoBehaviour
             for (int i = 0; i < map.fixedDecor.Length; i++)
                 StampFixed(map.fixedDecor[i]);
         }
+        ArenaStaticMeshBatcher.BatchDecoration(transform, firstStampedChild);
     }
 
     /// <summary>

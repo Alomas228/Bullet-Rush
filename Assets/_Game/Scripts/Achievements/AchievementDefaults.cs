@@ -64,10 +64,10 @@ public static class AchievementDefaults
             Make(
                 "arsenal",
                 "ach.arsenal.title", "ARSENAL",
-                "ach.arsenal.desc", "Победи в забеге с каждым доступным оружием.",
+                "ach.arsenal.desc", "Победи в забеге с 5 разными видами оружия.",
                 AchievementCategory.Weapons,
                 AchievementConditionType.WinWithUniqueWeapons,
-                0f,
+                5f,
                 DamageSource.Unknown,
                 false,
                 Clothing("Неон")
@@ -124,10 +124,10 @@ public static class AchievementDefaults
             Make(
                 "lifetime_waves_1000",
                 "ach.milestone.waves.title", "ENDLESS SURVIVOR",
-                "ach.milestone.waves.desc", "Достигни суммарно 1000 волн.",
+                "ach.milestone.waves.desc", "Зачисти суммарно 750 волн.",
                 AchievementCategory.Survival,
                 AchievementConditionType.CumulativeWaves,
-                1000f,
+                750f,
                 DamageSource.Unknown,
                 false,
                 Currency(1500)
@@ -136,10 +136,10 @@ public static class AchievementDefaults
             Make(
                 "lifetime_runs_100",
                 "ach.milestone.runs.title", "VETERAN",
-                "ach.milestone.runs.desc", "Заверши 100 забегов.",
+                "ach.milestone.runs.desc", "Заверши 35 забегов, зачистив хотя бы одну волну.",
                 AchievementCategory.Survival,
                 AchievementConditionType.CumulativeRuns,
-                100f,
+                35f,
                 DamageSource.Unknown,
                 false,
                 Currency(2000)

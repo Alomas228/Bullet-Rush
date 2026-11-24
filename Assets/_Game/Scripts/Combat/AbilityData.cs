@@ -13,7 +13,17 @@ using UnityEngine;
 public enum AbilityKind
 {
     Bomb,
-    Shield
+    Shield,
+    CrescentSlash,
+    ThunderSlam,
+    FrostNova,
+    GravityWell,
+    OrbitBlades,
+    ShadowFamiliar,
+    LightningStorm,
+    FlameRing,
+    IceLance,
+    FallingStar
 }
 
 [CreateAssetMenu(
@@ -57,23 +67,35 @@ public class AbilityData : ScriptableObject
     [TextArea]
     [SerializeField] private string stats;
 
+    [Header("Runtime (new abilities)")]
+    [SerializeField, Min(0)] private float damage = 150f;
+    [SerializeField, Min(.1f)] private float radius = 4f;
+    [SerializeField, Min(.25f)] private float cooldown = 5f;
+    [SerializeField, Range(1, 16)] private int maxTargets = 8;
+
     public string AbilityName => abilityName;
 
     public string Description => description;
 
     /// <summary>Имя на языке игрока; без перевода — имя из ассета.</summary>
     public string LocalizedName =>
-        Lang.GetOr("abi." + langKey + ".name", abilityName);
+        IsLegacy ? Lang.GetOr("abi." + langKey + ".name", abilityName) : AbilityPresentation.Name(kind);
 
     /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
     public string LocalizedDescription =>
-        Lang.GetOr("abi." + langKey + ".desc", description);
+        IsLegacy ? Lang.GetOr("abi." + langKey + ".desc", description) : AbilityPresentation.Description(kind);
 
     /// <summary>Строка характеристик на языке игрока.</summary>
     public string LocalizedStats =>
-        Lang.GetOr("abi." + langKey + ".stats", stats);
+        IsLegacy ? Lang.GetOr("abi." + langKey + ".stats", stats) : AbilityPresentation.Stats(this);
 
     public AbilityKind Kind => kind;
+    public bool IsLegacy => kind == AbilityKind.Bomb || kind == AbilityKind.Shield;
+    public bool IsAutomatic => (int)kind >= (int)AbilityKind.OrbitBlades;
+    public float Damage => Mathf.Max(0f, damage);
+    public float Radius => Mathf.Clamp(radius, .1f, 9f);
+    public float Cooldown => Mathf.Max(.25f, cooldown);
+    public int MaxTargets => Mathf.Clamp(maxTargets, 1, 16);
 
     public int UnlockLevel =>
         Mathf.Max(unlockLevel, 1);

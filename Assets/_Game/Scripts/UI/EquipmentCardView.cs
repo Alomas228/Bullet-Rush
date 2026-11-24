@@ -2,18 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Отображение одной карточки предмета на экране «Снаряжение».
-///
-/// Композиция повторяет карточку «Улучшений» (рамка, тень,
-/// вертикальный список строк, акцентная полоса действий), но
-/// наполнение другое: вместо уровня параметра и полосы прогресса
-/// здесь редкость предмета и его состояние — куплен, надет,
-/// заблокирован по уровню игрока.
-///
-/// Данные не лежат в полях: их передаёт EquipmentUI через
-/// <see cref="Refresh"/> на каждый элемент списка.
-/// </summary>
+/// <summary>Displays one catalog item as a selectable tile or as the shop detail panel.</summary>
 public class EquipmentCardView : MonoBehaviour
 {
     [Header("Frame")]
@@ -48,399 +37,114 @@ public class EquipmentCardView : MonoBehaviour
     [Tooltip("Ставится на true, когда на карточку повешен обработчик.")]
     [SerializeField] private bool wired;
 
-    private Image iconGlyph;
-
-    private static readonly Color PriceAffordable =
-        EquipmentWireframeTheme.White(0.22f);
-
-    private static readonly Color PriceBlocked =
-        EquipmentWireframeTheme.White(0.14f);
+    private bool isDetail;
+    private Image glyph;
+    private Vector2 defaultGlyphPivot;
+    private bool expandedPreview;
 
     public Button CardButton => cardButton;
-
     public Button ActionButton => actionButton;
-
     public bool Wired => wired;
+    public void MarkWired() => wired = true;
 
-    /// <summary>Помечает карточку как готовую к работе.</summary>
-    public void MarkWired()
+    // Keep the scene's buttons and text bindings. Only their visual hierarchy changes.
+    public void Prepare(Transform sheet, float x, float y, float width, float height, bool detail)
     {
-        wired = true;
+        isDetail = detail;
+        MenuSheet.Place(this, sheet, x, y, width, height);
+        MenuSheet.HideChildren(transform);
+        MenuSheet.Place(frameImage, transform, 0, 0, width, height);
+        MenuSheet.Surface(frameImage, MenuSheet.Rule);
+        MenuSheet.Place(surfaceImage, transform, 3, 3, width - 6, height - 7);
+        MenuSheet.Surface(surfaceImage, MenuSheet.Card, !detail);
+        cardButton.targetGraphic = surfaceImage;
+        cardButton.enabled = !detail;
+        MenuSheet.Place(iconWash, transform, 15, 14, width - 30, detail ? 145 : 94);
+        MenuSheet.HideChildren(iconWash.transform);
+        MenuSheet.Surface(iconWash, MenuSheet.Recess);
+        glyph = MenuSheet.Box(iconWash.transform, "ItemGlyph", 0, 0, width - 30, detail ? 145 : 94, Color.white);
+        glyph.type = Image.Type.Simple;
+        glyph.preserveAspect = true;
+        defaultGlyphPivot = glyph.rectTransform.pivot;
+
+        MenuSheet.Label(nameText, transform, 23, detail ? 178 : 113, width - 46, detail ? 49 : 47,
+            detail ? 33 : 25, MenuSheet.Ink, heading: true);
+        MenuSheet.Label(stateText, transform, 23, detail ? 339 : 160, width - 46, 36, 20, MenuSheet.Muted);
+
+        if (!detail) return;
+        MenuSheet.Label(typeText, transform, 23, 157, width - 46, 28, 17, MenuSheet.Muted);
+        MenuSheet.Label(statsText, transform, 23, 231, width - 46, 107, 22, MenuSheet.Ink);
+        statsText.font = ArcadeKitAssets.Body;
+        MenuSheet.Control(actionButton, transform, 22, height - 75, width - 44, 54, MenuSheet.Ochre);
+        MenuSheet.HideChildren(actionButton.transform);
+        MenuSheet.Label(actionLabel, actionButton.transform, 8, 0, width - 60, 54, 23,
+            MenuSheet.Ink, TextAlignmentOptions.Center);
     }
 
-    /// <summary>
-    /// Перерисовывает карточку под текущее состояние предмета.
-    /// coins нужен, чтобы кнопка покупки гасла при нехватке монет.
-    /// </summary>
-    public void Refresh(EquipmentCardData data, int coins)
+    public void Refresh(EquipmentCardData data, int coins, bool focused = false)
     {
-        if (data == null)
-            return;
-
-        Color accent = data.Accent;
-
-        if (accentLine != null)
-            accentLine.color = accent;
-
-        if (iconWash != null)
-            iconWash.color = EquipmentWireframeTheme.Wash(accent, 0.16f);
-
-        if (iconDisc != null)
-            iconDisc.color = EquipmentWireframeTheme.Wash(accent, 0.55f);
-
-        if (typeText != null)
+        nameText.text = data.Name;
+        bool skinPreview = data.Clothing != null && data.Clothing.Preview != null;
+        if (isDetail && skinPreview != expandedPreview)
         {
-            typeText.text = data.TypeLabel;
-            typeText.color = accent;
+            expandedPreview = skinPreview;
+            float extraHeight = skinPreview ? 54f : 0f;
+            iconWash.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 145f + extraHeight);
+            glyph.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 145f + extraHeight);
+            SetTop(typeText.rectTransform, 157f + extraHeight);
+            SetTop(nameText.rectTransform, 178f + extraHeight);
+            SetTop(statsText.rectTransform, 231f + extraHeight);
+            statsText.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 107f - extraHeight);
         }
+        glyph.sprite = MenuSheetArt.Item(data);
+        glyph.color = skinPreview || data.Weapon != null || data.Ability != null ? Color.white : MenuSheet.Ink;
+        // Image.preserveAspect aligns the fitted sprite using its pivot.
+        var glyphRect = glyph.rectTransform;
+        glyphRect.anchorMin = glyphRect.anchorMax = glyphRect.pivot =
+            skinPreview ? Vector2.one * 0.5f : defaultGlyphPivot;
+        glyphRect.anchoredPosition = Vector2.zero;
+        Color accent = Color.Lerp(data.Accent, MenuSheet.Paper, 0.64f);
+        iconWash.color = data.Unlocked ? accent : MenuSheet.Recess;
+        stateText.text = data.Unlocked && !data.Owned && !isDetail
+            ? Lang.Get("upg.refresh_cost", data.Price)
+            : data.State;
+        stateText.color = data.Equipped ? ArcadeUiTheme.Rgb(0x42614B) : MenuSheet.Muted;
+        frameImage.color = focused ? MenuSheet.Ink : MenuSheet.Rule;
 
-        if (nameText != null)
-            nameText.text = data.Name;
-
-        bool hasRarity = !string.IsNullOrEmpty(data.RarityLabel);
-
-        if (rarityRow != null)
-            rarityRow.gameObject.SetActive(hasRarity);
-
-        if (rarityText != null)
-        {
-            rarityText.text = data.RarityLabel;
-            rarityText.color = accent;
-        }
-
-        if (statsText != null)
-            statsText.text = data.Stats;
-
-        if (stateText != null)
-        {
-            stateText.text = data.State;
-            stateText.color = data.Unlocked
-                ? EquipmentWireframeTheme.TextSecondary
-                : EquipmentWireframeTheme.TextMuted;
-        }
-
-        if (stateImage != null)
-        {
-            stateImage.color = data.Unlocked
-                ? EquipmentWireframeTheme.Track
-                : EquipmentWireframeTheme.SurfaceMuted;
-        }
-
-        ApplyAction(data, coins);
-        ApplyUnifiedStyle(data);
-    }
-
-    private void ApplyAction(EquipmentCardData data, int coins)
-    {
-        string label;
-        bool interactable;
-
+        if (!isDetail) return;
+        typeText.text = string.IsNullOrEmpty(data.RarityLabel) ? data.TypeLabel
+            : data.TypeLabel + "   /   " + data.RarityLabel;
+        statsText.text = data.Stats;
+        bool available;
         if (!data.Unlocked)
         {
-            label = Lang.Get("eq.action_locked");
-            interactable = false;
+            actionLabel.text = Lang.Get("eq.state_locked_level", data.UnlockLevel);
+            available = false;
         }
         else if (!data.Owned)
         {
-            label = Lang.Get("eq.action_buy");
-            interactable = coins >= data.Price;
+            actionLabel.text = Lang.Get("eq.action_buy") + "  ·  " + Lang.Get("upg.refresh_cost", data.Price);
+            available = coins >= data.Price;
         }
-        else if (data.Toggles)
+        else if (data.Equipped)
         {
-            label = data.Equipped
-                ? Lang.Get("eq.action_unequip")
-                : Lang.Get("eq.action_equip");
-            interactable = true;
+            actionLabel.text = Lang.Get(data.Toggles ? "eq.action_unequip" : "eq.state_equipped");
+            available = data.Toggles;
         }
         else
         {
-            label = data.Equipped
-                ? Lang.Get("eq.state_equipped")
-                : Lang.Get("eq.action_equip");
-            interactable = !data.Equipped;
+            actionLabel.text = Lang.Get("eq.action_equip");
+            available = data.Ability == null || EquipmentManager.HasFreeAbilitySlot(data.Ability.IsAutomatic);
+            if (!available) actionLabel.text = GameplayJourney.T("СНАЧАЛА ОСВОБОДИТЕ СЛОТ", "FREE A SLOT FIRST", "ONCE YUVA BOSALTIN");
         }
-
-        if (actionLabel != null)
-            actionLabel.text = label;
-
-        if (actionButton != null)
-            actionButton.interactable = interactable;
-
-        if (actionImage != null)
-        {
-            actionImage.color = interactable
-                ? EquipmentWireframeTheme.Action
-                : EquipmentWireframeTheme.ActionDisabled;
-        }
-
-        if (actionLabel != null)
-        {
-            actionLabel.color = interactable
-                ? ArcadeUiPalette.BackgroundDeep
-                : EquipmentWireframeTheme.TextMuted;
-        }
-
-        ApplyPrice(data);
+        actionButton.interactable = available;
+        actionImage.color = available ? MenuSheet.Ochre : MenuSheet.Recess;
+        actionLabel.color = available ? MenuSheet.Ink : MenuSheet.Muted;
     }
 
-    /// <summary>
-    /// Бейдж с ценой. У заблокированного предмета вместо цены
-    /// показывается уровень разблокировки — так игрок понимает,
-    /// чего ему не хватает.
-    /// </summary>
-    private void ApplyPrice(EquipmentCardData data)
+    private static void SetTop(RectTransform rect, float top)
     {
-        string text;
-        Color background;
-
-        if (!data.Unlocked)
-        {
-            text = Lang.Get("eq.level_chip", data.UnlockLevel);
-            background = PriceBlocked;
-        }
-        else if (!data.Owned)
-        {
-            text = data.Price.ToString();
-            background = data.Unlocked
-                ? PriceAffordable
-                : PriceBlocked;
-        }
-        else
-        {
-            text = Lang.Get("upg.dash_marker");
-            background = PriceBlocked;
-        }
-
-        if (priceText != null)
-        {
-            priceText.text = text;
-            priceText.color = data.Unlocked && !data.Owned
-                ? ArcadeUiPalette.Gold
-                : EquipmentWireframeTheme.TextSecondary;
-        }
-
-        if (priceImage != null)
-            priceImage.color = background;
+        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, -top);
     }
 
-    private void ApplyUnifiedStyle(EquipmentCardData data)
-    {
-        Color accent = data.Accent;
-
-        if (frameImage != null)
-            frameImage.color = ArcadeUiTheme.Line;
-
-        if (surfaceImage != null)
-        {
-            surfaceImage.sprite = ArcadeKitAssets.RoundRect;
-            surfaceImage.type = Image.Type.Sliced;
-            surfaceImage.pixelsPerUnitMultiplier = 1f;
-            surfaceImage.color = ArcadeUiTheme.Panel;
-        }
-
-        if (accentLine != null)
-        {
-            accentLine.sprite = ArcadeKitAssets.RoundRect;
-            accentLine.type = Image.Type.Sliced;
-            accentLine.pixelsPerUnitMultiplier = 1f;
-            accentLine.color = accent;
-
-            RectTransform lineRect = accentLine.rectTransform;
-            lineRect.sizeDelta = new Vector2(320f, 4f);
-            lineRect.anchoredPosition = new Vector2(0f, -10f);
-        }
-
-        Transform art = iconWash != null
-            ? iconWash.transform
-            : transform.Find("CardFace/IconArea");
-
-        if (iconWash != null)
-        {
-            iconWash.sprite = ArcadeKitAssets.RoundRect;
-            iconWash.type = Image.Type.Sliced;
-            iconWash.pixelsPerUnitMultiplier = 1f;
-            iconWash.color = ArcadeCardVisuals.ArtTint(accent);
-        }
-
-        if (art is RectTransform artRect)
-            ArcadeCardVisuals.Pattern(artRect);
-
-        if (iconDisc != null)
-        {
-            iconDisc.sprite = ArcadeKitAssets.Glow;
-            iconDisc.preserveAspect = true;
-            iconDisc.color = ArcadeUiTheme.Alpha(accent, 0.22f);
-
-            RectTransform discRect = iconDisc.rectTransform;
-            discRect.sizeDelta = new Vector2(178f, 178f);
-            discRect.anchoredPosition = new Vector2(0f, 4f);
-        }
-
-        if (art != null)
-        {
-            string key = string.IsNullOrEmpty(data.IconKey)
-                ? "sword"
-                : data.IconKey;
-
-            iconGlyph = ArcadeCardVisuals.EnsureImage(
-                art,
-                "CardGlyph",
-                ArcadeKitAssets.Icon(key),
-                Color.white
-            );
-
-            iconGlyph.preserveAspect = true;
-            iconGlyph.color = Color.Lerp(accent, Color.white, 0.28f);
-
-            RectTransform glyphRect = iconGlyph.rectTransform;
-            glyphRect.anchorMin = new Vector2(0.5f, 0.5f);
-            glyphRect.anchorMax = new Vector2(0.5f, 0.5f);
-            glyphRect.pivot = new Vector2(0.5f, 0.5f);
-            glyphRect.sizeDelta = new Vector2(82f, 82f);
-            glyphRect.anchoredPosition = new Vector2(0f, 6f);
-            iconGlyph.transform.SetAsLastSibling();
-        }
-
-        if (typeText != null)
-        {
-            RectTransform rect = typeText.rectTransform;
-
-            rect.anchorMin = new Vector2(0f, 0f);
-            rect.anchorMax = new Vector2(0f, 0f);
-            rect.pivot = new Vector2(0f, 0f);
-            rect.sizeDelta = new Vector2(270f, 20f);
-            rect.anchoredPosition = new Vector2(14f, 12f);
-
-            ArcadeCardVisuals.Text(
-                typeText,
-                ArcadeKitAssets.BodyBold,
-                13f,
-                accent,
-                TextAlignmentOptions.Left,
-                FontStyles.Bold | FontStyles.UpperCase
-            );
-        }
-
-        PlaceText(nameText, 247f, 34f, 28f, ArcadeUiTheme.TextPrimary,
-            FontStyles.Bold);
-        PlaceText(statsText, 350f, 92f, 15f, ArcadeUiTheme.TextSecondary,
-            FontStyles.Normal);
-
-        if (rarityText != null)
-        {
-            rarityText.font = ArcadeKitAssets.BodyBold;
-            rarityText.fontSize = 14f;
-            rarityText.color = accent;
-            rarityText.alignment = TextAlignmentOptions.Left;
-            rarityText.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-        }
-
-        if (rarityRow != null)
-        {
-            rarityRow.sizeDelta = new Vector2(314f, 22f);
-            rarityRow.anchoredPosition = new Vector2(177f, -284f);
-        }
-
-        Transform face = statsText != null ? statsText.transform.parent : null;
-
-        if (face != null)
-        {
-            Image statsPanel = ArcadeCardVisuals.InfoPanel(
-                face,
-                "CardStats",
-                304f,
-                92f
-            );
-
-            if (statsText != null)
-            {
-                statsPanel.transform.SetSiblingIndex(
-                    statsText.transform.GetSiblingIndex()
-                );
-            }
-        }
-
-        if (stateImage != null)
-        {
-            stateImage.sprite = ArcadeKitAssets.RoundRect;
-            stateImage.type = Image.Type.Sliced;
-            stateImage.pixelsPerUnitMultiplier = 1f;
-            stateImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.42f);
-        }
-
-        if (stateText != null)
-        {
-            stateText.font = ArcadeKitAssets.BodyBold;
-            stateText.fontSize = 13f;
-            stateText.color = ArcadeUiTheme.TextSecondary;
-            stateText.alignment = TextAlignmentOptions.Center;
-            stateText.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-        }
-
-        if (stateText != null && stateText.transform.parent is RectTransform stateRow)
-        {
-            stateRow.sizeDelta = new Vector2(314f, 32f);
-            stateRow.anchoredPosition = new Vector2(177f, -422f);
-        }
-
-        ArcadeCardVisuals.Divider(transform, 442f);
-
-        if (actionButton != null &&
-            actionButton.transform is RectTransform actionRect)
-        {
-            actionRect.sizeDelta = new Vector2(314f, 64f);
-            actionRect.anchoredPosition = new Vector2(177f, -481f);
-        }
-
-        ArcadeCardVisuals.Action(
-            actionImage,
-            actionLabel,
-            actionButton != null && actionButton.interactable
-        );
-
-        if (priceImage != null)
-        {
-            priceImage.sprite = ArcadeKitAssets.RoundRect;
-            priceImage.type = Image.Type.Sliced;
-            priceImage.pixelsPerUnitMultiplier = 1f;
-            priceImage.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Ink, 0.82f);
-        }
-
-        if (priceText != null)
-        {
-            priceText.font = ArcadeKitAssets.BodyBold;
-            priceText.color = data.Unlocked && !data.Owned
-                ? ArcadeUiTheme.Gold
-                : ArcadeUiTheme.TextMuted;
-        }
-    }
-
-    private static void PlaceText(
-        TMP_Text text,
-        float top,
-        float height,
-        float size,
-        Color color,
-        FontStyles style)
-    {
-        if (text == null)
-            return;
-
-        RectTransform rect = text.rectTransform;
-
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(314f, height);
-        rect.anchoredPosition = new Vector2(177f, -top);
-
-        ArcadeCardVisuals.Text(
-            text,
-            size >= 26f ? ArcadeKitAssets.Display : ArcadeKitAssets.Body,
-            size,
-            color,
-            TextAlignmentOptions.Left,
-            style
-        );
-    }
 }

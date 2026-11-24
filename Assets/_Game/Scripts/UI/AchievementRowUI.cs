@@ -17,8 +17,6 @@ public class AchievementRowUI : MonoBehaviour
     [SerializeField] private TMP_Text rewardLabel;
 
     [Header("Colors")]
-    [SerializeField] private Color unlockedTint = new Color(0.16f, 0.32f, 0.2f, 0.55f);
-    [SerializeField] private Color lockedTint = new Color(1f, 1f, 1f, 0.05f);
 
     private Image progressFill;
     private bool barBuilt;
@@ -33,6 +31,12 @@ public class AchievementRowUI : MonoBehaviour
         descriptionLabel = description;
         progressLabel = progress;
         background = bg;
+    }
+
+    public void LayoutRow()
+    {
+        RuntimeWindow.LedgerRow((RectTransform)transform, titleLabel, descriptionLabel, rewardLabel, progressLabel,
+            progressBar, null);
     }
 
     public void Bind(
@@ -51,7 +55,7 @@ public class AchievementRowUI : MonoBehaviour
             descriptionLabel.text = data.GetDescription(unlocked);
 
         if (background != null)
-            background.color = unlocked ? unlockedTint : lockedTint;
+            background.color = unlocked ? MenuSheet.Sage : MenuSheet.Card;
 
         if (rewardLabel != null)
             rewardLabel.text = BuildRewardText(data);

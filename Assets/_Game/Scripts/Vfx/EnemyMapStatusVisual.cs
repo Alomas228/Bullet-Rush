@@ -1,73 +1,57 @@
 using UnityEngine;
-using UnityEngine.Rendering;
 
-// Two lightweight, collider-free markers using an existing shared VFX material.
-// Wet: a blue ground ring. Ice: a pale faceted crown that thins as ice breaks.
-public sealed class EnemyMapStatusVisual : MonoBehaviour
+// Body effects, tactical headpieces and side pins occupy different parts of the silhouette.
+public sealed class EnemyMapStatusVisual : CombatMarkSource
 {
     private Enemy enemy;
-    private LineRenderer wet;
-    private LineRenderer ice;
-    private const int Segments = 16;
-
     public void Bind(Enemy owner)
     {
         enemy = owner;
-        if (wet == null && owner.IsWet)
-            wet = Build("WetMarker", new Color(0.15f, 0.6f, 1f), false);
-        if (ice == null && owner.IceHealth > 0f)
-            ice = Build("IceCoating", new Color(0.65f, 0.95f, 1f), true);
         enabled = true;
-        Refresh();
     }
 
-    private LineRenderer Build(string markerName, Color color, bool crystalline)
+    internal override void Draw(CombatMarkBatch batch)
     {
-        var host = new GameObject(markerName);
-        host.transform.SetParent(transform, false);
-        var line = host.AddComponent<LineRenderer>();
-        line.sharedMaterial = VfxSharedAssets.TracerMaterial;
-        var properties = new MaterialPropertyBlock();
-        properties.SetColor("_GlowColor", color);
-        properties.SetColor("_CoreColor", color);
-        properties.SetFloat("_Intensity", 1f);
-        properties.SetFloat("_TailPower", 0f);
-        line.SetPropertyBlock(properties);
-        line.useWorldSpace = false;
-        line.loop = true;
-        line.positionCount = Segments;
-        line.widthMultiplier = crystalline ? 0.07f : 0.045f;
-        line.shadowCastingMode = ShadowCastingMode.Off;
-        line.receiveShadows = false;
-        for (int i = 0; i < Segments; i++)
+        if (enemy == null || enemy.IsDead) { enabled = false; return; }
+        bool commands = enemy.IsUnderCommand;
+        if (!enemy.IsWet && enemy.IceHealth <= 0 && enemy.Tactic == Enemy.TacticalRole.None &&
+            !enemy.ShowsDirectionalShield && !commands && !enemy.IsCacheGuard)
         {
-            float angle = i * Mathf.PI * 2f / Segments;
-            float radius = crystalline ? (i % 2 == 0 ? 0.78f : 0.65f) : 0.85f;
-            float height = crystalline ? (i % 2 == 0 ? 1.1f : 0.35f) : 0.08f;
-            line.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, height, Mathf.Sin(angle) * radius));
-        }
-        return line;
-    }
-
-    private void LateUpdate() => Refresh();
-
-    private void Refresh()
-    {
-        bool alive = enemy != null && !enemy.IsDead;
-        if (wet != null) wet.enabled = alive && enemy.IsWet;
-        if (ice != null)
-        {
-            ice.enabled = alive && enemy.IceHealth > 0f;
-            if (ice.enabled)
-                ice.widthMultiplier = Mathf.Lerp(0.02f, 0.07f, enemy.IceFraction);
-        }
-        if ((!alive || !enemy.IsWet) && (!alive || enemy.IceHealth <= 0f))
             enabled = false;
+            return;
+        }
+        // Use exactly the transform that steers and squashes the enemy body.
+        // Turning, charging and being knocked back move the equipment with the cube.
+        Matrix4x4 body = transform.localToWorldMatrix;
+        if (enemy.IsWet)
+            batch.Stamp(CombatMarkShape.Wet, body);
+        if (enemy.IceHealth > 0)
+        {
+            var stage = enemy.IceFraction > .66f ? CombatMarkShape.IceIntact :
+                enemy.IceFraction > .33f ? CombatMarkShape.IceCracked : CombatMarkShape.IceChipped;
+            batch.Stamp(stage, body);
+        }
+        if (enemy.ShowsDirectionalShield)
+            batch.Stamp(CombatMarkShape.Shield, body);
+
+        float iceLift = .16f * Mathf.Clamp01(enemy.IceFraction * 2f);
+        Matrix4x4 head = iceLift > 0 ? body * Matrix4x4.Translate(Vector3.up * iceLift) : body;
+        if (enemy.Tactic == Enemy.TacticalRole.Coordinator)
+        {
+            var crown = enemy.IsObjectiveCoordinator ? CombatMarkShape.ObjectiveCoordinator : CombatMarkShape.Coordinator;
+            batch.Stamp(crown, head);
+        }
+        else if (enemy.Tactic == Enemy.TacticalRole.Blocker)
+            batch.Stamp(CombatMarkShape.Blocker, head);
+
+        // Pins lie on the shoulder of the cube, with their upper surface visible from the game camera.
+        if (commands) Shoulder(batch, head, CombatMarkShape.Commanded, -.31f);
+        if (enemy.IsCacheGuard) Shoulder(batch, head, CombatMarkShape.Guard, .32f);
     }
 
-    private void OnDisable()
+    private static void Shoulder(CombatMarkBatch batch, Matrix4x4 head, CombatMarkShape shape, float x)
     {
-        if (wet != null) wet.enabled = false;
-        if (ice != null) ice.enabled = false;
+        var pin = Matrix4x4.TRS(new Vector3(x,.54f,-.22f), Quaternion.Euler(85,0,0), Vector3.one * .90f);
+        batch.Stamp(shape, head * pin);
     }
 }

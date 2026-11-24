@@ -19,6 +19,7 @@ using UnityEngine;
 public class PermanentUpgradeApplier : MonoBehaviour
 {
     private bool applied;
+    internal void ResetForSession() => applied = false;
     private bool subscribed;
 
     private PlayerStats playerStats;
@@ -278,10 +279,6 @@ public class PermanentUpgradeApplier : MonoBehaviour
                 )
             );
 
-        if (manager.Bomb != null)
-            manager.Bomb.UpgradeCooldown(value);
-
-        if (manager.Shield != null)
-            manager.Shield.UpgradeCooldown(value);
+        manager.ReduceCooldown(value);
     }
 }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2cf729970679cd4f98202079d882f1a, type: 3}
   m_Name: Effect_Ricochet_
   m_EditorClassIdentifier: Assembly-CSharp::RicochetEffectData
-  chance: 0.25
+  chance: 0.2
   maxBounces: 2
   searchRadius: 5
-  damageMultiplier: 0.75
+  damageMultiplier: 0.65

@@ -37,6 +37,7 @@ public static class AchievementEvents
     public static event Action PlayerDamaged;
     public static event Action<int, bool> WaveCleared; // (номер волны, perfect)
     public static event Action RunStarted;
+    public static event Action RunResumed;
     public static event Action<RunEndInfo> RunEnded;
 
     public static void RaiseEnemyKilled(EnemyKillInfo info)
@@ -59,6 +60,8 @@ public static class AchievementEvents
         RunStarted?.Invoke();
     }
 
+    public static void RaiseRunResumed() => RunResumed?.Invoke();
+
     public static void RaiseRunEnded(RunEndInfo info)
     {
         RunEnded?.Invoke(info);
@@ -71,6 +74,7 @@ public static class AchievementEvents
         PlayerDamaged = null;
         WaveCleared = null;
         RunStarted = null;
+        RunResumed = null;
         RunEnded = null;
     }
 }

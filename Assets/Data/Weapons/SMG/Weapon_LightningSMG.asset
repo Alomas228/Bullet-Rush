@@ -17,10 +17,11 @@ MonoBehaviour:
   description: "Цепные разряды по соседним врагам. Лучше раскрывается против плотных групп."
   weaponType: 2
   rarity: 3
-  unlockLevel: 8
-  price: 1500
-  weaponPrefab: {fileID: 105748006008224434, guid: 73fb79f9a0357684991a13dbd05e81ce, type: 3}
-  damage: 40
+  unlockLevel: 13
+  price: 1100
+  weaponPrefab: {fileID: 105748006008224434, guid: d5c2ac323e4d59e18f9741825c4febaa, type: 3}
+  preview: {fileID: 21300000, guid: 90eacbf44026d359cfcbbc6985b8f7e1, type: 3}
+  damage: 42
   fireRate: 12
   projectileSpeed: 15
   projectileCount: 1
@@ -39,6 +40,6 @@ MonoBehaviour:
   recoilForce: 0
   shakeOnFire: 0
   lightningChance: 0.25
-  lightningDamage: 65
-  lightningTargets: 3
+  lightningDamage: 50
+  lightningTargets: 2
   lightningRange: 4

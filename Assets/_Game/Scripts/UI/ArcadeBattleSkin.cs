@@ -24,7 +24,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
     /// без спрайта — поэтому на весь экран и без закруглений.
     /// </summary>
     private static readonly Color OverlayColor =
-        new Color(0f, 0f, 0f, 0.55f);
+        ArcadeUiTheme.Backdrop;
 
     private sealed class TextBinding
     {
@@ -128,6 +128,9 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         StylePause();
         BuildSettings();
         StyleHud();
+        var mobile = GetComponent<MobileControls>();
+        if (mobile == null) mobile = gameObject.AddComponent<MobileControls>();
+        mobile.BindPause(FindDeep(transform,"PauseButton")?.GetComponent<Button>());
 
         EnsureButtonsClickable(pauseRoot);
         EnsureButtonsClickable(settingsRoot);
@@ -152,7 +155,10 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         // Меню и бой живут в одной сцене: значения настроек могли
         // поменяться в меню — при паузе синхронизируем панель.
         if (paused)
+        {
+            if (pauseRoot != null) pauseRoot.transform.SetAsLastSibling();
             RefreshSettingsValues();
+        }
     }
 
     private void HandleLanguageChanged(LangCode code)
@@ -185,9 +191,9 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         if (plate != null)
             plate.enabled = false;
 
-        StyleComboText(combo.Find("Caption"), ArcadeKitAssets.BodyBold, 16f, ArcadeUiTheme.Gold, true);
-        StyleComboText(combo.Find("ComboCountText"), ArcadeKitAssets.Display, 46f, ArcadeUiTheme.Cyan, true);
-        StyleComboText(combo.Find("ComboMultiplierText"), ArcadeKitAssets.BodyBold, 26f, ArcadeUiTheme.GoldBright, false);
+        StyleComboText(combo.Find("Caption"), ArcadeKitAssets.BodyBold, 15f, MenuSheet.Paper, false);
+        StyleComboText(combo.Find("ComboCountText"), ArcadeKitAssets.Display, 34f, MenuSheet.Paper, false);
+        StyleComboText(combo.Find("ComboMultiplierText"), ArcadeKitAssets.BodyBold, 19f, ArcadeUiTheme.GoldBright, false);
 
         Bind(combo.Find("Caption"), () => Lang.GetOr("hud.combo", "КОМБО"));
     }
@@ -250,7 +256,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
         if (card != null)
         {
-            card.sprite = ArcadeKitAssets.RoundRect;
+            card.sprite = ArcadeKitAssets.CutPanel;
             card.type = Image.Type.Sliced;
             card.pixelsPerUnitMultiplier = 1f;
             card.color = ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f);
@@ -318,6 +324,21 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         StylePauseButton(layout, "RestartButton", "pause.restart", "РЕСТАРТ", false);
         StylePauseButton(layout, "SettingsButton", "pause.settings", "НАСТРОЙКИ", false);
         StylePauseButton(layout, "MenuButton", "pause.menu", "МЕНЮ", false);
+        if (layout is RectTransform actions && mini is RectTransform paper)
+        {
+            var board = UiArtboard.Create((RectTransform)pause, new Vector2(646,460));
+            paper.SetParent(board, false);
+            UiArtboard.Place(paper, Vector2.one * .5f, Vector2.one * .5f, Vector2.zero, new Vector2(600,410));
+            var auto = actions.GetComponent<VerticalLayoutGroup>();
+            if (auto != null) auto.enabled = false;
+            UiArtboard.Stretch(actions);
+            RuntimeWindow.Place(actions,"ResumeButton",actions,36,106,528,76);
+            RuntimeWindow.Place(actions,"SettingsButton",actions,36,198,256,64);
+            RuntimeWindow.Place(actions,"RestartButton",actions,308,198,256,64);
+            RuntimeWindow.Place(actions,"MenuButton",actions,36,292,528,64);
+            MenuSheet.Box(paper,"Rule",36,278,528,2,MenuSheet.Rule);
+            pause.SetAsLastSibling();
+        }
     }
 
     private void StylePauseButton(
@@ -339,9 +360,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
         if (image != null)
         {
-            image.sprite = primary
-                ? ArcadeKitAssets.RoundRect
-                : ArcadeKitAssets.RoundRect;
+            image.sprite = ArcadeKitAssets.CutPanel;
             image.type = Image.Type.Sliced;
             image.pixelsPerUnitMultiplier = 1f;
             image.color = primary
@@ -369,7 +388,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
                 : ArcadeKitAssets.BodyBold;
             label.fontSize = primary ? 24f : 18f;
             label.alignment = TextAlignmentOptions.Center;
-            label.fontStyle = FontStyles.UpperCase;
+            label.fontStyle = FontStyles.Normal;
             label.color = primary
                 ? ArcadeUiTheme.TextDark
                 : ArcadeUiTheme.TextPrimary;
@@ -390,15 +409,70 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         if (hud == null)
             return;
 
-        SetRectByName(hud, "HealthSlider", null, new Vector2(240f, 26f));
-        SetRectByName(hud, "DashSlider", new Vector2(0f, 14f), new Vector2(300f, 20f));
-        SetRectByName(hud, "FireSlider", new Vector2(0f, -14f), new Vector2(300f, 20f));
+        var gameplay = hud.Find("GameplayUI") as RectTransform;
+        if (gameplay == null) return;
+        UiArtboard.Stretch((RectTransform)hud);
+        ResponsiveUi.BindSafeArea((RectTransform)hud);
+        UiArtboard.Stretch(gameplay);
+        var right = Vector2.one;
+        var left = new Vector2(0, 1);
+        var middle = Vector2.one * .5f;
+        var strip = ArcadeUiFactory.At(gameplay, "Vitals", right, right, new Vector2(-22, -20), new Vector2(466, 90));
+        ArcadeUiFactory.Image(strip, ArcadeKitAssets.CutPanel, ArcadeUiTheme.Ink, true);
+        strip.gameObject.AddComponent<ActiveBoostHud>().Build(strip);
+        strip.gameObject.AddComponent<RunAmmoHud>().Build(strip);
+        strip.gameObject.AddComponent<RunOxygenHud>().Build(strip);
+        strip.SetAsFirstSibling();
+        var health = gameplay.Find("HealthSlider") as RectTransform;
+        if (health != null)
+        {
+            health.SetParent(strip, false);
+            UiArtboard.Place(health, left, left, new Vector2(12,-12), new Vector2(188,34));
+            var hp = ArcadeUiFactory.Label(ArcadeUiFactory.Stretch(health, "HealthValue"), "",
+                ArcadeKitAssets.BodyBold, 21, MenuSheet.Paper, TextAlignmentOptions.Center);
+            AddShadowText(hp, new Vector2(0,-1), .65f);
+            var binding = FindAnyObjectByType<GameplayUI>(FindObjectsInactive.Include);
+            if (binding != null) binding.BindHealthLabel(hp);
+        }
+        MoveHudText(gameplay, strip, "WaveCounter", new Vector2(213,-8), new Vector2(237,45), 20);
+        if (strip.Find("WaveCounter")?.GetComponent<TMP_Text>() is TMP_Text waveStatus)
+        {
+            waveStatus.textWrappingMode = TextWrappingModes.NoWrap;
+            waveStatus.richText = true;
+        }
+        MoveHudText(gameplay, strip, "ScoreText", new Vector2(14,-50), new Vector2(184,31), 18);
+        MoveHudText(gameplay, strip, "CoinsText", new Vector2(243,-50), new Vector2(190,31), 18);
+        ArcadeUiFactory.Icon(strip, "Coins", "coin", ArcadeUiTheme.Gold, left, left,
+            new Vector2(214,-55), new Vector2(20,20));
+        if (hud.Find("PersonalBestHUD") is RectTransform personal)
+        {
+            UiArtboard.Place(personal, left, left, new Vector2(20,-120), new Vector2(320,146));
+            int row = 0;
+            foreach (string key in new[] { "ProgressText", "WavePbText", "ApproachText", "NewRecordText" })
+            {
+                var best = personal.Find(key)?.GetComponent<TMP_Text>();
+                if (best == null) continue;
+                UiArtboard.Place(best.rectTransform, left, left, new Vector2(0, -row++ * 33), new Vector2(310,32));
+                best.alignment = TextAlignmentOptions.Left;
+                best.font = ArcadeKitAssets.BodyBold;
+                best.fontSize = 19;
+                best.color = MenuSheet.Paper;
+                AddShadowText(best, new Vector2(1,-2), .85f);
+            }
+        }
+        var combo = FindDeep(hud, "ComboPanel") as RectTransform;
+        if (combo != null && combo.parent is RectTransform leaderboard)
+        {
+            UiArtboard.Place(leaderboard, new Vector2(0,0), new Vector2(0,0), new Vector2(22,26), new Vector2(190,146));
+            UiArtboard.Place(combo, middle, middle, Vector2.zero, new Vector2(170,116));
+        }
 
         Transform bossPanel = FindDeep(hud, "BossHpPanel");
 
         if (bossPanel is RectTransform bossRect)
         {
-            bossRect.sizeDelta = new Vector2(660f, 110f);
+            bossRect.pivot = new Vector2(.5f, 1f);
+            bossRect.sizeDelta = new Vector2(660f, 102f);
             bossRect.anchoredPosition = new Vector2(0f, -40f);
         }
 
@@ -432,6 +506,8 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
         if (pauseButton != null)
         {
+            if (pauseButton is RectTransform pauseRect)
+                UiArtboard.Place(pauseRect, left, left, new Vector2(22,-20), new Vector2(76,76));
             Image image = pauseButton.GetComponent<Image>();
 
             if (image != null)
@@ -444,25 +520,26 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
             TMP_Text label = pauseButton.GetComponentInChildren<TMP_Text>(true);
 
             if (label != null)
-                label.color = ArcadeUiTheme.Gold;
+                label.color = MenuSheet.Ink;
         }
     }
 
-    private static void SetRectByName(
-        Transform root,
-        string name,
-        Vector2? position,
-        Vector2 size)
+    private static void MoveHudText(Transform from, RectTransform strip, string key, Vector2 position, Vector2 size, float fontSize)
     {
-        Transform target = FindDeep(root, name);
-
-        if (target is RectTransform rect)
-        {
-            if (position.HasValue)
-                rect.anchoredPosition = position.Value;
-
-            rect.sizeDelta = size;
-        }
+        var label = from.Find(key)?.GetComponent<TMP_Text>();
+        if (label == null) return;
+        label.transform.SetParent(strip, false);
+        var topLeft = new Vector2(0,1);
+        UiArtboard.Place(label.rectTransform, topLeft, topLeft, position, size);
+        label.alignment = TextAlignmentOptions.MidlineLeft;
+        label.font = ArcadeKitAssets.BodyBold;
+        label.fontStyle = FontStyles.Normal;
+        label.enableAutoSizing = true;
+        label.fontSizeMin = 14;
+        label.fontSizeMax = fontSize;
+        label.margin = Vector4.zero;
+        label.raycastTarget = false;
+        label.color = MenuSheet.Paper;
     }
 
     // =========================================================
@@ -498,13 +575,15 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         if (old != null)
             Destroy(old.gameObject);
 
-        RectTransform card = BuildSettingsCard(setting);
+        RectTransform board = UiArtboard.Create((RectTransform)setting, new Vector2(1040, 634));
+        RectTransform card = BuildSettingsCard(board);
 
         BuildSettingsHeader(card);
         BuildSettingsSound(card);
         BuildSettingsEffects(card);
         BuildSettingsLanguage(card);
         BuildSettingsButtons(card);
+        RuntimeWindow.Settings(card);
     }
 
     private RectTransform BuildSettingsCard(Transform parent)
@@ -520,7 +599,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
         Image image = ArcadeUiFactory.Image(
             card,
-            ArcadeKitAssets.RoundRect,
+            ArcadeKitAssets.CutPanel,
             ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.99f),
             true
         );
@@ -562,38 +641,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
             ArcadeUiTheme.Alpha(ArcadeUiTheme.Gold, 0.5f)
         );
 
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "Close",
-            new Vector2(1f, 1f),
-            new Vector2(1f, 1f),
-            new Vector2(-28f, -24f),
-            new Vector2(56f, 56f)
-        );
-        MakePressable(ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.Knob,
-            ArcadeUiTheme.PanelRaised,
-            null,
-            ArcadeKitAssets.Body,
-            16f,
-            ArcadeUiTheme.TextPrimary,
-            CloseSettings
-        ));
-
-        RectTransform icon = ArcadeUiFactory.At(
-            close,
-            "Icon",
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            new Vector2(24f, 24f)
-        );
-        ArcadeUiFactory.Image(
-            icon,
-            ArcadeKitAssets.Icon("close"),
-            ArcadeUiTheme.TextPrimary
-        );
+        WindowCloseButton.Create(card, CloseSettings);
     }
 
     private void BuildSettingsSound(RectTransform card)
@@ -737,27 +785,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         TMP_Text resetLabel = reset.Find("Label").GetComponent<TMP_Text>();
         Bind(resetLabel, () => Lang.GetOr("settings.reset", "СБРОСИТЬ НАСТРОЙКИ"));
 
-        RectTransform close = ArcadeUiFactory.At(
-            card,
-            "CloseButton",
-            new Vector2(1f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(-36f, 24f),
-            new Vector2(240f, 56f)
-        );
-        MakePressable(ArcadeUiFactory.Button(
-            close,
-            ArcadeKitAssets.RoundRect,
-            ArcadeUiTheme.Gold,
-            "",
-            ArcadeKitAssets.BodyBold,
-            18f,
-            ArcadeUiTheme.TextDark,
-            CloseSettings
-        ));
 
-        TMP_Text closeLabel = close.Find("Label").GetComponent<TMP_Text>();
-        Bind(closeLabel, () => Lang.GetOr("settings.close", "ЗАКРЫТЬ"));
     }
 
     private TMP_Text SettingsSection(
@@ -773,7 +801,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
             "",
             ArcadeKitAssets.BodyBold,
             17f,
-            ArcadeUiTheme.Gold,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Left,
             new Vector2(0f, 1f),
             new Vector2(0f, 0.5f),
@@ -835,7 +863,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
             "",
             ArcadeKitAssets.BodyBold,
             17f,
-            ArcadeUiTheme.GoldBright,
+            ArcadeUiTheme.TextPrimary,
             TextAlignmentOptions.Right,
             new Vector2(1f, 1f),
             new Vector2(1f, 0.5f),

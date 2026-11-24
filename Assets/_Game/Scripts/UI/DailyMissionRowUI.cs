@@ -19,9 +19,6 @@ public class DailyMissionRowUI : MonoBehaviour
     [SerializeField] private TMP_Text claimLabel;
 
     [Header("Colors")]
-    [SerializeField] private Color completedTint = new Color(0.16f, 0.32f, 0.2f, 0.55f);
-    [SerializeField] private Color claimedTint = new Color(0.12f, 0.2f, 0.16f, 0.4f);
-    [SerializeField] private Color activeTint = new Color(1f, 1f, 1f, 0.06f);
 
     private DailyMissionSaveData.Entry boundEntry;
     private MissionTrack boundTrack = MissionTrack.Daily;
@@ -69,6 +66,12 @@ public class DailyMissionRowUI : MonoBehaviour
             claimButton.onClick.RemoveListener(HandleClaimClicked);
     }
 
+    public void LayoutRow()
+    {
+        RuntimeWindow.LedgerRow((RectTransform)transform, titleLabel, descriptionLabel, rewardLabel, progressLabel,
+            progressBar, claimButton);
+    }
+
     public void Bind(DailyMissionSaveData.Entry entry)
     {
         Bind(entry, MissionTrack.Daily);
@@ -114,10 +117,10 @@ public class DailyMissionRowUI : MonoBehaviour
         if (background != null)
         {
             background.color = claimed
-                ? claimedTint
+                ? MenuSheet.Recess
                 : completed
-                    ? completedTint
-                    : activeTint;
+                    ? MenuSheet.Sage
+                    : MenuSheet.Card;
         }
 
         if (claimButton != null)

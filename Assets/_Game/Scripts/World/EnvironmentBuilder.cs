@@ -51,6 +51,7 @@ public static class EnvironmentBuilder
 
         placed.Clear();
         placedFootprints.Clear();
+        int firstDecorChild = parent.childCount;
 
         System.Random rng =
             new System.Random(
@@ -118,6 +119,7 @@ public static class EnvironmentBuilder
             0f,
             theme.minOutsideSpacing
         );
+        ArenaStaticMeshBatcher.BatchDecoration(parent, firstDecorChild);
     }
 
     private static void BuildList(
@@ -536,6 +538,8 @@ public static class EnvironmentBuilder
             AddObstacleCollider(root);
 
         root.AddComponent<WorldStructure>();
+        ArenaStaticMeshBatcher.BatchObject(root);
+        BattleMeshBatcher.RegisterTree(root);
     }
 
     // Собственный префаб-объект вместо сборки из примитивов: общий

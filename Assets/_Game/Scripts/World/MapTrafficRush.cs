@@ -427,7 +427,7 @@ public class MapTrafficRush : MonoBehaviour
             return;
 
         hitPlayer = true;
-        health.TakeDamage(damage);
+        health.TakeDamage(damage * (MapSurvivalZones.HasOutfit("police") ? .55f : 1f));
     }
 
     private void CrashEnemies(Vector3 origin)

@@ -15,6 +15,8 @@ public static class MapProgression
     {
         get
         {
+            if (MasteryManager.Instance != null && MasteryManager.Instance.Prestige > 0)
+                return GameBalance.MaxPlayerLevel;
             XpManager xp = XpManager.Instance;
 
             return xp != null

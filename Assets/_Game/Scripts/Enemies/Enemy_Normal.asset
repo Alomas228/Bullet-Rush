@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyData
   enemyName: Enemy_Normal
   maxHealth: 400
-  moveSpeed: 2
+  moveSpeed: 2.5
   contactDamage: 10
   damageCooldown: 1
   knockbackResistance: 0
-  waveHealthPercent: 0.15
-  waveDamagePercent: 0.05
+  waveHealthPercent: 0.115
+  waveDamagePercent: 0.032
   waveScorePercent: 0.1
   scoreValue: 10
   enemyType: 0
@@ -31,3 +31,9 @@ MonoBehaviour:
   healthMultiplier: 1
   flankAngle: 12
   flankRetargetInterval: 2.2
+  bodySkinMaterial: {fileID: 2100000, guid: 0bfbf8897514a2fed82c03c52763e58a, type: 2}
+  bodySkins:
+  - {fileID: 4300000, guid: af30149839b9ed1a5c31ff60ec00e014, type: 2}
+  - {fileID: 4300000, guid: a78c5b5c868434b5a6c698daab8e5037, type: 2}
+  - {fileID: 4300000, guid: 5ef69bffb13303c254dbde03980b94c7, type: 2}
+  - {fileID: 4300000, guid: 14e2c9a1498672cdde42a7f37e601fe4, type: 2}

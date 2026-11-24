@@ -75,7 +75,7 @@ public static class VfxSharedAssets
         new Color(1f, 0.02f, 0.01f, 1f);
 
     private static readonly Color EnemyTracerCoreColor =
-        new Color(1f, 0.06f, 0.03f, 1f);
+        new Color(1f, 0.28f, 0.18f, 1f);
 
     private const float DefaultIntensity = 3f;
 

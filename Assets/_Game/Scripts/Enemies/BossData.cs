@@ -40,6 +40,9 @@ public class BossData : ScriptableObject
     [SerializeField] private float projectileDamage = 114f;
     [SerializeField] private float projectileSpeed = 8f;
     [SerializeField] private float preferredDistance = 0f;
+    [SerializeField] private GameObject rangedWeaponVisual;
+
+    public GameObject RangedWeaponVisual => rangedWeaponVisual;
 
     [Header("Signature Ability")]
     [SerializeField] private BossAbilityPattern abilityPattern =

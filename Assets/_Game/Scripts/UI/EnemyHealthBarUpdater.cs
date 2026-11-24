@@ -22,7 +22,7 @@ public class EnemyHealthBarUpdater : MonoBehaviour
         EnemyHealthBarSystem.HandleUpdaterAwake(this);
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         EnemyHealthBarSystem.Tick();
 
