@@ -118,10 +118,15 @@ public sealed class TracerBatcher : MonoBehaviour
     private void Awake()
     {
         instance = this;
+        InitializeThemedBatch();
     }
 
     private void OnDestroy()
     {
+        if (deathMesh != null) Destroy(deathMesh);
+        if (deathMaterial != null) Destroy(deathMaterial);
+        if (themedMesh != null) Destroy(themedMesh);
+        if (themedMaterial != null) Destroy(themedMaterial);
         if (instance == this)
             instance = null;
     }
@@ -134,6 +139,13 @@ public sealed class TracerBatcher : MonoBehaviour
     /// LateUpdate, независимо от DefaultExecutionOrder.
     /// </summary>
     private void LateUpdate()
+    {
+        if (themedMesh != null) RenderThemedBatch();
+        else DrawLegacy();
+        RenderDeathBodies();
+    }
+
+    private void DrawLegacy()
     {
         // После пересоздания статиков старый экземпляр остаётся в
         // сцене живым. Если бы он продолжал рисовать, трассеры
@@ -384,6 +396,305 @@ public sealed class TracerBatcher : MonoBehaviour
         System.Array.Resize(ref coreMatrices, capacity * 2);
     }
 
+    // One dynamic mesh, one material; vertex color and UV encode every theme.
+    private const int MaxQuads = 4096;
+    private readonly List<Vector3> vertices = new List<Vector3>(MaxQuads * 4);
+    private readonly List<Vector2> uv = new List<Vector2>(MaxQuads * 4);
+    private readonly List<Vector2> styles = new List<Vector2>(MaxQuads * 4);
+    private readonly List<Color32> colors = new List<Color32>(MaxQuads * 4);
+    private readonly List<int> indices = new List<int>(MaxQuads * 6);
+    private Mesh themedMesh;
+    private Material themedMaterial;
+    private struct Burst
+    {
+        public Vector3 Position;
+        public ShotVisualTheme Theme;
+        public float Start, Duration, Scale;
+        public int Seed, Count;
+        public bool Death;
+    }
+    private readonly List<Burst> bursts = new List<Burst>(64);
+    private int burstFrame = -1, hits, deaths, sequence;
+
+    private void InitializeThemedBatch()
+    {
+        Material original = VfxSharedAssets.TracerMaterial;
+        if (original == null || !original.HasProperty("_VertexTheme") || !original.shader.isSupported) return;
+        themedMaterial = new Material(original) { name = "Shared themed shot VFX" };
+        themedMaterial.SetFloat("_VertexTheme", 1f);
+        themedMesh = new Mesh { name = "Shared shot and impact geometry" };
+        themedMesh.MarkDynamic();
+    }
+
+    public static void ClearBursts()
+    {
+        if (instance != null)
+        {
+            instance.bursts.Clear();
+            instance.deathBodies.Clear();
+        }
+    }
+
+    // Cosmetic snapshots only: no enemy, collider, rigidbody or per-piece renderer survives death.
+    private enum DeathMotion { Scatter, Tumble, Pop, Collapse }
+    private struct DeathBody
+    {
+        public Vector3 Center, Size, Direction;
+        public Quaternion Rotation;
+        public Color Tint;
+        public float Start, Duration, Ground;
+        public int Seed;
+        public DeathMotion Motion;
+    }
+    private readonly List<DeathBody> deathBodies = new List<DeathBody>(48);
+    private readonly List<Vector3> deathVertices = new List<Vector3>(48 * 8 * 24);
+    private readonly List<Vector3> deathNormals = new List<Vector3>(48 * 8 * 24);
+    private readonly List<Color32> deathColors = new List<Color32>(48 * 8 * 24);
+    private readonly List<int> deathIndices = new List<int>(48 * 8 * 36);
+    private Mesh deathMesh;
+    private Material deathMaterial;
+    private int deathSequence;
+    private static readonly Vector3[] BoxNormals = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+
+    internal static string EmitDeathBody(Renderer body, Vector3 away, DamageSource source, bool boss, Color skinColor)
+    {
+        if (body == null) return "fall";
+        EnsureExists();
+        TracerBatcher batch = instance;
+        if (batch.deathMesh == null)
+        {
+            Shader shader = Shader.Find("Custom/Bullet Rush Death Pieces");
+            if (shader == null || !shader.isSupported) return "fall";
+            batch.deathMaterial = new Material(shader) { name = "Shared death pieces" };
+            batch.deathMesh = new Mesh { name = "Shared death body geometry" };
+            batch.deathMesh.MarkDynamic();
+        }
+        int limit = MobileControls.IsTouchDevice ? 24 : 48;
+        if (batch.deathBodies.Count >= limit) batch.deathBodies.RemoveAt(0);
+        int seed = ++batch.deathSequence;
+        DeathMotion motion = (DeathMotion)(seed % 4);
+        if (boss || source == DamageSource.Explosion) motion = DeathMotion.Scatter;
+        else if (source == DamageSource.ChainLightning) motion = seed % 2 == 0 ? DeathMotion.Pop : DeathMotion.Scatter;
+        else if (source == DamageSource.Burn && seed % 2 == 0) motion = DeathMotion.Collapse;
+        Bounds bounds = body.bounds;
+        Vector3 scale = body.transform.lossyScale;
+        MeshFilter filter = body.GetComponent<MeshFilter>();
+        Vector3 size = filter != null && filter.sharedMesh != null
+            ? Vector3.Scale(filter.sharedMesh.bounds.size, new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z)))
+            : bounds.size;
+        away.y = 0f;
+        if (away.sqrMagnitude < .001f) away = Vector3.forward;
+        Material material = body.sharedMaterial;
+        Color tint = material != null && material.HasProperty("_BaseColor") ? material.GetColor("_BaseColor") : Color.white;
+        tint *= skinColor;
+        if (QualitySettings.activeColorSpace == ColorSpace.Linear) tint = tint.linear;
+        batch.deathBodies.Add(new DeathBody { Center = bounds.center, Size = size, Rotation = body.transform.rotation,
+            Direction = away.normalized, Tint = tint, Start = Time.time, Ground = bounds.min.y,
+            Duration = motion == DeathMotion.Pop ? .32f : motion == DeathMotion.Tumble ? .64f : .48f,
+            Seed = seed, Motion = motion });
+        return motion == DeathMotion.Scatter ? "shatter_depth" : motion == DeathMotion.Pop ? "pop_depth" : "fall_depth";
+    }
+
+    internal static void PromoteRecentDeaths(float since, Vector3 center)
+    {
+        if (instance == null) return;
+        for (int i = 0; i < instance.deathBodies.Count; i++)
+        {
+            DeathBody body = instance.deathBodies[i];
+            if (body.Start < since) continue;
+            body.Motion = DeathMotion.Scatter;
+            body.Duration = Mathf.Max(body.Duration, .58f);
+            Vector3 direction = body.Center - center; direction.y = 0f;
+            if (direction.sqrMagnitude > .01f) body.Direction = direction.normalized;
+            instance.deathBodies[i] = body;
+        }
+    }
+
+    private void DeathBox(Vector3 center, Vector3 size, Quaternion rotation, Color tint)
+    {
+        for (int face = 0; face < 6; face++)
+        {
+            Vector3 n = BoxNormals[face];
+            Vector3 u = Mathf.Abs(n.y) > .5f ? Vector3.right : Vector3.Cross(Vector3.up, n);
+            Vector3 v = Vector3.Cross(n, u);
+            int start = deathVertices.Count;
+            for (int i = 0; i < 4; i++)
+            {
+                Vector3 corner = (n + u * ((i & 1) == 0 ? -1 : 1) + v * ((i & 2) == 0 ? -1 : 1)) * .5f;
+                deathVertices.Add(center + rotation * Vector3.Scale(corner, size));
+                deathNormals.Add(rotation * n);
+                deathColors.Add(tint);
+            }
+            deathIndices.Add(start); deathIndices.Add(start + 1); deathIndices.Add(start + 2);
+            deathIndices.Add(start + 1); deathIndices.Add(start + 3); deathIndices.Add(start + 2);
+        }
+    }
+
+    private void RenderDeathBodies()
+    {
+        if (deathMesh == null || deathBodies.Count == 0) return;
+        deathVertices.Clear(); deathNormals.Clear(); deathColors.Clear(); deathIndices.Clear();
+        bool mobile = MobileControls.IsTouchDevice;
+        for (int i = deathBodies.Count - 1; i >= 0; i--)
+        {
+            DeathBody b = deathBodies[i];
+            float t = Mathf.Clamp01((Time.time - b.Start) / b.Duration);
+            if (t >= 1f) { deathBodies.RemoveAt(i); continue; }
+            float shrink = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.65f, 1f, t));
+            float unit = Mathf.Max(b.Size.x, b.Size.z);
+            switch (b.Motion)
+            {
+                case DeathMotion.Scatter:
+                {
+                    int count = mobile ? 4 : 8;
+                    for (int j = 0; j < count; j++)
+                    {
+                        Vector3 offset = new Vector3((j & 1) == 0 ? -.25f : .25f, mobile ? 0 : (j & 4) == 0 ? -.25f : .25f, (j & 2) == 0 ? -.25f : .25f);
+                        Vector3 outward = b.Rotation * new Vector3(offset.x, 0, offset.z).normalized;
+                        Vector3 point = b.Center + b.Rotation * Vector3.Scale(offset, b.Size) + (outward * .8f + b.Direction * .3f) * unit * t;
+                        point.y += Mathf.Sin(t * Mathf.PI) * unit * (.35f + .09f * (j % 3));
+                        Vector3 piece = Vector3.Scale(b.Size, new Vector3(.49f, mobile ? .9f : .49f, .49f)) * shrink;
+                        point.y = Mathf.Max(point.y, b.Ground + piece.magnitude * .5f);
+                        DeathBox(point, piece, Quaternion.AngleAxis(t * (95 + j * 23), outward + Vector3.up) * b.Rotation, b.Tint * (1f - .05f * (j % 3)));
+                    }
+                    break;
+                }
+                case DeathMotion.Tumble:
+                {
+                    Quaternion rotation = Quaternion.AngleAxis(Mathf.Min(1f, t * 1.8f) * 90f, Vector3.Cross(Vector3.up, b.Direction)) * b.Rotation;
+                    Vector3 size = b.Size * shrink;
+                    float halfHeight = (Mathf.Abs((rotation * Vector3.right).y) * size.x + Mathf.Abs((rotation * Vector3.up).y) * size.y + Mathf.Abs((rotation * Vector3.forward).y) * size.z) * .5f;
+                    Vector3 point = b.Center + b.Direction * unit * .85f * (1f - (1f - t) * (1f - t));
+                    point.y = b.Ground + halfHeight + Mathf.Sin(Mathf.Min(1f, t * 1.8f) * Mathf.PI) * unit * .3f;
+                    DeathBox(point, size, rotation, b.Tint);
+                    break;
+                }
+                case DeathMotion.Pop:
+                {
+                    float scale = t < .28f ? Mathf.Lerp(1f, 1.22f, t / .28f) : 1.22f * (1f - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.28f, .72f, t)));
+                    if (scale > .015f) DeathBox(b.Center, b.Size * scale, b.Rotation, b.Tint);
+                    for (int j = 0; j < 4; j++)
+                    {
+                        if (t < .28f) continue;
+                        float p = Mathf.InverseLerp(.28f, 1f, t);
+                        float a = j * Mathf.PI * .5f + b.Seed * .6f;
+                        Vector3 dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+                        DeathBox(b.Center + dir * unit * p * .68f + Vector3.up * Mathf.Sin(p * Mathf.PI) * unit * .24f,
+                            Vector3.one * unit * .16f * (1f - p), Quaternion.Euler(p * 95f, a * Mathf.Rad2Deg, p * 65f), b.Tint);
+                    }
+                    break;
+                }
+                default:
+                {
+                    Vector3 size = Vector3.Scale(b.Size, new Vector3(1f + .12f * t, Mathf.Max(.04f, 1f - t * 1.5f), 1f + .12f * t)) * shrink;
+                    Vector3 point = b.Center; point.y = b.Ground + size.y * .5f;
+                    DeathBox(point, size, b.Rotation, b.Tint * (1f - .24f * t));
+                    break;
+                }
+            }
+        }
+        if (deathVertices.Count == 0) return;
+        deathMesh.Clear(false);
+        deathMesh.SetVertices(deathVertices); deathMesh.SetNormals(deathNormals); deathMesh.SetColors(deathColors);
+        deathMesh.SetTriangles(deathIndices, 0, true);
+        Graphics.DrawMesh(deathMesh, Matrix4x4.identity, deathMaterial, 0, VfxSharedAssets.MainCamera,
+            0, null, ShadowCastingMode.Off, false, null, LightProbeUsage.Off);
+    }
+
+    internal static bool EmitImpact(Vector3 position, ShotVisualTheme theme, bool critical = false)
+    {
+        EnsureExists();
+        return instance.EnqueueBurst(position, theme, false, critical ? 1.25f : 1f);
+    }
+
+    internal static void EmitDeath(Vector3 position, ShotVisualTheme theme, bool boss)
+    {
+        EnsureExists();
+        instance.EnqueueBurst(position + Vector3.up * 0.25f, theme, true, boss ? 1.8f : 1f);
+    }
+
+    private bool EnqueueBurst(Vector3 position, ShotVisualTheme theme, bool death, float scale)
+    {
+        if (themedMesh == null) return false;
+        bool mobile = MobileControls.IsTouchDevice;
+        if (burstFrame != Time.frameCount) { burstFrame = Time.frameCount; hits = deaths = 0; }
+        if (death ? deaths++ >= (mobile ? 4 : 8) : hits++ >= (mobile ? 5 : 8)) return true;
+        int limit = mobile ? 32 : 64;
+        if (bursts.Count >= limit)
+        {
+            if (!death) return true;
+            int slot = bursts.FindIndex(b => !b.Death);
+            if (slot < 0) slot = 0;
+            bursts.RemoveAt(slot);
+        }
+        bursts.Add(new Burst { Position = position, Theme = theme, Start = Time.time,
+            Duration = death ? .36f : .18f, Scale = scale, Seed = ++sequence,
+            Count = death ? (scale > 1.5f ? 7 : 5) : 3, Death = death });
+        return true;
+    }
+
+    private void Quad(Matrix4x4 matrix, bool radial, ShotVisualTheme theme, float brightness)
+    {
+        if (vertices.Count >= MaxQuads * 4) return;
+        int start = vertices.Count;
+        float left = radial ? -.5f : -1f, right = radial ? .5f : 0f;
+        Color color = theme.Tint;
+        color.a = Mathf.Clamp01(theme.Brightness * brightness);
+        Color32 packed = color;
+        Vector2 style = new Vector2(radial ? 1f : -1f, theme.Style);
+        for (int i = 0; i < 4; i++)
+        {
+            float x = (i & 1) != 0 ? 1 : 0, y = (i & 2) != 0 ? 1 : 0;
+            vertices.Add(matrix.MultiplyPoint3x4(new Vector3(Mathf.Lerp(left, right, x), y - .5f, 0)));
+            uv.Add(new Vector2(x, y)); styles.Add(style); colors.Add(packed);
+        }
+        indices.Add(start); indices.Add(start + 2); indices.Add(start + 1);
+        indices.Add(start + 1); indices.Add(start + 2); indices.Add(start + 3);
+    }
+
+    private void RenderThemedBatch()
+    {
+        if (instance != this) return;
+        vertices.Clear(); uv.Clear(); styles.Clear(); colors.Clear(); indices.Clear();
+        int kept = 0;
+        for (int i = 0; i < active.Count; i++)
+        {
+            TracerEffect tracer = active[i];
+            if (tracer == null || !tracer.Batched || !tracer.IsPlaying) continue;
+            active[kept++] = tracer;
+            tracer.BuildMatrices(tracer.transform.position, out Matrix4x4 tail, out Matrix4x4 core);
+            Quad(tail, false, tracer.Theme, 1f);
+            Quad(core, true, tracer.Theme, 1f);
+            if (tracer.TryBuildMuzzleFlash(out Matrix4x4 flash)) Quad(flash, true, tracer.Theme, .85f);
+        }
+        if (kept < active.Count) active.RemoveRange(kept, active.Count - kept);
+        for (int i = bursts.Count - 1; i >= 0; i--)
+        {
+            Burst b = bursts[i];
+            float t = (Time.time - b.Start) / b.Duration;
+            if (t >= 1f) { bursts.RemoveAt(i); continue; }
+            t = Mathf.Clamp01(t);
+            float fade = 1f - t;
+            float size = (.20f + t * .3f) * b.Scale * (b.Death ? 1.45f : 1f);
+            Quad(Matrix4x4.TRS(b.Position, VfxSharedAssets.FaceDirection(Vector3.forward), Vector3.one * size), true, b.Theme, fade * fade * .85f);
+            for (int j = 0; j < b.Count; j++)
+            {
+                float angle = (j / (float)b.Count) * Mathf.PI * 2f + b.Seed * 2.39996f;
+                Vector3 direction = new Vector3(Mathf.Cos(angle), .12f, Mathf.Sin(angle));
+                float distance = (b.Death ? .8f : .42f) * b.Scale * (1f - fade * fade);
+                Vector3 point = b.Position + direction * distance + Vector3.up * (Mathf.Sin(t * Mathf.PI) * .22f * b.Scale);
+                Quad(Matrix4x4.TRS(point, VfxSharedAssets.FaceDirection(direction),
+                    new Vector3((.12f + .18f * fade) * b.Scale, .065f * b.Scale * fade, 1f)), false, b.Theme, fade * .85f);
+            }
+        }
+        if (vertices.Count == 0) return;
+        themedMesh.Clear(false);
+        themedMesh.SetVertices(vertices); themedMesh.SetUVs(0, uv); themedMesh.SetUVs(1, styles);
+        themedMesh.SetColors(colors); themedMesh.SetTriangles(indices, 0, true);
+        Graphics.DrawMesh(themedMesh, Matrix4x4.identity, themedMaterial, 0, VfxSharedAssets.MainCamera,
+            0, null, ShadowCastingMode.Off, false, null, LightProbeUsage.Off);
+    }
+
     [RuntimeInitializeOnLoadMethod(
         RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -393,5 +704,47 @@ public sealed class TracerBatcher : MonoBehaviour
 
         tailMatrices = new Matrix4x4[InitialCapacity];
         coreMatrices = new Matrix4x4[InitialCapacity * 2];
+    }
+}
+
+internal readonly struct ShotVisualTheme
+{
+    public readonly Color Tint;
+    public readonly float Style, Length, Width, Brightness;
+    private ShotVisualTheme(float r, float g, float b, float style = 0, float length = 1, float width = 1, float brightness = .85f)
+    { Tint = new Color(r, g, b); Style = style; Length = length; Width = width; Brightness = brightness; }
+    public static ShotVisualTheme Enemy => new ShotVisualTheme(1, .12f, .07f, 9, 1, 1, .76f);
+    public static ShotVisualTheme ForWeapon(string id)
+    {
+        switch (id)
+        {
+            case "Burst Rifle": return new ShotVisualTheme(1,.58f,.18f,6,1.08f,.95f);
+            case "Golden Rifle": return new ShotVisualTheme(1,.83f,.22f,7,1.12f,.9f);
+            case "Hunter Rifle": return new ShotVisualTheme(1,.84f,.65f,7,1.2f,.76f);
+            case "Plasma Rifle": return new ShotVisualTheme(.18f,1,.83f,3,1.1f,1.2f);
+            case "Basic Shotgun": return new ShotVisualTheme(1,.78f,.37f,0,.72f,1.15f);
+            case "Double Shotgun": return new ShotVisualTheme(1,.59f,.28f,8,.78f,1.12f);
+            case "Heavy Shotgun": return new ShotVisualTheme(1,.46f,.16f,5,.85f,1.4f);
+            case "Inferno Shotgun": return new ShotVisualTheme(1,.28f,.07f,2,.9f,1.3f);
+            case "Void Shotgun": return new ShotVisualTheme(.65f,.28f,1,4,1,1.16f);
+            case "Assassin SMG": return new ShotVisualTheme(.75f,.72f,1,7,.82f,.75f);
+            case "Basic SMG": return new ShotVisualTheme(1,.86f,.53f,0,.73f,.8f);
+            case "Lightning SMG": return new ShotVisualTheme(.25f,.65f,1,1,1.15f,1.5f);
+            case "Minigun": return new ShotVisualTheme(1,.51f,.22f,6,.92f,.8f,.70f);
+            case "Twin SMG": return new ShotVisualTheme(.75f,1,.38f,8,.78f,.88f);
+            default: return new ShotVisualTheme(1,.68f,.23f);
+        }
+    }
+    public static ShotVisualTheme ForDamage(DamageSource source, string id)
+    {
+        switch (source)
+        {
+            case DamageSource.Burn: return ForWeapon("Inferno Shotgun");
+            case DamageSource.ChainLightning: return ForWeapon("Lightning SMG");
+            case DamageSource.Explosion: return ForWeapon("Heavy Shotgun");
+            case DamageSource.Bleed: return new ShotVisualTheme(.9f,.17f,.18f);
+            case DamageSource.Ability: return ForWeapon("Plasma Rifle");
+            default: return ForWeapon(id);
+        }
     }
 }

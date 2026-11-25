@@ -192,8 +192,13 @@ public class AbilityManager : MonoBehaviour
         return true;
     }
     private float Duration(RuntimeAbility runtime) => Mathf.Max(.45f,runtime.Data.Cooldown*abilityCooldown*(IsInnate(runtime.Data.Kind)?characterCooldown:1f));
-    private bool Cast(RuntimeAbility runtime) => combat.Cast(runtime.Data,transform,
-        abilityPower*(stats!=null?stats.DamageMultiplier:1f)*RunBuildMechanics.EffectFactor*(IsInnate(runtime.Data.Kind)?characterPower:1f),abilityRange*(IsInnate(runtime.Data.Kind)?characterRange:1f));
+    private bool Cast(RuntimeAbility runtime)
+    {
+        bool cast = combat.Cast(runtime.Data,transform,
+            abilityPower*(stats!=null?stats.DamageMultiplier:1f)*RunBuildMechanics.EffectFactor*(IsInnate(runtime.Data.Kind)?characterPower:1f),abilityRange*(IsInnate(runtime.Data.Kind)?characterRange:1f));
+        if (cast) AudioManager.Instance?.SFXLibrary?.PlayAbility(runtime.Data.Kind, transform.position, runtime.Data.IsAutomatic);
+        return cast;
+    }
     public bool TryUseActive(int index)
     {
         if (!CanUse || index<0 || index>=activeKinds.Length || !activeKinds[index].HasValue) return false;

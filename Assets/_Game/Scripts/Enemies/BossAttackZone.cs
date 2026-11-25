@@ -165,7 +165,7 @@ public class BossAttackZone : MonoBehaviour, IDangerZone
         VfxFactory.TrySpawnExplosion(
             transform.position,
             radius * 1.1f,
-            dangerColor
+            dangerColor, playSound: false
         );
 
         PlayAoeExplodeSound();

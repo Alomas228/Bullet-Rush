@@ -103,7 +103,6 @@ public class AchievementsUI : MonoBehaviour
         if (sheet == null && content != null && rowTemplate != null)
         {
             sheet = RuntimeWindow.Ledger((RectTransform)transform, titleText, closeButton, progressText, content, false);
-            rowTemplate.LayoutRow();
             rowTemplate.gameObject.SetActive(false);
         }
         AchievementManager manager = AchievementManager.EnsureExists();
@@ -142,7 +141,10 @@ public class AchievementsUI : MonoBehaviour
         for (int i = 0; i < rows.Count; i++)
         {
             if (rows[i] != null)
+            {
+                rows[i].gameObject.SetActive(false);
                 Destroy(rows[i].gameObject);
+            }
         }
 
         rows.Clear();
@@ -151,6 +153,7 @@ public class AchievementsUI : MonoBehaviour
         {
             AchievementRowUI row = Instantiate(rowTemplate, content);
             row.gameObject.SetActive(true);
+            row.LayoutRow();
             rows.Add(row);
         }
     }

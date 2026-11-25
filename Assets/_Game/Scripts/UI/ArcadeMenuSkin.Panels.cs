@@ -22,7 +22,7 @@ public sealed partial class ArcadeMenuSkin
     private GameObject BuildSettingsPanel()
     {
         RectTransform root = BuildPanelBackdrop("SkinSettingsPanel");
-        RectTransform card = BuildPanelCard(root, "Card", new Vector2(980f, 578f));
+        RectTransform card = BuildPanelCard(root, "Card", new Vector2(980f, 642f));
 
         BuildPanelHeader(
             card,
@@ -99,6 +99,16 @@ public sealed partial class ArcadeMenuSkin
             out fireShakeLabel,
             ToggleFireShake
         );
+
+        BuildToggle(card, "CinematicRow",
+            () => GameplayJourney.T("СЛОУ-МО МАССОВЫХ УБИЙСТВ", "MASS-KILL SLOW MOTION", "YAVAS CEKIM"),
+            new Vector2(36f,-574f), out cinematicImage, out cinematicLabel, () =>
+            {
+                var settings = SettingsManager.Instance;
+                if (settings == null) return;
+                settings.SetMassKillCinematics(!settings.MassKillCinematicsEnabled);
+                RefreshSettingsValues();
+            });
 
         TMP_Text language = SectionTitle(card, "LanguageTitle", "ЯЗЫК", -580f);
 

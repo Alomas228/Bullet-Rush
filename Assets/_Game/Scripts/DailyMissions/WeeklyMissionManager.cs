@@ -13,7 +13,6 @@ public sealed class WeeklyMissionManager : MonoBehaviour
 
     private const string PrefsKey = "ArcadeSurvivor.WeeklyMissions";
     private const int MissionsPerWeek = 4;
-    private const float RewardMultiplier = 2f;
 
     private readonly DailyMissionSaveData save = new DailyMissionSaveData();
     private readonly Dictionary<int, int> eventKillCounts = new Dictionary<int, int>();
@@ -85,22 +84,35 @@ public sealed class WeeklyMissionManager : MonoBehaviour
     {
         string key = WeekStart(DateTime.Now).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         if (save.date == key && HasCurrentWeeklyPool())
+        {
+            NormalizeUnclaimedRewards();
             return;
+        }
 
         DateTime start = DateTime.ParseExact(key, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         save.date = key;
         save.missions = DailyMissionGenerator.GenerateWeekly(start, MissionsPerWeek);
-        for (int i = 0; i < save.missions.Count; i++)
-        {
-            DailyMissionSaveData.Entry entry = save.missions[i];
-            entry.coinReward = Mathf.RoundToInt(entry.coinReward * RewardMultiplier);
-            entry.xpReward = Mathf.RoundToInt(entry.xpReward * RewardMultiplier);
-        }
-
         ResetRunState();
         SaveState();
         OnMissionsRefreshed?.Invoke();
         OnProgressChanged?.Invoke();
+    }
+
+    private void NormalizeUnclaimedRewards()
+    {
+        // Preserve current week objectives, progress and already claimed rewards.
+        // Old saved reward amounts must not bypass the new economy balance.
+        bool changed=false;
+        foreach(var entry in save.missions)
+        {
+            if(entry==null||entry.claimed) continue;
+            var template=WeeklyMissionPool.Find(entry.id);
+            if(template==null||(entry.coinReward==template.coinReward&&entry.xpReward==template.xpReward)) continue;
+            entry.coinReward=template.coinReward;
+            entry.xpReward=template.xpReward;
+            changed=true;
+        }
+        if(changed) SaveState();
     }
 
     private bool HasCurrentWeeklyPool()
@@ -127,7 +139,7 @@ public sealed class WeeklyMissionManager : MonoBehaviour
     public bool Claim(DailyMissionSaveData.Entry entry)
     {
         EnsureCurrentWeek();
-        if (!CanClaim(entry))
+        if (!save.missions.Contains(entry) || !CanClaim(entry))
             return false;
 
         XpManager xp = XpManager.Instance;
@@ -152,6 +164,8 @@ public sealed class WeeklyMissionManager : MonoBehaviour
     {
         if (!runActive) return;
         bool changed = false;
+        if (!runTookDamage) runNoDamageKills++;
+        int eventCount = 0;
         for (int i = 0; i < save.missions.Count; i++)
         {
             var entry = save.missions[i];
@@ -167,14 +181,13 @@ public sealed class WeeklyMissionManager : MonoBehaviour
                 case DailyMissionObjective.KillsInSingleEvent:
                     if (info.sourceEventId != 0)
                     {
-                        int count = IncrementEventCount(info.sourceEventId);
-                        if (count > entry.progress) { entry.progress = count; changed = true; }
+                        if(eventCount==0) eventCount=IncrementEventCount(info.sourceEventId);
+                        if (eventCount > entry.progress) { entry.progress = eventCount; changed = true; }
                     }
                     break;
                 case DailyMissionObjective.KillsWithoutDamage:
                     if (!runTookDamage)
                     {
-                        runNoDamageKills++;
                         if (runNoDamageKills > entry.progress) { entry.progress = runNoDamageKills; changed = true; }
                     }
                     break;

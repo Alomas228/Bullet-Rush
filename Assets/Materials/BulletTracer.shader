@@ -48,6 +48,7 @@ Shader "Custom/Bullet Rush VFX Additive"
         // 0 = вытянутый импульс (хвост по U, спад по V)
         // 1 = круглая вспышка (радиальный спад)
         _RadialMode ("Radial Mode", Float) = 0.0
+        _VertexTheme ("Vertex Theme", Float) = 0.0
     }
 
     SubShader

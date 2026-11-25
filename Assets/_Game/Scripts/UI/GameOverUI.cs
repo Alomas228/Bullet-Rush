@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 
-public class GameOverUI : MonoBehaviour
+public partial class GameOverUI : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private GameObject gameOverPanel;
@@ -98,6 +98,7 @@ public class GameOverUI : MonoBehaviour
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
+        if (xpAnimCoroutine != null) { StopCoroutine(xpAnimCoroutine); xpAnimCoroutine = null; }
     }
 
     private void Update()
@@ -111,11 +112,21 @@ public class GameOverUI : MonoBehaviour
         {
             ShowGameOver();
         }
+        if (modernBoard != null && gameOverPanel != null && gameOverPanel.activeSelf)
+        {
+            FitModernResults();
+            RefreshModernActions();
+        }
     }
 
     private void ShowGameOver()
     {
         gameOverPanel.SetActive(true);
+        if (EnsureModernResults())
+        {
+            ShowModernResults();
+            return;
+        }
         bool victory = GameOverManager.Instance != null && GameOverManager.Instance.WasVictory;
         foreach (TMP_Text label in gameOverPanel.GetComponentsInChildren<TMP_Text>(true))
         {
@@ -241,6 +252,11 @@ public class GameOverUI : MonoBehaviour
     private void DisplayXpAt(XpManager xp, int totalXp)
     {
         int level = Mathf.Max(xp.GetLevelForXP(totalXp), 1);
+        if (modernBoard != null)
+        {
+            DisplayModernXp(xp,totalXp,level);
+            return;
+        }
 
         int levelStartXp = xp.GetXPForLevel(level);
         int levelEndXp = xp.GetXPForLevel(level + 1);
@@ -363,7 +379,8 @@ public class GameOverUI : MonoBehaviour
 
     private void OnDoubleCoinsClicked()
     {
-        if (coinsDoubled) return;
+        if (coinsDoubled || GameModeManager.IsPvp || YandexGameManager.Instance == null ||
+            YandexGameManager.Instance.IsRewardedBusy) return;
         if (doubleCoinsButton != null)
             doubleCoinsButton.interactable = false;
 
@@ -377,6 +394,7 @@ public class GameOverUI : MonoBehaviour
             YandexGameManager.RewardId_DoubleCoins,
             ApplyDoubleCoinsReward
         );
+        if (modernBoard != null) RefreshModernActions(true);
     }
 
     private void ApplyDoubleCoinsReward()
@@ -394,6 +412,7 @@ public class GameOverUI : MonoBehaviour
             return;
 
         coinsDoubled = true;
+        if (modernBoard != null) RefreshModernActions(true);
 
         if (coinsText != null)
             coinsText.text = Lang.Get(
@@ -404,7 +423,8 @@ public class GameOverUI : MonoBehaviour
 
     private void OnReviveClicked()
     {
-        if (GameOverManager.Instance == null || !GameOverManager.Instance.CanRevive) return;
+        if (GameOverManager.Instance == null || !GameOverManager.Instance.CanRevive ||
+            YandexGameManager.Instance == null || YandexGameManager.Instance.IsRewardedBusy) return;
         if (reviveButton != null)
             reviveButton.interactable = false;
 
@@ -418,6 +438,7 @@ public class GameOverUI : MonoBehaviour
             YandexGameManager.RewardId_Revive,
             ApplyReviveReward
         );
+        if (modernBoard != null) RefreshModernActions(true);
     }
 
     private void ApplyReviveReward()

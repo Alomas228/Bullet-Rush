@@ -155,12 +155,14 @@ public class CameraFollow : MonoBehaviour
 
     private void OnDestroy()
     {
+        MassKillMoment.Reset();
         if (GameStateManager.Instance != null)
             GameStateManager.Instance.OnGameStateChanged -= HandleStateChanged;
     }
 
     private void HandleStateChanged(GameState state)
     {
+        if (state != GameState.Playing) MassKillMoment.Reset();
         switch (state)
         {
             case GameState.Menu:
@@ -186,6 +188,7 @@ public class CameraFollow : MonoBehaviour
 
     private void LateUpdate()
     {
+        MassKillMoment.Tick(followTarget && target != null && !transitioning);
         RefreshParallaxOffsetOncePerFrame();
 
         if (transitioning)
@@ -199,6 +202,11 @@ public class CameraFollow : MonoBehaviour
         {
             UpdateFollowBase();
             ApplyShakeOverBase();
+            if (MassKillMoment.Zoom > 0f)
+            {
+                // Keep the original follow pose untouched; the cinematic offset is rebuilt every frame.
+                transform.position += (target.position - transform.position) * MassKillMoment.Zoom;
+            }
             return;
         }
 
@@ -654,4 +662,102 @@ public class CameraFollow : MonoBehaviour
             Mathf.Log(distance / threshold) /
             transitionSpeed;
     }
+}
+
+/// <summary>Short PvE-only cinematic for actual groups of kills, independent of combo score.</summary>
+internal static class MassKillMoment
+{
+    private const float Window = .22f;
+    private const float Cooldown = 15f;
+    private static readonly float[] killTimes = new float[64];
+    private static readonly Vector3[] killPositions = new Vector3[64];
+    private static int head, count;
+    private static float nextAllowed, elapsed, duration, slowScale, zoomAmount;
+    private static float originalScale, originalFixedDelta, appliedScale, appliedFixedDelta;
+    private static bool active;
+    public static float Strength { get; private set; }
+    public static float Zoom => Strength * zoomAmount;
+    public static float MusicMultiplier => Mathf.Lerp(1f, .12f, Strength);
+
+    private static bool Allowed => !GameModeManager.IsPvp && GameStateManager.Instance != null &&
+        GameStateManager.Instance.CurrentState == GameState.Playing &&
+        (TutorialManager.Instance == null || !TutorialManager.Instance.IsRunning) &&
+        (SettingsManager.Instance == null || SettingsManager.Instance.MassKillCinematicsEnabled);
+
+    public static void ReportKill(Vector3 position, DamageSource source)
+    {
+        if (source == DamageSource.Unknown || !Allowed || active || Time.time < nextAllowed || Time.timeScale <= 0f) return;
+        Prune(Time.time);
+        if (count == killTimes.Length) { head = (head + 1) % killTimes.Length; count--; }
+        int i = (head + count) % killTimes.Length;
+        killTimes[i] = Time.time; killPositions[i] = position; count++;
+    }
+
+    private static void Prune(float now)
+    {
+        while (count > 0 && now - killTimes[head] > Window)
+        { head = (head + 1) % killTimes.Length; count--; }
+    }
+
+    public static void Tick(bool canFrame)
+    {
+        if (!Allowed || !canFrame || Time.timeScale <= 0f)
+        { Cancel(); count = 0; return; }
+        if (active)
+        {
+            // A pause, upgrade, wave transition or game-over can take ownership of timeScale.
+            // Never undo someone else's new time scale.
+            if (!Mathf.Approximately(Time.timeScale, appliedScale)) { Cancel(); return; }
+            elapsed += Time.unscaledDeltaTime;
+            if (elapsed >= duration) { Cancel(); return; }
+            const float entrance = .075f;
+            const float exit = .27f;
+            float enter = 1f - Mathf.Pow(1f - Mathf.Clamp01(elapsed / entrance), 3f);
+            float leave = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((duration - elapsed) / exit));
+            Strength = enter * leave;
+            ApplyScale(Mathf.Lerp(originalScale, slowScale, Strength));
+            return;
+        }
+        Prune(Time.time);
+        if (count < 6 || Time.time < nextAllowed || !Mathf.Approximately(Time.timeScale, 1f)) return;
+        int kills = count;
+        Vector3 center = Vector3.zero;
+        for (int i = 0; i < count; i++) center += killPositions[(head + i) % killTimes.Length];
+        center /= count;
+        float since = killTimes[head];
+        count = 0; head = 0;
+        nextAllowed = Time.time + Cooldown;
+        zoomAmount = kills >= 15 ? .20f : kills >= 10 ? .17f : .11f;
+        slowScale = kills >= 15 ? .18f : kills >= 10 ? .23f : .35f;
+        duration = kills >= 15 ? .82f : kills >= 10 ? .72f : .57f;
+        originalScale = Time.timeScale; originalFixedDelta = Time.fixedDeltaTime;
+        elapsed = .025f; active = true;
+        Strength = 1f - Mathf.Pow(1f - elapsed / .075f, 3f);
+        ApplyScale(Mathf.Lerp(originalScale, slowScale, Strength));
+        TracerBatcher.PromoteRecentDeaths(since, center);
+        AudioManager audio = AudioManager.Instance;
+        if (audio != null && audio.SFXLibrary != null)
+            audio.PlaySFX(audio.SFXLibrary.CombatClip("cinematic_hit"), .8f, SfxPriority.High);
+    }
+
+    private static void ApplyScale(float scale)
+    {
+        appliedScale = scale;
+        appliedFixedDelta = originalFixedDelta * scale / originalScale;
+        Time.timeScale = appliedScale;
+        Time.fixedDeltaTime = appliedFixedDelta;
+    }
+
+    public static void Cancel()
+    {
+        if (active)
+        {
+            if (Mathf.Approximately(Time.timeScale, appliedScale)) Time.timeScale = originalScale;
+            if (Mathf.Approximately(Time.fixedDeltaTime, appliedFixedDelta)) Time.fixedDeltaTime = originalFixedDelta;
+        }
+        active = false; Strength = 0f; zoomAmount = 0f; count = 0; head = 0;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    public static void Reset() { Cancel(); nextAllowed = 0f; }
 }

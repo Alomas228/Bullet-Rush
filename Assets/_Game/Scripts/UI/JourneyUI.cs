@@ -8,7 +8,7 @@ using UnityEngine.UI;
 using static GameplayJourney;
 
 // Scene-local overlay: no prefab setup or new input mapping is required.
-public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
+public sealed partial class JourneyUI : MonoBehaviour, ILangRefreshable
 {
     public static bool IsBlocking => current != null && current.modal != null && current.modal.gameObject.activeSelf;
     public static bool IsJournalOpen => IsBlocking && current.journalOpen;
@@ -17,11 +17,13 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     private RectTransform canvasRoot, modal, card, content;
     private TMP_Text notice, caption;
     private Button journalButton;
+    private GameOverUI modernResults;
     private bool ownsPause, journalOpen;
     private int tab;
     public void Bind(GameplayJourney owner)
     {
         journey = owner; current = this;
+        modernResults = FindAnyObjectByType<GameOverUI>(FindObjectsInactive.Include);
         var host = new GameObject("JourneyCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         host.transform.SetParent(transform, false);
         canvasRoot = host.GetComponent<RectTransform>();
@@ -53,7 +55,8 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
             return;
         }
         canvasRoot.gameObject.SetActive(true);
-        journalButton.gameObject.SetActive(!IsBlocking && state == GameState.GameOver);
+        journalButton.gameObject.SetActive(!IsBlocking && state == GameState.GameOver &&
+            (modernResults == null || !modernResults.UsesModernResults));
         notice.gameObject.SetActive(!IsBlocking && state == GameState.Playing && Time.timeScale > 0f && Time.unscaledTime < journey.NoticeUntil);
         notice.text = journey.Notice;
         if (Keyboard.current != null && Keyboard.current.jKey.wasPressedThisFrame)
@@ -62,6 +65,7 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
             else if (!IsBlocking && !CampaignCompletionUI.IsOpen && (state != GameState.Playing || Time.timeScale > 0)) OpenJournal();
         }
         if (IsBlocking && ownsPause && state != GameState.Playing) Close();
+        if (IsBlocking && illustratedJournal && journalPortrait != ResponsiveUi.Portrait) OpenJournal();
         notice.rectTransform.anchoredPosition = new Vector2(0, MobileControls.IsTouchDevice
             ? (ResponsiveUi.Portrait ? 445 : 150) : 76);
     }
@@ -69,30 +73,45 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
     {
         if (modal != null) modal.gameObject.SetActive(false);
         journalOpen = false;
+        illustratedJournal = false;
+        GetComponent<WeaponRangePreview>()?.StopPreview();
         if (ownsPause && GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing &&
             !CampaignCompletionUI.IsOpen && !(PauseManager.Instance != null && PauseManager.Instance.IsPaused)) Time.timeScale = 1;
         ownsPause = false;
     }
-    private void Prepare(string title, bool closeable, UnityEngine.Events.UnityAction dismiss = null)
+    private void Prepare(string title, bool closeable, UnityEngine.Events.UnityAction dismiss = null, bool journalStyle = false)
     {
+        GetComponent<WeaponRangePreview>()?.StopPreview();
         if (modal != null) { modal.gameObject.SetActive(false); Destroy(modal.gameObject); }
-        ownsPause = GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing;
+        ownsPause = GameStateManager.Instance != null && GameStateManager.Instance.CurrentState == GameState.Playing &&
+            (ownsPause || Time.timeScale > 0f);
         if (ownsPause) Time.timeScale = 0;
+        illustratedJournal=journalStyle;
+        journalPortrait=ResponsiveUi.Portrait;
         modal = ArcadeUiFactory.Stretch(canvasRoot, "JourneyModal");
         ArcadeUiFactory.Image(modal, null, ArcadeUiTheme.Backdrop).raycastTarget = true;
         Canvas.ForceUpdateCanvases();
-        var board = UiArtboard.Create(modal, new Vector2(884,644));
+        Vector2 dimensions=journalStyle?(journalPortrait?new Vector2(880,1370):new Vector2(1160,780)):new Vector2(860,620);
+        var board = UiArtboard.Create(modal, dimensions+new Vector2(24,24),journalStyle);
         card = ArcadeUiFactory.At(board, "Card", Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero,
-            new Vector2(860,620));
-        ArcadeUiFactory.Image(card, ArcadeKitAssets.RoundRect, ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f), true);
+            dimensions);
+        ArcadeUiFactory.Image(card, journalStyle?JournalCut():ArcadeKitAssets.RoundRect,
+            journalStyle?JournalBase:ArcadeUiTheme.Alpha(ArcadeUiTheme.Panel, 0.98f), true);
         var shadow = card.gameObject.AddComponent<Shadow>();
         shadow.effectColor = ArcadeUiTheme.Shadow; shadow.effectDistance = new Vector2(0, -8);
         caption = Label(card, "Title", new Vector2(0.5f, 1), new Vector2(0, -24), new Vector2(card.sizeDelta.x - 100, 40), 26, TextAlignmentOptions.Center);
         caption.text = title;
         caption.font = ArcadeKitAssets.Display;
-        caption.color = MenuSheet.Ink;
+        caption.color = journalStyle?JournalPaper:MenuSheet.Ink;
+        if(journalStyle)
+        {
+            caption.alignment=TextAlignmentOptions.MidlineLeft;
+            JournalPlace(caption.rectTransform,26,20,dimensions.x-110,50);
+            caption.fontSizeMax=caption.fontSize=34;
+            JournalLine(card,26,78,dimensions.x-52,2,JournalGold);
+        }
         if (closeable) WindowCloseButton.Create(card, dismiss ?? Close);
-        var view = ArcadeUiFactory.Stretch(card, "Scroll", 20, 22, 20, 80);
+        var view = ArcadeUiFactory.Stretch(card, "Scroll", 20, 22, 20, journalStyle?150:80);
         var image = view.gameObject.AddComponent<Image>(); image.color = new Color(0, 0, 0, 0.01f);
         view.gameObject.AddComponent<RectMask2D>();
         var scroll = view.gameObject.AddComponent<ScrollRect>(); scroll.horizontal = false; scroll.viewport = view;
@@ -138,12 +157,12 @@ public sealed class JourneyUI : MonoBehaviour, ILangRefreshable
             GameStateManager.Instance.CurrentState == GameState.Playing) return;
         canvasRoot.gameObject.SetActive(true);
         journalOpen = true;
-        Prepare(T("ПУТЬ БОЙЦА", "FIGHTER'S JOURNEY", "SAVAŞÇININ YOLU"), true);
-        BuildPageNavigation();
-        if (tab == 0) BuildOverview();
-        if (tab == 1) BuildWeapons();
-        if (tab == 2) BuildMaps();
-        if (tab == 3) BuildSynergies();
+        Prepare(T("ПУТЬ БОЙЦА", "FIGHTER'S JOURNEY", "SAVAŞÇININ YOLU"), true, journalStyle:true);
+        BuildJournalNavigation();
+        if (tab == 0) BuildJournalOverview();
+        if (tab == 1) BuildJournalWeapons();
+        if (tab == 2) BuildJournalMaps();
+        if (tab == 3) BuildJournalSynergies();
     }
     private void BuildPageNavigation()
     {

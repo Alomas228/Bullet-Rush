@@ -444,7 +444,13 @@ public sealed partial class ArcadeMenuSkin
             hubRightText.text=HubCommonLoadout();
             bool owned=EquipmentManager.IsOwned(a),equipped=EquipmentManager.IsEquipped(a),innate=CharacterBuild.Innate(a.Kind);
             hubActionText.text=innate?CampText("Встроено в бойца","Innate","Dogustan"):!owned?"Lv. "+a.UnlockLevel:equipped?CampText("Снять","Remove","Cikar"):CampText("Выбрать","Equip","Kusan");
-            hubAction.interactable=owned&&!innate&&(equipped||EquipmentManager.HasFreeAbilitySlot(a.IsAutomatic));
+            if (owned&&!innate&&!equipped&&!EquipmentManager.HasFreeAbilitySlot(a.IsAutomatic))
+            {
+                hubActionText.text=CampText("Заменить","Replace","Degistir");
+                var replacement = EquipmentManager.GetAbilityReplacement(a.IsAutomatic);
+                if (replacement != null) hubDetail.text += "\n\n" + CampText("Заменит: ","Replaces: ","Degistirir: ") + replacement.LocalizedName;
+            }
+            hubAction.interactable=owned&&!innate&&!a.IsCharacterOnly;
             HubSecondaryAction(CampText("К бойцу","Fighter","Savasci"));
         }
         else if(hubView==HubView.Workbench && count>0)

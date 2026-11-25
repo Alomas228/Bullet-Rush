@@ -16,8 +16,8 @@ MonoBehaviour:
   seed: 3101
   palette:
   - {r: 0.5882, g: 0.4706, b: 0.3490, a: 1}
-  - {r: 0.3412, g: 0.4667, b: 0.3216, a: 1}
-  - {r: 0.4784, g: 0.5843, b: 0.3961, a: 1}
+  - {r: 0.31, g: 0.45, b: 0.27, a: 1}
+  - {r: 0.43, g: 0.56, b: 0.34, a: 1}
   - {r: 0.5647, g: 0.5882, b: 0.5373, a: 1}
   - {r: 0.5255, g: 0.5804, b: 0.4353, a: 1}
   - {r: 0.8353, g: 0.7882, b: 0.5529, a: 1}
@@ -240,7 +240,7 @@ MonoBehaviour:
       position: {x: 0.3, y: 0.4, z: 0.1}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.4, y: 0.4, z: 0.4}
-    model: {fileID: 4451713478821086997, guid: bde14b0e4696d5842ab20bf3adacce59, type: 3}
+    model: {fileID: 4186967400244600867, guid: f2205107481ce9a7130f40d5e2f43591, type: 3}
   - name: Flowers
     count: 5
     placement: 1
@@ -331,7 +331,7 @@ MonoBehaviour:
       position: {x: 0.35, y: 0.55, z: 0.15}
       euler: {x: 0, y: 0, z: 0}
       scale: {x: 0.8, y: 0.7, z: 0.8}
-    model: {fileID: 0}
+    model: {fileID: 4186967400244600867, guid: f2205107481ce9a7130f40d5e2f43591, type: 3}
   - name: RockCluster
     count: 3
     placement: 0

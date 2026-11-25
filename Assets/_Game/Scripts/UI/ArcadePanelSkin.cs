@@ -28,7 +28,6 @@ public sealed class ArcadePanelSkin : MonoBehaviour
         ("MenuPanelUI/Menu/AchievementsPanel", ArcadePanelKind.Menu),
         ("MenuPanelUI/Menu/DailyMissionsPanel", ArcadePanelKind.Menu),
         ("MenuPanelUI/Menu/MasteryPanel", ArcadePanelKind.Menu),
-        ("Canvas/GameOverPanel", ArcadePanelKind.GameOver),
         ("Canvas/WavePanel", ArcadePanelKind.Wave),
         ("Canvas/TutorialPanel", ArcadePanelKind.Tutorial),
         ("Canvas/HUD", ArcadePanelKind.Hud)
@@ -204,7 +203,7 @@ public sealed class ArcadePanelSkin : MonoBehaviour
             FitLabel(step, 16, 22, MenuSheet.Paper);
         }
         if (safe.Find("SkipButton") is RectTransform skip)
-            UiArtboard.Place(skip, Vector2.one, Vector2.one, new Vector2(-20,-20), new Vector2(220,64));
+            UiArtboard.Place(skip, new Vector2(1,0), new Vector2(1,0), new Vector2(-20,20), new Vector2(220,64));
         foreach (string name in new[] { "Image_Aim", "Image_WASD", "Image_Dash", "Image_Shoot" })
         {
             if (!(safe.Find(name) is RectTransform image)) continue;

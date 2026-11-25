@@ -290,7 +290,6 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         if (sheet == null && content != null && rowTemplate != null)
         {
             sheet = RuntimeWindow.Ledger((RectTransform)transform, titleText, closeButton, progressText, content, true);
-            rowTemplate.LayoutRow();
             rowTemplate.gameObject.SetActive(false);
             EnsureTabButtons();
             if (dailyTabButton != null) dailyTabButton.transform.SetParent(sheet, false);
@@ -352,7 +351,10 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         for (int i = 0; i < rows.Count; i++)
         {
             if (rows[i] != null)
+            {
+                rows[i].gameObject.SetActive(false);
                 Destroy(rows[i].gameObject);
+            }
         }
 
         rows.Clear();
@@ -361,6 +363,7 @@ public class DailyMissionUI : MonoBehaviour, ILangRefreshable
         {
             DailyMissionRowUI row = Instantiate(rowTemplate, content);
             row.gameObject.SetActive(true);
+            row.LayoutRow();
             rows.Add(row);
         }
     }

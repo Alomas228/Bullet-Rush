@@ -516,7 +516,8 @@ public class Bullet : MonoBehaviour
             pvpTarget.TakeDamage(damage * PvpCombatant.PlayerDamageMultiplier);
             VfxFactory.SpawnImpact(
                 transform.position,
-                transform.forward
+                transform.forward,
+                weaponId: weaponId, critical: isCritical
             );
             ReturnToPool();
             return;
@@ -580,7 +581,8 @@ public class Bullet : MonoBehaviour
         // в белое пятно.
         VfxFactory.SpawnImpact(
             transform.position,
-            transform.forward
+            transform.forward,
+            weaponId: weaponId, critical: isCritical
         );
 
         // Кровь: капли разлетаются от точки попадания по
@@ -774,7 +776,7 @@ public class Bullet : MonoBehaviour
         if (!VfxFactory.TrySpawnExplosion(
                 transform.position,
                 explosionRadius,
-                VfxFactory.DefaultExplosionColor))
+                VfxFactory.DefaultExplosionColor, playSound: false))
         {
             return;
         }
@@ -831,7 +833,7 @@ public class Bullet : MonoBehaviour
             AudioManager.Instance.PlaySFXVariationAt(
                 sfx.BulletExplosion,
                 transform.position,
-                priority: SfxPriority.High
+                priority: SfxPriority.Medium
             );
     }
 
@@ -847,7 +849,7 @@ public class Bullet : MonoBehaviour
             AudioManager.Instance.PlaySFXVariationAt(
                 sfx.Lightning,
                 transform.position,
-                priority: SfxPriority.High
+                priority: SfxPriority.Medium
             );
     }
 

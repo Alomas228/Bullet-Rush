@@ -143,8 +143,10 @@ public class EquipmentCardView : MonoBehaviour
         else
         {
             actionLabel.text = Lang.Get("eq.action_equip");
-            available = data.Ability == null || EquipmentManager.HasFreeAbilitySlot(data.Ability.IsAutomatic);
-            if (!available) actionLabel.text = GameplayJourney.T("СНАЧАЛА ОСВОБОДИТЕ СЛОТ", "FREE A SLOT FIRST", "ONCE YUVA BOSALTIN");
+            available = data.Ability == null || !data.Ability.IsCharacterOnly;
+            if (available && data.Ability != null && !EquipmentManager.HasFreeAbilitySlot(data.Ability.IsAutomatic))
+                actionLabel.text = GameplayJourney.T("ЗАМЕНИТЬ", "REPLACE", "DEGISTIR");
+            if (!available) actionLabel.text = GameplayJourney.T("УНИКАЛЬНОЕ УМЕНИЕ", "INNATE ABILITY", "DOGUSTAN");
         }
         actionButton.interactable = available;
         actionImage.color = available ? MenuSheet.Ochre : MenuSheet.Recess;

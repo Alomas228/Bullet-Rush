@@ -280,7 +280,7 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
         VfxFactory.TrySpawnExplosion(
             transform.position,
             radius * 1.15f,
-            dangerColor
+            dangerColor, playSound: false
         );
 
         PlaySound();
@@ -401,7 +401,7 @@ public class MapStrikeZone : MonoBehaviour, IDangerZone
 
         if (sfx != null)
             AudioManager.Instance.PlaySFXAt(
-                sfx.BossAoeExplode,
+                sfx.HazardExplosion,
                 transform.position,
                 priority: SfxPriority.High
             );

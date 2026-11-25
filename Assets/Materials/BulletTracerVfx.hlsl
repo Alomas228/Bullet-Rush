@@ -23,6 +23,7 @@ CBUFFER_START(UnityPerMaterial)
     half _EdgePower;
     half _TailPower;
     float _RadialMode;
+    float _VertexTheme;
 
 CBUFFER_END
 
@@ -31,6 +32,7 @@ struct Attributes
     float4 positionOS : POSITION;
     float2 uv : TEXCOORD0;
     float2 uv1 : TEXCOORD1;
+    half4 color : COLOR;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -39,6 +41,8 @@ struct Varyings
     float4 positionHCS : SV_POSITION;
     float2 uv : TEXCOORD0;
     float shapeOverride : TEXCOORD1;
+    half4 color : COLOR;
+    float style : TEXCOORD2;
 };
 
 Varyings Vert(Attributes input)
@@ -73,6 +77,8 @@ Varyings Vert(Attributes input)
     // меши (вспышка попадания, осколки, брызги крови) продолжают
     // вести себя ровно как раньше. У COLOR дефолт неоднозначен.
     output.shapeOverride = input.uv1.x;
+    output.color = input.color;
+    output.style = input.uv1.y;
 
     return output;
 }
@@ -107,6 +113,18 @@ half4 Frag(Varyings input) : SV_Target
         float widthFactor = input.shapeOverride < -0.5
             ? lerp(0.18, 1.0, sqrt(tail))
             : 1.0;
+        if (_VertexTheme > 0.5)
+        {
+            float style = input.style;
+            if (style > 0.5 && style < 1.5)
+                p.y += (abs(frac(tail * 3.5 + _Time.y * 11.0) * 2.0 - 1.0) * 2.0 - 1.0) * 0.35 * (1.0 - tail);
+            else if (style > 1.5 && style < 2.5)
+                p.y += sin(tail * 18.0 - _Time.y * 16.0) * 0.24 * (1.0 - tail);
+            else if (style > 7.5 && style < 8.5)
+                p.y = abs(p.y) - 0.17 * (1.0 - tail);
+            if (style > 2.5 && style < 5.5)
+                widthFactor *= 0.8 + 0.2 * sin(tail * 12.0 + _Time.y * 6.0);
+        }
         shape = saturate(abs(p.y) / widthFactor);
     }
 
@@ -121,6 +139,16 @@ half4 Frag(Varyings input) : SV_Target
         _CoreColor.rgb * core * tailFade;
 
     color *= (half)_Intensity;
+    if (_VertexTheme > 0.5)
+    {
+        half3 tint = input.color.rgb;
+        half3 hot = lerp(tint, half3(1,1,1), input.style > 8.5 ? 0.14 : 0.55);
+        color = (tint * glow + hot * core) * tailFade * _Intensity * input.color.a;
+        if (radialMode < 0.5 && input.style > 5.5 && input.style < 6.5)
+            color *= 0.55 + 0.45 * smoothstep(0.15, 0.6, frac(tail * 4.0));
+        if (radialMode < 0.5 && input.style > 3.5 && input.style < 4.5)
+            color *= 0.55 + 0.45 * sin(tail * 13.0 + _Time.y * 7.0) * sin(tail * 13.0 + _Time.y * 7.0);
+    }
 
     return half4(color, 1.0);
 }

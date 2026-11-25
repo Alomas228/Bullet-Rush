@@ -55,6 +55,8 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
     private TMP_Text shakeLabel;
     private Image fireShakeImage;
     private TMP_Text fireShakeLabel;
+    private Image cinematicImage;
+    private TMP_Text cinematicLabel;
 
     private bool built;
 
@@ -575,7 +577,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
         if (old != null)
             Destroy(old.gameObject);
 
-        RectTransform board = UiArtboard.Create((RectTransform)setting, new Vector2(1040, 634));
+        RectTransform board = UiArtboard.Create((RectTransform)setting, new Vector2(1040, 698));
         RectTransform card = BuildSettingsCard(board);
 
         BuildSettingsHeader(card);
@@ -744,6 +746,15 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
                 RefreshSettingsValues();
             }
         );
+        SettingsToggleRow(card, "CinematicRow",
+            () => GameplayJourney.T("СЛОУ-МО МАССОВЫХ УБИЙСТВ", "MASS-KILL SLOW MOTION", "YAVAS CEKIM"),
+            new Vector2(36f,-574f), out cinematicImage, out cinematicLabel, () =>
+            {
+                var settings = SettingsManager.Instance;
+                if (settings == null) return;
+                settings.SetMassKillCinematics(!settings.MassKillCinematicsEnabled);
+                RefreshSettingsValues();
+            });
     }
 
     private void BuildSettingsLanguage(RectTransform card)
@@ -1016,6 +1027,7 @@ public sealed class ArcadeBattleSkin : MonoBehaviour
 
         RefreshToggleVisual(shakeImage, shakeLabel, settings.ScreenShakeEnabled);
         RefreshToggleVisual(fireShakeImage, fireShakeLabel, settings.FireShakeEnabled);
+        RefreshToggleVisual(cinematicImage, cinematicLabel, settings.MassKillCinematicsEnabled);
     }
 
     private static void SetSliderValue(Slider slider, TMP_Text label, float value)

@@ -10,6 +10,7 @@ public class SettingsManager : MonoBehaviour
         public float uiVolume = 0.8f;
         public bool screenShake = true;
         public bool fireShake = true;
+        public bool massKillCinematics = true;
     }
 
     public static SettingsManager Instance { get; private set; }
@@ -23,6 +24,7 @@ public class SettingsManager : MonoBehaviour
     public float UiVolume => data.uiVolume;
     public bool ScreenShakeEnabled => data.screenShake;
     public bool FireShakeEnabled => data.fireShake;
+    public bool MassKillCinematicsEnabled => data.massKillCinematics;
 
     private void Awake()
     {
@@ -108,6 +110,13 @@ public class SettingsManager : MonoBehaviour
     public void SetFireShake(bool enabled)
     {
         data.fireShake = enabled;
+        Save();
+    }
+
+    public void SetMassKillCinematics(bool enabled)
+    {
+        data.massKillCinematics = enabled;
+        if (!enabled) MassKillMoment.Cancel();
         Save();
     }
 

@@ -546,7 +546,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         if (card.Equipped)
             card.State = Lang.Get("eq.state_equipped");
         else if (card.Ability != null && !EquipmentManager.HasFreeAbilitySlot(card.Ability.IsAutomatic))
-            card.State = GameplayJourney.T("СЛОТЫ ЗАНЯТЫ", "SLOTS FULL", "YUVALAR DOLU");
+        {
+            var replacement = EquipmentManager.GetAbilityReplacement(card.Ability.IsAutomatic);
+            card.State = replacement != null ? GameplayJourney.T("Заменит: ", "Replaces: ", "Degistirir: ") + replacement.LocalizedName : GameplayJourney.T("Можно заменить", "REPLACE AVAILABLE", "DEGISTIRILEBILIR");
+        }
         else if (card.Clothing != null && card.Price == 0)
             card.State = Lang.Get("eq.skin_free");
         else

@@ -106,7 +106,7 @@ public static class VfxSharedAssets
     // розовой. Светлое пятно внутри капли и прозрачность
     // приходят из vertex color, который ставит BloodEffect.
     private static readonly Color BloodColor =
-        new Color(0.42f, 0.02f, 0.02f, 1f);
+        new Color(0.38f, 0.17f, 0.14f, 0.82f);
 
     // Яркость шара держится чуть выше порога Bloom (0.9 в
     // SampleSceneProfile). Раньше здесь стояло 2.6 - шар светился

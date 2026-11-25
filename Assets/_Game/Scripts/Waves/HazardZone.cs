@@ -223,7 +223,7 @@ public class HazardZone : MonoBehaviour, IDangerZone
         VfxFactory.TrySpawnExplosion(
             transform.position,
             radius * 1.1f,
-            dangerColor
+            dangerColor, playSound: false
         );
 
         PlayActivateSound();
@@ -255,7 +255,7 @@ public class HazardZone : MonoBehaviour, IDangerZone
 
         if (sfx != null)
             AudioManager.Instance.PlaySFXAt(
-                sfx.BossAoeExplode,
+                sfx.HazardExplosion,
                 transform.position,
                 priority: SfxPriority.High
             );

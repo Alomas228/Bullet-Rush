@@ -96,6 +96,8 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     private TMP_Text shakeLabel;
     private Image fireShakeImage;
     private TMP_Text fireShakeLabel;
+    private Image cinematicImage;
+    private TMP_Text cinematicLabel;
 
     private TMP_Text statsNameText;
     private TMP_Text statsLevelText;
@@ -975,6 +977,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             fireShakeLabel,
             settings.FireShakeEnabled
         );
+        RefreshToggleVisual(cinematicImage, cinematicLabel, settings.MassKillCinematicsEnabled);
     }
 
     private void SetSliderValue(Slider slider, TMP_Text label, float value)

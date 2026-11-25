@@ -42,16 +42,32 @@ public static class DailyMissionText
             string source = SourceName(entry.Source);
             string key = "mission.kill_by_source.desc";
 
-            return Lang.Has(key)
+            string description = Lang.Has(key)
                 ? Lang.Get(key, target, source)
                 : FallbackDescription(entry.Objective, target, source);
+            return description + PeriodSuffix(track);
         }
 
         string descKey = DescKey(entry.Objective);
 
-        return Lang.Has(descKey)
+        string text = Lang.Has(descKey)
             ? Lang.Get(descKey, target)
             : FallbackDescription(entry.Objective, target, string.Empty);
+        if (entry.Objective == DailyMissionObjective.PerfectWaves ||
+            entry.Objective == DailyMissionObjective.KillBosses ||
+            entry.Objective == DailyMissionObjective.CompleteRuns)
+            return text + PeriodSuffix(track);
+        if(entry.Objective == DailyMissionObjective.ReachWave)
+            return text + (Lang.Code==LangCode.Ru?" За один забег.":Lang.Code==LangCode.Tr?" Tek koşuda.":" In one run.");
+        return text;
+    }
+
+    private static string PeriodSuffix(MissionTrack track)
+    {
+        bool weekly=track==MissionTrack.Weekly;
+        if(Lang.Code==LangCode.Ru) return weekly?" За неделю.":" За день.";
+        if(Lang.Code==LangCode.Tr) return weekly?" Bu hafta.":" Bugün.";
+        return weekly?" This week.":" Today.";
     }
 
     /// <summary>Подпись награды: «Монеты xN · XP xM».</summary>

@@ -76,6 +76,32 @@ public sealed class BloodPoolBatcher : MonoBehaviour
     /// </summary>
     public static bool IsFading => fading;
 
+    // Reset both data and mesh. Hiding alone lets an old stain reappear when
+    // the first kill of the next run marks the shared mesh dirty again.
+    public static void ClearAll()
+    {
+        BloodPool.ClearAll();
+        if (instance != null)
+        {
+            instance.StopAllCoroutines();
+            instance.ResetGeometry();
+        }
+        shrink = 1f;
+        dirty = false;
+        fading = false;
+    }
+
+    private void ResetGeometry()
+    {
+        HideRenderers();
+        System.Array.Clear(mainVertices, 0, mainVertices.Length);
+        System.Array.Clear(splatterVertices, 0, splatterVertices.Length);
+        if (mainMesh != null) mainMesh.vertices = mainVertices;
+        if (splatterMesh != null) splatterMesh.vertices = splatterVertices;
+        writtenMainQuads = 0;
+        writtenSplatterQuads = 0;
+    }
+
     /// <summary>
     /// Пометить общий меш грязным. Зовётся из BloodPool при спавне,
     /// истечении и очистке.
@@ -142,7 +168,7 @@ public sealed class BloodPoolBatcher : MonoBehaviour
             if (mainMaterial == null)
                 mainMaterial =
                     CreateMaterial(
-                        new Color(0.52f, 0.03f, 0.04f),
+                        new Color(0.36f, 0.16f, 0.13f),
                         "BloodMain"
                     );
 
@@ -157,7 +183,7 @@ public sealed class BloodPoolBatcher : MonoBehaviour
             if (splatterMaterial == null)
                 splatterMaterial =
                     CreateMaterial(
-                        new Color(0.44f, 0.025f, 0.035f),
+                        new Color(0.32f, 0.145f, 0.12f),
                         "BloodSplatter"
                     );
 
@@ -540,10 +566,8 @@ public sealed class BloodPoolBatcher : MonoBehaviour
         shrink = 0f;
         dirty = true;
 
-        HideRenderers();
-
-        writtenMainQuads = 0;
-        writtenSplatterQuads = 0;
+        BloodPool.ClearAll();
+        ResetGeometry();
 
         // Следующий забег начинается без затухания.
         shrink = 1f;

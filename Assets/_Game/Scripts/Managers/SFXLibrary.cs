@@ -87,27 +87,28 @@ public class SFXLibrary : ScriptableObject
     [Tooltip("Смена карты в меню выбора карт.")]
     [SerializeField] private AudioClip mapChange;
 
-    public AudioClip PlayerHit => playerHit;
+    public AudioClip PlayerHit => CombatClip("player_hurt_depth", playerHit);
     public AudioClip PlayerDie => playerDie;
-    public AudioClip PlayerAbilityExplosion => playerAbilityExplosion;
+    public AudioClip PlayerAbilityExplosion => CombatClip("blast_bomb", playerAbilityExplosion);
     public AudioClip Dash => dash;
-    public AudioClip ShieldActivate => shieldActivate;
+    public AudioClip ShieldActivate => CombatClip("shield", shieldActivate);
 
     public AudioClip WeaponFire => weaponFire;
     public AudioClip WeaponSwitch => weaponSwitch;
-    public AudioClip BulletExplosion => bulletExplosion;
-    public AudioClip Ricochet => ricochet;
-    public AudioClip Lightning => lightning;
+    public AudioClip BulletExplosion => CombatClip("blast_round", bulletExplosion);
+    public AudioClip Ricochet => CombatClip("ricochet_depth", ricochet);
+    public AudioClip Lightning => CombatClip("chain_discharge", lightning);
 
-    public AudioClip EnemySpawn => enemySpawn;
-    public AudioClip EnemyHit => enemyHit;
-    public AudioClip EnemyDie => enemyDie;
+    public AudioClip EnemySpawn => CombatClip("spawn", enemySpawn);
+    public AudioClip EnemyHit => CombatClip("hit", enemyHit);
+    public AudioClip EnemyDie => CombatClip("fall", enemyDie);
     public AudioClip EnemyShot => enemyShot;
 
     public AudioClip BossSpawn => bossSpawn;
     public AudioClip BossPhaseChange => bossPhaseChange;
     public AudioClip BossAbility => bossAbility;
-    public AudioClip BossAoeExplode => bossAoeExplode;
+    public AudioClip BossAoeExplode => CombatClip("blast_boss", bossAoeExplode);
+    public AudioClip HazardExplosion => CombatClip("blast_hazard", bossAoeExplode);
 public AudioClip BossDie => bossDie;
 
     public AudioClip CountdownTick => countdownTick;
@@ -126,11 +127,74 @@ public AudioClip BossDie => bossDie;
     public AudioClip PickupSpawn => pickupSpawn;
     public AudioClip PickupCollect => pickupCollect;
 
+    private readonly Dictionary<string, AudioClip> combatClips = new Dictionary<string, AudioClip>();
+    private readonly Dictionary<AudioClip, float> combatVolumes = new Dictionary<AudioClip, float>();
+    private bool combatLoaded;
+
+    internal AudioClip CombatClip(string key, AudioClip fallback = null)
+    {
+        if (!combatLoaded)
+        {
+            combatLoaded = true;
+            foreach (AudioClip clip in Resources.LoadAll<AudioClip>("CombatSfx"))
+            {
+                combatClips[clip.name] = clip;
+                combatVolumes[clip] = clip.name == "cinematic_hit" ? .34f : clip.name.StartsWith("ui_") ? .36f : clip.name == "spawn" ? .22f : clip.name == "hit" || clip.name.StartsWith("impact_") ? .24f :
+                    clip.name == "player_hurt_depth" ? .68f : clip.name == "blast_round" ? .57f :
+                    clip.name.StartsWith("blast_") ? .67f : clip.name == "fire_ignition" ? .30f :
+                    clip.name == "fall_depth" || clip.name == "pop_depth" || clip.name == "shatter_depth" ? .31f :
+                    clip.name == "fall" || clip.name == "pop" || clip.name == "shatter" ? .30f :
+                    clip.name == "explosion" || clip.name == "slam" ? .57f : .47f;
+            }
+        }
+        return combatClips.TryGetValue(key, out AudioClip result) ? result : fallback;
+    }
+
+    public AudioClip WeaponSound(string weaponId)
+    {
+        string key = weaponId switch
+        {
+            "Burst Rifle" => "burst", "Golden Rifle" => "gold", "Hunter Rifle" => "hunter", "Plasma Rifle" => "plasma",
+            "Basic Shotgun" => "shotgun", "Double Shotgun" => "double", "Heavy Shotgun" => "heavy",
+            "Inferno Shotgun" => "fire", "Void Shotgun" => "void", "Basic SMG" => "smg", "Assassin SMG" => "assassin",
+            "Lightning SMG" => "electric", "Minigun" => "minigun", "Twin SMG" => "twin", _ => "rifle"
+        };
+        return CombatClip(key, weaponFire);
+    }
+
+    internal AudioClip ImpactSound(DamageSource source, string weaponId)
+    {
+        if (source == DamageSource.ChainLightning) return CombatClip("impact_electric", EnemyHit);
+        if (source == DamageSource.Burn || source == DamageSource.Bleed) return EnemyHit;
+        string key = weaponId switch
+        {
+            "Plasma Rifle" => "impact_plasma", "Inferno Shotgun" => "impact_fire",
+            "Void Shotgun" => "impact_void", "Lightning SMG" => "impact_electric", _ => "hit"
+        };
+        return CombatClip(key, EnemyHit);
+    }
+
+    internal void PlayAbility(AbilityKind kind, Vector3 position, bool automatic)
+    {
+        string key = kind switch
+        {
+            AbilityKind.CrescentSlash => "slash_depth", AbilityKind.ThunderSlam => "slam_depth", AbilityKind.FrostNova => "frost_depth",
+            AbilityKind.GravityWell => "gravity_depth", AbilityKind.OrbitBlades => "orbit_depth", AbilityKind.ShadowFamiliar => "familiar_depth",
+            AbilityKind.LightningStorm => "lightning_storm_depth", AbilityKind.FlameRing => "fire_ring_depth", AbilityKind.IceLance => "ice_lance_depth",
+            AbilityKind.FallingStar => "blast_meteor", AbilityKind.VampirePulse => "vampire_depth", AbilityKind.BeeSwarm => "swarm_depth",
+            AbilityKind.RicochetVolley => "ricochet_volley_depth", AbilityKind.GuardianAura => "heal_depth", _ => null
+        };
+        if (key != null) AudioManager.Instance?.PlaySFXVariationAt(CombatClip(key), position, automatic ? .62f : .92f,
+            automatic ? SfxPriority.Low : SfxPriority.Medium);
+    }
+
     // Индивидуальная громкость клипа: 1f, если запись не задана.
     public float GetClipVolume(AudioClip clip)
     {
         if (clip == null)
             return 1f;
+
+        if (combatVolumes.TryGetValue(clip, out float combatVolume)) return combatVolume;
 
         EnsureClipVolumesBuilt();
 

@@ -21,7 +21,7 @@ public class MapStormOverlay : MonoBehaviour
     private RawImage overlay;
     private RawImage vignette;
     private Color baseColor =
-        new Color(0.18f, 0.14f, 0.08f, 0f);
+        new Color(0.11f, 0.085f, 0.05f, 0f);
 
     private float windOffset;
 
@@ -142,7 +142,7 @@ public class MapStormOverlay : MonoBehaviour
                     broadNoise,
                     fineNoise,
                     0.38f);
-                float alpha = Mathf.Lerp(0.42f, 0.9f, grain);
+                float alpha = Mathf.Lerp(0.77f, 1f, grain);
 
                 pixels[y * size + x] = new Color(
                     0.8f + grain * 0.2f,
@@ -160,7 +160,7 @@ public class MapStormOverlay : MonoBehaviour
 
     private void Update()
     {
-        vignette.color = new Color(.1f, .075f, .045f, Mathf.Clamp01(overlay.color.a * 1.3f));
+        vignette.color = new Color(.075f, .055f, .035f, Mathf.Clamp01(overlay.color.a * 1.3f));
         windOffset += Time.deltaTime * 0.012f;
         overlay.uvRect = new Rect(
             windOffset,
@@ -192,6 +192,7 @@ public class MapStormOverlay : MonoBehaviour
     {
         Color target = baseColor;
         target.a = intensity;
+        Color start = overlay.color;
 
         float elapsed = 0f;
 
@@ -200,7 +201,7 @@ public class MapStormOverlay : MonoBehaviour
             elapsed += Time.deltaTime;
 
             overlay.color = Color.Lerp(
-                baseColor,
+                start,
                 target,
                 elapsed / fadeIn);
 

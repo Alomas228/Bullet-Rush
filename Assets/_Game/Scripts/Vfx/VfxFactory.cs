@@ -55,7 +55,8 @@ public static class VfxFactory
         Transform followTarget = null,
         GameObject prefab = null,
         Vector3? visualMuzzle = null,
-        bool muzzleFlash = false)
+        bool muzzleFlash = false,
+        string weaponId = null)
     {
         TracerEffect tracer =
             VfxPools.Tracers.Spawn(
@@ -72,7 +73,8 @@ public static class VfxFactory
             speed,
             followTarget,
             visualMuzzle,
-            muzzleFlash
+            muzzleFlash,
+            weaponId
         );
 
         return tracer;
@@ -125,7 +127,9 @@ public static class VfxFactory
     public static bool SpawnImpact(
         Vector3 position,
         Vector3 normal,
-        GameObject prefab = null)
+        GameObject prefab = null,
+        string weaponId = null,
+        bool critical = false)
     {
         if (impactFrame != Time.frameCount)
         {
@@ -137,6 +141,9 @@ public static class VfxFactory
             return false;
 
         impactsThisFrame++;
+
+        if (prefab == null && TracerBatcher.EmitImpact(position, ShotVisualTheme.ForWeapon(weaponId), critical))
+            return true;
 
         ImpactEffect impact =
             VfxPools.Impacts.Spawn(
@@ -260,7 +267,9 @@ public static class VfxFactory
     public static bool TrySpawnExplosion(
         Vector3 position,
         float radius,
-        Color color)
+        Color color,
+        bool playSound = true,
+        string soundKey = null)
     {
         if (IsDuplicatedExplosion(position, radius))
             return false;
@@ -282,6 +291,15 @@ public static class VfxFactory
         );
 
         RecordExplosion(position, radius);
+
+        if (playSound && AudioManager.Instance != null && AudioManager.Instance.SFXLibrary != null)
+        {
+            SFXLibrary sfx = AudioManager.Instance.SFXLibrary;
+            string key = soundKey ?? (radius < .5f ? "hit" : color.b > color.r && color.g > color.r ? "ice_break" :
+                color.b > color.g && color.b > color.r ? "void_burst" : radius < 1f ? "blast_crate" : "blast_hazard");
+            AudioManager.Instance.PlaySFXVariationAt(sfx.CombatClip(key, sfx.BulletExplosion), position,
+                Mathf.Clamp(radius * .35f, .25f, .85f), SfxPriority.Low);
+        }
 
         return true;
     }

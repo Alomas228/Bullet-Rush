@@ -23,6 +23,7 @@ public class DailyMissionRowUI : MonoBehaviour
     private DailyMissionSaveData.Entry boundEntry;
     private MissionTrack boundTrack = MissionTrack.Daily;
     private bool claimBound;
+    private Image badge,completedBadge;
 
     private void Awake()
     {
@@ -70,6 +71,7 @@ public class DailyMissionRowUI : MonoBehaviour
     {
         RuntimeWindow.LedgerRow((RectTransform)transform, titleLabel, descriptionLabel, rewardLabel, progressLabel,
             progressBar, claimButton);
+        if(badge==null) badge=RuntimeWindow.LedgerBadge((RectTransform)transform,out completedBadge);
     }
 
     public void Bind(DailyMissionSaveData.Entry entry)
@@ -92,6 +94,23 @@ public class DailyMissionRowUI : MonoBehaviour
             : (daily != null && daily.IsCompleted(entry));
 
         bool claimed = entry.claimed;
+        if(badge!=null)
+        {
+            string icon=entry.Objective switch
+            {
+                DailyMissionObjective.KillByDamageSource=>RuntimeWindow.DamageIcon(entry.Source),
+                DailyMissionObjective.KillsInSingleEvent=>"power",
+                DailyMissionObjective.KillsWithoutDamage=>"shield",
+                DailyMissionObjective.PerfectWaves=>"star",
+                DailyMissionObjective.ReachWave=>"chart",
+                DailyMissionObjective.KillBosses=>"crown",
+                DailyMissionObjective.CompleteRuns=>"trophy",
+                _=>"target"
+            };
+            badge.sprite=ArcadeKitAssets.Icon(icon);
+            badge.color=completed?MenuSheet.Sage:MenuSheet.Ochre;
+            completedBadge.gameObject.SetActive(completed);
+        }
 
         float target = entry.target > 0f ? entry.target : 1f;
         float progress = Mathf.Clamp(entry.progress, 0f, target);
@@ -112,6 +131,8 @@ public class DailyMissionRowUI : MonoBehaviour
         {
             progressBar.value = Mathf.Clamp01(progress / target);
             progressBar.gameObject.SetActive(!claimed);
+            if(progressBar.fillRect!=null&&progressBar.fillRect.TryGetComponent<Image>(out var fill))
+                fill.color=completed?MenuSheet.Sage:MenuSheet.Ochre;
         }
 
         if (background != null)

@@ -4521,6 +4521,11 @@ public partial class Enemy : MonoBehaviour
 
         PlayEnemyHitSound();
 
+        if (currentHealth > 0f && source != DamageSource.Weapon &&
+            source != DamageSource.Unknown && source != DamageSource.Burn && source != DamageSource.Bleed)
+            TracerBatcher.EmitImpact(transform.position + Vector3.up * .3f,
+                ShotVisualTheme.ForDamage(source, weaponId), isCritical);
+
         if (isBoss &&
             bossData != null)
         {
@@ -4544,7 +4549,7 @@ public partial class Enemy : MonoBehaviour
 
         if (sfx != null)
             AudioManager.Instance.PlaySFXVariationAt(
-                sfx.EnemyHit,
+                sfx.ImpactSound(lastDamageSource, lastDamageWeaponId),
                 transform.position,
                 priority: SfxPriority.Low
             );
@@ -4599,7 +4604,12 @@ public partial class Enemy : MonoBehaviour
         // 0.5 с) перезаписывало таймер быстрее, чем тот успевал
         // дойти до нуля: горение висело, а урона не наносило.
         if (!burnActive)
+        {
             burnTickTimer = tickInterval;
+            var audio = AudioManager.Instance;
+            if (audio != null && audio.SFXLibrary != null)
+                audio.PlaySFXVariationAt(audio.SFXLibrary.CombatClip("fire_ignition"), transform.position, .40f, SfxPriority.Low);
+        }
 
         burnActive = true;
         burnWeaponId = weaponId ?? string.Empty;
@@ -4811,16 +4821,20 @@ public partial class Enemy : MonoBehaviour
 
     public void Kill()
     {
-        Die();
+        Die(false);
     }
 
-    private void Die()
+    private void Die(bool countForCinematic = true)
     {
         if (IsDead)
             return;
 
         IsDead = true;
         JourneyDeath();
+        string deathSound = TracerBatcher.EmitDeathBody(variantRenderer,
+            player != null ? transform.position - player.position : transform.forward, lastDamageSource, isBoss, DeathSkinColor());
+        TracerBatcher.EmitDeath(transform.position, ShotVisualTheme.ForDamage(lastDamageSource, lastDamageWeaponId), isBoss);
+        if (countForCinematic) MassKillMoment.ReportKill(transform.position, lastDamageSource);
 
         // Босс в список павших не идёт: его смерть и так
         // заканчивает волну, и трогать его поведение не нужно.
@@ -4846,7 +4860,7 @@ public partial class Enemy : MonoBehaviour
         if (burnActive)
             RunUpgrades.Instance?.SpreadBurn(transform.position);
 
-        PlayEnemyDeathSound();
+        PlayEnemyDeathSound(deathSound);
 
         burnActive = false;
         bleedActive = false;
@@ -4957,7 +4971,7 @@ public partial class Enemy : MonoBehaviour
         scaledDamageMultiplier *= Mathf.Clamp(damageMultiplier, 0.1f, 1f);
     }
 
-    private void PlayEnemyDeathSound()
+    private void PlayEnemyDeathSound(string deathSound)
     {
         if (AudioManager.Instance == null)
             return;
@@ -4983,9 +4997,9 @@ public partial class Enemy : MonoBehaviour
         else
         {
             AudioManager.Instance.PlaySFXVariationAt(
-                sfx.EnemyDie,
+                sfx.CombatClip(deathSound, sfx.EnemyDie),
                 transform.position,
-                priority: SfxPriority.Medium
+                priority: SfxPriority.Low
             );
         }
     }

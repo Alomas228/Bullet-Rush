@@ -5,6 +5,23 @@ public partial class Enemy
     private static readonly uint[] bodySkinSequence = new uint[7];
     private bool bodySkinAssigned;
 
+    // Dominant swatches from EnemySkins.png; the atlas material itself is white.
+    // The atlas stays non-readable and shared, so no texture sampling or copies are needed.
+    private Color DeathSkinColor()
+    {
+        if (!bodySkinAssigned) return Color.white;
+        switch (cachedEnemyType)
+        {
+            case EnemyType.Normal: return new Color32(196, 79, 62, 255);
+            case EnemyType.Fast: return new Color32(111, 205, 177, 255);
+            case EnemyType.Tank: return new Color32(117, 48, 57, 255);
+            case EnemyType.Ranged: return new Color32(217, 107, 131, 255);
+            case EnemyType.Elite: return new Color32(166, 50, 104, 255);
+            case EnemyType.Bomber: return new Color32(217, 82, 57, 255);
+            default: return Color.white;
+        }
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetBodySkinSequence()
     {

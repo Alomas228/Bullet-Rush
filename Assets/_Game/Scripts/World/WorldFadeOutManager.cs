@@ -18,7 +18,8 @@ public class WorldFadeOutManager : MonoBehaviour
         LootPickup.ClearRunLoot();
         DashVfxBatcher.ClearAll();
         DamageNumberSystem.HideAll();
-        BloodPoolBatcher.FadeOut(.08f);
+        BloodPoolBatcher.ClearAll();
+        TracerBatcher.ClearBursts();
 
         foreach (Enemy enemy in FindObjectsByType<Enemy>(FindObjectsInactive.Include))
         {

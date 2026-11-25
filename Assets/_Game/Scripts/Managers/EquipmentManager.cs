@@ -318,7 +318,12 @@ public static class EquipmentManager
         }
         else
         {
-            if (!HasFreeAbilitySlot(ability.IsAutomatic)) return false;
+            if (!HasFreeAbilitySlot(ability.IsAutomatic))
+            {
+                AbilityData replacement = GetAbilityReplacement(ability.IsAutomatic);
+                if (replacement == null) return false;
+                data.equippedAbilities.Remove(replacement.AbilityName);
+            }
             if (!data.equippedAbilities.Contains(ability.AbilityName))
                 data.equippedAbilities.Add(ability.AbilityName);
 
@@ -346,6 +351,19 @@ public static class EquipmentManager
 
     public static bool HasFreeAbilitySlot(bool automatic) => EquippedAbilityCount(automatic) <
         (automatic ? AbilityPresentation.AutomaticSlots-1 : AbilityPresentation.ActiveSlots-1);
+
+    public static AbilityData GetAbilityReplacement(bool automatic)
+    {
+        EnsureLoaded();
+        NormalizeCommonAbilities();
+        var manager = UpgradeManager.Instance;
+        if (manager == null) return null;
+        foreach (string name in data.equippedAbilities)
+            foreach (var equipped in manager.GetAvailableAbilities())
+                if (equipped != null && equipped.AbilityName == name && equipped.IsAutomatic == automatic &&
+                    !CharacterBuild.Innate(equipped.Kind) && !equipped.IsCharacterOnly) return equipped;
+        return null;
+    }
 
     private static void NormalizeCommonAbilities()
     {

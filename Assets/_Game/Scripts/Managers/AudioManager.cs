@@ -64,6 +64,9 @@ public class AudioManager : MonoBehaviour
 
     private AudioSource musicSource;
     private AudioClip desiredMusicClip;
+    private bool musicPaused;
+    private bool musicWasPlaying;
+    private int uiInteractionFrame = -1;
     private float combatIntensity;
     public void SetCombatIntensity(float value) => combatIntensity = Mathf.Clamp01(value);
     private void Update()
@@ -73,7 +76,8 @@ public class AudioManager : MonoBehaviour
         float intensity = playing ? combatIntensity : 0f;
         musicSource.pitch = Mathf.Lerp(musicSource.pitch, 1f + intensity * 0.035f, Time.unscaledDeltaTime * 2f);
         if (fadeCoroutine == null && musicSource.isPlaying)
-            musicSource.volume = Mathf.Lerp(musicSource.volume, musicVolume * Mathf.Lerp(0.8f, 1f, intensity), Time.unscaledDeltaTime * 2f);
+            musicSource.volume = Mathf.Lerp(musicSource.volume, musicVolume * Mathf.Lerp(0.8f, 1f, intensity) * MassKillMoment.MusicMultiplier,
+                1f - Mathf.Exp(-Time.unscaledDeltaTime * (MassKillMoment.Strength > 0f ? 22f : 10f)));
     }
 
     private AudioSource[] voices;
@@ -106,6 +110,8 @@ public class AudioManager : MonoBehaviour
         ApplyLowLatencyDspBuffer();
 
         BuildVoicePool();
+        if (GetComponent<UiSfxHook>() == null) gameObject.AddComponent<UiSfxHook>();
+        if (sfxLibrary != null) sfxLibrary.CombatClip("spawn");
 
         musicSource = gameObject.AddComponent<AudioSource>();
         musicSource.playOnAwake = false;
@@ -251,6 +257,13 @@ public class AudioManager : MonoBehaviour
         AudioClip clip,
         float volumeScale = 1f)
     {
+        if (sfxLibrary != null && clip == sfxLibrary.UiClick)
+        {
+            // The global UI input hook handles real interactions. Legacy menu callbacks fire on release.
+            if (GetComponent<UiSfxHook>() != null) return;
+            if (uiInteractionFrame == Time.frameCount) return;
+            uiInteractionFrame = Time.frameCount;
+        }
         PlayVoice(
             clip,
             uiVolume,
@@ -258,7 +271,8 @@ public class AudioManager : MonoBehaviour
             SfxPriority.High,
             Vector3.zero,
             false,
-            false
+            false,
+            cinematicPitch: false
         );
     }
 
@@ -288,7 +302,8 @@ public class AudioManager : MonoBehaviour
         SfxPriority priority,
         Vector3 position,
         bool positional,
-        bool randomizePitch)
+        bool randomizePitch,
+        bool cinematicPitch = true)
     {
         if (clip == null || voices == null || voices.Length == 0)
             return;
@@ -319,6 +334,7 @@ public class AudioManager : MonoBehaviour
         source.pitch = randomizePitch
             ? Random.Range(MinPitch, MaxPitch)
             : 1f;
+        if (cinematicPitch) source.pitch *= Mathf.Lerp(1f, .72f, MassKillMoment.Strength);
         source.priority = ToUnityPriority(priority);
         source.spatialBlend = positional ? 1f : 0f;
 
@@ -487,6 +503,7 @@ public class AudioManager : MonoBehaviour
             return;
 
         desiredMusicClip = clip;
+        if (musicPaused) { musicWasPlaying = true; return; }
 
         if (musicSource.clip == clip && musicSource.isPlaying)
             return;
@@ -501,6 +518,12 @@ public class AudioManager : MonoBehaviour
 
     public void StopMusic()
     {
+        if (musicPaused)
+        {
+            musicWasPlaying = false;
+            musicSource.Stop();
+            return;
+        }
         if (fadeCoroutine != null)
             StopCoroutine(fadeCoroutine);
 
@@ -518,7 +541,7 @@ public class AudioManager : MonoBehaviour
             {
                 timer += Time.unscaledDeltaTime;
                 musicSource.volume =
-                    Mathf.Lerp(musicVolume, 0f, timer / fadeTime);
+                    Mathf.Lerp(musicVolume, 0f, timer / fadeTime) * MassKillMoment.MusicMultiplier;
                 yield return null;
             }
         }
@@ -532,7 +555,7 @@ public class AudioManager : MonoBehaviour
         {
             fadeInTimer += Time.unscaledDeltaTime;
             musicSource.volume =
-                Mathf.Lerp(0f, musicVolume, fadeInTimer / 0.5f);
+                Mathf.Lerp(0f, musicVolume, fadeInTimer / 0.5f) * MassKillMoment.MusicMultiplier;
             yield return null;
         }
 
@@ -595,5 +618,30 @@ public class AudioManager : MonoBehaviour
     public void ResumeMusic()
     {
         PlayMusic(desiredMusicClip);
+    }
+
+    public void SetMusicPaused(bool paused)
+    {
+        if (musicSource == null || musicPaused == paused) return;
+        musicPaused = paused;
+        if (paused)
+        {
+            musicWasPlaying = musicSource.isPlaying || fadeCoroutine != null;
+            if (fadeCoroutine != null) { StopCoroutine(fadeCoroutine); fadeCoroutine = null; }
+            musicSource.Pause();
+        }
+        else if (musicWasPlaying)
+        {
+            if (musicSource.clip != desiredMusicClip) PlayMusic(desiredMusicClip);
+            else { musicSource.volume = musicVolume; musicSource.UnPause(); }
+        }
+    }
+
+    internal void PlayUiInteraction(string key)
+    {
+        if (uiInteractionFrame == Time.frameCount || sfxLibrary == null) return;
+        AudioClip clip = sfxLibrary.CombatClip(key, sfxLibrary.UiClick);
+        uiInteractionFrame = Time.frameCount;
+        PlayVoice(clip, uiVolume, 1f, SfxPriority.High, Vector3.zero, false, false, cinematicPitch: false);
     }
 }

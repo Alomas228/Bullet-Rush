@@ -87,6 +87,7 @@ public class PauseManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (IsPaused) AudioManager.Instance?.SetMusicPaused(false);
         if (pauseButton != null)
             pauseButton.onClick.RemoveListener(TogglePause);
 
@@ -160,7 +161,9 @@ public class PauseManager : MonoBehaviour
             return;
 
         IsPaused = true;
+        MassKillMoment.Cancel();
         Time.timeScale = 0f;
+        AudioManager.Instance?.SetMusicPaused(true);
 
         if (pausePanel != null)
             pausePanel.SetActive(true);
@@ -174,6 +177,7 @@ public class PauseManager : MonoBehaviour
             return;
 
         IsPaused = false;
+        AudioManager.Instance?.SetMusicPaused(false);
 
         if (GameStateManager.Instance == null ||
             GameStateManager.Instance.CurrentState == GameState.Playing)
@@ -193,6 +197,7 @@ public class PauseManager : MonoBehaviour
     private void ResetPause()
     {
         IsPaused = false;
+        AudioManager.Instance?.SetMusicPaused(false);
 
         if (pausePanel != null)
             pausePanel.SetActive(false);

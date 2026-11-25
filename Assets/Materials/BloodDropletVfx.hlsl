@@ -65,7 +65,7 @@ half4 Frag(Varyings input) : SV_Target
     float core = pow(1.0 - d, _CorePower);
 
     half3 rgb =
-        _Color.rgb * input.color.rgb * (0.75h + 0.5h * core);
+        _Color.rgb * input.color.rgb * (0.85h + 0.12h * core);
 
     half alpha =
         _Color.a * input.color.a * mask;

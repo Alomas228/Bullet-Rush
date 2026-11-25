@@ -164,7 +164,7 @@ public class BombAbility : MonoBehaviour
         VfxFactory.TrySpawnExplosion(
             center,
             radius,
-            new Color(1f, 0.55f, 0.1f, 0.8f)
+            new Color(1f, 0.55f, 0.1f, 0.8f), playSound: false
         );
     }
 

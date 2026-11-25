@@ -221,6 +221,8 @@ public class DailyMissionManager : MonoBehaviour
             return;
 
         bool changed = false;
+        if (!runTookDamage) runNoDamageKills++;
+        int eventCount = 0;
 
         for (int i = 0; i < save.missions.Count; i++)
         {
@@ -255,11 +257,11 @@ public class DailyMissionManager : MonoBehaviour
                 case DailyMissionObjective.KillsInSingleEvent:
                     if (info.sourceEventId != 0)
                     {
-                        int count = IncrementEventCount(info.sourceEventId);
+                        if(eventCount==0) eventCount=IncrementEventCount(info.sourceEventId);
 
-                        if (count > entry.progress)
+                        if (eventCount > entry.progress)
                         {
-                            entry.progress = count;
+                            entry.progress = eventCount;
                             changed = true;
                         }
                     }
@@ -268,8 +270,6 @@ public class DailyMissionManager : MonoBehaviour
                 case DailyMissionObjective.KillsWithoutDamage:
                     if (!runTookDamage)
                     {
-                        runNoDamageKills++;
-
                         if (runNoDamageKills > entry.progress)
                         {
                             entry.progress = runNoDamageKills;
@@ -434,7 +434,8 @@ public class DailyMissionManager : MonoBehaviour
     /// </summary>
     public bool Claim(DailyMissionSaveData.Entry entry)
     {
-        if (!CanClaim(entry))
+        EnsureToday();
+        if (!save.missions.Contains(entry) || !CanClaim(entry))
             return false;
 
         XpManager xp = XpManager.Instance;

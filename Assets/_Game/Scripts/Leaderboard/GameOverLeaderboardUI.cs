@@ -43,9 +43,11 @@ public class GameOverLeaderboardUI : MonoBehaviour
     [SerializeField] private TMP_Text abilitiesUsedText;
     [SerializeField] private TMP_Text dashDodgesText;
     [SerializeField] private TMP_Text multiKillStreaksText;
+    private GameOverUI modernResults;
 
     private void Awake()
     {
+        modernResults = FindAnyObjectByType<GameOverUI>(FindObjectsInactive.Include);
         HideAll();
         HideRoot();
     }
@@ -58,7 +60,8 @@ public class GameOverLeaderboardUI : MonoBehaviour
     {
         bool visible =
             GameOverManager.Instance != null &&
-            GameOverManager.Instance.IsGameOver;
+            GameOverManager.Instance.IsGameOver &&
+            (modernResults == null || !modernResults.UsesModernResults);
 
         if (rootPanel != null &&
             rootPanel.activeSelf != visible)
@@ -86,6 +89,7 @@ public class GameOverLeaderboardUI : MonoBehaviour
     /// </summary>
     public void ShowResults(RunResult result)
     {
+        if (modernResults != null && modernResults.UsesModernResults) { HideRoot(); return; }
         if (result == null)
         {
             Debug.LogWarning("[LeaderboardUI] RunResult is null");

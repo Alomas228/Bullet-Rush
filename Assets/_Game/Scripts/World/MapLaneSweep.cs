@@ -131,8 +131,14 @@ public class MapLaneSweep : MonoBehaviour, IDangerZone
         Shader shader =
             Shader.Find("Custom/Bullet Rush Surf Wave");
 
-        if (shader == null)
-            return null;
+        if (shader == null || !shader.isSupported)
+        {
+            // Opaque water-shaped fallback, so a stripped or unsupported shader never hides the hazard.
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null || !shader.isSupported) return null;
+            surfMaterial = new Material(shader) { name = "SurfWaveFallback", color = new Color(.12f,.64f,.78f,1f) };
+            return surfMaterial;
+        }
 
         surfMaterial = new Material(shader)
         {

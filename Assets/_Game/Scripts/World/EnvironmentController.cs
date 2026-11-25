@@ -76,6 +76,9 @@ public class EnvironmentController : MonoBehaviour
     private Action pendingSessionPreparation;
     private bool menuSessionRefreshRequested;
     private int queuedMenuMapIndex = -1;
+    private Light environmentSun;
+    private Color originalSunColor;
+    private float originalSunIntensity;
 
     public int CurrentIndex => currentIndex;
 
@@ -206,6 +209,11 @@ public class EnvironmentController : MonoBehaviour
     {
         if (stateManager != null) stateManager.OnGameStateChanged -= HandleGameStateChanged;
         if (menuTransitionOverlay != null) Destroy(menuTransitionOverlay.gameObject);
+        if (environmentSun != null)
+        {
+            environmentSun.color = originalSunColor;
+            environmentSun.intensity = originalSunIntensity;
+        }
     }
 
     private void HandleGameStateChanged(GameState state)
@@ -619,6 +627,7 @@ public class EnvironmentController : MonoBehaviour
     {
         public Color backgroundColor;
         public Color ambientLight;
+        public Color sunTint;
         public bool fogEnabled;
         public Color fogColor;
         public float fogStart;
@@ -634,6 +643,12 @@ public class EnvironmentController : MonoBehaviour
 
         state.backgroundColor = map.skyColor;
         state.ambientLight = map.ambientLightColor;
+        state.sunTint = map.langKey switch
+        {
+            "gory" => new Color(.83f,.94f,1f),
+            "gorod" => new Color(.92f,.96f,1f),
+            _ => new Color(1f,.92f,.78f)
+        };
         state.fogEnabled = map.fogEnabled;
         state.fogColor = map.fogColor;
         state.fogStart = map.fogStartDistance;
@@ -653,6 +668,7 @@ public class EnvironmentController : MonoBehaviour
             cam.backgroundColor = state.backgroundColor;
 
         RenderSettings.ambientLight = state.ambientLight;
+        ApplySunPalette(state.sunTint);
 
         RenderSettings.fog = state.fogEnabled;
         RenderSettings.fogColor = state.fogColor;
@@ -686,6 +702,7 @@ public class EnvironmentController : MonoBehaviour
                 end.ambientLight,
                 t
             );
+        ApplySunPalette(Color.Lerp(begin.sunTint,end.sunTint,t));
 
         // Пока хотя бы одна из карт использует туман — он включён,
         // чтобы переход плавал, а не дёргался.
@@ -715,6 +732,24 @@ public class EnvironmentController : MonoBehaviour
                     t
                 );
         }
+    }
+
+    // A map's light palette belongs to the environment, not the menu props.
+    // Keep the same color and exposure when entering a run.
+    private void ApplySunPalette(Color tint)
+    {
+        if (environmentSun == null)
+        {
+            foreach (Light light in FindObjectsByType<Light>(FindObjectsSortMode.None))
+                if (light.type == LightType.Directional && light.enabled &&
+                    (environmentSun == null || light.intensity > environmentSun.intensity))
+                    environmentSun = light;
+            if (environmentSun == null) return;
+            originalSunColor = environmentSun.color;
+            originalSunIntensity = environmentSun.intensity;
+        }
+        environmentSun.color = Color.Lerp(originalSunColor,tint,.66f);
+        environmentSun.intensity = Mathf.Clamp(originalSunIntensity*1.12f,.7f,1.8f);
     }
 
     // =============================================================

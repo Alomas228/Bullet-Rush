@@ -20,6 +20,7 @@ public class AchievementRowUI : MonoBehaviour
 
     private Image progressFill;
     private bool barBuilt;
+    private Image badge,completedBadge;
 
     public void Configure(
         TMP_Text title,
@@ -35,8 +36,10 @@ public class AchievementRowUI : MonoBehaviour
 
     public void LayoutRow()
     {
+        EnsureProgressBar();
         RuntimeWindow.LedgerRow((RectTransform)transform, titleLabel, descriptionLabel, rewardLabel, progressLabel,
             progressBar, null);
+        if(badge==null) badge=RuntimeWindow.LedgerBadge((RectTransform)transform,out completedBadge);
     }
 
     public void Bind(
@@ -47,6 +50,28 @@ public class AchievementRowUI : MonoBehaviour
     {
         if (data == null)
             return;
+
+        if(badge!=null)
+        {
+            string icon=data.IsHidden&&!unlocked?"lock":data.ConditionType switch
+            {
+                AchievementConditionType.KillsWithoutDamageInRun=>"target",
+                AchievementConditionType.KillsByDamageSource=>RuntimeWindow.DamageIcon(data.DamageSource),
+                AchievementConditionType.KillsInSingleEvent=>"power",
+                AchievementConditionType.ReachWaveWithoutDamage=>"shield",
+                AchievementConditionType.WinWithUniqueWeapons=>"sword",
+                AchievementConditionType.UniqueBosses=>"crown",
+                AchievementConditionType.PerfectWavesInRun=>"star",
+                AchievementConditionType.CumulativeBossKills=>"trophy",
+                AchievementConditionType.CumulativeWaves=>"chart",
+                AchievementConditionType.CumulativeRuns=>"award",
+                _=>"target"
+            };
+            bool custom=data.Icon!=null&&(!data.IsHidden||unlocked);
+            badge.sprite=custom?data.Icon:ArcadeKitAssets.Icon(icon);
+            badge.color=custom?Color.white:unlocked?MenuSheet.Sage:MenuSheet.Ochre;
+            completedBadge.gameObject.SetActive(unlocked);
+        }
 
         if (titleLabel != null)
             titleLabel.text = data.GetTitle();

@@ -23,7 +23,7 @@ public sealed class SynergyCombat : MonoBehaviour
         var pool = new GameObject("SynergyFirePool").AddComponent<SynergyCombat>();
         pools++; pool.transform.position = position; pool.damage = dps * 0.6f; pool.weapon = weaponId;
         JourneyVisuals.Ring(pool.transform, "FireBoundary", new Color(1, 0.45f, 0.1f), 2.2f);
-        VfxFactory.TrySpawnExplosion(position, 1.2f, new Color(1, 0.4f, 0.1f));
+        VfxFactory.TrySpawnExplosion(position, 1.2f, new Color(1, 0.4f, 0.1f), soundKey: "fire_rupture");
     }
     private void Update()
     {
@@ -47,5 +47,7 @@ public sealed class SynergyCombat : MonoBehaviour
             VfxFactory.SpawnLightning(source.transform.position, enemy.transform.position);
             enemy.TakeDamage(damage, false, DamageSource.ChainLightning, id, weapon, true); count++;
         }
+        if (count > 0 && AudioManager.Instance != null && AudioManager.Instance.SFXLibrary != null)
+            AudioManager.Instance.PlaySFXVariationAt(AudioManager.Instance.SFXLibrary.Lightning, source.transform.position, .65f, SfxPriority.Low);
     }
 }

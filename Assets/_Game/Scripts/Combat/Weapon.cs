@@ -688,7 +688,7 @@ public class Weapon : MonoBehaviour
 
         if (sfx != null)
             AudioManager.Instance.PlaySFXVariation(
-                sfx.WeaponFire,
+                sfx.WeaponSound(weaponData != null ? weaponData.WeaponName : null),
                 priority: SfxPriority.High
             );
     }
@@ -760,7 +760,8 @@ public class Weapon : MonoBehaviour
             bullet.transform,
             tracerPrefab,
             visualMuzzle,
-            muzzleFlash
+            muzzleFlash,
+            bullet.WeaponId
         ));
     }
 

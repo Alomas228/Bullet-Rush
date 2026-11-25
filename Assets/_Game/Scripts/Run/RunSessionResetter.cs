@@ -30,6 +30,8 @@ internal static class RunSessionResetter
         }
 
         if (!player.gameObject.activeSelf) player.PrepareMenuPreview();
+        BloodPoolBatcher.ClearAll();
+        TracerBatcher.ClearBursts();
         ResetRunCounters();
         PvpCombatant.SetPlayerDamageMultiplier(1f);
         // Repeat the base reset on Play so purchases and equipment chosen while
@@ -55,6 +57,7 @@ internal static class RunSessionResetter
 
     private static void ResetRunCounters()
     {
+        MassKillMoment.Reset();
         RunBuildMechanics.Reset();
         ScoreManager.Instance?.ResetRunStats();
         Object.FindAnyObjectByType<ComboSystem>(FindObjectsInactive.Include)?.ResetForSession();

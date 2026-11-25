@@ -187,6 +187,8 @@ public sealed class TracerEffect : VfxEffect
     /// </summary>
     internal bool Batched;
 
+    internal ShotVisualTheme Theme { get; private set; }
+
     internal bool EnemyStyle
     {
         get { return enemyStyle; }
@@ -269,7 +271,7 @@ public sealed class TracerEffect : VfxEffect
             fullWidth * Mathf.Lerp(MinWidthRatio, 1f, Retract) *
             Mathf.Lerp(0.4f, 1f, Mathf.Clamp01(visibleLength / 0.3f));
 
-        float sideNow = coreSize * Retract;
+        float sideNow = coreSize * Retract * Mathf.Sqrt(Theme.Width);
 
         Matrix4x4 basis = Matrix4x4.TRS(position,
             VfxSharedAssets.FaceDirection(trailDirection), Vector3.one);
@@ -293,7 +295,7 @@ public sealed class TracerEffect : VfxEffect
         matrix = default;
         if (!HasMuzzleFlash) return false;
         float t = Mathf.Clamp01(muzzleFlashRemaining / MuzzleFlashLifetime);
-        float size = Mathf.Lerp(0.055f, 0.25f, t * t);
+        float size = Mathf.Lerp(0.055f, 0.25f, t * t) * Mathf.Sqrt(Theme.Width);
         matrix = Matrix4x4.TRS(launchPosition + visualOffset + launchDirection * 0.035f,
             VfxSharedAssets.FaceDirection(launchDirection),
             new Vector3(size * 1.55f, size * 0.85f, 1f));
@@ -311,8 +313,10 @@ public sealed class TracerEffect : VfxEffect
         float speed,
         Transform target,
         Vector3? visualMuzzle = null,
-        bool muzzleFlash = false)
+        bool muzzleFlash = false,
+        string weaponId = null)
     {
+        Theme = enemyStyle ? ShotVisualTheme.Enemy : ShotVisualTheme.ForWeapon(weaponId);
         fullLength = speed > 0f
             ? Mathf.Clamp(
                 speed * lengthPerSpeed,
@@ -320,7 +324,8 @@ public sealed class TracerEffect : VfxEffect
                 MaxLength)
             : length;
 
-        fullWidth = width;
+        fullLength *= Theme.Length;
+        fullWidth = width * Theme.Width;
 
         // Поворот считается один раз: пуля летит по Vector3.forward
         // и не поворачивается, так что ось X (длина хвоста)

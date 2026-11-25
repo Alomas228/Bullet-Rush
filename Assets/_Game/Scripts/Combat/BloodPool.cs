@@ -74,6 +74,21 @@ public sealed class BloodPool : MonoBehaviour
     /// </summary>
     internal static List<BloodPool> ActivePools => active;
 
+    internal static void ClearAll()
+    {
+        foreach (BloodPool blood in active)
+        {
+            if (blood == null) continue;
+            blood.remaining = 0f;
+            blood.gameObject.SetActive(false);
+            if (pool.Count < MaxPooled)
+                pool.Enqueue(blood);
+            else
+                Destroy(blood.gameObject);
+        }
+        active.Clear();
+    }
+
     public static void SpawnAt(
         Vector3 position,
         float poolSize = 1.2f,
@@ -270,6 +285,8 @@ public sealed class BloodPool : MonoBehaviour
 
                 if (pool.Count < MaxPooled)
                     pool.Enqueue(blood);
+                else
+                    Destroy(blood.gameObject);
 
                 active.RemoveAt(i);
 

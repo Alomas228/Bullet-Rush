@@ -587,7 +587,7 @@ public class MapMechanicManager : MonoBehaviour
             case MapMechanic.Sandstorm:
                 SpawnStormBurst();
                 MapStormOverlay.Pulse(
-                    Mathf.Max(stormOverlayIntensity, 0.72f) * (MapSurvivalZones.HasOutfit("cowboy") ? 0.45f : 1f),
+                    Mathf.Max(stormOverlayIntensity, 0.92f) * (MapSurvivalZones.HasOutfit("cowboy") ? 0.45f : 1f),
                     stormOverlayFadeIn,
                     Mathf.Max(stormOverlayHold, 2.5f),
                     stormOverlayFadeOut

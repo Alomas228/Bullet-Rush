@@ -8,8 +8,7 @@ public sealed partial class ArcadeMenuSkin
     private readonly Dictionary<int,Mesh> hubFacetMeshes=new Dictionary<int,Mesh>();
     private readonly List<Transform> hubFlames=new List<Transform>();
     private Light hubSun;
-    private Color hubSunColor;
-    private float hubSunIntensity,hubSunShadow;
+    private float hubSunShadow;
     private Quaternion hubSunRotation;
     private LightShadows hubSunShadowMode;
     private Light hubFireLight;
@@ -319,11 +318,8 @@ public sealed partial class ArcadeMenuSkin
         foreach(var light in FindObjectsByType<Light>(FindObjectsSortMode.None))
             if(light.type==LightType.Directional && light.enabled && (hubSun==null||light.intensity>hubSun.intensity)) hubSun=light;
         if(hubSun==null) return;
-        hubSunColor=hubSun.color;hubSunIntensity=hubSun.intensity;hubSunRotation=hubSun.transform.rotation;hubSunShadow=hubSun.shadowStrength;
+        hubSunRotation=hubSun.transform.rotation;hubSunShadow=hubSun.shadowStrength;
         hubSunShadowMode=hubSun.shadows;
-        Color tint=campSceneryMap?.langKey=="gory"?new Color(.83f,.94f,1f):campSceneryMap?.langKey=="gorod"?new Color(.92f,.96f,1f):new Color(1f,.92f,.78f);
-        hubSun.color=Color.Lerp(hubSunColor,tint,.66f);
-        hubSun.intensity=Mathf.Clamp(hubSunIntensity*1.12f,.7f,1.8f);
         hubSun.transform.rotation=Quaternion.LookRotation(campScenery.transform.rotation*new Vector3(.50f,-.86f,.24f));
         hubSun.shadowStrength=Mathf.Min(hubSunShadow,.72f);
         if(!MobileControls.IsTouchDevice&&hubSun.shadows!=LightShadows.None) hubSun.shadows=LightShadows.Soft;
@@ -343,7 +339,7 @@ public sealed partial class ArcadeMenuSkin
     }
     private void ClearHubArt()
     {
-        if(hubSun!=null) { hubSun.color=hubSunColor;hubSun.intensity=hubSunIntensity;hubSun.transform.rotation=hubSunRotation;hubSun.shadowStrength=hubSunShadow;hubSun.shadows=hubSunShadowMode; }
+        if(hubSun!=null) { hubSun.transform.rotation=hubSunRotation;hubSun.shadowStrength=hubSunShadow;hubSun.shadows=hubSunShadowMode; }
         hubSun=null;hubFireLight=null;hubFlames.Clear();hubFacetMeshes.Clear();
     }
 }

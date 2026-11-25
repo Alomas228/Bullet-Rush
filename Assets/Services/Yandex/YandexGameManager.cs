@@ -59,6 +59,17 @@ public class YandexGameManager : MonoBehaviour
 
     private Action pendingReward;
     private string pendingRewardId;
+    public bool IsRewardedBusy
+    {
+        get
+        {
+#if RewardedAdv_yg
+            return pendingReward != null || YG2.nowRewardAdv || YG2.nowInterAdv;
+#else
+            return false;
+#endif
+        }
+    }
     private bool stateSubscribed;
     private bool pauseSubscribed;
 
@@ -83,6 +94,7 @@ public class YandexGameManager : MonoBehaviour
 #if RewardedAdv_yg
         YG2.onRewardAdv += OnRewardAdv;
         YG2.onErrorRewardedAdv += OnErrorRewardedAdv;
+        YG2.onCloseRewardedAdv += OnErrorRewardedAdv;
 #endif
 
         YG2.onGetSDKData += OnSDKData;
@@ -102,6 +114,7 @@ public class YandexGameManager : MonoBehaviour
 #if RewardedAdv_yg
         YG2.onRewardAdv -= OnRewardAdv;
         YG2.onErrorRewardedAdv -= OnErrorRewardedAdv;
+        YG2.onCloseRewardedAdv -= OnErrorRewardedAdv;
 #endif
         YG2.onGetSDKData -= OnSDKData;
         YG2.onPauseGame -= HandleYandexPause;
