@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>A screen-space landscape wipe. It sits behind the menu, above the world.</summary>
+/// <summary>A screen-space wipe above the entire menu and world.</summary>
 public sealed class MenuMapTransitionOverlay : MonoBehaviour
 {
     private RectTransform viewport;
@@ -18,7 +18,8 @@ public sealed class MenuMapTransitionOverlay : MonoBehaviour
             typeof(CanvasScaler), typeof(MenuMapTransitionOverlay));
         var canvas = host.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = -1000;
+        canvas.sortingOrder = 32700;
+        host.AddComponent<GraphicRaycaster>();
 
         var scaler = host.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -45,6 +46,7 @@ public sealed class MenuMapTransitionOverlay : MonoBehaviour
         accent.a = 1;
 
         viewport = ArcadeUiFactory.Stretch(transform, "Viewport");
+        ArcadeUiFactory.Image(viewport, null, Color.clear).raycastTarget = true;
         viewport.gameObject.AddComponent<RectMask2D>();
 
         shutter = ArcadeUiFactory.At(viewport, "Transition leaf", Vector2.one * .5f,
@@ -130,7 +132,7 @@ public sealed class MenuMapTransitionOverlay : MonoBehaviour
         Rect safe = ResponsiveUi.SafeRect(viewport);
         bool portrait = safe.height > safe.width;
         float layoutScale = ResponsiveUi.Fit(safe.size, new Vector2(1320,1080), true);
-        float left = portrait ? safe.xMin : safe.xMin + 748f * layoutScale;
+        float left = safe.xMin;
         float center = (left + safe.xMax) * .5f;
         titleRoot.anchorMin = titleRoot.anchorMax = new Vector2((center - viewport.rect.xMin)/size.x, .53f);
         float titleWidth = Mathf.Min(600f, (safe.xMax-left)*.86f);

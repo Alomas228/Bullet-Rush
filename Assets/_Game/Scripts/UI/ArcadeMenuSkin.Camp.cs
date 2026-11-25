@@ -38,7 +38,7 @@ public sealed partial class ArcadeMenuSkin
     private static Sprite campMapSprite;
     private static Sprite campLeafSprite;
 
-    private void BuildCampMenu(RectTransform board)
+    private void BuildCampMenuLegacy(RectTransform board)
     {
         campSafeArea = board;
         campBoard = CampRect(campSafeArea, "CampSidebarContent", 0, 0, CampSidebarWidth, 1080);
@@ -99,6 +99,7 @@ public sealed partial class ArcadeMenuSkin
 
     private void FitCampSidebar()
     {
+        if (hubBoard != null) { FitHubLayout(); return; }
         if (campSidebar == null || campBoard == null || campSafeArea == null ||
             campHeaderFrame == null || campMapFrame == null) return;
         Vector2 available = campSafeArea.rect.size;

@@ -57,7 +57,7 @@ public class UpgradeData : ScriptableObject
     public string UpgradeName => upgradeName;
     public string Description => description;
     public RunPerk Perk { get; private set; }
-    public UpgradeType CardIcon => Perk != RunPerk.None ? RunBuildMechanics.Icon(Perk) : type == UpgradeType.AbilityPower ? UpgradeType.Bomb :
+    public UpgradeType CardIcon => Perk != RunPerk.None ? RunBuildMechanics.Icon(Perk) : type == UpgradeType.CharacterPower ? UpgradeType.Damage : type == UpgradeType.CharacterHaste ? UpgradeType.FireRate : type == UpgradeType.CharacterRange ? UpgradeType.ExplosiveRounds : type == UpgradeType.AbilityPower ? UpgradeType.Bomb :
         type == UpgradeType.AbilityHaste ? UpgradeType.FireRate : type == UpgradeType.AbilityRange ? UpgradeType.ExplosiveRounds : type;
 
     public UpgradeType Type => type;
@@ -91,6 +91,9 @@ public class UpgradeData : ScriptableObject
         get
         {
             if (Perk != RunPerk.None) return RunBuildMechanics.Name(Perk);
+            if(type==UpgradeType.CharacterPower) return GameplayJourney.T("Мастерство героя","Hero Power","Kahraman Gucu");
+            if(type==UpgradeType.CharacterHaste) return GameplayJourney.T("Ритм героя","Hero Haste","Kahraman Hizi");
+            if(type==UpgradeType.CharacterRange) return GameplayJourney.T("Размах героя","Hero Reach","Kahraman Menzili");
             if (type == UpgradeType.AbilityPower) return GameplayJourney.T("Сила умений", "Ability Power", "Yetenek Gucu");
             if (type == UpgradeType.AbilityHaste) return GameplayJourney.T("Поток энергии", "Ability Haste", "Enerji Akisi");
             if (type == UpgradeType.AbilityRange) return GameplayJourney.T("Размах", "Ability Reach", "Yetenek Menzili");
@@ -160,6 +163,9 @@ public class UpgradeData : ScriptableObject
         get
         {
             if (Perk != RunPerk.None) return RunBuildMechanics.Description(Perk);
+            if(type==UpgradeType.CharacterPower) return GameplayJourney.T("Сила двух врождённых умений ","Power of both innate skills ","Dogustan yetenek gucu ")+GainText;
+            if(type==UpgradeType.CharacterHaste) return GameplayJourney.T("Кулдаун врождённых умений −","Innate cooldown -","Dogustan bekleme -")+Mathf.RoundToInt(percentValue*100f)+"%";
+            if(type==UpgradeType.CharacterRange) return GameplayJourney.T("Радиус врождённых умений ","Innate skill range ","Dogustan menzil ")+GainText;
             if (type == UpgradeType.AbilityPower) return GameplayJourney.T("Урон умений ", "Ability damage ", "Yetenek hasari ") + GainText + GameplayJourney.T("; усиливает щит.", "; extends shield.", "; kalkani guclendirir.");
             if (type == UpgradeType.AbilityHaste) return GameplayJourney.T("Время перезарядки умений −", "Ability cooldown -", "Yetenek bekleme suresi -") + Mathf.RoundToInt(percentValue*100f) + "%";
             if (type == UpgradeType.AbilityRange) return GameplayJourney.T("Радиус и дальность умений ", "Ability radius and range ", "Yetenek alani ve menzili ") + GainText;

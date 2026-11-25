@@ -239,6 +239,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
             FitCampSidebar();
             RefreshCampAppearance();
             SyncCampSceneryVisibility();
+            UpdateHubWorld();
         }
 
         for (int i = 0; i < legacyHidden.Count; i++)
@@ -480,6 +481,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         RefreshBalances();
         RefreshStats();
+        RefreshHubPage();
     }
 
     private void HandlePvpProgressChanged()
@@ -498,6 +500,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         RefreshBalances();
         RefreshStats();
+        RefreshHubPage();
     }
 
     private void HandleDailyRewardClaimed(int day)
@@ -537,6 +540,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void HandleGameStateChanged(GameState state)
     {
+        if (state != GameState.Menu) ResetHubView();
         RefreshCampScene();
         if (state != GameState.Menu)
             return;
@@ -551,6 +555,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
     {
         RefreshMapChip();
         RefreshCampScene();
+        RefreshHubPage();
     }
 
     private void HandleLanguageChanged(LangCode code)
@@ -576,6 +581,7 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
         RefreshGameMode();
         RefreshStats();
         RefreshSettingsValues();
+        RefreshHubPage();
     }
 
     private void RefreshBalances()
@@ -1147,16 +1153,19 @@ public sealed partial class ArcadeMenuSkin : MonoBehaviour
 
     private void OpenUpgrades()
     {
+        if (hubBoard != null) { OpenHub(HubView.Workbench); return; }
         OpenLegacyPanel("UpgradesPanel");
     }
 
     private void OpenEquipment()
     {
+        if (hubBoard != null) { OpenHub(HubView.Armory); return; }
         OpenLegacyPanel("EquipmentPanel");
     }
 
     private void OpenMaps()
     {
+        if (hubBoard != null) { OpenHub(HubView.Maps); return; }
         OpenLegacyPanel("MapsPanel");
     }
 

@@ -19,10 +19,16 @@ public static class AbilityPresentation
         AbilityKind.FlameRing => T("Огненное кольцо", "Flame Ring", "Ates Halkasi"),
         AbilityKind.IceLance => T("Ледяное копьё", "Ice Lance", "Buz Mizragi"),
         AbilityKind.FallingStar => T("Падающая звезда", "Falling Star", "Kayan Yildiz"),
+        AbilityKind.VampirePulse => T("Кровавый импульс","Vampire Pulse","Kan Darbesi"),
+        AbilityKind.BeeSwarm => T("Пчелиный рой","Bee Swarm","Ari Surusu"),
+        AbilityKind.RicochetVolley => T("Рикошетный залп","Ricochet Volley","Sekme Atisi"),
+        AbilityKind.GuardianAura => T("Аура восстановления","Guardian Aura","Koruyucu Aura"),
         _ => kind.ToString()
     };
     public static string Description(AbilityKind kind) => kind switch
     {
+        AbilityKind.Bomb => T("Взрыв вокруг героя.","Explosion around the hero.","Dairesel patlama."),
+        AbilityKind.Shield => T("Краткая неуязвимость.","Brief invulnerability.","Kisa sureli koruma."),
         AbilityKind.CrescentSlash => T("Широкий рассекающий взмах вперёд.", "A broad slash in the aimed direction.", "Nisan yonunde genis bir kesik."),
         AbilityKind.ThunderSlam => T("Круговой удар и отталкивание.", "Radial strike that pushes enemies away.", "Dusmanlari iten dairesel darbe."),
         AbilityKind.FrostNova => T("Холодная волна замедляет врагов.", "A freezing wave slows nearby enemies.", "Buz dalgasi dusmanlari yavaslatir."),
@@ -33,6 +39,10 @@ public static class AbilityPresentation
         AbilityKind.FlameRing => T("Кольцо периодически поджигает врагов.", "A periodic ring burns nearby enemies.", "Ates halkasi yakin dusmanlari yakar."),
         AbilityKind.IceLance => T("Ледяное копьё пробивает линию врагов.", "An ice lance pierces a line of enemies.", "Buz mizragi dusman sirasini deler."),
         AbilityKind.FallingStar => T("Звезда падает на ближайшую группу.", "A falling star strikes a nearby group.", "Yildiz yakin bir gruba duser."),
+        AbilityKind.VampirePulse => T("Урон вокруг и лечение за поражённых врагов.","Radial damage and healing per enemy hit.","Dairesel hasar ve iyilesme."),
+        AbilityKind.BeeSwarm => T("Рой жалит до трёх целей, вызывая кровотечение.","A swarm stings up to three targets, causing bleed.","Uc hedefe kanama uygular."),
+        AbilityKind.RicochetVolley => T("Залп прыгает между ближайшими врагами.","A volley bounces between nearby targets.","Atis yakin hedefler arasinda seker."),
+        AbilityKind.GuardianAura => T("Периодически восстанавливает здоровье.","Periodically restores health.","Duzeli can yeniler."),
         _ => Name(kind)
     };
     public static string Stats(AbilityData data) => Description(data.Kind) + "\n" +
@@ -52,6 +62,10 @@ public static class AbilityPresentation
         AbilityKind.FlameRing => UpgradeType.BurningRounds,
         AbilityKind.IceLance => UpgradeType.CriticalDamage,
         AbilityKind.FallingStar => UpgradeType.Damage,
+        AbilityKind.VampirePulse => UpgradeType.Lifesteal,
+        AbilityKind.BeeSwarm => UpgradeType.Bleeding,
+        AbilityKind.RicochetVolley => UpgradeType.Ricochet,
+        AbilityKind.GuardianAura => UpgradeType.HealthRegen,
         _ => UpgradeType.Bomb
     };
     public static Sprite Icon(AbilityKind kind) => MenuSheetArt.Upgrade(IconType(kind));

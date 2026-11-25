@@ -12829,7 +12829,6 @@ MonoBehaviour:
   shakeAmplitude: 0.35
   shakeDecay: 3
   maxShakeRotation: 3
-  shakeSkipFramesThreshold: 0.3
   mouseParallaxStrength: 1.2
   parallaxSmoothSpeed: 12
   freezeDistanceThreshold: 0.001
@@ -26328,7 +26327,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -164.94, y: -195.99997}
+  m_AnchoredPosition: {x: -164.94043, y: -195.99997}
   m_SizeDelta: {x: 231.09, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &805337446
@@ -31383,6 +31382,13 @@ MonoBehaviour:
   enemyCountCeiling: 45
   maxEnemiesPerWave: 55
   countRampPerWave: 0.008
+  openingWaveDuration: 30
+  lateWaveDuration: 45
+  durationRampWaves: 15
+  hordeExtraDuration: 5
+  finalSpawnQuietTime: 3
+  huntTargetMinimum: 2
+  huntTargetMaximum: 3
   minModifierWave: 5
   extraModifierChance: 0.4
   modifierMemoryLength: 3
@@ -31406,6 +31412,8 @@ MonoBehaviour:
   postUpgradeDelay: 0.35
   structureTransitionWait: 1.2
   structureTransitionTimeout: 4
+  cleanupEnemyDistance: 11
+  cleanupTimeLimit: 7
 --- !u!4 &911471529
 Transform:
   m_ObjectHideFlags: 0
@@ -56777,7 +56785,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -170.18018, y: -54.91992}
+  m_AnchoredPosition: {x: -170.17969, y: -54.91992}
   m_SizeDelta: {x: 220.62, y: 61.634094}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1565999628
@@ -58234,7 +58242,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 79.93994, y: -54.91992}
+  m_AnchoredPosition: {x: 79.93945, y: -54.91992}
   m_SizeDelta: {x: 76, y: 76}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1608655418
@@ -65252,6 +65260,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::YandexGameManager
   interRunInterval: 3
   interstitialDelayAfterGameOver: 1.2
+  enableOnlineLeaderboards: 0
   leaderboardName: BestScore
 --- !u!4 &1791698981
 Transform:
@@ -76657,7 +76666,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -27.999908}
+  m_AnchoredPosition: {x: 0, y: -27.999878}
   m_SizeDelta: {x: 0, y: -436}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2047470704

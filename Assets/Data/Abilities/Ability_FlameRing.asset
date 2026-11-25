@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Flame Ring
   kind: 9
   unlockLevel: 5
-  price: 210
+  price: 0
   stats: Flame Ring
   damage: 125
   radius: 3.8

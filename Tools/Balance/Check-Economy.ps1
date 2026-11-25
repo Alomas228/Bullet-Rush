@@ -25,7 +25,7 @@ $upgradeCost = 0
 for ($i = 0; $i -lt 10; $i++) { $upgradeCost += [GameBalance]::UpgradeCost($i) * 10 }
 $totalCost = $weaponCost + $skinCost + $abilityCost + $upgradeCost
 $xpTarget = [GameBalance]::LevelXp(50)
-if ($totalCost -ne 31980 -or $xpTarget -ne 34692) { throw 'Unexpected catalog or XP curve.' }
+if ($totalCost -ne 29330 -or $xpTarget -ne 34692) { throw 'Unexpected catalog or XP curve.' }
 if ([GameBalance]::RunXp(0) -ne 0 -or [GameBalance]::RunXp(10) - [GameBalance]::RunXp(9) -ne 103) {
     throw 'Invalid clear reward.'
 }

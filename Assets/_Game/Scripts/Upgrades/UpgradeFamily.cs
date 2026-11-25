@@ -71,6 +71,9 @@ public static class UpgradeFamilyUtility
             case UpgradeType.AbilityPower:
             case UpgradeType.AbilityHaste:
             case UpgradeType.AbilityRange:
+            case UpgradeType.CharacterPower:
+            case UpgradeType.CharacterHaste:
+            case UpgradeType.CharacterRange:
                 return UpgradeFamily.Ability;
 
             case UpgradeType.Weapon:

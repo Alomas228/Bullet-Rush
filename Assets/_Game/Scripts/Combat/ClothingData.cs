@@ -73,7 +73,9 @@ public class ClothingData : ScriptableObject
 
     /// <summary>Описание на языке игрока; без перевода — текст ассета.</summary>
     public string LocalizedDescription =>
-        Lang.GetOr("clo." + langKey + ".desc", description) + MapPerkDescription;
+        Lang.GetOr("clo." + langKey + ".desc", description) + ProtectionDescription;
+
+    public string ProtectionDescription => string.IsNullOrEmpty(MapPerkDescription) ? "" : "\n"+GameplayJourney.T("Защита по владению:","Owned protection:","Satin alma korumasi:")+MapPerkDescription;
 
     private string MapPerkDescription => langKey switch
     {

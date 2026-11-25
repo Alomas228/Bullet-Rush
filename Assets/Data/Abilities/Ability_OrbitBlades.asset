@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Orbit Blades
   kind: 6
   unlockLevel: 1
-  price: 80
+  price: 0
   stats: Orbit Blades
   damage: 115
   radius: 2.6

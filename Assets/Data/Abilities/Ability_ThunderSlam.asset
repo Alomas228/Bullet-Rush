@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Thunder Slam
   kind: 3
   unlockLevel: 3
-  price: 180
+  price: 0
   stats: Thunder Slam
   damage: 270
   radius: 4.7

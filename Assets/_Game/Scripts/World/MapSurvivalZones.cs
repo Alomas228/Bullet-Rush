@@ -52,7 +52,7 @@ public sealed class MapSurvivalZones : MonoBehaviour
     {
         if (UpgradeManager.Instance == null) return false;
         foreach (ClothingData clothing in UpgradeManager.Instance.GetAvailableClothing())
-            if (clothing != null && clothing.MapPerkId == id && EquipmentManager.IsEquipped(clothing)) return true;
+            if (clothing != null && clothing.MapPerkId == id && EquipmentManager.IsOwned(clothing)) return true;
         return false;
     }
 

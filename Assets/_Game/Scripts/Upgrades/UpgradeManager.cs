@@ -162,9 +162,14 @@ public class UpgradeManager : MonoBehaviour
         }
 
         Instance = this;
+        foreach(var ability in Resources.LoadAll<AbilityData>("CharacterAbilities"))
+            if(ability!=null&&!availableAbilities.Contains(ability)) availableAbilities.Add(ability);
         AddAbilityUpgrade(UpgradeType.AbilityPower,.22f);
         AddAbilityUpgrade(UpgradeType.AbilityHaste,.10f);
         AddAbilityUpgrade(UpgradeType.AbilityRange,.12f);
+        AddAbilityUpgrade(UpgradeType.CharacterPower,.28f);
+        AddAbilityUpgrade(UpgradeType.CharacterHaste,.13f);
+        AddAbilityUpgrade(UpgradeType.CharacterRange,.16f);
     }
 
     private void AddAbilityUpgrade(UpgradeType type,float value)
@@ -535,6 +540,8 @@ public class UpgradeManager : MonoBehaviour
             return abilityManager == null || abilityManager.CanUnlock(upgrade.Type == UpgradeType.Bomb ? AbilityKind.Bomb : AbilityKind.Shield);
         if (upgrade.Type == UpgradeType.AbilityRange) return abilityManager != null && abilityManager.HasDamagingAbility;
         if (upgrade.Type == UpgradeType.AbilityPower || upgrade.Type == UpgradeType.AbilityHaste) return abilityManager != null && abilityManager.HasAny;
+        if(upgrade.Type==UpgradeType.CharacterPower||upgrade.Type==UpgradeType.CharacterHaste||upgrade.Type==UpgradeType.CharacterRange)
+            return abilityManager!=null&&abilityManager.HasAny;
         WeaponData current =
             weapon != null
                 ? weapon.Data
@@ -934,6 +941,12 @@ public class UpgradeManager : MonoBehaviour
             case UpgradeType.AbilityPower:
                 abilityManager?.UpgradePower(upgrade.PercentValue);
                 break;
+            case UpgradeType.CharacterPower:
+                abilityManager?.UpgradeCharacter(upgrade.PercentValue,0,0); break;
+            case UpgradeType.CharacterHaste:
+                abilityManager?.UpgradeCharacter(0,0,upgrade.PercentValue); break;
+            case UpgradeType.CharacterRange:
+                abilityManager?.UpgradeCharacter(0,upgrade.PercentValue,0); break;
             case UpgradeType.AbilityHaste:
                 abilityManager?.ReduceCooldown(upgrade.PercentValue);
                 break;

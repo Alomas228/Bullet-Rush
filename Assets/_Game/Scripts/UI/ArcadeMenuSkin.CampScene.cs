@@ -8,6 +8,7 @@ public sealed partial class ArcadeMenuSkin
     private GameObject campScenery;
     private GameMap campSceneryMap;
     private readonly List<Material> campMaterials = new List<Material>();
+    private readonly Dictionary<(int,float),Material> campMaterialCache = new Dictionary<(int,float),Material>();
     private readonly List<Mesh> campMeshes = new List<Mesh>();
     private string campClothingName;
     private string campWeaponName;
@@ -70,16 +71,7 @@ public sealed partial class ArcadeMenuSkin
             Quaternion.LookRotation(forward));
 
         EnvironmentTheme theme = map.environmentTheme;
-        switch (map.langKey)
-        {
-            case "les": BuildForestCamp(theme); break;
-            case "plyazh": BuildBeachCamp(theme); break;
-            case "gory": BuildMountainCamp(theme); break;
-            case "pustynya": BuildDesertCamp(theme); break;
-            case "gorod": BuildCityCamp(theme); break;
-            case "kosmos": BuildSpaceCamp(theme); break;
-            case "pvp.arena": BuildArenaCamp(); break;
-        }
+        BuildHubScenery(map, theme);
         SyncCampSceneryVisibility();
     }
 
@@ -126,9 +118,11 @@ public sealed partial class ArcadeMenuSkin
         }
         campScenery = null;
         campSceneryMap = null;
+        ClearHubSceneryReferences();
         foreach (Material mat in campMaterials) if (mat != null) Destroy(mat);
         foreach (Mesh mesh in campMeshes) if (mesh != null) Destroy(mesh);
         campMaterials.Clear();
+        campMaterialCache.Clear();
         campMeshes.Clear();
     }
 
@@ -239,6 +233,7 @@ public sealed partial class ArcadeMenuSkin
 
     private Material CampMat(int rgb, float emission = 0f)
     {
+        if(campMaterialCache.TryGetValue((rgb,emission),out Material cached)) return cached;
         Shader shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null) shader = Shader.Find("Standard");
         Material material = new Material(shader) { name = "Menu prop material", color = ArcadeUiTheme.Rgb(rgb) };
@@ -249,6 +244,7 @@ public sealed partial class ArcadeMenuSkin
             material.SetColor("_EmissionColor", ArcadeUiTheme.Rgb(rgb) * emission);
         }
         campMaterials.Add(material);
+        campMaterialCache[(rgb,emission)]=material;
         return material;
     }
 

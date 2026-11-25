@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Gravity Well
   kind: 5
   unlockLevel: 10
-  price: 320
+  price: 0
   stats: Gravity Well
   damage: 210
   radius: 4.2

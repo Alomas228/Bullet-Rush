@@ -30,6 +30,11 @@ public sealed class ArenaStaticMeshBatcher : MonoBehaviour
         Combine(root.transform, renderers, false);
     }
 
+    public static void BatchStaticRenderers(Transform owner, List<MeshRenderer> renderers)
+    {
+        Combine(owner, renderers, false);
+    }
+
     private static bool CanBatch(GameObject root, bool allowColliders)
     {
         if (root.GetComponentInChildren<Animator>(true) != null || root.GetComponentInChildren<ParticleSystem>(true) != null ||

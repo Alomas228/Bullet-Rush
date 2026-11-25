@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Ice Lance
   kind: 10
   unlockLevel: 8
-  price: 240
+  price: 0
   stats: Ice Lance
   damage: 210
   radius: 7.8

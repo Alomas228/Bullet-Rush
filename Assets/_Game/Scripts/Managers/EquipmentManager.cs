@@ -66,6 +66,7 @@ public static class EquipmentManager
         {
             EnsureLoaded();
 
+            NormalizeCommonAbilities();
             return data.equippedAbilities;
         }
     }
@@ -135,11 +136,7 @@ public static class EquipmentManager
 
         EnsureLoaded();
 
-        return IsOwnedName(
-            ability.AbilityName,
-            ability.Price,
-            data.ownedAbilities
-        );
+        return data.ownedAbilities.Contains(ability.AbilityName) || IsLevelReached(ability.UnlockLevel);
     }
 
     /// <summary>Одежда куплена (бесплатные считаются купленными всегда).</summary>
@@ -165,6 +162,7 @@ public static class EquipmentManager
 
         EnsureLoaded();
 
+        NormalizeCommonAbilities();
         return data.equippedAbilities.Contains(
             ability.AbilityName
         );
@@ -235,13 +233,7 @@ public static class EquipmentManager
 
         EnsureLoaded();
 
-        return TryPurchaseCore(
-            ability.AbilityName,
-            ability.Price,
-            ability.UnlockLevel,
-            data.ownedAbilities,
-            "ability"
-        );
+        return IsOwned(ability);
     }
 
     /// <summary>
@@ -312,6 +304,8 @@ public static class EquipmentManager
 
         EnsureLoaded();
 
+        NormalizeCommonAbilities();
+        if(CharacterBuild.Innate(ability.Kind)||ability.IsCharacterOnly) return false;
         if (data.equippedAbilities.Contains(ability.AbilityName))
         {
             data.equippedAbilities.Remove(ability.AbilityName);
@@ -341,6 +335,7 @@ public static class EquipmentManager
     public static int EquippedAbilityCount(bool automatic)
     {
         EnsureLoaded();
+        NormalizeCommonAbilities();
         var manager = UpgradeManager.Instance;
         if (manager == null) return automatic ? 0 : data.equippedAbilities.Count;
         int count = 0;
@@ -350,7 +345,24 @@ public static class EquipmentManager
     }
 
     public static bool HasFreeAbilitySlot(bool automatic) => EquippedAbilityCount(automatic) <
-        (automatic ? AbilityPresentation.AutomaticSlots : AbilityPresentation.ActiveSlots);
+        (automatic ? AbilityPresentation.AutomaticSlots-1 : AbilityPresentation.ActiveSlots-1);
+
+    private static void NormalizeCommonAbilities()
+    {
+        if(UpgradeManager.Instance==null) return;
+        var profile=CharacterBuild.Current;
+        int active=0,automatic=0; bool changed=false;
+        var seen=new HashSet<string>();
+        for(int i=0;i<data.equippedAbilities.Count;)
+        {
+            AbilityData ability=null;
+            foreach(var a in UpgradeManager.Instance.GetAvailableAbilities()) if(a!=null&&a.AbilityName==data.equippedAbilities[i]) { ability=a; break; }
+            bool valid=ability!=null&&!ability.IsCharacterOnly&&ability.Kind!=profile.Active&&ability.Kind!=profile.Auto&&IsOwned(ability)&&seen.Add(ability.AbilityName);
+            if(valid) { if(ability.IsAutomatic) valid=automatic++<2; else valid=active++<1; }
+            if(!valid) { data.equippedAbilities.RemoveAt(i); changed=true; } else i++;
+        }
+        if(changed) Save();
+    }
 
     /// <summary>Надевает купленную одежду (одна за раз).</summary>
     public static bool TryEquip(ClothingData clothing)
@@ -370,6 +382,7 @@ public static class EquipmentManager
         EnsureLoaded();
 
         data.equippedClothing = clothing.ClothingName;
+        NormalizeCommonAbilities();
 
         Save();
 

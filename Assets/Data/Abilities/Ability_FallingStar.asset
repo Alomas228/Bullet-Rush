@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Falling Star
   kind: 11
   unlockLevel: 12
-  price: 300
+  price: 0
   stats: Falling Star
   damage: 275
   radius: 8

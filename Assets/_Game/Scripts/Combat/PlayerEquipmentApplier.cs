@@ -172,6 +172,7 @@ public class PlayerEquipmentApplier : MonoBehaviour
 
         // Reserve the original Q/E slots first whenever the old abilities
         // are selected; new active abilities occupy the remaining slots.
+        CharacterBuild.Equip(abilityManager,gameObject);
         for (int pass = 0; pass < 2; pass++)
         {
             foreach (string abilityName in EquipmentManager.EquippedAbilityNames)

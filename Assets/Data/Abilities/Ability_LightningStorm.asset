@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Lightning Storm
   kind: 8
   unlockLevel: 7
-  price: 260
+  price: 0
   stats: Lightning Storm
   damage: 170
   radius: 7.5

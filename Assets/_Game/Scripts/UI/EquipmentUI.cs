@@ -425,8 +425,10 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             return;
 
         SetTabValue(0, EquipmentManager.EquippedWeaponName);
-        SetTabValue(1, EquipmentManager.EquippedAbilityCount(false) + "/" + AbilityPresentation.ActiveSlots + " " + AbilityPresentation.Type(false) +
-            " · " + EquipmentManager.EquippedAbilityCount(true) + "/" + AbilityPresentation.AutomaticSlots + " " + AbilityPresentation.Type(true));
+        if(tabs[1].label!=null) tabs[1].label.text=GameplayJourney.T("ОБЩИЕ УМЕНИЯ","COMMON SKILLS","ORTAK YETENEKLER");
+        if(tabs[2].label!=null) tabs[2].label.text=GameplayJourney.T("ПЕРСОНАЖИ","CHARACTERS","KARAKTERLER");
+        SetTabValue(1, EquipmentManager.EquippedAbilityCount(false) + "/1 " + AbilityPresentation.Type(false) +
+            " · " + EquipmentManager.EquippedAbilityCount(true) + "/2 " + AbilityPresentation.Type(true));
         ClothingEntry equipped = clothing.Find(entry => EquipmentManager.IsEquipped(entry.data));
         SetTabValue(2, equipped?.card.Name);
     }
@@ -524,6 +526,8 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
     /// </summary>
     private static void FillState(EquipmentCardData card)
     {
+        if(card.Ability!=null&&CharacterBuild.Innate(card.Ability.Kind))
+        { card.State=GameplayJourney.T("ВРОЖДЁННОЕ","INNATE","DOGUSTAN"); return; }
         if (!card.Unlocked)
         {
             card.State = Lang.Get(
@@ -820,7 +824,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
     {
         foreach (AbilityData data in upgradeManager.GetAvailableAbilities())
         {
-            if (data == null)
+            if (data == null || data.IsCharacterOnly)
                 continue;
 
             abilities.Add(
@@ -831,6 +835,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
                 }
             );
         }
+        abilities.Sort((a,b)=>a.data.IsAutomatic==b.data.IsAutomatic ? a.data.UnlockLevel.CompareTo(b.data.UnlockLevel) : a.data.IsAutomatic.CompareTo(b.data.IsAutomatic));
     }
 
     private void LoadClothing(UpgradeManager upgradeManager)
@@ -848,6 +853,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
                 }
             );
         }
+        clothing.Sort((a,b)=>a.data.UnlockLevel.CompareTo(b.data.UnlockLevel));
     }
 
     private EquipmentCardData BuildWeaponCard(WeaponData data)
@@ -878,7 +884,7 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
             Stats = string.IsNullOrEmpty(data.LocalizedStats)
                 ? data.LocalizedDescription
                 : data.LocalizedStats,
-            Price = data.Price,
+            Price = 0,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.AbilityAccent,
             IconKey = "flame",
@@ -892,9 +898,9 @@ public class EquipmentUI : MonoBehaviour, ILangRefreshable
         {
             Clothing = data,
             Name = data.LocalizedName,
-            TypeLabel = Lang.Get("eq.clothing_type"),
+            TypeLabel = GameplayJourney.T("Персонаж · 2 умения","Character · 2 skills","Karakter · 2 yetenek"),
             RarityLabel = string.Empty,
-            Stats = data.LocalizedDescription,
+            Stats = CharacterBuild.Describe(data) + data.ProtectionDescription,
             Price = data.Price,
             UnlockLevel = data.UnlockLevel,
             Accent = EquipmentWireframeTheme.ClothingAccent,

@@ -24,5 +24,8 @@ public enum UpgradeType
     RunPerk,
     AbilityPower,
     AbilityHaste,
-    AbilityRange
+    AbilityRange,
+    CharacterPower,
+    CharacterHaste,
+    CharacterRange
 }

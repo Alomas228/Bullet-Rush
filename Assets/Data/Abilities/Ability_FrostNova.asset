@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Frost Nova
   kind: 4
   unlockLevel: 6
-  price: 250
+  price: 0
   stats: Frost Nova
   damage: 230
   radius: 5.2

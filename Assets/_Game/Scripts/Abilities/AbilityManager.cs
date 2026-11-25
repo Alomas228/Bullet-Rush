@@ -31,6 +31,18 @@ public class AbilityManager : MonoBehaviour
     private PlayerStats stats;
     private RunMetrics runMetrics;
     private float abilityPower = 1f, abilityRange = 1f, abilityCooldown = 1f;
+    private float characterPower=1f, characterRange=1f, characterCooldown=1f;
+    private AbilityKind? innateActive, innateAuto;
+    private bool IsInnate(AbilityKind kind) => innateActive==kind||innateAuto==kind;
+    public void SetInnate(AbilityKind active,AbilityKind auto) { innateActive=active; innateAuto=auto; }
+    public void UpgradeCharacter(float power,float range,float haste)
+    {
+        float oldPower=characterPower,oldRange=characterRange,oldCooldown=characterCooldown;
+        characterPower=Mathf.Min(2.2f,characterPower*(1f+power)); characterRange=Mathf.Min(1.5f,characterRange*(1f+range)); characterCooldown=Mathf.Max(.6f,characterCooldown*(1f-haste));
+        power=characterPower/oldPower-1f; range=characterRange/oldRange-1f; haste=1f-characterCooldown/oldCooldown;
+        if(HasBomb&&IsInnate(AbilityKind.Bomb)) { bombAbility.UpgradeDamage(power); bombAbility.UpgradeRadius(range); bombAbility.UpgradeCooldown(haste); }
+        if(HasShield&&IsInnate(AbilityKind.Shield)) { shieldAbility.UpgradeDuration(power*.5f); shieldAbility.UpgradeCooldown(haste); }
+    }
     public bool HasAny => HasBomb || HasShield || activeAbilities.Count > 0 || autoAbilities.Count > 0;
     public bool HasDamagingAbility => HasBomb || activeAbilities.Count > 0 || autoAbilities.Count > 0;
     public bool CanUnlock(AbilityKind kind) => SlotIndex(kind) >= 0 || FirstFreeSlot() >= 0;
@@ -50,6 +62,7 @@ public class AbilityManager : MonoBehaviour
         inputEnabled = false;
         System.Array.Clear(activeKinds,0,activeKinds.Length);
         autoAbilities.Clear(); activeAbilities.Clear(); abilityPower = abilityRange = abilityCooldown = 1f;
+        characterPower=characterRange=characterCooldown=1f; innateActive=innateAuto=null;
         AbilityVfxBatch.Clear(); runMetrics = null;
         if (bombAbility != null) bombAbility.ResetForSession();
         if (shieldAbility != null) shieldAbility.ResetForSession();
@@ -148,6 +161,7 @@ public class AbilityManager : MonoBehaviour
     private bool Reserve(AbilityKind kind, int preferred = -1)
     {
         if (SlotIndex(kind)>=0) return true;
+        if(innateActive==kind) preferred=0;
         int slot = preferred >= 0 && preferred < activeKinds.Length && !activeKinds[preferred].HasValue ? preferred : FirstFreeSlot();
         if (slot < 0) return false;
         activeKinds[slot] = kind; return true;
@@ -177,9 +191,9 @@ public class AbilityManager : MonoBehaviour
         AbilityVfxBatch.Prepare();
         return true;
     }
-    private float Duration(RuntimeAbility runtime) => Mathf.Max(.45f,runtime.Data.Cooldown*abilityCooldown);
+    private float Duration(RuntimeAbility runtime) => Mathf.Max(.45f,runtime.Data.Cooldown*abilityCooldown*(IsInnate(runtime.Data.Kind)?characterCooldown:1f));
     private bool Cast(RuntimeAbility runtime) => combat.Cast(runtime.Data,transform,
-        abilityPower*(stats!=null?stats.DamageMultiplier:1f)*RunBuildMechanics.EffectFactor,abilityRange);
+        abilityPower*(stats!=null?stats.DamageMultiplier:1f)*RunBuildMechanics.EffectFactor*(IsInnate(runtime.Data.Kind)?characterPower:1f),abilityRange*(IsInnate(runtime.Data.Kind)?characterRange:1f));
     public bool TryUseActive(int index)
     {
         if (!CanUse || index<0 || index>=activeKinds.Length || !activeKinds[index].HasValue) return false;

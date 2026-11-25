@@ -59,6 +59,7 @@ public class EquipmentCardData
 
         if (Ability != null)
         {
+            if(CharacterBuild.Innate(Ability.Kind)) { Unlocked=true; Owned=true; Equipped=true; return; }
             Unlocked = EquipmentManager.IsUnlocked(Ability);
             Owned = EquipmentManager.IsOwned(Ability);
             Equipped = EquipmentManager.IsEquipped(Ability);

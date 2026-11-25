@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Crescent Slash
   kind: 2
   unlockLevel: 1
-  price: 100
+  price: 0
   stats: Crescent Slash
   damage: 420
   radius: 4.8

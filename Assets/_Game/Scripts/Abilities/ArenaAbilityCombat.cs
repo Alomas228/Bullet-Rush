@@ -54,6 +54,36 @@ internal sealed class ArenaAbilityCombat
                 Vector3 point = group.transform.position;
                 float impact = Mathf.Min(3.8f,2.65f*radiusMultiplier);
                 Area(point,impact,damage,max,id,forward,0,0f); AbilityVfxBatch.Star(point,impact,Gold); return true;
+            case AbilityKind.VampirePulse:
+                int victims=Area(origin,range,damage,max,id,forward,0,0f);
+                var vampire=player.GetComponent<PlayerHealth>();
+                if(vampire!=null&&victims>0) vampire.Heal(vampire.MaxHealth*Mathf.Min(.06f,victims*.012f));
+                AbilityVfxBatch.Thunder(origin,range,new Color32(225,80,99,255)); return true;
+            case AbilityKind.BeeSwarm:
+                visited.Clear(); bool stung=false;
+                for(int i=0;i<max;i++)
+                {
+                    Enemy beeTarget=Nearest(origin,range,true); if(beeTarget==null) break;
+                    visited.Add(beeTarget); Vector3 pos=beeTarget.transform.position;
+                    Hit(beeTarget,damage,id); if(Valid(beeTarget)) beeTarget.ApplyBleeding(damage*.18f,2.0f,.5f);
+                    AbilityVfxBatch.Beam(origin+Vector3.up*.6f,pos,Gold); stung=true;
+                }
+                return stung;
+            case AbilityKind.RicochetVolley:
+                visited.Clear(); Enemy bounce=Nearest(origin,range); if(bounce==null) return false;
+                Vector3 from=origin;
+                for(int i=0;i<max&&bounce!=null;i++)
+                {
+                    Vector3 pos=bounce.transform.position; visited.Add(bounce);
+                    Hit(bounce,damage*Mathf.Pow(.82f,i),id); AbilityVfxBatch.Beam(from,pos,Gold);
+                    from=pos; bounce=Nearest(pos,3.4f,true);
+                }
+                return true;
+            case AbilityKind.GuardianAura:
+                var health=player.GetComponent<PlayerHealth>();
+                if(health==null||health.CurrentHealth>=health.MaxHealth-.01f) return false;
+                health.Heal(Mathf.Min(damage,health.MaxHealth*.05f));
+                AbilityVfxBatch.Ring(origin,range,new Color32(126,220,150,255),.42f); return true;
             default: return false;
         }
     }

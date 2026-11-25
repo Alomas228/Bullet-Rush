@@ -17,7 +17,7 @@ MonoBehaviour:
   description: Shadow Familiar
   kind: 7
   unlockLevel: 3
-  price: 160
+  price: 0
   stats: Shadow Familiar
   damage: 200
   radius: 8

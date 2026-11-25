@@ -71,6 +71,9 @@ public class CameraFollow : MonoBehaviour
     private float transitionElapsed;
     private float transitionDuration;
     private bool transitionInitialized;
+    private Camera viewCamera;
+    private float gameplayFieldOfView;
+    private float transitionOriginFov;
 
     private float trauma;
     private float fireTrauma;
@@ -114,6 +117,7 @@ public class CameraFollow : MonoBehaviour
 
     private void Start()
     {
+        EnsureViewCamera();
         GameStateManager instance = GameStateManager.Instance;
 
         bool isPlaying =
@@ -498,6 +502,8 @@ public class CameraFollow : MonoBehaviour
             transitionOriginRotation = baseRotation;
             transitionOriginParallax = smoothedParallax;
             transitionDuration = GetTransitionDuration(destination, targetRotation);
+            EnsureViewCamera();
+            transitionOriginFov = viewCamera != null ? viewCamera.fieldOfView : 60f;
         }
 
         // Scene activation can produce a very long first frame. Do not let a
@@ -509,6 +515,8 @@ public class CameraFollow : MonoBehaviour
         // pose. Unlike the old distance cutoff, this has no final position snap.
         float remaining = 1f - t;
         float ease = 1f - remaining * remaining * remaining * remaining;
+        if (viewCamera != null && !viewCamera.orthographic)
+            viewCamera.fieldOfView = Mathf.Lerp(transitionOriginFov, TargetFieldOfView(isMenu), ease);
         basePosition = Vector3.Lerp(transitionOrigin, destination, ease);
         baseRotation = Quaternion.Slerp(transitionOriginRotation, targetRotation, ease);
 
@@ -528,7 +536,7 @@ public class CameraFollow : MonoBehaviour
         transitioning = false;
         transitionInitialized = false;
         followTarget = !isMenu;
-        if (isMenu)
+        if (isMenu && !menuReported)
         {
             menuReported = true;
             OnReachedMenu?.Invoke();
@@ -546,8 +554,10 @@ public class CameraFollow : MonoBehaviour
 
     public void MoveToMenuPositionImmediate()
     {
+        EnsureViewCamera();
         GetMenuPose(out Vector3 position, out Quaternion rotation);
         transform.SetPositionAndRotation(position, rotation);
+        if(viewCamera != null && !viewCamera.orthographic) viewCamera.fieldOfView = TargetFieldOfView(true);
 
         followTarget = false;
         transitioning = false;
@@ -562,21 +572,21 @@ public class CameraFollow : MonoBehaviour
         baseInitialized = true;
     }
 
+    // Station changes are camera-only: do not trigger the gameplay/menu arrival event.
+    public void MoveToCampView()
+    {
+        if (GameStateManager.Instance == null ||
+            GameStateManager.Instance.CurrentState != GameState.Menu) return;
+        followTarget = false;
+        transitioning = true;
+        transitionInitialized = false;
+    }
+
     private void GetMenuPose(out Vector3 position, out Quaternion rotation)
     {
         if (ArcadeMenuSkin.CampMenuLayoutEnabled && target != null)
         {
-            Vector3 offset = ArcadeMenuSkin.CampCameraOffset;
-            Vector3 forward = new Vector3(-offset.x, 0f, -offset.z).normalized;
-            Vector3 right = Vector3.Cross(Vector3.up, forward);
-            // Frame the character to the right of the paper sidebar, without moving the player.
-            Rect safe = ResponsiveUi.ScreenSafeArea;
-            float scale = ResponsiveUi.Fit(safe.size, new Vector2(1320,1080), true);
-            float sidebar = 748f * scale + safe.xMin;
-            float shift = ResponsiveUi.Portrait ? 0f : 2.1f * (sidebar / Mathf.Max(1,Screen.height)) / (748f/1080f);
-            Vector3 lookAt = target.position - right * shift + Vector3.up * .08f;
-            position = lookAt + offset;
-            rotation = Quaternion.LookRotation(lookAt - position);
+            ArcadeMenuSkin.GetHubCameraPose(target, out position, out rotation);
             return;
         }
 
@@ -586,6 +596,8 @@ public class CameraFollow : MonoBehaviour
 
     public void MoveToGameplayPositionImmediate()
     {
+        EnsureViewCamera();
+        if(viewCamera != null && !viewCamera.orthographic) viewCamera.fieldOfView = gameplayFieldOfView;
         if (target != null)
         {
             transform.position = target.position + offset;
@@ -608,6 +620,21 @@ public class CameraFollow : MonoBehaviour
     public void SetTarget(Transform newTarget)
     {
         target = newTarget;
+    }
+
+    private void EnsureViewCamera()
+    {
+        if(viewCamera != null) return;
+        viewCamera = GetComponent<Camera>();
+        if(viewCamera == null) viewCamera = GetComponentInChildren<Camera>();
+        if(viewCamera != null) gameplayFieldOfView = viewCamera.fieldOfView;
+    }
+
+    private float TargetFieldOfView(bool menu)
+    {
+        return menu && ArcadeMenuSkin.CampMenuLayoutEnabled
+            ? ArcadeMenuSkin.GetHubFieldOfView()
+            : gameplayFieldOfView;
     }
 
     public float EstimateMenuTransitionTime()

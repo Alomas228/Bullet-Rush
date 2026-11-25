@@ -13,10 +13,10 @@ public static class GameBalanceCheck
         {
             var weapons = Load<WeaponData>("Assets/Data/Weapons");
             var skins = Load<ClothingData>("Assets/Data/Clothing");
-            var abilities = Load<AbilityData>("Assets/Data/Abilities");
+            var abilities = Load<AbilityData>("Assets/Data/Abilities").Concat(Load<AbilityData>("Assets/Resources/CharacterAbilities")).ToArray();
             var maps = Load<GameMap>("Assets/Data/Maps");
             Require(weapons.Length == 15 && skins.Length == 19 &&
-                    abilities.Length == 12 && maps.Length == 6, "Complete catalog");
+                    abilities.Length == 16 && maps.Length == 6, "Complete catalog");
             Require(weapons.All(x => x.UnlockLevel >= 1 && x.UnlockLevel <= 50 &&
                     (x.Price > 0 || x.UnlockLevel == 1)), "Weapons have valid prices/levels");
             Require(skins.Count(x => x.Price == 0) == 1, "Only the default outfit is free");
@@ -27,8 +27,14 @@ public static class GameBalanceCheck
             int upgrades = PermanentUpgrades.GetTotalCost() * PermanentUpgrades.Stats.Count;
             int total = weapons.Sum(x => x.Price) + skins.Sum(x => x.Price) +
                         abilities.Sum(x => x.Price) + upgrades;
-            Require(total == 31980 && upgrades == 13400, "Full catalog costs");
-            Require(abilities.Count(a => a.IsAutomatic) == 6 && abilities.Count(a => !a.IsAutomatic) == 6, "Six active and six automatic abilities");
+            Require(total == 29330 && upgrades == 13400, "Full catalog costs");
+            Require(abilities.Count(a => a.IsAutomatic) == 9 && abilities.Count(a => !a.IsAutomatic) == 7, "Ability type totals");
+            Require(abilities.Count(a=>a.IsCharacterOnly)==4 && abilities.All(a=>a.Price==0), "Character-exclusive and free abilities");
+            foreach(var character in skins)
+            {
+                var profile=CharacterBuild.For(character.MapPerkId);
+                Require(abilities.Any(a=>a.Kind==profile.Active&&!a.IsAutomatic)&&abilities.Any(a=>a.Kind==profile.Auto&&a.IsAutomatic), "Valid innate pair: "+character.ClothingName);
+            }
             Require(abilities.Select(a => a.Kind).Distinct().Count() == abilities.Length, "Unique ability kinds");
             Require(abilities.Select(a => a.AbilityName).Distinct().Count() == abilities.Length, "Unique saved ability IDs");
             Require(abilities.Where(a => !a.IsLegacy).All(a => a.Damage > 0 && a.Radius > 0 && a.Cooldown > 0 && a.MaxTargets <= 16), "Bounded ability settings");

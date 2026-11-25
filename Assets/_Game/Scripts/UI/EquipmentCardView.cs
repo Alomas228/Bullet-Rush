@@ -88,7 +88,8 @@ public class EquipmentCardView : MonoBehaviour
         if (isDetail && skinPreview != expandedPreview)
         {
             expandedPreview = skinPreview;
-            float extraHeight = skinPreview ? 54f : 0f;
+            // Character detail needs room for its two skills, talent and map protection.
+            float extraHeight = skinPreview ? -45f : 0f;
             iconWash.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 145f + extraHeight);
             glyph.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 145f + extraHeight);
             SetTop(typeText.rectTransform, 157f + extraHeight);
@@ -115,8 +116,16 @@ public class EquipmentCardView : MonoBehaviour
         typeText.text = string.IsNullOrEmpty(data.RarityLabel) ? data.TypeLabel
             : data.TypeLabel + "   /   " + data.RarityLabel;
         statsText.text = data.Stats;
+        statsText.enableAutoSizing=true;
+        statsText.fontSizeMin=14;
+        statsText.fontSizeMax=data.Clothing!=null?18:22;
         bool available;
-        if (!data.Unlocked)
+        if(data.Ability!=null&&CharacterBuild.Innate(data.Ability.Kind))
+        {
+            actionLabel.text=GameplayJourney.T("УЖЕ У ПЕРСОНАЖА","CHARACTER SKILL","KARAKTER YETENEGI");
+            available=false;
+        }
+        else if (!data.Unlocked)
         {
             actionLabel.text = Lang.Get("eq.state_locked_level", data.UnlockLevel);
             available = false;

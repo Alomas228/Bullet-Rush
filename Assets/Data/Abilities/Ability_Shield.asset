@@ -16,6 +16,6 @@ MonoBehaviour:
   abilityName: Щит
   description: Временный защитный барьер, который поглощает урон несколько секунд.
   kind: 1
-  unlockLevel: 6
-  price: 350
+  unlockLevel: 1
+  price: 0
   stats: Длительность: 2.25 с • Кулдаун: 14 с

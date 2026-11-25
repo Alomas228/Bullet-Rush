@@ -23,7 +23,11 @@ public enum AbilityKind
     LightningStorm,
     FlameRing,
     IceLance,
-    FallingStar
+    FallingStar,
+    VampirePulse,
+    BeeSwarm,
+    RicochetVolley,
+    GuardianAura
 }
 
 [CreateAssetMenu(
@@ -91,7 +95,8 @@ public class AbilityData : ScriptableObject
 
     public AbilityKind Kind => kind;
     public bool IsLegacy => kind == AbilityKind.Bomb || kind == AbilityKind.Shield;
-    public bool IsAutomatic => (int)kind >= (int)AbilityKind.OrbitBlades;
+    public bool IsAutomatic => (int)kind >= (int)AbilityKind.OrbitBlades && kind != AbilityKind.VampirePulse;
+    public bool IsCharacterOnly => (int)kind >= (int)AbilityKind.VampirePulse;
     public float Damage => Mathf.Max(0f, damage);
     public float Radius => Mathf.Clamp(radius, .1f, 9f);
     public float Cooldown => Mathf.Max(.25f, cooldown);
